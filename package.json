@@ -1,0 +1,16 @@
+{
+  "name": "manga-dl-root",
+  "private": true,
+  "scripts": {
+    "dev:backend": "cd backend && ./venv/bin/uvicorn app.main:app --reload --port 8000",
+    "dev:frontend": "cd frontend && bun dev",
+    "dev": "bun x concurrently \"bun run dev:backend\" \"bun run dev:frontend\"",
+    "install:all": "cd frontend && bun install && cd ../backend && ./venv/bin/pip install -r requirements.txt",
+    "start": "bun run dev",
+    "build:frontend": "cd frontend && bun run build",
+    "backend:test": "cd backend && ./venv/bin/pytest"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
