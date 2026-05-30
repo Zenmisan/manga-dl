@@ -10,6 +10,7 @@ dist/
 build/
 .pytest_cache/
 .coverage
+.agents
 
 # Node
 node_modules/

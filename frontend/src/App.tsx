@@ -58,7 +58,7 @@ function App() {
 
         <div className="p-4 border-t border-[#27272a]">
           <a
-            href="https://github.com"
+            href="https://github.com/zenmi/manga-dl"
             target="_blank"
             className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white transition-colors"
           >

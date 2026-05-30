@@ -48,6 +48,10 @@ Edit `backend/app/config.py` or create a `.env` file in `backend/`:
 - `API_KEY`: Set this to enable authentication (header `X-API-Key`).
 - `MAX_CONCURRENT_DOWNLOADS`: Number of parallel downloads (default: 3).
 
+## Deployment
+
+For a detailed guide on how to host this project for free using Firebase, Render, and Supabase, see the [Deployment Guide](docs/DEPLOYMENT.md).
+
 ## Directory Structure
 - `backend/`: FastAPI application logic.
 - `frontend/`: React dashboard.
