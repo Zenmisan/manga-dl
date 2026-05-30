@@ -32,7 +32,7 @@ Render allows you to deploy the backend using the provided `Dockerfile`.
 5. Add these **Environment Variables**:
    - `DATABASE_URL`: Your Supabase URI from Step 1.
    - `API_KEY`: A secure secret of your choice.
-   - `CORS_ORIGINS`: `["https://your-firebase-app.web.app"]`
+   - `CORS_ORIGINS`: `https://your-firebase-app.web.app` (You can also provide a comma-separated list or a JSON array).
    - `LIBRARY_PATH`: `/tmp/manga-library`
    - `CACHE_PATH`: `/tmp/manga-cache`
 
