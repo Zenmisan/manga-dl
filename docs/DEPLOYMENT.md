@@ -63,9 +63,17 @@ const api = axios.create({
    ```
 5. Deploy: `firebase deploy --only hosting`
 
----
+### 5. Troubleshooting Common Issues
 
-## 4. Limitations & Persistence
-- **Manga Storage**: Files downloaded to `/tmp/manga-library` on Render are **ephemeral**. They will be deleted when the server restarts or goes to sleep.
-- **Recommended Workflow**: Use the app to download chapters, and then immediately download the resulting `.cbz` file to your local device from the "Library" or "Downloads" page.
-- **Permanent Solution**: For 100% permanent storage, consider upgrading to a Render "Disk" (paid) or using a "real" VPS like the Oracle Cloud Free Tier.
+#### `OSError: [Errno 101] Network is unreachable`
+This happens on Render Free Tier because it doesn't support IPv6 outbound. By default, Supabase's direct connection host (`db.xxxx.supabase.co`) resolves to IPv6.
+
+**Solution**: Use the **Supabase Transaction Pooler** (IPv4) connection string.
+1. In Supabase, go to **Settings > Database**.
+2. Scroll to **Connection String**.
+3. Select the **Transaction Pooler** tab.
+4. Ensure the mode is set to **Transaction**.
+5. Copy the URI (it usually uses port **6543** and a hostname starting with `aws-0-`).
+6. Append `?ssl=require` to the end of your `DATABASE_URL` on Render.
+
+*Correct Format:* `postgresql+asyncpg://postgres:pass@aws-0-us-east-1.pooler.supabase.com:6543/postgres?ssl=require`
