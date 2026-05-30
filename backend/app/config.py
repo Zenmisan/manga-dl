@@ -17,6 +17,15 @@ class Settings(BaseSettings):
     CORS_ORIGINS: Any = ["http://localhost:5173", "http://localhost:3000"]
     API_KEY: str | None = None
 
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def ensure_async_pg(cls, v: str) -> str:
+        if v.startswith("postgresql://"):
+            return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        if v.startswith("postgres://"):
+            return v.replace("postgres://", "postgresql+asyncpg://", 1)
+        return v
+
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v: Any) -> list[str]:
