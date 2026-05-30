@@ -190,6 +190,3 @@ class Provider(ABC):
             "name": cls.name,
             "base_url": cls.base_url,
         }
-,
-            "base_url": cls.base_url,
-        }
