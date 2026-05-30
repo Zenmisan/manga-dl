@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
@@ -12,6 +12,7 @@ from app.core.queue import download_queue
 from app.core.tasks import start_sync_task, stop_sync_task
 from app.api import manga, downloads, settings as settings_router, library
 from app.providers import list_providers
+from app.core.security import verify_api_key
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
