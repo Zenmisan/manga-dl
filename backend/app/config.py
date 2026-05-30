@@ -5,6 +5,7 @@ from functools import lru_cache
 
 from pydantic import field_validator
 import json
+from typing import Any
 
 
 class Settings(BaseSettings):
@@ -13,19 +14,22 @@ class Settings(BaseSettings):
     CACHE_PATH: str = str(Path.home() / ".manga-dl-cache")
     MAX_CONCURRENT_DOWNLOADS: int = 3
     REQUEST_DELAY: float = 1.0  # seconds between requests to same host
-    CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:3000"]
+    CORS_ORIGINS: Any = ["http://localhost:5173", "http://localhost:3000"]
     API_KEY: str | None = None
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
-    def assemble_cors_origins(cls, v: str | list[str]) -> list[str]:
+    def assemble_cors_origins(cls, v: Any) -> list[str]:
         if isinstance(v, str):
+            v = v.strip()
+            if not v:
+                return []
             if v.startswith("[") and v.endswith("]"):
                 try:
                     return json.loads(v)
                 except json.JSONDecodeError:
                     pass
-            return [i.strip() for i in v.split(",")]
+            return [i.strip() for i in v.split(",") if i.strip()]
         return v
 
     class Config:
