@@ -9,9 +9,10 @@ import {
   Tag, 
   Info, 
   CheckCircle2, 
-  Loader2
+  Loader2,
+  ExternalLink
 } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
 
 interface Chapter {
@@ -40,6 +41,7 @@ export default function MangaDetail() {
   const [manga, setManga] = useState<MangaDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [downloading, setDownloading] = useState<string[]>([])
+  const [showQueueLink, setShowQueueLink] = useState(false)
 
   useEffect(() => {
     const fetchManga = async () => {
@@ -63,7 +65,7 @@ export default function MangaDetail() {
         manga_id: mangaId,
         chapter_id: chapterId
       })
-      // Optional: show toast
+      setShowQueueLink(true)
     } catch (err) {
       console.error(err)
     } finally {
@@ -108,6 +110,21 @@ export default function MangaDetail() {
           >
             <ChevronLeft className="w-6 h-6" />
           </button>
+
+          <AnimatePresence>
+            {showQueueLink && (
+              <motion.button
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                onClick={() => navigate('/downloads')}
+                className="absolute top-8 right-6 flex items-center gap-2 px-5 py-3 glass-panel bg-emerald-500/20 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-all shadow-xl z-10 font-bold text-sm"
+              >
+                <ExternalLink className="w-4 h-4" />
+                View Queue
+              </motion.button>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 

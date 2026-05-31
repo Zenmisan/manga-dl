@@ -37,9 +37,11 @@ export default function DownloadsPage() {
     fetchData()
     
     // Setup WebSocket for real-time updates
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const apiKey = localStorage.getItem('manga-api-key') || ''
     const wsUrl = import.meta.env.PROD 
-      ? `wss://${window.location.host}/ws` 
-      : `ws://localhost:8000/ws`
+      ? `${protocol}//${window.location.host}/api/downloads/ws?api_key=${apiKey}` 
+      : `ws://localhost:8000/api/downloads/ws?api_key=${apiKey}`
     const ws = new WebSocket(wsUrl)
     
     ws.onmessage = (event) => {

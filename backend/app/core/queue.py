@@ -165,6 +165,9 @@ class DownloadQueue:
             info["error"] = str(exc)
 
         await _broadcast({"type": "completed", "download": dict(info)})
+        # Remove from active map so it doesn't show up in list_active()
+        # The frontend will move it to history based on the 'completed' event
+        _active.pop(download_id, None)
 
     def list_active(self) -> list[dict]:
         return list(_active.values())
