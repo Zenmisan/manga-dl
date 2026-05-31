@@ -77,6 +77,6 @@ This happens on Render Free Tier because it doesn't support IPv6 outbound. By de
 3. Select the **Transaction Pooler** tab.
 4. Ensure the mode is set to **Transaction**.
 5. Copy the URI (it usually uses port **6543** and a hostname starting with `aws-0-`).
-6. Append `?ssl=require` to the end of your `DATABASE_URL` on Render.
+6. Append `?sslmode=require` to the end of your `DATABASE_URL` on Render.
 
-*Correct Format:* `postgresql+psycopg://postgres:pass@aws-0-us-east-1.pooler.supabase.com:6543/postgres?ssl=require`
+*Correct Format:* `postgresql+psycopg://postgres:pass@aws-0-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require`
