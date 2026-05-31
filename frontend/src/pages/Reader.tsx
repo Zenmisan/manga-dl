@@ -20,8 +20,6 @@ export default function Reader() {
   const [showControls, setShowControls] = useState(true)
   const [viewMode, setViewMode] = useState<'vertical' | 'paged'>('vertical')
   const [currentPage, setCurrentPage] = useState(1)
-  
-  const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const fetchManifest = async () => {

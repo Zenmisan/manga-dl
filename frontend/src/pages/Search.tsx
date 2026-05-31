@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../lib/api'
-import { Search as SearchIcon, Globe, Loader2, ChevronRight, BookOpen, Layers, Star, TrendingUp } from 'lucide-react'
+import { Search as SearchIcon, Globe, Loader2, ChevronRight, BookOpen, Layers, Star } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
 

@@ -15,7 +15,6 @@ import {
   Pin,
   PinOff,
   Upload,
-  Cloud,
   RefreshCw
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
