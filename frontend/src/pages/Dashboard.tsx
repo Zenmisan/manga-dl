@@ -84,18 +84,24 @@ export default function Dashboard() {
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
+                        console.log('Downloading file:', file);
                         handleDownloadFile(selectedManga.title, file);
                       }}
-                      className="p-3 bg-white/5 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-all border border-white/5"
+                      className="p-3 bg-white/5 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-all border border-white/5 cursor-pointer active:scale-95"
                       title="Download to device"
                     >
-                      <Download className="w-5 h-5" />
+                      <Download className="w-5 h-5 pointer-events-none" />
                     </button>
                     <button 
-                      onClick={() => navigate(`/read/${encodeURIComponent(selectedManga.title)}/${encodeURIComponent(file)}`)}
-                      className="px-5 py-3 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-red-600/20 active:scale-95 transition-all"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const url = `/read/${encodeURIComponent(selectedManga.title)}/${encodeURIComponent(file)}`;
+                        console.log('Navigating to reader:', url);
+                        navigate(url);
+                      }}
+                      className="px-6 py-3 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-red-600/20 active:scale-95 transition-all cursor-pointer"
                     >
-                      <Play className="w-4 h-4 fill-current" />
+                      <Play className="w-4 h-4 fill-current pointer-events-none" />
                       Read
                     </button>
                   </div>

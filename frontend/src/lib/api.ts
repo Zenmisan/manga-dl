@@ -1,7 +1,9 @@
 import axios from 'axios'
 
+const isProd = import.meta.env.PROD
 const api = axios.create({
-  baseURL: 'https://manga-dl.onrender.com/api',
+  // Use absolute URL in production, relative /api for local dev proxy
+  baseURL: isProd ? 'https://manga-dl.onrender.com/api' : '/api',
   headers: {
     'Content-Type': 'application/json',
   },
