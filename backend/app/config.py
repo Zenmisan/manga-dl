@@ -21,9 +21,9 @@ class Settings(BaseSettings):
     @classmethod
     def ensure_async_pg(cls, v: str) -> str:
         if v.startswith("postgresql://"):
-            return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+            return v.replace("postgresql://", "postgresql+psycopg://", 1)
         if v.startswith("postgres://"):
-            return v.replace("postgres://", "postgresql+asyncpg://", 1)
+            return v.replace("postgres://", "postgresql+psycopg://", 1)
         return v
 
     @field_validator("CORS_ORIGINS", mode="before")
