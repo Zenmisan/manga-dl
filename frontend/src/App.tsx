@@ -8,6 +8,7 @@ import SearchPage from './pages/Search'
 import DownloadsPage from './pages/Downloads'
 import SettingsPage from './pages/Settings'
 import MangaDetail from './pages/MangaDetail'
+import Reader from './pages/Reader'
 
 function App() {
   const location = useLocation()
@@ -87,6 +88,7 @@ function App() {
               <Route path="/downloads" element={<DownloadsPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/manga/:provider/*" element={<MangaDetail />} />
+              <Route path="/read/:mangaTitle/:filename" element={<Reader />} />
             </Routes>
           </motion.div>
         </AnimatePresence>
