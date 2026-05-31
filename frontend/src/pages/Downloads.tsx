@@ -37,13 +37,31 @@ export default function DownloadsPage() {
     fetchData()
     
     // Setup WebSocket for real-time updates
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const apiKey = localStorage.getItem('manga-api-key') || ''
-    const wsUrl = import.meta.env.PROD 
-      ? `${protocol}//${window.location.host}/api/downloads/ws?api_key=${apiKey}` 
-      : `ws://localhost:8000/api/downloads/ws?api_key=${apiKey}`
-    const ws = new WebSocket(wsUrl)
+    const getWsUrl = () => {
+      const apiKey = localStorage.getItem('manga-api-key') || ''
+      // Get the base API URL (e.g., https://manga-dl.onrender.com/api)
+      const apiBase = api.defaults.baseURL || ''
+      
+      let wsBase: string
+      if (apiBase.startsWith('http')) {
+        // Production: convert https://.../api to wss://.../api/downloads/ws
+        wsBase = apiBase.replace(/^http/, 'ws') + '/downloads/ws'
+      } else {
+        // Local dev: assume relative path or localhost
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+        const host = window.location.host.includes('localhost') ? 'localhost:8000' : window.location.host
+        wsBase = `${protocol}//${host}/api/downloads/ws`
+      }
+      
+      return `${wsBase}?api_key=${apiKey}`
+    }
+
+    const ws = new WebSocket(getWsUrl())
     
+    ws.onopen = () => console.log('WebSocket connected to backend')
+    ws.onerror = (err) => console.error('WebSocket error:', err)
+    ws.onclose = () => console.log('WebSocket disconnected')
+
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data)
       if (data.type === 'progress' || data.type === 'started' || data.type === 'queued') {
