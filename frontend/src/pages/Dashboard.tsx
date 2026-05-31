@@ -49,7 +49,7 @@ export default function Dashboard() {
     const formData = new FormData()
     formData.append('file', file)
 try {
-  const response = await api.post('/library/upload', formData, {
+  await api.post('/library/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
     timeout: 0, // Disable timeout for large uploads
     onUploadProgress: (progressEvent) => {
