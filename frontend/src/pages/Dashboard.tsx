@@ -35,7 +35,8 @@ export default function Dashboard() {
 
   const handleDownloadFile = (mangaTitle: string, filename: string) => {
     const base = api.defaults.baseURL || ''
-    window.open(`${base}/library/file/${mangaTitle}/${filename}`, '_blank')
+    const apiKey = localStorage.getItem('manga-api-key') || ''
+    window.open(`${base}/library/file/${encodeURIComponent(mangaTitle)}/${encodeURIComponent(filename)}?api_key=${apiKey}`, '_blank')
   }
 
   return (

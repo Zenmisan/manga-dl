@@ -39,12 +39,14 @@ export default function Reader() {
 
   const getImageUrl = (pageName: string) => {
     const base = api.defaults.baseURL || ''
-    return `${base}/library/image/${mangaTitle}/${filename}/${encodeURIComponent(pageName)}`
+    const apiKey = localStorage.getItem('manga-api-key') || ''
+    return `${base}/library/image/${encodeURIComponent(mangaTitle || '')}/${encodeURIComponent(filename || '')}/${encodeURIComponent(pageName)}?api_key=${apiKey}`
   }
 
   const handleDownload = () => {
     const base = api.defaults.baseURL || ''
-    window.open(`${base}/library/file/${mangaTitle}/${filename}`, '_blank')
+    const apiKey = localStorage.getItem('manga-api-key') || ''
+    window.open(`${base}/library/file/${encodeURIComponent(mangaTitle || '')}/${encodeURIComponent(filename || '')}?api_key=${apiKey}`, '_blank')
   }
 
   if (loading) {
