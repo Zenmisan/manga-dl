@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../lib/api'
-import { Search as SearchIcon, Globe, Loader2, ChevronRight, BookOpen, Layers } from 'lucide-react'
+import { Search as SearchIcon, Globe, Loader2, ChevronRight, BookOpen, Layers, Star, TrendingUp } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
 
@@ -12,6 +12,8 @@ interface MangaResult {
   provider: string
   url: string
   status: string | null
+  anilist_score?: number
+  anilist_url?: string
 }
 
 export default function SearchPage() {
@@ -139,11 +141,19 @@ export default function SearchPage() {
                   </div>
                 </div>
 
-                <div className="flex-1 flex flex-col justify-between py-1">
+                <div className="flex-1 flex flex-col justify-between py-1 min-w-0">
                   <div className="space-y-1.5">
-                    <h3 className="font-bold text-gray-100 line-clamp-2 leading-snug md:text-lg group-hover:text-red-400 transition-colors">
-                      {r.title}
-                    </h3>
+                    <div className="flex items-start justify-between gap-3">
+                      <h3 className="font-bold text-gray-100 line-clamp-2 leading-snug md:text-lg group-hover:text-red-400 transition-colors flex-1">
+                        {r.title}
+                      </h3>
+                      {r.anilist_score && (
+                        <div className="flex items-center gap-1 px-2 py-0.5 bg-amber-500/10 text-amber-500 rounded-lg border border-amber-500/20 shrink-0">
+                          <Star className="w-3 h-3 fill-current" />
+                          <span className="text-[10px] font-black">{r.anilist_score}%</span>
+                        </div>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2">
                       <div className={cn(
                         "w-1.5 h-1.5 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)]",

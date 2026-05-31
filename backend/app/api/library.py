@@ -220,3 +220,72 @@ async def toggle_pin(manga_title: str, filename: str, db: AsyncSession = Depends
         await db.commit()
         return {"status": "ok", "pinned": record.pinned}
     return {"status": "not_found"}
+
+
+@router.post("/upload")
+async def upload_manga(
+    file: UploadFile = File(...), 
+    db: AsyncSession = Depends(get_db)
+):
+    """Upload a local ZIP/CBZ file to the cloud library."""
+    if not file.filename.lower().endswith(('.zip', '.cbz')):
+        raise HTTPException(status_code=400, detail="Only .zip or .cbz files are supported")
+
+    # 1. Save to a temporary local file
+    temp_id = str(uuid.uuid4())
+    temp_path = Path(settings.CACHE_PATH) / f"upload_{temp_id}_{file.filename}"
+    temp_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    try:
+        with open(temp_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+            
+        # 2. Extract basic info (Title and Cover)
+        manga_title = "Uploaded Manga"
+        clean_name = file.filename.replace('.cbz', '').replace('.zip', '')
+        if " Ch." in clean_name:
+            manga_title = clean_name.split(" Ch.")[0]
+        else:
+            manga_title = clean_name
+            
+        file_size = temp_path.stat().st_size
+        
+        # 3. Upload to Supabase
+        remote_path = f"{manga_title}/{file.filename}"
+        if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_KEY:
+            from app.core.storage import upload_file, check_and_evict
+            await check_and_evict(db, file_size)
+            await upload_file(temp_path, remote_path)
+            output_path = remote_path
+        else:
+            dest_path = Path(settings.LIBRARY_PATH) / manga_title / file.filename
+            dest_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy(temp_path, dest_path)
+            output_path = str(dest_path)
+
+        # 4. Create database record
+        record = DownloadRecord(
+            id=temp_id,
+            manga_id=f"upload:{manga_title.lower().replace(' ', '-')}",
+            chapter_id=temp_id,
+            provider="upload",
+            manga_title=manga_title,
+            chapter_title=clean_name,
+            chapter_number=0.0,
+            status="done",
+            progress=100,
+            file_size_bytes=file_size,
+            output_path=output_path,
+            completed_at=datetime.utcnow(),
+        )
+        db.add(record)
+        await db.commit()
+        
+        return {"status": "ok", "manga": manga_title, "file": file.filename}
+
+    except Exception as e:
+        log.exception("Upload failed")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if temp_path.exists():
+            temp_path.unlink()

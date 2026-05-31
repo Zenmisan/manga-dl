@@ -23,6 +23,8 @@ class SearchResult(BaseModel):
     provider: str
     url: str
     status: str | None
+    anilist_score: int | None = None
+    anilist_url: str | None = None
 
 
 class ChapterOut(BaseModel):
@@ -116,6 +118,14 @@ async def search_manga(
     results_nested = await asyncio.gather(*[_search(p) for p in providers])
     results = [item for sublist in results_nested for item in sublist]
 
+    # Enrich with AniList scores (non-blocking)
+    from app.core.metadata import enrich_results_with_metadata
+    try:
+        results = await enrich_results_with_metadata(results)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Metadata enrichment failed: {e}")
+
     return [
         SearchResult(
             id=r.id,
@@ -124,6 +134,8 @@ async def search_manga(
             provider=r.provider,
             url=r.url,
             status=r.status,
+            anilist_score=getattr(r, "anilist_score", None),
+            anilist_url=getattr(r, "anilist_url", None),
         )
         for r in results
     ]

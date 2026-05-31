@@ -13,7 +13,10 @@ import {
   Download,
   FileText,
   Pin,
-  PinOff
+  PinOff,
+  Upload,
+  Cloud,
+  RefreshCw
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
@@ -30,6 +33,7 @@ export default function Dashboard() {
   const [view, setView] = useState<'grid' | 'list'>('grid')
   const [selectedManga, setSelectedManga] = useState<LibraryItem | null>(null)
   const [pinnedFiles, setPinnedFiles] = useState<string[]>([])
+  const [uploading, setUploading] = useState(false)
 
   useEffect(() => {
     api.get('/library').then(res => {
@@ -37,6 +41,28 @@ export default function Dashboard() {
       setLoading(false)
     }).catch(() => setLoading(false))
   }, [])
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploading(true)
+    const formData = new FormData()
+    formData.append('file', file)
+
+    try {
+      await api.post('/library/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      const res = await api.get('/library')
+      setItems(res.data)
+    } catch (err) {
+      console.error('Upload failed:', err)
+      alert('Upload failed. Ensure the file is a .zip or .cbz')
+    } finally {
+      setUploading(false)
+    }
+  }
 
   const handleDownloadFile = (mangaTitle: string, filename: string) => {
     const base = api.defaults.baseURL || ''
@@ -174,6 +200,15 @@ export default function Dashboard() {
               </div>
 
               <div className="flex bg-white/5 border border-white/5 rounded-2xl p-1.5 backdrop-blur-sm self-start md:self-auto">
+                <label className={cn(
+                  "p-2.5 rounded-xl transition-all cursor-pointer flex items-center gap-2 px-4",
+                  uploading ? "opacity-50 pointer-events-none" : "hover:bg-white/5 text-white/40 hover:text-white"
+                )}>
+                  <input type="file" className="hidden" accept=".zip,.cbz" onChange={handleUpload} />
+                  {uploading ? <RefreshCw className="w-4 h-4 animate-spin text-red-500" /> : <Upload className="w-4 h-4" />}
+                  <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:inline">Upload</span>
+                </label>
+                <div className="w-px h-4 bg-white/10 my-auto mx-1" />
                 <button 
                   onClick={() => setView('grid')}
                   className={`p-2.5 rounded-xl transition-all ${view === 'grid' ? 'bg-white/10 text-white shadow-lg' : 'text-white/40 hover:text-white/60'}`}
@@ -206,15 +241,23 @@ export default function Dashboard() {
                 </div>
                 <h2 className="text-2xl font-bold mb-3">Your library is empty</h2>
                 <p className="text-white/40 max-w-sm mb-10 leading-relaxed">
-                  Start by searching for your favorite manga and adding them to your queue.
+                  Start by searching for your favorite manga or upload your own local ZIP/CBZ files.
                 </p>
-                <button 
-                  onClick={() => navigate('/search')}
-                  className="btn-primary flex items-center gap-2 group"
-                >
-                  <Sparkles className="w-4 h-4 group-hover:rotate-12 transition-transform" />
-                  Browse Providers
-                </button>
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <button 
+                    onClick={() => navigate('/search')}
+                    className="btn-primary flex items-center justify-center gap-2 group"
+                  >
+                    <Sparkles className="w-4 h-4 group-hover:rotate-12 transition-transform" />
+                    Browse Providers
+                  </button>
+                  <label className="btn-secondary flex items-center justify-center gap-2 cursor-pointer">
+                    <input type="file" className="hidden" accept=".zip,.cbz" onChange={handleUpload} />
+                    <Upload className="w-4 h-4" />
+                    Upload Local File
+                  </label>
+                </div>
+
               </motion.div>
             ) : (
               <div className={view === 'grid' 
