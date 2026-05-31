@@ -30,9 +30,12 @@ Render allows you to deploy the backend using the provided `Dockerfile`.
    - **Runtime**: `Docker`
    - **Instance Type**: `Free`
 5. Add these **Environment Variables**:
-   - `DATABASE_URL`: Your Supabase URI from Step 1.
+   - `DATABASE_URL`: Your Supabase URI. 
+     - *Note:* The app automatically converts `postgres://` to the required `postgresql+asyncpg://` format for you.
    - `API_KEY`: A secure secret of your choice.
-   - `CORS_ORIGINS`: `https://your-firebase-app.web.app` (You can also provide a comma-separated list or a JSON array).
+   - `CORS_ORIGINS`: `https://your-firebase-app.web.app`
+     - *Note:* You can provide a single URL, a comma-separated list, or a JSON array.
+
    - `LIBRARY_PATH`: `/tmp/manga-library`
    - `CACHE_PATH`: `/tmp/manga-cache`
 
@@ -77,3 +80,7 @@ This happens on Render Free Tier because it doesn't support IPv6 outbound. By de
 6. Append `?ssl=require` to the end of your `DATABASE_URL` on Render.
 
 *Correct Format:* `postgresql+asyncpg://postgres:pass@aws-0-us-east-1.pooler.supabase.com:6543/postgres?ssl=require`
+
+#### `DuplicatePreparedStatementError`
+If you see an error about `prepared statement "__asyncpg_stmt_X__" already exists`, it's because the Supabase Transaction Pooler (PgBouncer) doesn't support them.
+- **Solution:** I have already updated the code in `backend/app/database.py` to set `prepared_statement_cache_size=0`. This is the standard fix for PgBouncer compatibility.
