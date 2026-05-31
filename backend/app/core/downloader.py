@@ -2,7 +2,7 @@
 Downloads chapter images and packages them into CBZ archives.
 """
 import asyncio
-import httpx
+from curl_cffi.requests import AsyncSession
 import zipfile
 import os
 import re
@@ -12,7 +12,7 @@ import logging
 log = logging.getLogger(__name__)
 
 
-async def download_image(client: httpx.AsyncClient, url: str, dest: Path, filename: str):
+async def download_image(client: AsyncSession, url: str, dest: Path, filename: str):
     """Download a single image to dest/filename."""
     dest.mkdir(parents=True, exist_ok=True)
     out = dest / filename
@@ -21,7 +21,11 @@ async def download_image(client: httpx.AsyncClient, url: str, dest: Path, filena
 
     try:
         resp = await client.get(url, timeout=30.0)
-        resp.raise_for_status()
+        # curl_cffi uses status_code
+        if resp.status_code != 200:
+            log.warning("Failed to download %s: Status %s", url, resp.status_code)
+            return
+
         out.write_bytes(resp.content)
     except Exception as exc:
         log.warning("Failed to download %s: %s", url, exc)
@@ -39,6 +43,10 @@ def package_cbz(image_dir: Path, output_path: Path):
         [f for f in image_dir.iterdir() if f.suffix.lower() in (".jpg", ".jpeg", ".png", ".webp", ".gif")],
         key=lambda f: f.name,
     )
+    if not images:
+        log.warning("No images found in %s, skipping CBZ packaging", image_dir)
+        return
+
     with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as zf:
         for img in images:
             zf.write(img, img.name)
@@ -59,7 +67,6 @@ async def download_chapter_to_cbz(
     Returns the path to the CBZ file.
     """
     safe_title = _safe_filename(manga_title)
-    vol = "01"  # Single volume by default; extend later for vol tracking
     ch_num = f"{chapter_number:06.1f}".rstrip("0").rstrip(".")
     cbz_name = f"{safe_title} Ch.{ch_num}.cbz"
     cbz_path = library_path / safe_title / cbz_name
@@ -70,17 +77,10 @@ async def download_chapter_to_cbz(
     tmp_dir = cache_path / "downloads" / provider_id / _safe_filename(f"{manga_title}-ch{chapter_number}")
     tmp_dir.mkdir(parents=True, exist_ok=True)
 
-    ext_map = {
-        "image/jpeg": ".jpg",
-        "image/png": ".png",
-        "image/webp": ".webp",
-        "image/gif": ".gif",
-    }
-
-    async with httpx.AsyncClient(
-        headers={"User-Agent": "Mozilla/5.0 (compatible; manga-dl/1.0)"},
+    async with AsyncSession(
+        impersonate="chrome110",
         follow_redirects=True,
-        timeout=30.0,
+        timeout=60.0,
     ) as client:
         for i, url in enumerate(page_urls, start=1):
             ext = "." + url.split("?")[0].split(".")[-1].lower()
@@ -95,7 +95,7 @@ async def download_chapter_to_cbz(
             if on_progress:
                 await on_progress(i, len(page_urls))
 
-            await asyncio.sleep(0.1)  # polite delay between page downloads
+            await asyncio.sleep(0.05)  # polite delay between page downloads
 
     package_cbz(tmp_dir, cbz_path)
 

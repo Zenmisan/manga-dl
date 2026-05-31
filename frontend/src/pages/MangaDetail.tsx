@@ -58,8 +58,8 @@ export default function MangaDetail() {
   const handleDownload = async (chapterId: string) => {
     setDownloading(prev => [...prev, chapterId])
     try {
-      await api.post('/downloads/enqueue', {
-        provider,
+      await api.post('/downloads/queue', {
+        provider_id: provider,
         manga_id: mangaId,
         chapter_id: chapterId
       })
