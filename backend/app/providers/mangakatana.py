@@ -54,11 +54,11 @@ class MangaKatanaProvider(Provider):
             resp2 = await client.get(f"{SITE}/manga/one-piece.49")
             if resp2.status_code == 200:
                 soup2 = BeautifulSoup(resp2.text, "html.parser")
-                if not soup2.select_one(".chapters"):
-                    failures.append(".chapters (chapter list)")
+                if not soup2.select_one(".chapters tr"):
+                    failures.append(".chapters tr (chapter list)")
                     critical_failure = True
-                if not soup2.select_one(".single-header"):
-                    failures.append(".single-header (manga detail header)")
+                if not soup2.select_one("h1.heading"):
+                    failures.append("h1.heading (manga detail header)")
                     # not critical — detail still works without this
 
         except Exception as exc:

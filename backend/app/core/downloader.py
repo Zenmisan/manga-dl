@@ -79,7 +79,7 @@ async def download_chapter_to_cbz(
 
     async with AsyncSession(
         impersonate="chrome110",
-        follow_redirects=True,
+        allow_redirects=True,
         timeout=60.0,
     ) as client:
         for i, url in enumerate(page_urls, start=1):
