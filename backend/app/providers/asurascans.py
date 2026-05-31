@@ -12,11 +12,11 @@ from app.providers.base import (
     HealthReport, ProviderHealth, ScraperFingerprint,
 )
 
-SITE = "https://asuracomic.net"
+SITE = "https://asurascans.com"
 
 _FINGERPRINTS = [
-    ScraperFingerprint(name=".grid.grid-cols-2", critical=True),     # manga grid on browse page
-    ScraperFingerprint(name=".flex.flex-col.gap-2", critical=False),  # chapter list
+    ScraperFingerprint(name="a[href*='/comics/']", critical=True),     # manga links
+    ScraperFingerprint(name="a[href*='/chapter/']", critical=False),  # chapter links
 ]
 
 
@@ -34,13 +34,14 @@ class AsuraScansProvider(Provider):
 
         try:
             client = await self._get_client()
-            resp = await client.get(f"{SITE}/series", params={"name": "solo leveling"})
+            # Try to hit the browse page
+            resp = await client.get(f"{SITE}/browse")
             resp.raise_for_status()
             soup = BeautifulSoup(resp.text, "html.parser")
 
-            # Check for manga grid
-            if not soup.select_one(".grid"):
-                failures.append(".grid (manga grid)")
+            # Check for manga links
+            if not soup.select("a[href*='/comics/']"):
+                failures.append("a[href*='/comics/'] (manga links)")
                 critical_failure = True
 
         except Exception as exc:
@@ -61,68 +62,86 @@ class AsuraScansProvider(Provider):
 
     async def search(self, query: str, page: int = 1) -> list[MangaResult]:
         client = await self._get_client()
-        resp = await client.get(f"{SITE}/series", params={
-            "name": query,
-            "page": page,
-        })
+        # Asura Scans search is robust on /browse?q=
+        url = f"{SITE}/browse"
+        resp = await client.get(url, params={"q": query})
+        
+        # Handle direct redirects if they happen (e.g. searching exact title)
+        if "/comics/" in str(resp.url) and resp.url != url:
+            soup = BeautifulSoup(resp.text, "html.parser")
+            slug = str(resp.url).rstrip("/").split("/")[-1]
+            title_el = soup.select_one("h1") or soup.select_one("span.text-xl.font-bold")
+            img = soup.select_one("img[alt='poster']") or soup.select_one("img")
+            return [MangaResult(
+                id=slug,
+                title=title_el.get_text(strip=True) if title_el else slug,
+                cover_url=img.get("src") if img else None,
+                provider=self.id,
+                url=str(resp.url),
+            )]
+
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, "html.parser")
 
         results = []
-        # Asura uses Next.js; manga cards are typically <a> tags in a grid
-        for card in soup.select("a[href*='/series/']"):
+        # Asura uses Astro; manga cards are often <a> tags containing /comics/ in href
+        for card in soup.select("a[href*='/comics/']"):
             href = card.get("href", "")
-            if not href or href == "/series":
+            if not href or href == "/comics" or "/chapter/" in href:
                 continue
-            slug = href.rstrip("/").split("/")[-1]
-            if not slug or slug == "series":
+            
+            # Slug is the full part after /comics/
+            slug = href.split("/comics/")[-1].strip("/")
+            if not slug or any(x in slug for x in ["genres", "authors", "status"]):
                 continue
 
+            # In search results, there's often an img and a title
             img = card.select_one("img")
-            title_el = card.select_one("span, h3, .font-bold")
-            title = title_el.get_text(strip=True) if title_el else slug
+            title_el = card.select_one("span.font-bold, h3, .text-sm.font-bold, p.font-bold")
+            title = title_el.get_text(strip=True) if title_el else slug.split("-")[0].replace("-", " ").title()
 
-            # Avoid duplicates
             if any(r.id == slug for r in results):
                 continue
 
             results.append(MangaResult(
                 id=slug,
                 title=title,
-                cover_url=img["src"] if img else None,
+                cover_url=img.get("src") if img else None,
                 provider=self.id,
-                url=f"{SITE}/series/{slug}",
+                url=f"{SITE}/comics/{slug}",
                 status=self._parse_status(card),
             ))
+        
         return results
 
     async def get_manga(self, manga_id: str) -> MangaDetail:
         client = await self._get_client()
-        resp = await client.get(f"{SITE}/series/{manga_id}")
+        # manga_id should be the full slug like "solo-leveling-7b57f74d"
+        resp = await client.get(f"{SITE}/comics/{manga_id}")
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, "html.parser")
 
-        title_el = soup.select_one("span.text-xl.font-bold") or soup.select_one("h1")
+        title_el = soup.select_one("h1") or soup.select_one("span.text-xl.font-bold")
         title = title_el.get_text(strip=True) if title_el else manga_id
 
-        img = soup.select_one("img[alt]")
-        cover = img["src"] if img else None
+        img = soup.select_one("img[alt='poster']") or soup.select_one("img.object-cover") or soup.select_one("img")
+        cover = img.get("src") if img else None
 
-        desc_el = soup.select_one("span.font-medium.text-sm") or soup.select_one(".summary")
+        desc_el = soup.select_one("span.font-medium.text-sm") or soup.select_one(".summary") or soup.select_one("p.text-sm")
         desc = desc_el.get_text(strip=True) if desc_el else None
 
         status = None
-        for el in soup.select("div.flex"):
+        for el in soup.select("div.flex, span.flex"):
             text = el.get_text(strip=True).lower()
             if "ongoing" in text:
                 status = "ongoing"
                 break
-            if "completed" in text or "hiatus" in text:
-                status = "completed" if "completed" in text else "hiatus"
+            elif "completed" in text:
+                status = "completed"
                 break
 
-        genres = [a.get_text(strip=True) for a in soup.select("a[href*='/genre/']")]
-        authors = [a.get_text(strip=True) for a in soup.select("a[href*='/author/']")]
+        genres = [a.get_text(strip=True) for a in soup.select("a[href*='/genres/']")]
+        authors = []
 
         chapters = self._parse_chapters(soup, manga_id)
 
@@ -135,33 +154,22 @@ class AsuraScansProvider(Provider):
             genres=genres,
             authors=authors,
             provider=self.id,
-            url=f"{SITE}/series/{manga_id}",
+            url=f"{SITE}/comics/{manga_id}",
             chapters=chapters,
         )
 
     async def get_pages(self, chapter_id: str) -> list[str]:
-        # chapter_id format: "{manga_slug}/chapter/{num}" or a full chapter URL path
+        # chapter_id format: "{manga_slug}/chapter/{num}"
         client = await self._get_client()
-        resp = await client.get(f"{SITE}/series/{chapter_id}")
+        resp = await client.get(f"{SITE}/comics/{chapter_id}")
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, "html.parser")
 
-        # Asura embeds images as <img> with data-src or src
-        imgs = soup.select("div#readerarea img")
+        # Asura embeds images in the new Astro layout
+        # Look for images in the reader area
+        imgs = soup.select("img[alt*='chapter']") or soup.select("img.object-contain") or soup.select("div.flex.flex-col img")
         if imgs:
-            return [img.get("src") or img.get("data-src") for img in imgs
-                    if (img.get("src") or img.get("data-src"))]
-
-        # Fallback: look in __NEXT_DATA__ JSON embedded in the page
-        next_data = soup.find("script", id="__NEXT_DATA__")
-        if next_data and next_data.string:
-            try:
-                data = json.loads(next_data.string)
-                pages = self._extract_pages_from_next_data(data)
-                if pages:
-                    return pages
-            except (json.JSONDecodeError, KeyError):
-                pass
+            return [img.get("src") for img in imgs if img.get("src") and "http" in img.get("src")]
 
         return []
 
@@ -171,39 +179,43 @@ class AsuraScansProvider(Provider):
             return "ongoing"
         if "completed" in text:
             return "completed"
-        if "hiatus" in text:
-            return "hiatus"
         return None
 
     def _parse_chapters(self, soup: BeautifulSoup, manga_id: str) -> list[ChapterResult]:
         chapters = []
+        # Chapter links are now often in the format /comics/manga-slug/chapter/num
         for a in soup.select("a[href*='/chapter/']"):
             href = a.get("href", "")
             if not href:
                 continue
 
-            # Extract slug from href like /series/manga-name/chapter/123
-            parts = href.rstrip("/").split("/")
-            if len(parts) < 2:
+            # href might be relative or absolute
+            if href.startswith("/"):
+                href = f"{SITE}{href}"
+            
+            # Extract chapter part from href
+            # Example: https://asurascans.com/comics/solo-leveling-7b57f74d/chapter/180
+            if "/chapter/" not in href:
                 continue
+                
+            chapter_slug = href.split("/chapter/")[-1].strip("/")
+            full_slug = f"{manga_id}/chapter/{chapter_slug}"
 
-            chapter_part = "/".join(parts[parts.index("chapter"):]) if "chapter" in parts else parts[-1]
-            slug = f"{manga_id}/{chapter_part}"
-
-            num_match = re.search(r"[\d.]+", chapter_part)
+            # Extract number
+            num_match = re.search(r"[\d.]+", chapter_slug)
             num = float(num_match.group()) if num_match else 0.0
 
             title_el = a.select_one("span, p")
             title = title_el.get_text(strip=True) if title_el else f"Chapter {num}"
 
-            if any(c.id == slug for c in chapters):
+            if any(c.id == full_slug for c in chapters):
                 continue
 
             chapters.append(ChapterResult(
-                id=slug,
+                id=full_slug,
                 title=title,
                 number=num,
-                url=f"{SITE}/series/{slug}",
+                url=href,
             ))
 
         # Sort descending by chapter number (latest first)

@@ -2,7 +2,6 @@
 MangaDex provider — uses the official public API.
 Docs: https://api.mangadex.org/docs/
 """
-import httpx
 import asyncio
 from app.providers.base import Provider, MangaResult, MangaDetail, ChapterResult, HealthReport, ProviderHealth, ScraperFingerprint
 

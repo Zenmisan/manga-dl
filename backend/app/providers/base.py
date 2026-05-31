@@ -2,9 +2,10 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
-import httpx
 import asyncio
 import logging
+
+from curl_cffi.requests import AsyncSession
 
 log = logging.getLogger(__name__)
 
@@ -72,31 +73,29 @@ class Provider(ABC):
     fingerprints: list[ScraperFingerprint] = []
 
     def __init__(self):
-        self._client: httpx.AsyncClient | None = None
+        self._session: AsyncSession | None = None
         self._health: ProviderHealth = ProviderHealth.UNCHECKED
         self._health_report: HealthReport | None = None
 
-    async def _get_client(self) -> httpx.AsyncClient:
-        if self._client is None or self._client.is_closed:
-            self._client = httpx.AsyncClient(
+    async def _get_client(self) -> AsyncSession:
+        if self._session is None:
+            self._session = AsyncSession(
+                impersonate="chrome110",
                 headers=self._default_headers(),
-                follow_redirects=True,
+                allow_redirects=True,
                 timeout=30.0,
             )
-        return self._client
+        return self._session
 
     def _default_headers(self) -> dict[str, str]:
         return {
-            "User-Agent": (
-                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-                "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-            ),
             "Accept-Language": "en-US,en;q=0.9",
         }
 
     async def close(self):
-        if self._client and not self._client.closed:
-            await self._client.close()
+        if self._session:
+            self._session.close()
+            self._session = None
 
     # ── Scraper validation ────────────────────────────────────────────────────
 

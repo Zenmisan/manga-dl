@@ -1,5 +1,6 @@
 {
   "hosting": {
+     "site": "manga-dl",
     "public": "frontend/dist",
     "ignore": [
       "firebase.json",

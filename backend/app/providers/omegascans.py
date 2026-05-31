@@ -2,7 +2,6 @@
 OmegaScans provider — ported from omega-dl.
 Uses the OmegaScans internal API.
 """
-import httpx
 import asyncio
 from app.providers.base import Provider, MangaResult, MangaDetail, ChapterResult, HealthReport, ProviderHealth
 

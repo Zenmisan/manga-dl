@@ -51,6 +51,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+@app.get("/")
+async def root():
+    return {
+        "status": "online",
+        "message": "manga-dl API is running",
+        "docs": "/docs"
+    }
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_settings.CORS_ORIGINS,

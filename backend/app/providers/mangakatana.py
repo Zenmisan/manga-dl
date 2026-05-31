@@ -41,7 +41,7 @@ class MangaKatanaProvider(Provider):
         try:
             client = await self._get_client()
             # Check search results page
-            resp = await client.get(f"{SITE}/manga", params={"search": "one piece", "search_by": "book_name"})
+            resp = await client.get(SITE, params={"search": "one piece", "search_by": "m_name"})
             resp.raise_for_status()
             soup = BeautifulSoup(resp.text, "html.parser")
 
@@ -50,7 +50,8 @@ class MangaKatanaProvider(Provider):
                 critical_failure = True
 
             # Check a known stable manga page for chapter list structure
-            resp2 = await client.get(f"{SITE}/manga/one-piece")
+            # Many stable IDs like one-piece.49 exist
+            resp2 = await client.get(f"{SITE}/manga/one-piece.49")
             if resp2.status_code == 200:
                 soup2 = BeautifulSoup(resp2.text, "html.parser")
                 if not soup2.select_one(".chapters"):
@@ -78,26 +79,53 @@ class MangaKatanaProvider(Provider):
 
     async def search(self, query: str, page: int = 1) -> list[MangaResult]:
         client = await self._get_client()
-        resp = await client.get(f"{SITE}/page/{page}", params={
+        # Search is on the root URL or /manga
+        # Based on user feedback: https://mangakatana.com/?search=onepiece&search_by=m_name
+        url = f"{SITE}/page/{page}" if page > 1 else SITE
+        resp = await client.get(url, params={
             "search": query,
-            "search_by": "book_name",
+            "search_by": "m_name",
         })
+        
+        # If the site redirects directly to a manga page (e.g. searching "one piece" might redirect to /manga/one-piece.49)
+        if "/manga/" in str(resp.url) and resp.url != url:
+            # We are on a detail page, extract info from here
+            soup = BeautifulSoup(resp.text, "html.parser")
+            slug = str(resp.url).rstrip("/").split("/")[-1]
+            title_el = soup.select_one("h1.heading")
+            img = soup.select_one(".cover img")
+            return [MangaResult(
+                id=slug,
+                title=title_el.get_text(strip=True) if title_el else slug,
+                cover_url=img.get("src") or img.get("data-src") if img else None,
+                provider=self.id,
+                url=str(resp.url),
+            )]
+
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, "html.parser")
 
         results = []
-        for item in soup.select(".manga_list-sbs .item"):
-            a = item.select_one("h3 a") or item.select_one("a")
-            if not a:
+        # Search results are usually in a div with .manga_list-sbs or just .item
+        items = soup.select(".manga_list-sbs .item") or soup.select(".item")
+        for item in items:
+            a = item.select_one("h3 a") or item.select_one(".title a") or item.select_one("a")
+            if not a or "/manga/" not in a["href"]:
                 continue
+            
             img = item.select_one("img")
-            slug = a["href"].rstrip("/").split("/")[-1]
+            href = a["href"]
+            slug = href.rstrip("/").split("/")[-1]
+            
+            if any(r.id == slug for r in results):
+                continue
+
             results.append(MangaResult(
                 id=slug,
                 title=a.get_text(strip=True),
-                cover_url=img["src"] if img else None,
+                cover_url=img.get("src") or img.get("data-src") if img else None,
                 provider=self.id,
-                url=a["href"],
+                url=href,
                 status=self._parse_status(item),
             ))
         return results
@@ -151,19 +179,30 @@ class MangaKatanaProvider(Provider):
         soup = BeautifulSoup(resp.text, "html.parser")
 
         # MangaKatana stores image list in a JS variable: var thzq=[...] or similar
+        # Multiple arrays might exist (for different servers). We pick the longest one.
+        import ast
         scripts = soup.find_all("script")
+        all_url_lists = []
+        
         for script in scripts:
-            if script.string and ("thzq" in script.string or "var iL" in script.string):
-                match = re.search(r'var\s+\w+\s*=\s*(\[.*?\])\s*;', script.string, re.DOTALL)
-                if match:
+            if script.string:
+                # Look for patterns like var \w+ = ['...', '...']
+                matches = re.findall(r'var\s+\w+\s*=\s*(\[.*?\])\s*;', script.string, re.DOTALL)
+                for content in matches:
                     try:
-                        urls = json.loads(match.group(1))
-                        return [u for u in urls if u.startswith("http")]
-                    except json.JSONDecodeError:
+                        # Convert JS-style array with single quotes to Python list
+                        urls = ast.literal_eval(content)
+                        if isinstance(urls, list) and urls and isinstance(urls[0], str) and "http" in urls[0]:
+                            all_url_lists.append(urls)
+                    except (ValueError, SyntaxError):
                         pass
 
-        # Fallback: look for img tags with data-src
-        imgs = soup.select(".wrap_warpper img[data-src], .chapter-img img")
+        if all_url_lists:
+            # Return the longest list of URLs found
+            return max(all_url_lists, key=len)
+
+        # Fallback: look for img tags
+        imgs = soup.select(".wrap_warpper img[data-src], .chapter-img img, #img_list img")
         if imgs:
             return [img.get("data-src") or img.get("src") for img in imgs if img.get("data-src") or img.get("src")]
 
@@ -181,7 +220,8 @@ class MangaKatanaProvider(Provider):
 
     def _parse_chapters(self, soup: BeautifulSoup, manga_id: str) -> list[ChapterResult]:
         chapters = []
-        for row in soup.select(".chapters .item"):
+        # MangaKatana uses a table inside .chapters
+        for row in soup.select(".chapters tr"):
             a = row.select_one("a")
             if not a:
                 continue
@@ -193,7 +233,7 @@ class MangaKatanaProvider(Provider):
             num_match = re.search(r"[\d.]+", slug)
             num = float(num_match.group()) if num_match else 0.0
 
-            date_el = row.select_one(".update_time") or row.select_one("time")
+            date_el = row.select_one(".update_time") or row.select_one("time") or row.select_one("td:last-child")
             published = date_el.get_text(strip=True) if date_el else None
 
             chapters.append(ChapterResult(
