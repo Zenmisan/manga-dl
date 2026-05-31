@@ -10,9 +10,13 @@ import {
   Sparkles,
   ChevronLeft,
   Play,
-  Download
+  Download,
+  FileText,
+  Pin,
+  PinOff
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { cn } from '../lib/utils'
 
 interface LibraryItem {
   title: string
@@ -25,6 +29,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<'grid' | 'list'>('grid')
   const [selectedManga, setSelectedManga] = useState<LibraryItem | null>(null)
+  const [pinnedFiles, setPinnedFiles] = useState<string[]>([])
 
   useEffect(() => {
     api.get('/library').then(res => {
@@ -39,78 +44,121 @@ export default function Dashboard() {
     window.open(`${base}/library/file/${encodeURIComponent(mangaTitle)}/${encodeURIComponent(filename)}?api_key=${apiKey}`, '_blank')
   }
 
-  return (
-    <div className="p-6 md:p-12 max-w-7xl mx-auto min-h-full flex flex-col">
-      <AnimatePresence mode="wait">
-        {selectedManga ? (
-          <motion.div
-            key="series-view"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            className="w-full"
-          >
-            <button 
-              onClick={() => setSelectedManga(null)}
-              className="mb-8 p-3 glass-panel hover:bg-white/10 transition-all text-white/60 hover:text-white flex items-center gap-2 group"
-            >
-              <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-              Back to Library
-            </button>
+  const handleConvertToPdf = (mangaTitle: string, filename: string) => {
+    const base = api.defaults.baseURL || ''
+    const apiKey = localStorage.getItem('manga-api-key') || ''
+    window.open(`${base}/library/pdf/${encodeURIComponent(mangaTitle)}/${encodeURIComponent(filename)}?api_key=${apiKey}`, '_blank')
+  }
 
-            <header className="mb-12">
-              <h1 className="text-3xl md:text-5xl font-black tracking-tighter mb-4 text-white uppercase">{selectedManga.title}</h1>
-              <p className="text-white/30 font-bold uppercase tracking-[0.2em] text-xs">
-                {selectedManga.files.length} Chapters Downloaded
-              </p>
-            </header>
+  const togglePin = async (mangaTitle: string, filename: string) => {
+    const id = `${mangaTitle}-${filename}`
+    const isPinned = pinnedFiles.includes(id)
+    setPinnedFiles(prev => isPinned ? prev.filter(f => f !== id) : [...prev, id])
+    
+    try {
+      await api.post(`/library/pin/${encodeURIComponent(mangaTitle)}/${encodeURIComponent(filename)}`)
+    } catch (err) {
+      console.error('Failed to toggle pin:', err)
+    }
+  }
 
-            <div className="grid grid-cols-1 gap-3">
-              {selectedManga.files.map((file, idx) => (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.02 }}
-                  key={file}
-                  className="group flex items-center justify-between p-5 glass-card hover:bg-white/5 border-white/5 transition-all"
-                >
-                  <div className="flex-1 min-w-0 pr-4">
+  if (selectedManga) {
+    return (
+      <div className="p-6 md:p-12 max-w-5xl mx-auto min-h-full">
+        <button 
+          onClick={() => setSelectedManga(null)}
+          className="mb-8 p-3 glass-panel hover:bg-white/10 transition-all text-white/60 hover:text-white flex items-center gap-2 group"
+        >
+          <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+          Back to Library
+        </button>
+
+        <header className="mb-12">
+          <h1 className="text-3xl md:text-5xl font-black tracking-tighter mb-4 text-white uppercase">{selectedManga.title}</h1>
+          <p className="text-white/30 font-bold uppercase tracking-[0.2em] text-xs">
+            {selectedManga.files.length} Chapters Downloaded
+          </p>
+        </header>
+
+        <div className="grid grid-cols-1 gap-3">
+          {selectedManga.files.map((file, idx) => {
+            const isPinned = pinnedFiles.includes(`${selectedManga.title}-${file}`)
+            return (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.02 }}
+                key={file}
+                className="group flex items-center justify-between p-5 glass-card hover:bg-white/5 border-white/5 transition-all"
+              >
+                <div className="flex-1 min-w-0 pr-4">
+                  <div className="flex items-center gap-3">
                     <h4 className="font-bold text-gray-200 truncate group-hover:text-red-400 transition-colors">
                       {file.replace('.cbz', '')}
                     </h4>
-                    <p className="text-[10px] font-black text-white/20 uppercase tracking-widest mt-1">Local Archive</p>
+                    {isPinned && <Pin className="w-3 h-3 text-red-500 fill-current" />}
                   </div>
+                  <p className="text-[10px] font-black text-white/20 uppercase tracking-widest mt-1">Local Archive</p>
+                </div>
 
-                  <div className="flex gap-2 shrink-0">
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        console.log('Downloading file:', file);
-                        handleDownloadFile(selectedManga.title, file);
-                      }}
-                      className="p-3 bg-white/5 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-all border border-white/5 cursor-pointer active:scale-95"
-                      title="Download to device"
-                    >
-                      <Download className="w-5 h-5 pointer-events-none" />
-                    </button>
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const url = `/read/${encodeURIComponent(selectedManga.title)}/${encodeURIComponent(file)}`;
-                        console.log('Navigating to reader:', url);
-                        navigate(url);
-                      }}
-                      className="px-6 py-3 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-red-600/20 active:scale-95 transition-all cursor-pointer"
-                    >
-                      <Play className="w-4 h-4 fill-current pointer-events-none" />
-                      Read
-                    </button>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
-        ) : (
+                <div className="flex gap-2 shrink-0">
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      togglePin(selectedManga.title, file);
+                    }}
+                    className={cn(
+                      "p-3 rounded-xl transition-all border",
+                      isPinned 
+                        ? "bg-red-500/20 border-red-500/20 text-red-500" 
+                        : "bg-white/5 border-white/5 text-white/40 hover:text-white"
+                    )}
+                    title={isPinned ? "Unpin" : "Pin to prevent auto-deletion"}
+                  >
+                    {isPinned ? <Pin className="w-5 h-5 fill-current" /> : <PinOff className="w-5 h-5" />}
+                  </button>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleConvertToPdf(selectedManga.title, file);
+                    }}
+                    className="p-3 bg-white/5 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-all border border-white/5"
+                    title="Convert to PDF"
+                  >
+                    <FileText className="w-5 h-5" />
+                  </button>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDownloadFile(selectedManga.title, file);
+                    }}
+                    className="p-3 bg-white/5 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-all border border-white/5 cursor-pointer active:scale-95"
+                    title="Download to device"
+                  >
+                    <Download className="w-5 h-5 pointer-events-none" />
+                  </button>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/read/${encodeURIComponent(selectedManga.title)}/${encodeURIComponent(file)}`);
+                    }}
+                    className="px-5 py-3 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-red-600/20 active:scale-95 transition-all cursor-pointer"
+                  >
+                    <Play className="w-4 h-4 fill-current pointer-events-none" />
+                    Read
+                  </button>
+                </div>
+              </motion.div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="p-6 md:p-12 max-w-7xl mx-auto min-h-full flex flex-col">
+      <AnimatePresence mode="wait">
           <motion.div
             key="library-grid"
             initial={{ opacity: 0 }}
@@ -230,7 +278,6 @@ export default function Dashboard() {
               </div>
             )}
           </motion.div>
-        )}
       </AnimatePresence>
     </div>
   )

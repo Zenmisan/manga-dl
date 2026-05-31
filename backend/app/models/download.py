@@ -22,6 +22,7 @@ class DownloadRecord(Base):
     output_path: Mapped[str | None] = mapped_column(String, nullable=True)
     file_size_bytes: Mapped[int] = mapped_column(Integer, default=0)
     pinned: Mapped[bool] = mapped_column(Boolean, default=False)
+    last_page_read: Mapped[int] = mapped_column(Integer, default=0)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
