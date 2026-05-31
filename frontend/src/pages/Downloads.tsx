@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import api from '../lib/api'
-import { Download as DownloadIcon, CheckCircle2, XCircle, Clock, Pause, Trash2 } from 'lucide-react'
+import { Download as DownloadIcon, CheckCircle2, XCircle, Clock, Pause, Trash2, FolderOpen, Activity } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { cn } from '../lib/utils'
 
 interface DownloadItem {
   id: string
@@ -37,7 +38,10 @@ export default function DownloadsPage() {
     
     // Setup WebSocket for real-time updates
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const ws = new WebSocket(`${protocol}//${window.location.host}/ws`)
+    const wsUrl = import.meta.env.PROD 
+      ? `wss://${window.location.host}/ws` 
+      : `ws://localhost:8000/ws`
+    const ws = new WebSocket(wsUrl)
     
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data)
@@ -52,7 +56,7 @@ export default function DownloadsPage() {
           return [data.download, ...prev]
         })
       } else if (data.type === 'completed') {
-        setActive(prev => prev.filter(i => i.id === data.download.id))
+        setActive(prev => prev.filter(i => i.id !== data.download.id))
         setHistory(prev => [data.download, ...prev].slice(0, 100))
       }
     }
@@ -61,70 +65,84 @@ export default function DownloadsPage() {
   }, [])
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="p-6 md:p-12 max-w-7xl mx-auto min-h-full">
       <header className="mb-12">
-        <h1 className="text-4xl font-bold tracking-tight mb-2">Queue</h1>
-        <p className="text-gray-400">Monitor active downloads and history</p>
+        <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-3 bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent">
+          Queue
+        </h1>
+        <p className="text-white/40 font-medium md:text-lg">Monitor active downloads and history</p>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 md:gap-12">
         {/* Active Downloads */}
         <div className="lg:col-span-2">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold flex items-center gap-2">
-              <Clock className="w-5 h-5 text-red-500" />
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-lg md:text-xl font-bold flex items-center gap-3">
+              <Activity className="w-5 h-5 text-red-500" />
               Active Tasks
+              <span className="ml-2 px-2 py-0.5 bg-white/5 rounded-lg text-xs font-mono text-white/40">
+                {active.length}
+              </span>
             </h2>
             <div className="flex gap-2">
-              <button className="p-2 hover:bg-[#16161a] rounded-lg transition-colors border border-[#27272a]">
-                <Pause className="w-4 h-4 text-gray-400" />
+              <button className="p-2.5 hover:bg-white/10 rounded-xl transition-all border border-white/5 text-white/40 hover:text-white">
+                <Pause className="w-4 h-4" />
               </button>
-              <button className="p-2 hover:bg-[#16161a] rounded-lg transition-colors border border-[#27272a]">
-                <Trash2 className="w-4 h-4 text-gray-400" />
+              <button className="p-2.5 hover:bg-white/10 rounded-xl transition-all border border-white/5 text-white/40 hover:text-red-400">
+                <Trash2 className="w-4 h-4" />
               </button>
             </div>
           </div>
 
           <div className="space-y-4">
             {active.length === 0 ? (
-              <div className="border border-dashed border-[#27272a] rounded-2xl p-12 text-center">
-                <DownloadIcon className="w-10 h-10 text-gray-700 mx-auto mb-4" />
-                <p className="text-gray-500 font-medium">No active downloads</p>
-              </div>
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="border border-dashed border-white/10 rounded-3xl p-16 text-center bg-white/[0.01]"
+              >
+                <DownloadIcon className="w-12 h-12 text-white/5 mx-auto mb-6" />
+                <p className="text-white/20 font-bold uppercase tracking-widest text-xs">No active downloads</p>
+              </motion.div>
             ) : (
-              <AnimatePresence>
+              <AnimatePresence mode="popLayout">
                 {active.map(item => (
                   <motion.div
                     key={item.id}
                     layout
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="bg-[#16161a] border border-[#27272a] rounded-2xl p-5 shadow-sm"
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.98 }}
+                    className="glass-card p-6 shadow-xl relative overflow-hidden group"
                   >
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="px-2 py-0.5 bg-red-600/10 text-red-500 text-[10px] font-black uppercase tracking-widest border border-red-600/20 rounded">
+                    <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-6">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <span className="px-2 py-0.5 bg-white/10 text-white/60 text-[9px] font-black uppercase tracking-[0.2em] border border-white/10 rounded-md">
                             {item.provider}
                           </span>
-                          <h3 className="font-bold text-gray-100">{item.manga_title}</h3>
+                          <h3 className="font-bold text-gray-100 truncate group-hover:text-red-400 transition-colors">
+                            {item.manga_title}
+                          </h3>
                         </div>
-                        <p className="text-xs text-gray-500 font-medium">{item.chapter_title}</p>
+                        <p className="text-xs text-white/30 font-bold uppercase tracking-tight">
+                          {item.chapter_title}
+                        </p>
                       </div>
-                      <div className="text-right">
-                        <span className="text-xs font-mono font-bold text-red-500">{item.progress}%</span>
-                        <p className="text-[10px] text-gray-600 font-bold uppercase tracking-tighter">
-                          {item.downloaded_pages}/{item.total_pages} pages
+                      <div className="flex sm:flex-col items-baseline sm:items-end gap-2 shrink-0">
+                        <span className="text-lg font-black font-mono text-red-500">{item.progress}%</span>
+                        <p className="text-[10px] text-white/20 font-black uppercase tracking-[0.1em]">
+                          {item.downloaded_pages} / {item.total_pages} pages
                         </p>
                       </div>
                     </div>
 
-                    <div className="relative h-2 bg-[#27272a] rounded-full overflow-hidden">
+                    <div className="relative h-2 bg-white/5 rounded-full overflow-hidden border border-white/5">
                       <motion.div
-                        className="absolute h-full bg-red-600 shadow-[0_0_10px_rgba(220,38,38,0.5)]"
+                        className="absolute h-full bg-gradient-to-r from-red-600 to-red-400 shadow-[0_0_20px_rgba(239,68,68,0.4)]"
                         initial={{ width: 0 }}
                         animate={{ width: `${item.progress}%` }}
+                        transition={{ type: "spring", bounce: 0, duration: 0.5 }}
                       />
                     </div>
                   </motion.div>
@@ -135,42 +153,51 @@ export default function DownloadsPage() {
         </div>
 
         {/* History */}
-        <div className="space-y-6">
-          <h2 className="text-xl font-bold flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-gray-400" />
-            Recently Completed
+        <div className="space-y-8">
+          <h2 className="text-lg md:text-xl font-bold flex items-center gap-3">
+            <CheckCircle2 className="w-5 h-5 text-white/20" />
+            History
           </h2>
           
-          <div className="space-y-3">
-            {history.map(item => (
-              <div key={item.id} className="flex items-center gap-4 bg-[#16161a]/50 p-4 rounded-xl border border-[#27272a] group hover:bg-[#16161a] transition-all">
-                <div className="w-10 h-10 rounded-full bg-[#16161a] border border-[#27272a] flex items-center justify-center shrink-0">
-                  {item.status === 'done' ? (
-                    <CheckCircle2 className="w-5 h-5 text-green-500" />
-                  ) : (
-                    <XCircle className="w-5 h-5 text-red-500" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-bold text-gray-200 truncate group-hover:text-red-500 transition-colors">{item.manga_title}</h4>
-                  <p className="text-[10px] text-gray-500 truncate">{item.chapter_title}</p>
-                </div>
-                <button className="opacity-0 group-hover:opacity-100 p-2 hover:bg-[#27272a] rounded-lg transition-all">
-                  <FolderOpen className="w-4 h-4 text-gray-400" />
-                </button>
-              </div>
-            ))}
+          <div className="space-y-4">
+            {history.length === 0 ? (
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/10 text-center py-12">Nothing here yet</p>
+            ) : (
+              history.map((item, idx) => (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: idx * 0.05 }}
+                  key={item.id} 
+                  className="flex items-center gap-4 bg-white/[0.02] hover:bg-white/[0.05] p-4 rounded-2xl border border-white/5 group transition-all"
+                >
+                  <div className={cn(
+                    "w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 transition-transform group-hover:scale-110",
+                    item.status === 'done' ? 'bg-emerald-500/5 border-emerald-500/10 text-emerald-500' : 'bg-red-500/5 border-red-500/10 text-red-500'
+                  )}>
+                    {item.status === 'done' ? (
+                      <CheckCircle2 className="w-5 h-5" />
+                    ) : (
+                      <XCircle className="w-5 h-5" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-sm font-bold text-gray-200 truncate group-hover:text-white transition-colors">
+                      {item.manga_title}
+                    </h4>
+                    <p className="text-[10px] font-bold text-white/20 truncate uppercase tracking-tight">
+                      {item.chapter_title}
+                    </p>
+                  </div>
+                  <button className="opacity-0 group-hover:opacity-100 p-2.5 hover:bg-white/10 rounded-xl transition-all text-white/20 hover:text-white">
+                    <FolderOpen className="w-4 h-4" />
+                  </button>
+                </motion.div>
+              ))
+            )}
           </div>
         </div>
       </div>
     </div>
-  )
-}
-
-function FolderOpen(props: any) {
-  return (
-    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="m6 14 1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.69.9H18a2 2 0 0 1 2 2v2" />
-    </svg>
   )
 }

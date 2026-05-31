@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Shield, Database, Save, RefreshCw } from 'lucide-react'
+import { Shield, Database, Save, RefreshCw, Key, HardDrive, Info } from 'lucide-react'
+import { motion } from 'framer-motion'
 
 export default function SettingsPage() {
   const [apiKey, setApiKey] = useState(localStorage.getItem('manga-api-key') || '')
@@ -10,80 +11,115 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
+    <div className="p-6 md:p-12 max-w-4xl mx-auto min-h-full">
       <header className="mb-12">
-        <h1 className="text-4xl font-bold tracking-tight mb-2">Settings</h1>
-        <p className="text-gray-400">Configure your local client and remote connection</p>
+        <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-3 bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent">
+          Settings
+        </h1>
+        <p className="text-white/40 font-medium md:text-lg">Configure your client and connections</p>
       </header>
 
-      <div className="space-y-8">
+      <div className="space-y-6 md:space-y-8">
         {/* Security Section */}
-        <section className="bg-[#16161a] border border-[#27272a] rounded-2xl overflow-hidden">
-          <div className="p-6 border-b border-[#27272a] flex items-center gap-3">
-            <Shield className="w-5 h-5 text-red-500" />
-            <h2 className="font-bold">Security</h2>
+        <motion.section 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-panel overflow-hidden border-white/5"
+        >
+          <div className="p-6 border-b border-white/5 flex items-center gap-3 bg-white/[0.02]">
+            <div className="p-2 bg-red-500/10 rounded-lg">
+              <Shield className="w-5 h-5 text-red-500" />
+            </div>
+            <h2 className="font-bold text-lg">Security</h2>
           </div>
-          <div className="p-6 space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-400 mb-2">Remote API Key</label>
-              <div className="flex gap-4">
+          <div className="p-6 md:p-8 space-y-6">
+            <div className="space-y-3">
+              <label className="flex items-center gap-2 text-sm font-bold text-white/40 uppercase tracking-widest">
+                <Key className="w-3.5 h-3.5" />
+                Remote API Key
+              </label>
+              <div className="flex flex-col sm:flex-row gap-3">
                 <input
                   type="password"
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
                   placeholder="Enter your X-API-Key..."
-                  className="flex-1 bg-[#0a0a0c] border border-[#27272a] rounded-xl px-4 py-2 focus:outline-none focus:border-red-600/50"
+                  className="flex-1 bg-black/40 border border-white/5 rounded-xl px-5 py-3 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-all text-white placeholder:text-white/10"
                 />
                 <button 
                   onClick={saveKey}
-                  className="btn-primary flex items-center gap-2"
+                  className="btn-primary flex items-center justify-center gap-2"
                 >
                   <Save className="w-4 h-4" />
-                  Save
+                  Save Changes
                 </button>
               </div>
-              <p className="mt-2 text-[10px] text-gray-500 uppercase tracking-wider font-bold">
-                Stored locally in your browser to authorize requests.
+              <p className="text-[11px] text-white/20 leading-relaxed max-w-md">
+                This key is stored securely in your browser's local storage and is sent with every request to authorize your actions.
               </p>
             </div>
           </div>
-        </section>
+        </motion.section>
 
         {/* Database & Sync */}
-        <section className="bg-[#16161a] border border-[#27272a] rounded-2xl overflow-hidden">
-          <div className="p-6 border-b border-[#27272a] flex items-center gap-3">
-            <Database className="w-5 h-5 text-red-500" />
-            <h2 className="font-bold">Database & Storage</h2>
+        <motion.section 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="glass-panel overflow-hidden border-white/5"
+        >
+          <div className="p-6 border-b border-white/5 flex items-center gap-3 bg-white/[0.02]">
+            <div className="p-2 bg-blue-500/10 rounded-lg">
+              <Database className="w-5 h-5 text-blue-500" />
+            </div>
+            <h2 className="font-bold text-lg">System</h2>
           </div>
-          <div className="p-6 space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="text-sm font-bold text-gray-200">Synchronize Subscriptions</h4>
-                <p className="text-xs text-gray-500">Trigger manual check for new chapters across all providers</p>
+          <div className="p-6 md:p-8 space-y-8">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <h4 className="font-bold text-gray-100 flex items-center gap-2">
+                  Synchronize
+                </h4>
+                <p className="text-sm text-white/30 font-medium">Trigger manual check for new chapters across all providers</p>
               </div>
-              <button className="p-2 bg-[#27272a] hover:bg-red-600 rounded-lg transition-all text-gray-400 hover:text-white">
+              <button className="flex items-center justify-center gap-2 px-5 py-2.5 bg-white/5 hover:bg-white/10 rounded-xl transition-all border border-white/5 text-white/60 hover:text-white font-bold text-xs uppercase tracking-widest">
                 <RefreshCw className="w-4 h-4" />
+                Run Sync
               </button>
             </div>
             
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="text-sm font-bold text-gray-200">Clear Cache</h4>
-                <p className="text-xs text-gray-500">Wipe temporary download files and logs</p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <h4 className="font-bold text-gray-100 flex items-center gap-2">
+                  Clear Cache
+                </h4>
+                <p className="text-sm text-white/30 font-medium">Wipe temporary download files and internal logs</p>
               </div>
-              <button className="px-4 py-2 bg-[#27272a] hover:bg-white hover:text-black rounded-lg transition-all text-xs font-bold uppercase tracking-widest">
-                Prune
+              <button className="flex items-center justify-center gap-2 px-5 py-2.5 bg-white/5 hover:bg-red-500/20 hover:border-red-500/30 rounded-xl transition-all border border-white/5 text-white/60 hover:text-red-400 font-bold text-xs uppercase tracking-widest">
+                <HardDrive className="w-4 h-4" />
+                Prune Data
               </button>
             </div>
           </div>
-        </section>
+        </motion.section>
 
         {/* Info */}
-        <div className="flex items-center justify-center gap-6 py-12 opacity-30 grayscale">
-           <img src="https://vitejs.dev/logo.svg" className="h-8" />
-           <img src="https://reactjs.org/logo-og.png" className="h-8" />
-           <img src="https://bun.sh/logo.svg" className="h-8" />
-        </div>
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 0.4 }}
+          transition={{ delay: 0.2 }}
+          className="flex flex-col items-center justify-center gap-6 py-12 grayscale hover:opacity-100 transition-opacity duration-700"
+        >
+           <div className="flex items-center gap-8 opacity-50">
+             <img src="https://vitejs.dev/logo.svg" className="h-6" alt="Vite" />
+             <img src="https://reactjs.org/logo-og.png" className="h-6" alt="React" />
+             <img src="https://bun.sh/logo.svg" className="h-6" alt="Bun" />
+           </div>
+           <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-white/50">
+             <Info className="w-3 h-3" />
+             Build 2026.05.30
+           </div>
+        </motion.div>
       </div>
     </div>
   )

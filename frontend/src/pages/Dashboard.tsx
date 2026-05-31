@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import api from '../lib/api'
-import { Book, FolderOpen, MoreVertical, LayoutGrid, List } from 'lucide-react'
+import { Book, FolderOpen, MoreVertical, LayoutGrid, List, Sparkles } from 'lucide-react'
 import { motion } from 'framer-motion'
 
 interface LibraryItem {
@@ -9,6 +10,7 @@ interface LibraryItem {
 }
 
 export default function Dashboard() {
+  const navigate = useNavigate()
   const [items, setItems] = useState<LibraryItem[]>([])
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<'grid' | 'list'>('grid')
@@ -21,89 +23,106 @@ export default function Dashboard() {
   }, [])
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      <header className="flex items-center justify-between mb-12">
+    <div className="p-6 md:p-12 max-w-7xl mx-auto min-h-full flex flex-col">
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight mb-2">My Library</h1>
-          <p className="text-gray-400">Manage your offline manga collection</p>
+          <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-3 bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent">
+            My Library
+          </h1>
+          <p className="text-white/40 font-medium md:text-lg">Manage your offline manga collection</p>
         </div>
 
-        <div className="flex bg-[#16161a] border border-[#27272a] rounded-lg p-1">
+        <div className="flex bg-white/5 border border-white/5 rounded-2xl p-1.5 backdrop-blur-sm self-start md:self-auto">
           <button 
             onClick={() => setView('grid')}
-            className={`p-2 rounded ${view === 'grid' ? 'bg-[#27272a] text-white' : 'text-gray-500'}`}
+            className={`p-2.5 rounded-xl transition-all ${view === 'grid' ? 'bg-white/10 text-white shadow-lg' : 'text-white/40 hover:text-white/60'}`}
           >
-            <LayoutGrid className="w-4 h-4" />
+            <LayoutGrid className="w-5 h-5" />
           </button>
           <button 
             onClick={() => setView('list')}
-            className={`p-2 rounded ${view === 'list' ? 'bg-[#27272a] text-white' : 'text-gray-500'}`}
+            className={`p-2.5 rounded-xl transition-all ${view === 'list' ? 'bg-white/10 text-white shadow-lg' : 'text-white/40 hover:text-white/60'}`}
           >
-            <List className="w-4 h-4" />
+            <List className="w-5 h-5" />
           </button>
         </div>
       </header>
 
       {loading ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-8">
           {[...Array(10)].map((_, i) => (
-            <div key={i} className="aspect-3/4 bg-[#16161a] animate-pulse rounded-xl border border-[#27272a]" />
+            <div key={i} className="aspect-[3/4.5] bg-white/5 animate-pulse rounded-2xl border border-white/5" />
           ))}
         </div>
       ) : items.length === 0 ? (
-        <div className="h-[50vh] flex flex-col items-center justify-center text-center">
-          <div className="w-20 h-20 bg-[#16161a] rounded-full flex items-center justify-center mb-6">
-            <Book className="w-10 h-10 text-gray-600" />
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="flex-1 flex flex-col items-center justify-center text-center p-8 glass-panel border-dashed border-white/10 my-12"
+        >
+          <div className="w-24 h-24 bg-white/5 rounded-3xl flex items-center justify-center mb-8 shadow-inner">
+            <Book className="w-10 h-10 text-white/20" />
           </div>
-          <h2 className="text-xl font-semibold mb-2">Your library is empty</h2>
-          <p className="text-gray-400 max-w-xs mb-8">
+          <h2 className="text-2xl font-bold mb-3">Your library is empty</h2>
+          <p className="text-white/40 max-w-sm mb-10 leading-relaxed">
             Start by searching for your favorite manga and adding them to your queue.
           </p>
-          <button className="btn-primary">Browse Providers</button>
-        </div>
+          <button 
+            onClick={() => navigate('/search')}
+            className="btn-primary flex items-center gap-2 group"
+          >
+            <Sparkles className="w-4 h-4 group-hover:rotate-12 transition-transform" />
+            Browse Providers
+          </button>
+        </motion.div>
       ) : (
         <div className={view === 'grid' 
-          ? "grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6"
+          ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-8"
           : "space-y-4"
         }>
           {items.map((item, idx) => (
             <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: idx * 0.05 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.04, ease: "easeOut" }}
               key={item.title}
-              className={`group cursor-pointer ${view === 'grid' ? 'block' : 'flex items-center gap-4 bg-[#16161a] p-4 rounded-xl border border-[#27272a]'}`}
+              className={`group cursor-pointer ${view === 'grid' ? 'block' : 'flex items-center gap-4 glass-card p-4 hover:bg-white/10'}`}
             >
               {view === 'grid' ? (
                 <>
-                  <div className="aspect-3/4 bg-[#16161a] rounded-xl border border-[#27272a] overflow-hidden mb-3 relative group shadow-lg transition-all hover:border-red-600/50">
-                    <div className="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
-                      <span className="text-xs font-medium text-white bg-red-600 px-2 py-1 rounded">
-                        {item.files.length} Chapters
-                      </span>
+                  <div className="aspect-[3/4.5] glass-card overflow-hidden mb-4 relative group shadow-2xl hover:border-red-500/50 hover:shadow-red-500/10">
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-60 group-hover:opacity-100 transition-opacity flex items-end p-5">
+                      <div className="flex flex-col gap-1 translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">Offline</span>
+                        <span className="text-sm font-bold text-white">
+                          {item.files.length} Chapters
+                        </span>
+                      </div>
                     </div>
-                    <div className="w-full h-full flex items-center justify-center text-gray-700">
-                      <Book className="w-12 h-12" />
+                    <div className="w-full h-full flex items-center justify-center text-white/10 bg-white/[0.02]">
+                      <Book className="w-16 h-16" />
                     </div>
                   </div>
-                  <h3 className="font-semibold text-sm truncate">{item.title}</h3>
-                  <p className="text-xs text-gray-500">{item.files.length} volumes offline</p>
+                  <h3 className="font-bold text-base truncate pr-2 group-hover:text-red-400 transition-colors">{item.title}</h3>
+                  <p className="text-xs font-medium text-white/30 uppercase tracking-tighter mt-1">{item.files.length} volumes available</p>
                 </>
               ) : (
                 <>
-                  <div className="w-12 h-16 bg-[#27272a] rounded flex items-center justify-center text-gray-500">
-                    <Book className="w-6 h-6" />
+                  <div className="w-14 h-20 bg-white/5 rounded-xl flex items-center justify-center text-white/20 border border-white/5">
+                    <Book className="w-7 h-7" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-semibold">{item.title}</h3>
-                    <p className="text-sm text-gray-500">{item.files.length} items in folder</p>
+                    <h3 className="font-bold text-lg">{item.title}</h3>
+                    <p className="text-sm font-medium text-white/30 uppercase tracking-widest">{item.files.length} items collected</p>
                   </div>
-                  <button className="p-2 hover:bg-[#27272a] rounded-lg transition-colors">
-                    <FolderOpen className="w-5 h-5 text-gray-400" />
-                  </button>
-                  <button className="p-2 hover:bg-[#27272a] rounded-lg transition-colors">
-                    <MoreVertical className="w-5 h-5 text-gray-400" />
-                  </button>
+                  <div className="flex gap-1">
+                    <button className="p-3 hover:bg-white/10 rounded-xl transition-colors text-white/40 hover:text-white">
+                      <FolderOpen className="w-5 h-5" />
+                    </button>
+                    <button className="p-3 hover:bg-white/10 rounded-xl transition-colors text-white/40 hover:text-white">
+                      <MoreVertical className="w-5 h-5" />
+                    </button>
+                  </div>
                 </>
               )}
             </motion.div>

@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import api from '../lib/api'
-import { Search as SearchIcon, Globe, Loader2, ChevronRight, BookOpen } from 'lucide-react'
+import { Search as SearchIcon, Globe, Loader2, ChevronRight, BookOpen, Layers } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { cn } from '../lib/utils'
 
 interface MangaResult {
   id: string
@@ -13,6 +15,7 @@ interface MangaResult {
 }
 
 export default function SearchPage() {
+  const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<MangaResult[]>([])
   const [loading, setLoading] = useState(false)
@@ -42,103 +45,123 @@ export default function SearchPage() {
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      <div className="max-w-3xl mb-12">
-        <h1 className="text-4xl font-bold tracking-tight mb-4">Discover Manga</h1>
-        <p className="text-gray-400 text-lg mb-8">Search across multiple sources to find your next read.</p>
+    <div className="p-6 md:p-12 max-w-7xl mx-auto min-h-full">
+      <header className="mb-12">
+        <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-4 bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent">
+          Discover Manga
+        </h1>
+        <p className="text-white/40 font-medium md:text-lg mb-10">Search across multiple sources to find your next read.</p>
         
-        <form onSubmit={handleSearch} className="relative group">
-          <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 group-focus-within:text-red-500 transition-colors" />
+        <form onSubmit={handleSearch} className="relative group max-w-2xl">
+          <div className="absolute inset-0 bg-red-500/10 blur-2xl rounded-3xl opacity-0 group-focus-within:opacity-100 transition-opacity pointer-events-none" />
+          <SearchIcon className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-white/20 group-focus-within:text-red-500 transition-colors z-10" />
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search by title, author, or genre..."
-            className="w-full bg-[#16161a] border border-[#27272a] rounded-2xl py-4 pl-12 pr-32 focus:outline-none focus:border-red-600/50 focus:ring-4 focus:ring-red-600/5 transition-all text-lg"
+            className="w-full glass-panel py-4 md:py-5 pl-14 pr-32 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-all text-base md:text-lg placeholder:text-white/20 relative z-0"
           />
           <button
             type="submit"
             disabled={loading}
-            className="absolute right-3 top-1/2 -translate-y-1/2 btn-primary py-2 h-[calc(100%-1.5rem)] flex items-center gap-2"
+            className="absolute right-2 top-1/2 -translate-y-1/2 btn-primary py-2 px-5 md:px-7 h-[calc(100%-1rem)] flex items-center gap-2 z-10 text-sm md:text-base"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Search'}
           </button>
         </form>
 
-        <div className="flex flex-wrap gap-2 mt-4">
+        <div className="flex flex-wrap gap-2.5 mt-8 no-scrollbar">
           <button
             onClick={() => setSelectedProvider(null)}
             className={cn(
-              "px-3 py-1.5 rounded-full text-xs font-semibold border transition-all",
-              !selectedProvider ? "bg-red-600 border-red-600 text-white" : "bg-[#16161a] border-[#27272a] text-gray-400 hover:border-gray-600"
+              "px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-widest border transition-all flex items-center gap-2",
+              !selectedProvider 
+                ? "bg-white/10 border-white/20 text-white shadow-lg" 
+                : "bg-white/[0.02] border-white/5 text-white/40 hover:text-white/60 hover:border-white/10"
             )}
           >
-            All Providers
+            <Layers className="w-3 h-3" />
+            All
           </button>
           {providers.map(p => (
             <button
               key={p.id}
               onClick={() => setSelectedProvider(p.id)}
               className={cn(
-                "px-3 py-1.5 rounded-full text-xs font-semibold border transition-all",
-                selectedProvider === p.id ? "bg-red-600 border-red-600 text-white" : "bg-[#16161a] border-[#27272a] text-gray-400 hover:border-gray-600"
+                "px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-widest border transition-all",
+                selectedProvider === p.id 
+                  ? "bg-white/10 border-white/20 text-white shadow-lg" 
+                  : "bg-white/[0.02] border-white/5 text-white/40 hover:text-white/60 hover:border-white/10"
               )}
             >
               {p.name}
             </button>
           ))}
         </div>
-      </div>
+      </header>
 
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="h-48 bg-[#16161a] animate-pulse rounded-2xl border border-[#27272a]" />
+            <div key={i} className="h-44 bg-white/5 animate-pulse rounded-2xl border border-white/5" />
           ))}
         </div>
       ) : results.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <AnimatePresence>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+          <AnimatePresence mode="popLayout">
             {results.map((r, idx) => (
               <motion.div
+                layout
                 key={r.id + r.provider}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.05 }}
-                className="group flex gap-4 bg-[#16161a] p-4 rounded-2xl border border-[#27272a] hover:border-red-600/30 transition-all cursor-pointer relative overflow-hidden shadow-sm hover:shadow-red-600/5"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ delay: idx * 0.03, ease: "easeOut" }}
+                onClick={() => navigate(`/manga/${r.provider}/${encodeURIComponent(r.id)}`)}
+                className="group flex gap-5 glass-card p-4 hover:bg-white/[0.08] hover:border-red-500/30 cursor-pointer relative overflow-hidden"
               >
-                <div className="w-24 h-32 bg-[#27272a] rounded-xl overflow-hidden shrink-0 relative">
+                <div className="w-24 h-32 md:w-28 md:h-36 glass-panel overflow-hidden shrink-0 relative shadow-xl">
                   {r.cover_url ? (
-                    <img src={r.cover_url} alt={r.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                    <img 
+                      src={r.cover_url} 
+                      alt={r.title} 
+                      loading="lazy"
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" 
+                    />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-600">
+                    <div className="w-full h-full flex items-center justify-center text-white/10 bg-white/[0.02]">
                       <BookOpen className="w-8 h-8" />
                     </div>
                   )}
-                  <div className="absolute top-1 left-1 bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded text-[10px] uppercase tracking-widest font-bold text-white border border-white/10">
+                  <div className="absolute top-1 left-1 bg-black/70 backdrop-blur-md px-2 py-0.5 rounded-lg text-[9px] uppercase tracking-[0.15em] font-black text-white/90 border border-white/10 shadow-lg">
                     {r.provider}
                   </div>
                 </div>
 
                 <div className="flex-1 flex flex-col justify-between py-1">
-                  <div>
-                    <h3 className="font-bold text-gray-100 line-clamp-2 leading-tight mb-1 group-hover:text-red-500 transition-colors">{r.title}</h3>
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                      <span className={cn(
-                        "w-2 h-2 rounded-full",
-                        r.status === 'ongoing' ? 'bg-green-500' : 'bg-blue-500'
+                  <div className="space-y-1.5">
+                    <h3 className="font-bold text-gray-100 line-clamp-2 leading-snug md:text-lg group-hover:text-red-400 transition-colors">
+                      {r.title}
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <div className={cn(
+                        "w-1.5 h-1.5 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)]",
+                        r.status === 'ongoing' ? 'bg-emerald-400 shadow-emerald-400/40' : 'bg-sky-400 shadow-sky-400/40'
                       )} />
-                      <span className="capitalize">{r.status || 'unknown'}</span>
+                      <span className="text-[11px] font-black uppercase tracking-widest text-white/30">
+                        {r.status || 'unknown'}
+                      </span>
                     </div>
                   </div>
                   
-                  <div className="flex items-center justify-between">
-                    <div className="flex -space-x-2">
-                       {/* Placeholder for tags/genres */}
+                  <div className="flex items-center justify-between mt-4">
+                    <div className="flex gap-1">
+                      {/* Tags could go here */}
                     </div>
-                    <button className="p-2 bg-[#27272a] rounded-lg text-gray-400 group-hover:text-white group-hover:bg-red-600 transition-all">
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
+                    <div className="p-2 bg-white/5 rounded-xl text-white/20 group-hover:text-white group-hover:bg-red-600 group-hover:shadow-lg group-hover:shadow-red-600/30 transition-all duration-300">
+                      <ChevronRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
+                    </div>
                   </div>
                 </div>
               </motion.div>
@@ -146,16 +169,20 @@ export default function SearchPage() {
           </AnimatePresence>
         </div>
       ) : query && (
-        <div className="text-center py-20">
-          <Globe className="w-12 h-12 text-gray-700 mx-auto mb-4" />
-          <h3 className="text-xl font-medium text-gray-400">No results found for "{query}"</h3>
-          <p className="text-gray-600">Try a different provider or check your spelling.</p>
-        </div>
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-center py-24 glass-panel border-dashed border-white/5"
+        >
+          <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Globe className="w-10 h-10 text-white/10" />
+          </div>
+          <h3 className="text-xl font-bold mb-2">No results found</h3>
+          <p className="text-white/30 max-w-xs mx-auto text-sm leading-relaxed">
+            We couldn't find "{query}". Try checking your spelling or switching providers.
+          </p>
+        </motion.div>
       )}
     </div>
   )
-}
-
-function cn(...inputs: any[]) {
-  return inputs.filter(Boolean).join(' ')
 }
