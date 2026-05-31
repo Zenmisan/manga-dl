@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.pool import NullPool
 from app.config import get_settings
 import socket
 
@@ -7,14 +8,14 @@ settings = get_settings()
 
 # Render Free Tier doesn't support IPv6, but Supabase resolves to it by default.
 # The Transaction Pooler URL (port 6543) should resolve to IPv4 automatically.
-# We must disable prepared statements for PgBouncer compatibility.
+# We use NullPool because Supabase Transaction Pooler (PgBouncer) 
+# is extremely sensitive to session state and prepared statements.
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=False,
-    pool_pre_ping=True,
-    # This disables the statement cache in asyncpg to allow it to work with PgBouncer
+    poolclass=NullPool,
     connect_args={
-        "statement_cache_size": 0
+        "statement_cache_size": 0,
     }
 )
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
