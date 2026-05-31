@@ -83,4 +83,4 @@ This happens on Render Free Tier because it doesn't support IPv6 outbound. By de
 
 #### `DuplicatePreparedStatementError`
 If you see an error about `prepared statement "__asyncpg_stmt_X__" already exists`, it's because the Supabase Transaction Pooler (PgBouncer) doesn't support them.
-- **Solution:** I have already updated the code in `backend/app/database.py` to set `prepared_statement_cache_size=0`. This is the standard fix for PgBouncer compatibility.
+- **Solution:** I have already updated the code in `backend/app/database.py` to set `statement_cache_size=0` in `connect_args`. This is the standard fix for PgBouncer compatibility.
