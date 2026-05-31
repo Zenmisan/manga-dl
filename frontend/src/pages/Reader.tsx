@@ -4,7 +4,6 @@ import api from '../lib/api'
 import { 
   ChevronLeft, 
   Settings, 
-  Maximize2, 
   Download, 
   Loader2,
   Layout
