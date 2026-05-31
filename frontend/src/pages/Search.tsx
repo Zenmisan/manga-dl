@@ -49,7 +49,7 @@ export default function SearchPage() {
   return (
     <div className="p-6 md:p-12 max-w-7xl mx-auto min-h-full">
       <header className="mb-12">
-        <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-4 bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent">
+        <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-4 bg-linear-to-r from-white to-white/40 bg-clip-text text-transparent">
           Discover Manga
         </h1>
         <p className="text-white/40 font-medium md:text-lg mb-10">Search across multiple sources to find your next read.</p>
@@ -80,7 +80,7 @@ export default function SearchPage() {
               "px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-widest border transition-all flex items-center gap-2",
               !selectedProvider 
                 ? "bg-white/10 border-white/20 text-white shadow-lg" 
-                : "bg-white/[0.02] border-white/5 text-white/40 hover:text-white/60 hover:border-white/10"
+                : "bg-white/2 border-white/5 text-white/40 hover:text-white/60 hover:border-white/10"
             )}
           >
             <Layers className="w-3 h-3" />
