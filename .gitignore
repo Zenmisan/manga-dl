@@ -27,3 +27,9 @@ frontend/dist/
 .env
 .env.local
 *.pem
+
+# Logs
+logs/
+*.log
+.firebase/*
+*.log
