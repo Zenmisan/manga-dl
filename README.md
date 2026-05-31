@@ -47,6 +47,7 @@ Edit `backend/app/config.py` or create a `.env` file in `backend/`:
 - `LIBRARY_PATH`: Where your CBZ files are stored.
 - `API_KEY`: Set this to enable authentication (header `X-API-Key`).
 - `MAX_CONCURRENT_DOWNLOADS`: Number of parallel downloads (default: 3).
+- `SUPABASE_URL` and `SUPABASE_SERVICE_KEY`: Set these to enable Cloud Storage. The app will automatically compress images to WebP to save space and upload CBZs to a `manga-library` bucket, allowing you to use ephemeral hosts like Render without losing your collection.
 
 ## Deployment
 

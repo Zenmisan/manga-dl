@@ -16,6 +16,12 @@ class Settings(BaseSettings):
     REQUEST_DELAY: float = 1.0  # seconds between requests to same host
     CORS_ORIGINS: Any = ["http://localhost:5173", "http://localhost:3000"]
     API_KEY: str | None = None
+    
+    # Supabase Storage Configuration
+    SUPABASE_URL: str | None = None
+    SUPABASE_SERVICE_KEY: str | None = None  # Required for backend bucket operations
+    SUPABASE_BUCKET: str = "manga-library"
+    MAX_STORAGE_MB: int = 900  # Threshold for Smart Eviction
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod

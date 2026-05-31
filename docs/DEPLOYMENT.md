@@ -35,6 +35,9 @@ Render allows you to deploy the backend using the provided `Dockerfile`.
    - `API_KEY`: A secure secret of your choice.
    - `CORS_ORIGINS`: `https://your-firebase-app.web.app`
      - *Note:* You can provide a single URL, a comma-separated list, or a JSON array.
+   - `SUPABASE_URL`: Your Supabase Project URL (e.g. `https://xxxx.supabase.co`).
+   - `SUPABASE_SERVICE_KEY`: Your Supabase **Service Role** Key (needed for bucket uploads/deletions).
+   - `MAX_STORAGE_MB`: (Optional) Limit in MB before old unpinned chapters are evicted. Default is 900.
 
    - `LIBRARY_PATH`: `/tmp/manga-library`
    - `CACHE_PATH`: `/tmp/manga-cache`

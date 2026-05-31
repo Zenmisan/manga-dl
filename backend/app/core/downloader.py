@@ -8,6 +8,8 @@ import os
 import re
 from pathlib import Path
 import logging
+from io import BytesIO
+from PIL import Image
 
 log = logging.getLogger(__name__)
 
@@ -37,7 +39,9 @@ def _safe_filename(s: str) -> str:
 
 
 def package_cbz(image_dir: Path, output_path: Path):
-    """Zip all images in image_dir into a CBZ at output_path."""
+    """
+    Compress images to WebP to save space and zip them into a CBZ at output_path.
+    """
     output_path.parent.mkdir(parents=True, exist_ok=True)
     images = sorted(
         [f for f in image_dir.iterdir() if f.suffix.lower() in (".jpg", ".jpeg", ".png", ".webp", ".gif")],
@@ -48,8 +52,24 @@ def package_cbz(image_dir: Path, output_path: Path):
         return
 
     with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as zf:
-        for img in images:
-            zf.write(img, img.name)
+        for img_path in images:
+            try:
+                # Open the image, convert to RGB (removing alpha if saving as JPEG, but we use WebP which supports alpha)
+                with Image.open(img_path) as img:
+                    # Convert to WebP format in memory
+                    webp_buffer = BytesIO()
+                    # Use a sensible quality (e.g. 75) to drastically reduce size
+                    img.save(webp_buffer, format="WEBP", quality=75, method=4)
+                    
+                    # Determine new filename (replace extension with .webp)
+                    new_name = img_path.stem + ".webp"
+                    
+                    # Write the compressed bytes to the zip
+                    zf.writestr(new_name, webp_buffer.getvalue())
+            except Exception as e:
+                log.error("Failed to process and compress %s: %s", img_path, e)
+                # Fallback to original if conversion fails
+                zf.write(img_path, img_path.name)
 
 
 async def download_chapter_to_cbz(
@@ -61,10 +81,10 @@ async def download_chapter_to_cbz(
     library_path: Path,
     cache_path: Path,
     on_progress=None,  # async callable(downloaded, total)
-) -> Path:
+) -> tuple[Path, int]:
     """
-    Download all pages of a chapter and package into a CBZ.
-    Returns the path to the CBZ file.
+    Download all pages of a chapter, compress them, and package into a CBZ.
+    Returns a tuple of (path to the CBZ file, file size in bytes).
     """
     safe_title = _safe_filename(manga_title)
     ch_num = f"{chapter_number:06.1f}".rstrip("0").rstrip(".")
@@ -72,7 +92,7 @@ async def download_chapter_to_cbz(
     cbz_path = library_path / safe_title / cbz_name
 
     if cbz_path.exists():
-        return cbz_path
+        return cbz_path, cbz_path.stat().st_size
 
     tmp_dir = cache_path / "downloads" / provider_id / _safe_filename(f"{manga_title}-ch{chapter_number}")
     tmp_dir.mkdir(parents=True, exist_ok=True)
@@ -97,10 +117,12 @@ async def download_chapter_to_cbz(
 
             await asyncio.sleep(0.05)  # polite delay between page downloads
 
-    package_cbz(tmp_dir, cbz_path)
+    # Run blocking image compression and zip packaging in a thread
+    await asyncio.to_thread(package_cbz, tmp_dir, cbz_path)
 
     # Clean up temp images
     import shutil
     shutil.rmtree(tmp_dir, ignore_errors=True)
 
-    return cbz_path
+    file_size = cbz_path.stat().st_size if cbz_path.exists() else 0
+    return cbz_path, file_size

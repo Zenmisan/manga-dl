@@ -132,7 +132,7 @@ class DownloadQueue:
         await _broadcast({"type": "started", "download": dict(info)})
 
         try:
-            cbz_path = await download_chapter_to_cbz(
+            cbz_path, file_size = await download_chapter_to_cbz(
                 provider_id=job["provider_id"],
                 manga_title=job["manga_title"],
                 chapter_title=job["chapter_title"],
@@ -142,10 +142,36 @@ class DownloadQueue:
                 cache_path=Path(settings.CACHE_PATH),
                 on_progress=on_progress,
             )
+            
+            output_path_str = str(cbz_path)
+
+            # --- Supabase Cloud Storage Integration ---
+            if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_KEY:
+                from app.core.storage import check_and_evict, upload_file
+                # Path structure in bucket: manga_title/chapter_file.cbz
+                remote_path = f"{cbz_path.parent.name}/{cbz_path.name}"
+                
+                info["status"] = "packaging"  # Or "uploading"
+                await _broadcast({"type": "progress", "download": dict(info)})
+                
+                async with job["db_session_factory"]() as db:
+                    await check_and_evict(db, file_size)
+                    
+                # Upload to Supabase
+                try:
+                    public_url = await upload_file(cbz_path, remote_path)
+                    output_path_str = remote_path  # We store the relative remote path in DB
+                    log.info("Uploaded %s to Supabase", remote_path)
+                    
+                    # Clean up local file since it's now in the cloud
+                    cbz_path.unlink(missing_ok=True)
+                except Exception as e:
+                    log.error("Failed to upload %s to Supabase: %s", remote_path, e)
+                    # Fallback to local path if upload fails
 
             info["status"] = "done"
             info["progress"] = 100
-            info["output_path"] = str(cbz_path)
+            info["output_path"] = output_path_str
 
             # Persist to DB
             async with job["db_session_factory"]() as db:
@@ -162,7 +188,8 @@ class DownloadQueue:
                     progress=100,
                     total_pages=info["total_pages"],
                     downloaded_pages=info["total_pages"],
-                    output_path=str(cbz_path),
+                    output_path=output_path_str,
+                    file_size_bytes=file_size,
                     completed_at=datetime.utcnow(),
                 )
                 db.add(record)
