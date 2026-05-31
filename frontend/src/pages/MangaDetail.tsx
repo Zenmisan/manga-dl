@@ -42,6 +42,7 @@ export default function MangaDetail() {
   const [loading, setLoading] = useState(true)
   const [downloading, setDownloading] = useState<string[]>([])
   const [showQueueLink, setShowQueueLink] = useState(false)
+  const [bulkLoading, setBulkLoading] = useState(false)
 
   useEffect(() => {
     const fetchManga = async () => {
@@ -58,6 +59,7 @@ export default function MangaDetail() {
   }, [provider, mangaId])
 
   const handleDownload = async (chapterId: string) => {
+    if (downloading.includes(chapterId)) return
     setDownloading(prev => [...prev, chapterId])
     try {
       await api.post('/downloads/queue', {
@@ -74,6 +76,31 @@ export default function MangaDetail() {
         setDownloading(prev => prev.filter(id => id !== chapterId))
       }, 1000)
     }
+  }
+
+  const handleBulkDownload = async () => {
+    if (!manga || bulkLoading) return
+    setBulkLoading(true)
+    
+    // Enqueue in order (oldest to newest usually)
+    const chaptersToDownload = [...manga.chapters].reverse()
+    
+    for (const chapter of chaptersToDownload) {
+      try {
+        await api.post('/downloads/queue', {
+          provider_id: provider,
+          manga_id: mangaId,
+          chapter_id: chapter.id
+        })
+        // 100ms delay to let the UI react and not spam the server too hard
+        await new Promise(r => setTimeout(r, 100))
+      } catch (err) {
+        console.error(`Error queuing ${chapter.title}:`, err)
+      }
+    }
+    
+    setBulkLoading(false)
+    setShowQueueLink(true)
   }
 
   if (loading) {
@@ -213,7 +240,23 @@ export default function MangaDetail() {
               </span>
             </h2>
             <div className="flex gap-2">
-              <button className="btn-secondary py-2 text-xs">Bulk Download</button>
+              <button 
+                onClick={handleBulkDownload}
+                disabled={bulkLoading}
+                className="btn-secondary py-2 text-xs flex items-center gap-2 disabled:opacity-50"
+              >
+                {bulkLoading ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Queuing...
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-3.5 h-3.5" />
+                    Download All
+                  </>
+                )}
+              </button>
             </div>
           </div>
 
