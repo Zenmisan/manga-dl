@@ -48,17 +48,26 @@ export default function Dashboard() {
     setUploading(true)
     const formData = new FormData()
     formData.append('file', file)
+try {
+  const response = await api.post('/library/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 0, // Disable timeout for large uploads
+    onUploadProgress: (progressEvent) => {
+      if (progressEvent.total) {
+        const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+        console.log(`Upload Progress: ${percent}%`)
+      }
+    }
+  })
+  // Refresh library
+  const res = await api.get('/library')
+  setItems(res.data)
+} catch (err: any) {
+  console.error('Upload failed:', err)
+  const msg = err.response?.data?.detail || 'Ensure the file is a .zip or .cbz and under the size limit.'
+  alert(`Upload failed: ${msg}`)
+} finally {
 
-    try {
-      await api.post('/library/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      })
-      const res = await api.get('/library')
-      setItems(res.data)
-    } catch (err) {
-      console.error('Upload failed:', err)
-      alert('Upload failed. Ensure the file is a .zip or .cbz')
-    } finally {
       setUploading(false)
     }
   }

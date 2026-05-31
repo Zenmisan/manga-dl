@@ -26,6 +26,12 @@ class LibraryItem(BaseModel):
     title: str
     files: list[str]
 
+import re
+...
+def natural_sort_key(s):
+    """Sort strings with numbers in a way that humans expect (1, 2, 10 instead of 1, 10, 2)."""
+    return [int(text) if text.isdigit() else text.lower() for text in re.split(r'(\d+)', str(s))]
+
 
 @router.get("/", response_model=list[LibraryItem])
 async def list_library(db: AsyncSession = Depends(get_db)):
@@ -36,19 +42,23 @@ async def list_library(db: AsyncSession = Depends(get_db)):
         .where(DownloadRecord.output_path.isnot(None))
     )
     records = result.scalars().all()
-    
+
     # Group by manga_title
     grouped = {}
     for r in records:
         title = r.manga_title
         filename = Path(r.output_path).name
-        
+
         if title not in grouped:
             grouped[title] = set()
         grouped[title].add(filename)
-        
-    items = [LibraryItem(title=title, files=sorted(list(files))) for title, files in grouped.items()]
+
+    items = [
+        LibraryItem(title=title, files=sorted(list(files), key=natural_sort_key)) 
+        for title, files in grouped.items()
+    ]
     return sorted(items, key=lambda x: x.title)
+
 
 
 async def _ensure_local_file(manga_title: str, filename: str) -> Path:
@@ -99,10 +109,12 @@ async def get_cbz_manifest(manga_title: str, filename: str, db: AsyncSession = D
     try:
         def _read_zip():
             with zipfile.ZipFile(file_path, 'r') as zf:
-                return sorted([
+                # Filter for common image extensions and sort naturally
+                images = [
                     name for name in zf.namelist() 
                     if name.lower().endswith(('.jpg', '.jpeg', '.png', '.webp', '.gif'))
-                ])
+                ]
+                return sorted(images, key=natural_sort_key)
         
         images = await asyncio.to_thread(_read_zip)
         
@@ -228,28 +240,36 @@ async def upload_manga(
     db: AsyncSession = Depends(get_db)
 ):
     """Upload a local ZIP/CBZ file to the cloud library."""
-    if not file.filename.lower().endswith(('.zip', '.cbz')):
-        raise HTTPException(status_code=400, detail="Only .zip or .cbz files are supported")
+    # Ensure correct extension
+    ext = Path(file.filename).suffix.lower()
+    if ext not in ('.zip', '.cbz'):
+        raise HTTPException(status_code=400, detail=f"Invalid file format: {ext}. Only .zip or .cbz allowed.")
 
     # 1. Save to a temporary local file
     temp_id = str(uuid.uuid4())
     temp_path = Path(settings.CACHE_PATH) / f"upload_{temp_id}_{file.filename}"
     temp_path.parent.mkdir(parents=True, exist_ok=True)
     
+    log.info(f"Receiving upload: {file.filename}")
+    
     try:
+        # Stream the upload to disk to save memory
         with open(temp_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
             
-        # 2. Extract basic info (Title and Cover)
+        file_size = temp_path.stat().st_size
+        log.info(f"Upload complete: {file.filename} ({file_size / 1024 / 1024:.2f} MB)")
+
+        # 2. Extract basic info
         manga_title = "Uploaded Manga"
         clean_name = file.filename.replace('.cbz', '').replace('.zip', '')
-        if " Ch." in clean_name:
-            manga_title = clean_name.split(" Ch.")[0]
-        else:
-            manga_title = clean_name
-            
-        file_size = temp_path.stat().st_size
         
+        # Smart title detection from filename
+        if " Ch." in clean_name:
+            manga_title = clean_name.split(" Ch.")[0].strip()
+        else:
+            manga_title = clean_name.strip()
+            
         # 3. Upload to Supabase
         remote_path = f"{manga_title}/{file.filename}"
         if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_KEY:
@@ -257,11 +277,13 @@ async def upload_manga(
             await check_and_evict(db, file_size)
             await upload_file(temp_path, remote_path)
             output_path = remote_path
+            log.info(f"Saved {file.filename} to Supabase")
         else:
             dest_path = Path(settings.LIBRARY_PATH) / manga_title / file.filename
             dest_path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy(temp_path, dest_path)
             output_path = str(dest_path)
+            log.info(f"Saved {file.filename} to local storage")
 
         # 4. Create database record
         record = DownloadRecord(
@@ -285,7 +307,7 @@ async def upload_manga(
 
     except Exception as e:
         log.exception("Upload failed")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Server error during upload: {str(e)}")
     finally:
         if temp_path.exists():
             temp_path.unlink()
