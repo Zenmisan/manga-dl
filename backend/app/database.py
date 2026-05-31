@@ -14,9 +14,7 @@ engine = create_async_engine(
     pool_pre_ping=True,
     # This disables the statement cache in asyncpg to allow it to work with PgBouncer
     connect_args={
-        "statement_cache_size": 0,
-        "prepared_statement_cache_size": 0,
-        "prepared_statement_name_cache_size": 0
+        "statement_cache_size": 0
     }
 )
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
