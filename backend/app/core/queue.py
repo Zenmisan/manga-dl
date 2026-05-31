@@ -99,18 +99,27 @@ class DownloadQueue:
         return download_id
 
     async def _worker(self):
+        log.info("Download worker started")
         while self._running:
             try:
                 job = await asyncio.wait_for(self._queue.get(), timeout=1.0)
             except asyncio.TimeoutError:
                 continue
 
-            async with self._semaphore:
-                asyncio.create_task(self._run_job(job))
+            # Limit concurrency correctly
+            await self._semaphore.acquire()
+            asyncio.create_task(self._run_job_wrapper(job))
+
+    async def _run_job_wrapper(self, job: dict):
+        try:
+            await self._run_job(job)
+        finally:
+            self._semaphore.release()
 
     async def _run_job(self, job: dict):
         download_id = job["download_id"]
         info = _active[download_id]
+        log.info("Starting download job %s (%s)", download_id, job["manga_title"])
 
         async def on_progress(downloaded: int, total: int):
             info["downloaded_pages"] = downloaded
@@ -158,9 +167,10 @@ class DownloadQueue:
                 )
                 db.add(record)
                 await db.commit()
+                log.info("Download job %s finished and saved to DB", download_id)
 
         except Exception as exc:
-            log.error("Download failed for %s: %s", download_id, exc)
+            log.exception("Download failed for %s", download_id)
             info["status"] = "failed"
             info["error"] = str(exc)
 

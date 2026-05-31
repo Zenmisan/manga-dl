@@ -58,7 +58,11 @@ export default function DownloadsPage() {
         })
       } else if (data.type === 'completed') {
         setActive(prev => prev.filter(i => i.id !== data.download.id))
-        setHistory(prev => [data.download, ...prev].slice(0, 100))
+        setHistory(prev => {
+          // Prevent duplicates in history if refresh happens fast
+          if (prev.some(i => i.id === data.download.id)) return prev
+          return [data.download, ...prev].slice(0, 100)
+        })
       }
     }
 
