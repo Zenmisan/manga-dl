@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import api from '../lib/api'
-import { Download as DownloadIcon, CheckCircle2, XCircle, Clock, Pause, Trash2, FolderOpen, Activity } from 'lucide-react'
+import { Download as DownloadIcon, CheckCircle2, XCircle, Pause, Trash2, FolderOpen, Activity } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
 
@@ -37,7 +37,6 @@ export default function DownloadsPage() {
     fetchData()
     
     // Setup WebSocket for real-time updates
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const wsUrl = import.meta.env.PROD 
       ? `wss://${window.location.host}/ws` 
       : `ws://localhost:8000/ws`

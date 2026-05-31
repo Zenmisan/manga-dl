@@ -9,10 +9,9 @@ import {
   Tag, 
   Info, 
   CheckCircle2, 
-  Loader2,
-  Sparkles
+  Loader2
 } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { cn } from '../lib/utils'
 
 interface Chapter {
@@ -28,8 +27,8 @@ interface MangaDetail {
   cover_url: string | null
   description: string | null
   status: string | null
-  genres: list[string]
-  authors: list[string]
+  genres: string[]
+  authors: string[]
   provider: string
   url: string
   chapters: Chapter[]
@@ -202,7 +201,7 @@ export default function MangaDetail() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {manga.chapters.map((chapter, idx) => (
+            {manga.chapters.map((chapter) => (
               <div 
                 key={chapter.id}
                 className="group flex items-center justify-between p-4 glass-card hover:bg-white/5 transition-all border-white/5"
