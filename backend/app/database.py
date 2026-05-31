@@ -7,12 +7,17 @@ settings = get_settings()
 
 # Render Free Tier doesn't support IPv6, but Supabase resolves to it by default.
 # The Transaction Pooler URL (port 6543) should resolve to IPv4 automatically.
-# We set statement_cache_size=0 in connect_args because PgBouncer 
-# (used by Supabase Pooler) does not support prepared statements in transaction mode.
+# We must disable prepared statements for PgBouncer compatibility.
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=False,
-    connect_args={"statement_cache_size": 0}
+    pool_pre_ping=True,
+    # This disables the statement cache in asyncpg to allow it to work with PgBouncer
+    connect_args={
+        "statement_cache_size": 0,
+        "prepared_statement_cache_size": 0,
+        "prepared_statement_name_cache_size": 0
+    }
 )
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
