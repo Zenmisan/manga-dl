@@ -20,9 +20,22 @@ export default function Reader() {
   const [showControls, setShowControls] = useState(true)
   const [viewMode, setViewMode] = useState<'vertical' | 'paged'>('vertical')
   const [currentPage, setCurrentPage] = useState(1)
+  const [localTitle, setLocalTitle] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchManifest = async () => {
+      // --- Handle Local Sessions ---
+      if (mangaTitle === 'local') {
+        const session = (window as any).__LOCAL_MANGA_SESSION__
+        if (session) {
+          setLocalTitle(session.title)
+          setPages(session.pages)
+          setLoading(false)
+          return
+        }
+      }
+
+      // --- Handle Remote Files ---
       try {
         const res = await api.get(`/library/read/${encodeURIComponent(mangaTitle || '')}/${encodeURIComponent(filename || '')}`)
         setPages(res.data.pages)
@@ -84,18 +97,21 @@ export default function Reader() {
   }, [currentPage, mangaTitle, filename, loading])
 
   const getImageUrl = (pageName: string) => {
+    if (mangaTitle === 'local') return pageName
     const base = api.defaults.baseURL || ''
     const apiKey = localStorage.getItem('manga-api-key') || ''
     return `${base}/library/image/${encodeURIComponent(mangaTitle || '')}/${encodeURIComponent(filename || '')}/${encodeURIComponent(pageName)}?api_key=${apiKey}`
   }
 
   const handleDownload = () => {
+    if (mangaTitle === 'local') return
     const base = api.defaults.baseURL || ''
     const apiKey = localStorage.getItem('manga-api-key') || ''
     window.open(`${base}/library/file/${encodeURIComponent(mangaTitle || '')}/${encodeURIComponent(filename || '')}?api_key=${apiKey}`, '_blank')
   }
 
   const handleConvertToPdf = () => {
+    if (mangaTitle === 'local') return
     const base = api.defaults.baseURL || ''
     const apiKey = localStorage.getItem('manga-api-key') || ''
     window.open(`${base}/library/pdf/${encodeURIComponent(mangaTitle || '')}/${encodeURIComponent(filename || '')}?api_key=${apiKey}`, '_blank')
@@ -135,9 +151,11 @@ export default function Reader() {
                   <ChevronLeft className="w-6 h-6" />
                 </button>
                 <div className="min-w-0">
-                  <h1 className="font-bold text-sm md:text-base truncate max-w-[150px] md:max-w-md">{mangaTitle}</h1>
+                  <h1 className="font-bold text-sm md:text-base truncate max-w-[150px] md:max-w-md">
+                    {mangaTitle === 'local' ? localTitle : mangaTitle}
+                  </h1>
                   <p className="text-[10px] md:text-xs font-bold text-white/30 uppercase tracking-tight truncate">
-                    {filename?.replace('.cbz', '')}
+                    {mangaTitle === 'local' ? 'Local Preview' : filename?.replace('.cbz', '')}
                   </p>
                 </div>
               </div>

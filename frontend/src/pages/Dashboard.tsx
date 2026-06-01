@@ -41,33 +41,76 @@ export default function Dashboard() {
     }).catch(() => setLoading(false))
   }, [])
 
+import JSZip from 'jszip'
+...
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
     setUploading(true)
-    const formData = new FormData()
-    formData.append('file', file)
-try {
-  await api.post('/library/upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-    timeout: 0, // Disable timeout for large uploads
-    onUploadProgress: (progressEvent) => {
-      if (progressEvent.total) {
-        const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total)
-        console.log(`Upload Progress: ${percent}%`)
+    
+    try {
+      // --- New Local-First Logic ---
+      const zip = await JSZip.loadAsync(file)
+      const imageFiles: { name: string, folder: string }[] = []
+      
+      // 1. Find all image files
+      const validExtensions = ['.png', '.jpg', '.jpeg', '.webp', '.gif']
+      
+      for (const [path, zipFile] of Object.entries(zip.files)) {
+        if (!zipFile.dir && validExtensions.some(ext => path.toLowerCase().endsWith(ext))) {
+          const parts = path.split('/')
+          imageFiles.push({ 
+            name: path, 
+            folder: parts.length > 1 ? parts[0] : 'root' 
+          })
+        }
       }
-    }
-  })
-  // Refresh library
-  const res = await api.get('/library')
-  setItems(res.data)
-} catch (err: any) {
-  console.error('Upload failed:', err)
-  const msg = err.response?.data?.detail || 'Ensure the file is a .zip or .cbz and under the size limit.'
-  alert(`Upload failed: ${msg}`)
-} finally {
 
+      if (imageFiles.length === 0) {
+        throw new Error("No images found in the archive.")
+      }
+
+      // 2. Natural Sorting (matching your Python script)
+      const naturalSort = (a: string, b: string) => {
+        return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+      }
+      
+      imageFiles.sort((a, b) => naturalSort(a.name, b.name))
+
+      // 3. Extract to Blobs
+      const blobs: string[] = []
+      for (const img of imageFiles) {
+        const content = await zip.files[img.name].async('blob')
+        blobs.push(URL.createObjectURL(content))
+      }
+
+      // 4. Store in temporary session for the Reader
+      const mangaTitle = file.name.replace(/\.[^/.]+$/, "")
+      const sessionId = `local-${Date.now()}`
+      
+      // Use a custom window property to pass the large blob array to the reader
+      // (This avoids routing/URL length limits)
+      ;(window as any).__LOCAL_MANGA_SESSION__ = {
+        title: mangaTitle,
+        pages: blobs
+      }
+
+      // 5. Instantly navigate to Reader
+      navigate(`/read/local/${sessionId}`)
+
+      // --- Optional: Cloud Background Sync ---
+      const formData = new FormData()
+      formData.append('file', file)
+      api.post('/library/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 0
+      }).catch(err => console.warn('Background cloud sync failed:', err))
+
+    } catch (err: any) {
+      console.error('Local parsing failed:', err)
+      alert(`Could not open manga: ${err.message || 'Unknown error'}`)
+    } finally {
       setUploading(false)
     }
   }
