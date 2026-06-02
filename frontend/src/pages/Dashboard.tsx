@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../lib/api'
+import JSZip from 'jszip'
 import { 
   Book, 
   FolderOpen, 
@@ -41,8 +42,6 @@ export default function Dashboard() {
     }).catch(() => setLoading(false))
   }, [])
 
-import JSZip from 'jszip'
-...
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
