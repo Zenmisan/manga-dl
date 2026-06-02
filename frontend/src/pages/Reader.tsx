@@ -8,7 +8,8 @@ import {
   Layout,
   FileText,
   CloudUpload,
-  ChevronRight
+  ChevronRight,
+  Sparkles
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
@@ -17,7 +18,7 @@ import { useAppStore } from '../lib/store'
 export default function Reader() {
   const { mangaTitle, filename } = useParams()
   const navigate = useNavigate()
-  const { readingMode, setReadingMode } = useAppStore()
+  const { readingMode, setReadingMode, upscaling, setUpscaling } = useAppStore()
   
   const [pages, setPages] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
@@ -25,6 +26,7 @@ export default function Reader() {
   const [currentPage, setCurrentPage] = useState(1)
   const [localTitle, setLocalTitle] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [nextChapterId, setNextChapterId] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchManifest = async () => {
@@ -41,7 +43,7 @@ export default function Reader() {
 
       // --- Handle Remote Files ---
       try {
-        const res = await api.get(`/library/read/${encodeURIComponent(mangaTitle || '')}/${encodeURIComponent(filename || '')}/`)
+        const res = await api.get(`/library/read/${encodeURIComponent(mangaTitle || '')}/${encodeURIComponent(filename || '')}`)
         setPages(res.data.pages)
         
         if (res.data.last_page > 0) {
@@ -53,6 +55,14 @@ export default function Reader() {
               if (el) el.scrollIntoView({ behavior: 'auto' })
             }, 800)
           }
+        }
+
+        // Find next chapter for prefetching
+        const libraryRes = await api.get(`/library/${encodeURIComponent(mangaTitle || '')}`)
+        const files = libraryRes.data.files
+        const currentIdx = files.indexOf(filename)
+        if (currentIdx !== -1 && currentIdx < files.length - 1) {
+          setNextChapterId(files[currentIdx + 1])
         }
       } catch (err) {
         console.error(err)
@@ -67,45 +77,50 @@ export default function Reader() {
     return () => clearTimeout(timer)
   }, [mangaTitle, filename, readingMode])
 
-  // Track scroll position in Webtoon mode
+  // Predictive Prefetching (Smart Binge)
   useEffect(() => {
-    if (readingMode !== 'webtoon' || loading) return
+    if (!nextChapterId || loading || mangaTitle === 'local') return
 
-    const handleScroll = () => {
-      const viewportMid = window.innerHeight / 3
-      for (let i = 0; i < pages.length; i++) {
-        const el = document.getElementById(`page-${i + 1}`)
-        if (el) {
-          const rect = el.getBoundingClientRect()
-          if (rect.top <= viewportMid && rect.bottom >= viewportMid) {
-            setCurrentPage(i + 1)
-            break
-          }
-        }
+    const prefetchNext = async () => {
+      try {
+        const res = await api.get(`/library/read/${encodeURIComponent(mangaTitle || '')}/${encodeURIComponent(nextChapterId)}`)
+        const nextPages = res.data.pages
+        // Prefetch first 5 images of next chapter
+        nextPages.slice(0, 5).forEach((page: string) => {
+          const img = new Image()
+          img.src = getImageUrlForChapter(nextChapterId, page)
+        })
+        console.log('Smart Binge: Prefetched next chapter')
+      } catch (err) {
+        console.warn('Prefetch failed:', err)
       }
     }
 
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [pages, readingMode, loading])
+    const handleScroll = () => {
+      if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 1000) {
+        prefetchNext()
+        window.removeEventListener('scroll', handleScroll)
+      }
+    }
 
-  // Sync progress to backend
-  useEffect(() => {
-    if (currentPage <= 1 || loading || mangaTitle === 'local') return
-    const timer = setTimeout(() => {
-      api.post(`/library/progress/${encodeURIComponent(mangaTitle || '')}/${encodeURIComponent(filename || '')}/`, {
-        page: currentPage
-      }).catch(err => console.error('Failed to sync progress:', err))
-    }, 3000)
-    
-    return () => clearTimeout(timer)
-  }, [currentPage, mangaTitle, filename, loading])
+    if (readingMode === 'webtoon') {
+      window.addEventListener('scroll', handleScroll)
+      return () => window.removeEventListener('scroll', handleScroll)
+    } else if (currentPage > pages.length - 2) {
+      prefetchNext()
+    }
+  }, [nextChapterId, currentPage, pages.length, readingMode, loading])
 
-  const getImageUrl = (pageName: string) => {
+  const getImageUrlForChapter = (targetFilename: string, pageName: string) => {
     if (mangaTitle === 'local') return pageName
     const base = api.defaults.baseURL || ''
     const apiKey = localStorage.getItem('manga-api-key') || ''
-    return `${base}/library/image/${encodeURIComponent(mangaTitle || '')}/${encodeURIComponent(filename || '')}/${encodeURIComponent(pageName)}?api_key=${apiKey}`
+    const url = `${base}/library/image/${encodeURIComponent(mangaTitle || '')}/${encodeURIComponent(targetFilename)}/${encodeURIComponent(pageName)}?api_key=${apiKey}`
+    return upscaling ? `${url}&upscale=true` : url
+  }
+
+  const getImageUrl = (pageName: string) => {
+    return getImageUrlForChapter(filename || '', pageName)
   }
 
   const handleDownload = () => {
@@ -136,7 +151,7 @@ export default function Reader() {
     formData.append('file', session.rawFile)
 
     try {
-      await api.post('/library/upload/', formData, {
+      await api.post('/library/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 0
       })
@@ -201,6 +216,21 @@ export default function Reader() {
               </div>
 
               <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+                <button 
+                   onClick={(e) => {
+                     e.stopPropagation()
+                     setUpscaling(!upscaling)
+                   }}
+                   className={cn(
+                     "p-2.5 rounded-xl transition-all border flex items-center gap-2",
+                     upscaling ? "bg-amber-500/10 text-amber-500 border-amber-500/20 shadow-lg shadow-amber-500/10" : "text-white/40 border-transparent hover:bg-white/5"
+                   )}
+                   title={upscaling ? "Disable Upscaling" : "Enable Upscaling (Beta)"}
+                >
+                  <Sparkles className={cn("w-5 h-5", upscaling && "fill-current animate-pulse")} />
+                  <span className="hidden lg:inline text-[10px] font-black uppercase tracking-widest">Enhance</span>
+                </button>
+
                 {mangaTitle === 'local' && (
                   <button 
                     onClick={handleCloudUpload}
@@ -226,16 +256,20 @@ export default function Reader() {
                 <button 
                   onClick={(e) => {
                     e.stopPropagation()
-                    setReadingMode(readingMode === 'webtoon' ? 'manga' : 'webtoon')
+                    if (readingMode === 'webtoon') setReadingMode('manga')
+                    else if (readingMode === 'manga') setReadingMode('manga-rtl')
+                    else setReadingMode('webtoon')
                   }}
                   className={cn(
                     "p-2.5 rounded-xl transition-all border flex items-center gap-2",
-                    readingMode === 'manga' ? "bg-white/10 text-white border-white/20" : "text-white/40 border-transparent hover:bg-white/5"
+                    readingMode !== 'webtoon' ? "bg-white/10 text-white border-white/20" : "text-white/40 border-transparent hover:bg-white/5"
                   )}
-                  title={readingMode === 'webtoon' ? "Switch to Manga Mode" : "Switch to Webtoon Mode"}
+                  title={`Current mode: ${readingMode}. Click to switch.`}
                 >
                   <Layout className="w-5 h-5" />
-                  <span className="hidden md:inline text-[10px] font-black uppercase tracking-widest">{readingMode}</span>
+                  <span className="hidden md:inline text-[10px] font-black uppercase tracking-widest">
+                    {readingMode === 'manga-rtl' ? 'RTL' : readingMode}
+                  </span>
                 </button>
                 <button 
                   onClick={handleDownload}
@@ -281,35 +315,41 @@ export default function Reader() {
             ))}
           </div>
         ) : (
-          /* Paged Manga Mode (LTR) */
+          /* Paged Manga Mode (LTR / RTL) */
           <div className="relative w-full h-full flex items-center justify-center">
             {/* Click regions for paging */}
-            <div className="absolute inset-y-0 left-0 w-1/3 z-20 cursor-pointer" onClick={prevPage} />
-            <div className="absolute inset-y-0 right-0 w-1/3 z-20 cursor-pointer" onClick={nextPage} />
+            <div 
+              className="absolute inset-y-0 left-0 w-1/3 z-20 cursor-pointer" 
+              onClick={readingMode === 'manga' ? prevPage : nextPage} 
+            />
+            <div 
+              className="absolute inset-y-0 right-0 w-1/3 z-20 cursor-pointer" 
+              onClick={readingMode === 'manga' ? nextPage : prevPage} 
+            />
             
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentPage}
-                initial={{ opacity: 0, x: 20 }}
+                initial={{ opacity: 0, x: readingMode === 'manga' ? 40 : -40 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.2 }}
+                exit={{ opacity: 0, x: readingMode === 'manga' ? -40 : 40 }}
+                transition={{ duration: 0.15 }}
                 className="h-full w-full flex items-center justify-center p-4"
               >
                 <img 
                   src={getImageUrl(pages[currentPage - 1])} 
                   alt={`Page ${currentPage}`}
-                  className="max-h-full max-w-full object-contain shadow-2xl"
+                  className="max-h-[90dvh] max-w-full object-contain shadow-2xl rounded-sm"
                 />
               </motion.div>
             </AnimatePresence>
             
             {/* Navigation Overlays */}
             <div className="absolute bottom-10 right-10 flex gap-4 z-30">
-               <button onClick={prevPage} className={cn("p-4 glass-panel hover:bg-white/10 transition-all", currentPage === 1 && "opacity-0 pointer-events-none")}>
+               <button onClick={readingMode === 'manga' ? prevPage : nextPage} className={cn("p-4 glass-panel hover:bg-white/10 transition-all", ((readingMode === 'manga' && currentPage === 1) || (readingMode === 'manga-rtl' && currentPage === pages.length)) && "opacity-0 pointer-events-none")}>
                  <ChevronLeft className="w-6 h-6" />
                </button>
-               <button onClick={nextPage} className={cn("p-4 glass-panel hover:bg-white/10 transition-all", currentPage === pages.length && "opacity-0 pointer-events-none")}>
+               <button onClick={readingMode === 'manga' ? nextPage : prevPage} className={cn("p-4 glass-panel hover:bg-white/10 transition-all", ((readingMode === 'manga' && currentPage === pages.length) || (readingMode === 'manga-rtl' && currentPage === 1)) && "opacity-0 pointer-events-none")}>
                  <ChevronRight className="w-6 h-6" />
                </button>
             </div>

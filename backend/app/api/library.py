@@ -130,10 +130,14 @@ async def get_cbz_manifest(manga_title: str, filename: str, db: AsyncSession = D
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to read CBZ: {e}")
 
-
 @router.get("/image/{manga_title}/{filename}/{image_name:path}")
-async def get_cbz_image(manga_title: str, filename: str, image_name: str):
-    """Extract and serve a single image from a CBZ file."""
+async def get_cbz_image(
+    manga_title: str, 
+    filename: str, 
+    image_name: str,
+    upscale: bool = Query(False)
+):
+    """Extract and serve a single image from a CBZ file, with optional upscaling."""
     file_path = await _ensure_local_file(manga_title, filename)
 
     try:
@@ -143,12 +147,19 @@ async def get_cbz_image(manga_title: str, filename: str, image_name: str):
                     return None
                 with zf.open(image_name) as img_file:
                     return img_file.read()
-                    
+
         content = await asyncio.to_thread(_extract)
         if not content:
             raise HTTPException(status_code=404, detail="Image not found in archive")
-            
+
+        # --- Upscaling Foundation ---
+        if upscale:
+            from app.core.ai import upscale_image
+            content = await upscale_image(content)
+
         ext = Path(image_name).suffix.lower()
+...
+
         media_type = "image/jpeg"
         if ext == ".png": media_type = "image/png"
         elif ext == ".webp": media_type = "image/webp"

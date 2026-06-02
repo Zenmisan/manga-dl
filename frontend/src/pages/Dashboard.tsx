@@ -35,7 +35,7 @@ export default function Dashboard() {
   const [uploading, setUploading] = useState(false)
 
   useEffect(() => {
-    api.get('/library/').then(res => {
+    api.get('/library').then(res => {
       setItems(res.data)
       setLoading(false)
     }).catch(() => setLoading(false))
@@ -108,7 +108,7 @@ export default function Dashboard() {
     setPinnedFiles(prev => isPinned ? prev.filter(f => f !== id) : [...prev, id])
     
     try {
-      await api.post(`/library/pin/${encodeURIComponent(mangaTitle)}/${encodeURIComponent(filename)}/`)
+      await api.post(`/library/pin/${encodeURIComponent(mangaTitle)}/${encodeURIComponent(filename)}`)
     } catch (err) {
       console.error('Pin failed:', err)
     }

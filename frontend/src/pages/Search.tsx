@@ -32,7 +32,7 @@ export default function SearchPage() {
     try {
       const params: any = { q: searchQuery }
       if (selectedProvider) params.provider = selectedProvider
-      const res = await api.get('/manga/search/', { params })
+      const res = await api.get('/manga/search', { params })
       setSearchResults(res.data)
       setHasSearched(true)
     } catch (err) {
@@ -46,6 +46,7 @@ export default function SearchPage() {
     <div className="p-6 md:p-12 max-w-7xl mx-auto min-h-full">
       <header className="mb-12">
         <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-4 bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent">
+
           Discover Manga
         </h1>
         <p className="text-white/40 font-medium md:text-lg mb-10">Search across multiple sources to find your next read.</p>
@@ -116,7 +117,7 @@ export default function SearchPage() {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ delay: idx * 0.03, ease: "easeOut" }}
-                onClick={() => navigate(`/manga/${r.provider}/${encodeURIComponent(r.id)}/`)}
+                onClick={() => navigate(`/manga/${r.provider}/${encodeURIComponent(r.id)}`)}
                 className="group flex gap-5 glass-card p-4 hover:bg-white/[0.08] hover:border-red-500/30 cursor-pointer relative overflow-hidden"
               >
                 <div className="w-24 h-32 md:w-28 md:h-36 glass-panel overflow-hidden shrink-0 relative shadow-xl">
@@ -186,7 +187,7 @@ export default function SearchPage() {
           <h3 className="text-xl font-bold mb-2">No results found</h3>
           <p className="text-white/30 max-w-xs mx-auto text-sm leading-relaxed">
             We couldn't find "{searchQuery}". Try checking your spelling or switching providers.
-gemini          </p>
+          </p>
         </motion.div>
       )}
     </div>

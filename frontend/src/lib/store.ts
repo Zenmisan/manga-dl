@@ -24,8 +24,10 @@ interface AppState {
   setHasSearched: (val: boolean) => void
 
   // Reader Preferences
-  readingMode: 'webtoon' | 'manga'
-  setReadingMode: (mode: 'webtoon' | 'manga') => void
+  readingMode: 'webtoon' | 'manga' | 'manga-rtl'
+  upscaling: boolean
+  setReadingMode: (mode: 'webtoon' | 'manga' | 'manga-rtl') => void
+  setUpscaling: (val: boolean) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -40,5 +42,7 @@ export const useAppStore = create<AppState>((set) => ({
   setHasSearched: (val) => set({ hasSearched: val }),
 
   readingMode: 'webtoon',
+  upscaling: false,
   setReadingMode: (mode) => set({ readingMode: mode }),
+  setUpscaling: (val) => set({ upscaling: val }),
 }))
