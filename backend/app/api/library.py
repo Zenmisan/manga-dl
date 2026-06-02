@@ -8,7 +8,7 @@ import uuid
 import shutil
 from pathlib import Path
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, Response, Depends, UploadFile, File
+from fastapi import APIRouter, HTTPException, Response, Depends, UploadFile, File, Query
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
