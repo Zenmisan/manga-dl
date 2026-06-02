@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import api from '../lib/api'
 import { 
   Book, 
-  FolderOpen, 
   MoreVertical, 
   LayoutGrid, 
   List, 

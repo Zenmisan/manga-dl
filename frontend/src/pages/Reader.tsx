@@ -3,14 +3,12 @@ import { useNavigate, useParams } from 'react-router-dom'
 import api from '../lib/api'
 import { 
   ChevronLeft, 
-  Settings, 
   Download, 
   Loader2,
   Layout,
   FileText,
   CloudUpload,
-  ChevronRight,
-  Play
+  ChevronRight
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
