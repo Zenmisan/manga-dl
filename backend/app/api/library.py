@@ -158,8 +158,6 @@ async def get_cbz_image(
             content = await upscale_image(content)
 
         ext = Path(image_name).suffix.lower()
-...
-
         media_type = "image/jpeg"
         if ext == ".png": media_type = "image/png"
         elif ext == ".webp": media_type = "image/webp"
