@@ -35,24 +35,24 @@ def natural_sort_key(s):
 
 @router.get("/", response_model=list[LibraryItem])
 async def list_library(db: AsyncSession = Depends(get_db)):
-    """Fetch the library from the database to support cloud storage."""
+    """Fetch the library from the database. Show all series that have any history."""
     result = await db.execute(
         select(DownloadRecord)
-        .where(DownloadRecord.status == "done")
-        .where(DownloadRecord.output_path.isnot(None))
+        .order_by(DownloadRecord.created_at.desc())
     )
     records = result.scalars().all()
     
-    # Group by manga_title
+    # Group by manga_title to show unique series in the main grid
     grouped = {}
     for r in records:
         title = r.manga_title
-        filename = Path(r.output_path).name
-        
         if title not in grouped:
             grouped[title] = set()
-        grouped[title].add(filename)
         
+        if r.output_path:
+            filename = Path(r.output_path).name
+            grouped[title].add(filename)
+            
     items = [
         LibraryItem(title=title, files=sorted(list(files), key=natural_sort_key)) 
         for title, files in grouped.items()

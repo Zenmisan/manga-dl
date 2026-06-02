@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../lib/api'
-import JSZip from 'jszip'
 import { 
   Book, 
   FolderOpen, 
@@ -20,6 +19,7 @@ import {
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
+import JSZip from 'jszip'
 
 interface LibraryItem {
   title: string
@@ -36,7 +36,7 @@ export default function Dashboard() {
   const [uploading, setUploading] = useState(false)
 
   useEffect(() => {
-    api.get('/library').then(res => {
+    api.get('/library/').then(res => {
       setItems(res.data)
       setLoading(false)
     }).catch(() => setLoading(false))
@@ -49,66 +49,43 @@ export default function Dashboard() {
     setUploading(true)
     
     try {
-      // --- New Local-First Logic ---
+      // 1. Load ZIP locally
       const zip = await JSZip.loadAsync(file)
-      const imageFiles: { name: string, folder: string }[] = []
-      
-      // 1. Find all image files
+      const imageFiles: string[] = []
       const validExtensions = ['.png', '.jpg', '.jpeg', '.webp', '.gif']
       
       for (const [path, zipFile] of Object.entries(zip.files)) {
         if (!zipFile.dir && validExtensions.some(ext => path.toLowerCase().endsWith(ext))) {
-          const parts = path.split('/')
-          imageFiles.push({ 
-            name: path, 
-            folder: parts.length > 1 ? parts[0] : 'root' 
-          })
+          imageFiles.push(path)
         }
       }
 
-      if (imageFiles.length === 0) {
-        throw new Error("No images found in the archive.")
-      }
+      if (imageFiles.length === 0) throw new Error("No images found in ZIP")
 
-      // 2. Natural Sorting (matching your Python script)
-      const naturalSort = (a: string, b: string) => {
-        return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
-      }
-      
-      imageFiles.sort((a, b) => naturalSort(a.name, b.name))
+      // 2. Natural Sort (Human-friendly)
+      imageFiles.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }))
 
-      // 3. Extract to Blobs
+      // 3. Create Blob URLs
       const blobs: string[] = []
-      for (const img of imageFiles) {
-        const content = await zip.files[img.name].async('blob')
+      for (const name of imageFiles) {
+        const content = await zip.files[name].async('blob')
         blobs.push(URL.createObjectURL(content))
       }
 
-      // 4. Store in temporary session for the Reader
+      // 4. Start Local Session
       const mangaTitle = file.name.replace(/\.[^/.]+$/, "")
       const sessionId = `local-${Date.now()}`
       
-      // Use a custom window property to pass the large blob array to the reader
-      // (This avoids routing/URL length limits)
       ;(window as any).__LOCAL_MANGA_SESSION__ = {
         title: mangaTitle,
-        pages: blobs
+        pages: blobs,
+        rawFile: file // For manual cloud sync later
       }
 
-      // 5. Instantly navigate to Reader
       navigate(`/read/local/${sessionId}`)
-
-      // --- Optional: Cloud Background Sync ---
-      const formData = new FormData()
-      formData.append('file', file)
-      api.post('/library/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 0
-      }).catch(err => console.warn('Background cloud sync failed:', err))
-
     } catch (err: any) {
       console.error('Local parsing failed:', err)
-      alert(`Could not open manga: ${err.message || 'Unknown error'}`)
+      alert(`Could not open: ${err.message}`)
     } finally {
       setUploading(false)
     }
@@ -132,9 +109,9 @@ export default function Dashboard() {
     setPinnedFiles(prev => isPinned ? prev.filter(f => f !== id) : [...prev, id])
     
     try {
-      await api.post(`/library/pin/${encodeURIComponent(mangaTitle)}/${encodeURIComponent(filename)}`)
+      await api.post(`/library/pin/${encodeURIComponent(mangaTitle)}/${encodeURIComponent(filename)}/`)
     } catch (err) {
-      console.error('Failed to toggle pin:', err)
+      console.error('Pin failed:', err)
     }
   }
 
@@ -152,7 +129,7 @@ export default function Dashboard() {
         <header className="mb-12">
           <h1 className="text-3xl md:text-5xl font-black tracking-tighter mb-4 text-white uppercase">{selectedManga.title}</h1>
           <p className="text-white/30 font-bold uppercase tracking-[0.2em] text-xs">
-            {selectedManga.files.length} Chapters Downloaded
+            {selectedManga.files.length} Chapters Found
           </p>
         </header>
 
@@ -174,53 +151,36 @@ export default function Dashboard() {
                     </h4>
                     {isPinned && <Pin className="w-3 h-3 text-red-500 fill-current" />}
                   </div>
-                  <p className="text-[10px] font-black text-white/20 uppercase tracking-widest mt-1">Local Archive</p>
+                  <p className="text-[10px] font-black text-white/20 uppercase tracking-widest mt-1">Archive</p>
                 </div>
 
                 <div className="flex gap-2 shrink-0">
                   <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      togglePin(selectedManga.title, file);
-                    }}
+                    onClick={(e) => { e.stopPropagation(); togglePin(selectedManga.title, file); }}
                     className={cn(
                       "p-3 rounded-xl transition-all border",
-                      isPinned 
-                        ? "bg-red-500/20 border-red-500/20 text-red-500" 
-                        : "bg-white/5 border-white/5 text-white/40 hover:text-white"
+                      isPinned ? "bg-red-500/20 border-red-500/20 text-red-500" : "bg-white/5 border-white/5 text-white/40 hover:text-white"
                     )}
-                    title={isPinned ? "Unpin" : "Pin to prevent auto-deletion"}
                   >
                     {isPinned ? <Pin className="w-5 h-5 fill-current" /> : <PinOff className="w-5 h-5" />}
                   </button>
                   <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleConvertToPdf(selectedManga.title, file);
-                    }}
-                    className="p-3 bg-white/5 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-all border border-white/5"
-                    title="Convert to PDF"
+                    onClick={(e) => { e.stopPropagation(); handleConvertToPdf(selectedManga.title, file); }}
+                    className="p-3 bg-white/5 border border-white/5 rounded-xl text-white/40 hover:text-white"
                   >
                     <FileText className="w-5 h-5" />
                   </button>
                   <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDownloadFile(selectedManga.title, file);
-                    }}
-                    className="p-3 bg-white/5 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-all border border-white/5 cursor-pointer active:scale-95"
-                    title="Download to device"
+                    onClick={(e) => { e.stopPropagation(); handleDownloadFile(selectedManga.title, file); }}
+                    className="p-3 bg-white/5 border border-white/5 rounded-xl text-white/40 hover:text-white"
                   >
-                    <Download className="w-5 h-5 pointer-events-none" />
+                    <Download className="w-5 h-5" />
                   </button>
                   <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(`/read/${encodeURIComponent(selectedManga.title)}/${encodeURIComponent(file)}`);
-                    }}
-                    className="px-5 py-3 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-red-600/20 active:scale-95 transition-all cursor-pointer"
+                    onClick={() => navigate(`/read/${encodeURIComponent(selectedManga.title)}/${encodeURIComponent(file)}`)}
+                    className="px-5 py-3 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg"
                   >
-                    <Play className="w-4 h-4 fill-current pointer-events-none" />
+                    <Play className="w-4 h-4 fill-current" />
                     Read
                   </button>
                 </div>
@@ -243,13 +203,13 @@ export default function Dashboard() {
           >
             <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
               <div>
-                <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-3 bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent">
-                  My Library
+                <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-3 bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent uppercase">
+                  Library
                 </h1>
-                <p className="text-white/40 font-medium md:text-lg">Manage your offline manga collection</p>
+                <p className="text-white/40 font-medium md:text-lg">Your personal cloud collection</p>
               </div>
 
-              <div className="flex bg-white/5 border border-white/5 rounded-2xl p-1.5 backdrop-blur-sm self-start md:self-auto">
+              <div className="flex bg-white/5 border border-white/5 rounded-2xl p-1.5 backdrop-blur-sm">
                 <label className={cn(
                   "p-2.5 rounded-xl transition-all cursor-pointer flex items-center gap-2 px-4",
                   uploading ? "opacity-50 pointer-events-none" : "hover:bg-white/5 text-white/40 hover:text-white"
@@ -284,30 +244,26 @@ export default function Dashboard() {
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="flex-1 flex flex-col items-center justify-center text-center p-8 glass-panel border-dashed border-white/10 my-12"
+                className="flex-1 flex flex-col items-center justify-center text-center p-12 glass-panel border-dashed border-white/10 my-12"
               >
-                <div className="w-24 h-24 bg-white/5 rounded-3xl flex items-center justify-center mb-8 shadow-inner">
-                  <Book className="w-10 h-10 text-white/20" />
+                <div className="w-24 h-24 bg-white/5 rounded-3xl flex items-center justify-center mb-8">
+                  <Book className="w-10 h-10 text-white/10" />
                 </div>
-                <h2 className="text-2xl font-bold mb-3">Your library is empty</h2>
-                <p className="text-white/40 max-w-sm mb-10 leading-relaxed">
-                  Start by searching for your favorite manga or upload your own local ZIP/CBZ files.
+                <h2 className="text-2xl font-bold mb-3">No manga found</h2>
+                <p className="text-white/40 max-w-sm mb-10 text-sm">
+                  Search for something new or upload your local archives.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4">
-                  <button 
-                    onClick={() => navigate('/search')}
-                    className="btn-primary flex items-center justify-center gap-2 group"
-                  >
-                    <Sparkles className="w-4 h-4 group-hover:rotate-12 transition-transform" />
-                    Browse Providers
+                  <button onClick={() => navigate('/search')} className="btn-primary flex items-center justify-center gap-2">
+                    <Sparkles className="w-4 h-4" />
+                    Browse Catalog
                   </button>
                   <label className="btn-secondary flex items-center justify-center gap-2 cursor-pointer">
                     <input type="file" className="hidden" accept=".zip,.cbz" onChange={handleUpload} />
                     <Upload className="w-4 h-4" />
-                    Upload Local File
+                    Upload File
                   </label>
                 </div>
-
               </motion.div>
             ) : (
               <div className={view === 'grid' 
@@ -318,28 +274,29 @@ export default function Dashboard() {
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.04, ease: "easeOut" }}
+                    transition={{ delay: idx * 0.04 }}
                     key={item.title}
                     onClick={() => setSelectedManga(item)}
-                    className={`group cursor-pointer ${view === 'grid' ? 'block' : 'flex items-center gap-4 glass-card p-4 hover:bg-white/10'}`}
+                    className={cn(
+                      "group cursor-pointer transition-all",
+                      view === 'grid' ? 'block' : 'flex items-center gap-4 glass-card p-4 hover:bg-white/10'
+                    )}
                   >
                     {view === 'grid' ? (
                       <>
-                        <div className="aspect-[3/4.5] glass-card overflow-hidden mb-4 relative group shadow-2xl hover:border-red-500/50 hover:shadow-red-500/10">
+                        <div className="aspect-[3/4.5] glass-card overflow-hidden mb-4 relative shadow-2xl hover:border-red-500/50">
                           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-60 group-hover:opacity-100 transition-opacity flex items-end p-5">
-                            <div className="flex flex-col gap-1 translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
-                              <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">Offline</span>
-                              <span className="text-sm font-bold text-white">
-                                {item.files.length} Chapters
-                              </span>
-                            </div>
+                             <div className="flex flex-col gap-1 translate-y-2 group-hover:translate-y-0 transition-all">
+                               <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Collected</span>
+                               <span className="text-sm font-bold text-white">{item.files.length} Files</span>
+                             </div>
                           </div>
-                          <div className="w-full h-full flex items-center justify-center text-white/10 bg-white/[0.02]">
+                          <div className="w-full h-full flex items-center justify-center text-white/5 bg-white/[0.01]">
                             <Book className="w-16 h-16" />
                           </div>
                         </div>
-                        <h3 className="font-bold text-base truncate pr-2 group-hover:text-red-400 transition-colors">{item.title}</h3>
-                        <p className="text-xs font-medium text-white/30 uppercase tracking-tighter mt-1">{item.files.length} volumes available</p>
+                        <h3 className="font-bold text-base truncate pr-2 group-hover:text-red-400 transition-colors uppercase tracking-tight">{item.title}</h3>
+                        <p className="text-[10px] font-black text-white/20 uppercase tracking-widest mt-1">Stored in Cloud</p>
                       </>
                     ) : (
                       <>
@@ -347,23 +304,12 @@ export default function Dashboard() {
                           <Book className="w-7 h-7" />
                         </div>
                         <div className="flex-1">
-                          <h3 className="font-bold text-lg">{item.title}</h3>
-                          <p className="text-sm font-medium text-white/30 uppercase tracking-widest">{item.files.length} items collected</p>
+                          <h3 className="font-bold text-lg uppercase tracking-tight">{item.title}</h3>
+                          <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">{item.files.length} volumes collected</p>
                         </div>
-                        <div className="flex gap-1">
-                          <button 
-                            className="p-3 hover:bg-white/10 rounded-xl transition-colors text-white/40 hover:text-white"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedManga(item);
-                            }}
-                          >
-                            <FolderOpen className="w-5 h-5" />
-                          </button>
-                          <button className="p-3 hover:bg-white/10 rounded-xl transition-colors text-white/40 hover:text-white">
-                            <MoreVertical className="w-5 h-5" />
-                          </button>
-                        </div>
+                        <button className="p-3 hover:bg-white/10 rounded-xl transition-colors text-white/40 hover:text-white">
+                          <MoreVertical className="w-5 h-5" />
+                        </button>
                       </>
                     )}
                   </motion.div>

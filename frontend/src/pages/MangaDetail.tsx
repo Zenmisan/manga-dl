@@ -47,7 +47,7 @@ export default function MangaDetail() {
   useEffect(() => {
     const fetchManga = async () => {
       try {
-        const res = await api.get(`/manga/${provider}/${mangaId}`)
+        const res = await api.get(`/manga/${provider}/${mangaId}/`)
         setManga(res.data)
       } catch (err) {
         console.error(err)
@@ -62,7 +62,7 @@ export default function MangaDetail() {
     if (downloading.includes(chapterId)) return
     setDownloading(prev => [...prev, chapterId])
     try {
-      await api.post('/downloads/queue', {
+      await api.post('/downloads/queue/', {
         provider_id: provider,
         manga_id: mangaId,
         chapter_id: chapterId
@@ -87,7 +87,7 @@ export default function MangaDetail() {
     
     for (const chapter of chaptersToDownload) {
       try {
-        await api.post('/downloads/queue', {
+        await api.post('/downloads/queue/', {
           provider_id: provider,
           manga_id: mangaId,
           chapter_id: chapter.id

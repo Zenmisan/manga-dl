@@ -4,24 +4,18 @@ import api from '../lib/api'
 import { Search as SearchIcon, Globe, Loader2, ChevronRight, BookOpen, Layers, Star } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
-
-interface MangaResult {
-  id: string
-  title: string
-  cover_url: string | null
-  provider: string
-  url: string
-  status: string | null
-  anilist_score?: number
-  anilist_url?: string
-}
+import { useAppStore } from '../lib/store'
 
 export default function SearchPage() {
   const navigate = useNavigate()
-  const [query, setQuery] = useState('')
-  const [results, setResults] = useState<MangaResult[]>([])
+  const { 
+    searchQuery, setSearchQuery, 
+    searchResults, setSearchResults,
+    selectedProvider, setSelectedProvider,
+    hasSearched, setHasSearched
+  } = useAppStore()
+  
   const [loading, setLoading] = useState(false)
-  const [selectedProvider, setSelectedProvider] = useState<string | null>(null)
 
   const providers = [
     { id: 'mangadex', name: 'MangaDex' },
@@ -32,13 +26,15 @@ export default function SearchPage() {
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!query) return
+    if (!searchQuery) return
     setLoading(true)
+    setHasSearched(false)
     try {
-      const params: any = { q: query }
+      const params: any = { q: searchQuery }
       if (selectedProvider) params.provider = selectedProvider
-      const res = await api.get('/manga/search', { params })
-      setResults(res.data)
+      const res = await api.get('/manga/search/', { params })
+      setSearchResults(res.data)
+      setHasSearched(true)
     } catch (err) {
       console.error(err)
     } finally {
@@ -49,7 +45,7 @@ export default function SearchPage() {
   return (
     <div className="p-6 md:p-12 max-w-7xl mx-auto min-h-full">
       <header className="mb-12">
-        <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-4 bg-linear-to-r from-white to-white/40 bg-clip-text text-transparent">
+        <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-4 bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent">
           Discover Manga
         </h1>
         <p className="text-white/40 font-medium md:text-lg mb-10">Search across multiple sources to find your next read.</p>
@@ -59,8 +55,8 @@ export default function SearchPage() {
           <SearchIcon className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-white/20 group-focus-within:text-red-500 transition-colors z-10" />
           <input
             type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by title, author, or genre..."
             className="w-full glass-panel py-4 md:py-5 pl-14 pr-32 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-all text-base md:text-lg placeholder:text-white/20 relative z-0"
           />
@@ -80,7 +76,7 @@ export default function SearchPage() {
               "px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-widest border transition-all flex items-center gap-2",
               !selectedProvider 
                 ? "bg-white/10 border-white/20 text-white shadow-lg" 
-                : "bg-white/2 border-white/5 text-white/40 hover:text-white/60 hover:border-white/10"
+                : "bg-white/[0.02] border-white/5 text-white/40 hover:text-white/60 hover:border-white/10"
             )}
           >
             <Layers className="w-3 h-3" />
@@ -109,10 +105,10 @@ export default function SearchPage() {
             <div key={i} className="h-44 bg-white/5 animate-pulse rounded-2xl border border-white/5" />
           ))}
         </div>
-      ) : results.length > 0 ? (
+      ) : searchResults.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           <AnimatePresence mode="popLayout">
-            {results.map((r, idx) => (
+            {searchResults.map((r, idx) => (
               <motion.div
                 layout
                 key={r.id + r.provider}
@@ -120,7 +116,7 @@ export default function SearchPage() {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ delay: idx * 0.03, ease: "easeOut" }}
-                onClick={() => navigate(`/manga/${r.provider}/${encodeURIComponent(r.id)}`)}
+                onClick={() => navigate(`/manga/${r.provider}/${encodeURIComponent(r.id)}/`)}
                 className="group flex gap-5 glass-card p-4 hover:bg-white/[0.08] hover:border-red-500/30 cursor-pointer relative overflow-hidden"
               >
                 <div className="w-24 h-32 md:w-28 md:h-36 glass-panel overflow-hidden shrink-0 relative shadow-xl">
@@ -178,7 +174,7 @@ export default function SearchPage() {
             ))}
           </AnimatePresence>
         </div>
-      ) : query && (
+      ) : hasSearched && (
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -189,8 +185,8 @@ export default function SearchPage() {
           </div>
           <h3 className="text-xl font-bold mb-2">No results found</h3>
           <p className="text-white/30 max-w-xs mx-auto text-sm leading-relaxed">
-            We couldn't find "{query}". Try checking your spelling or switching providers.
-          </p>
+            We couldn't find "{searchQuery}". Try checking your spelling or switching providers.
+gemini          </p>
         </motion.div>
       )}
     </div>
