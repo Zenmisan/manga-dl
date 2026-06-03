@@ -20,7 +20,7 @@ export default function DownloadHub() {
 
   const getPrimaryDownload = () => {
     switch (detectedOS) {
-      case 'windows': return { label: 'Download for Windows', icon: Monitor, url: `${GITHUB_RELEASES_URL}/download/MangaOS-Setup.msi` }
+      case 'windows': return { label: 'Download for Windows', icon: Monitor, url: `${GITHUB_RELEASES_URL}/download/MangaOS.msi` }
       case 'mac': return { label: 'Download for macOS', icon: Apple, url: `${GITHUB_RELEASES_URL}/download/MangaOS.dmg` }
       case 'linux': return { label: 'Download for Linux', icon: Laptop, url: `${GITHUB_RELEASES_URL}/download/MangaOS.AppImage` }
       case 'android': return { label: 'Download for Android', icon: Smartphone, url: `${GITHUB_RELEASES_URL}/download/MangaOS.apk` }
