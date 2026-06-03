@@ -37,10 +37,20 @@ async def list_market_sources():
         log.error(f"Market fetch failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/install/{source_id}")
-async def install_source(source_id: str):
-    """
-    Placeholder for installing a source.
-    In Manga OS, this will eventually download a JS plugin.
-    """
-    return {"status": "success", "message": f"Source {source_id} ready for JS engine transition"}
+@router.get("/code/{pkg_id}")
+async def get_extension_code(pkg_id: str):
+    """Proxy extension JS code from community repo."""
+    try:
+        # Keiyoushi structure: extensions/tree/master/lib/pkg_id/src/index.js (or similar)
+        # Note: In a real implementation, we'd need to map the pkg_id to the exact JS file URL.
+        # For now, we'll proxy a mock-up or the known main index.
+        ext_url = f"https://raw.githubusercontent.com/keiyoushi/extensions/repo/sources/{pkg_id}/index.js"
+        
+        response = requests.get(ext_url, impersonate="chrome110")
+        if response.status_code != 200:
+            # Fallback for some extensions that might have different paths
+            raise HTTPException(status_code=404, detail="Extension code not found")
+            
+        return {"code": response.text}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

@@ -1,13 +1,38 @@
-import { useState } from 'react'
-import { Shield, Database, Save, RefreshCw, Key, HardDrive, Info } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Shield, Database, Save, RefreshCw, Key, HardDrive, Info, Share2, LogOut, CheckCircle2 } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { cn } from '../lib/utils'
 
 export default function SettingsPage() {
   const [apiKey, setApiKey] = useState(localStorage.getItem('manga-api-key') || '')
+  const [anilistToken, setAnilistToken] = useState(localStorage.getItem('anilist-token') || '')
+  const [userName, setUserName] = useState<string | null>(null)
   
+  useEffect(() => {
+    if (anilistToken) {
+      // Basic mock for showing user is logged in
+      setUserName("MangaReader")
+    }
+  }, [anilistToken])
+
   const saveKey = () => {
     localStorage.setItem('manga-api-key', apiKey)
     alert('Settings saved locally!')
+  }
+
+  const handleAnilistLogin = () => {
+    // This would redirect to AniList OAuth
+    // For this prototype, we'll simulate a login
+    const token = "mock_token_" + Date.now()
+    localStorage.setItem('anilist-token', token)
+    setAnilistToken(token)
+    setUserName("MangaReader")
+  }
+
+  const handleAnilistLogout = () => {
+    localStorage.removeItem('anilist-token')
+    setAnilistToken('')
+    setUserName(null)
   }
 
   return (
@@ -20,10 +45,58 @@ export default function SettingsPage() {
       </header>
 
       <div className="space-y-6 md:space-y-8">
+        {/* Tracking Section */}
+        <motion.section 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-panel overflow-hidden border-white/5"
+        >
+          <div className="p-6 border-b border-white/5 flex items-center gap-3 bg-white/[0.02]">
+            <div className="p-2 bg-pink-500/10 rounded-lg">
+              <Share2 className="w-5 h-5 text-pink-500" />
+            </div>
+            <h2 className="font-bold text-lg">Tracking</h2>
+          </div>
+          <div className="p-6 md:p-8 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 p-6 rounded-2xl bg-white/[0.02] border border-white/5">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <img src="https://anilist.co/img/icons/icon.svg" className="w-5 h-5" alt="AniList" />
+                  <h4 className="font-bold text-gray-100">AniList Integration</h4>
+                </div>
+                <p className="text-sm text-white/30 font-medium">Auto-sync reading progress with your AniList profile</p>
+              </div>
+              
+              {userName ? (
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-xl text-xs font-black uppercase tracking-widest">
+                    <CheckCircle2 className="w-4 h-4" />
+                    {userName}
+                  </div>
+                  <button 
+                    onClick={handleAnilistLogout}
+                    className="p-2.5 bg-white/5 hover:bg-red-500/20 text-white/40 hover:text-red-400 rounded-xl transition-all border border-white/5"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <button 
+                  onClick={handleAnilistLogin}
+                  className="px-6 py-3 bg-[#3db4f2] hover:bg-[#2e9ed8] text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-lg shadow-[#3db4f2]/20"
+                >
+                  Connect AniList
+                </button>
+              )}
+            </div>
+          </div>
+        </motion.section>
+
         {/* Security Section */}
         <motion.section 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
           className="glass-panel overflow-hidden border-white/5"
         >
           <div className="p-6 border-b border-white/5 flex items-center gap-3 bg-white/[0.02]">
@@ -54,9 +127,6 @@ export default function SettingsPage() {
                   Save Changes
                 </button>
               </div>
-              <p className="text-[11px] text-white/20 leading-relaxed max-w-md">
-                This key is stored securely in your browser's local storage and is sent with every request to authorize your actions.
-              </p>
             </div>
           </div>
         </motion.section>
@@ -65,7 +135,7 @@ export default function SettingsPage() {
         <motion.section 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
+          transition={{ delay: 0.2 }}
           className="glass-panel overflow-hidden border-white/5"
         >
           <div className="p-6 border-b border-white/5 flex items-center gap-3 bg-white/[0.02]">
@@ -107,7 +177,7 @@ export default function SettingsPage() {
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 0.4 }}
-          transition={{ delay: 0.2 }}
+          transition={{ delay: 0.3 }}
           className="flex flex-col items-center justify-center gap-6 py-12 grayscale hover:opacity-100 transition-opacity duration-700"
         >
            <div className="flex items-center gap-8 opacity-50">
@@ -117,7 +187,7 @@ export default function SettingsPage() {
            </div>
            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-white/50">
              <Info className="w-3 h-3" />
-             Build 2026.05.30
+             Build 2026.06.03
            </div>
         </motion.div>
       </div>

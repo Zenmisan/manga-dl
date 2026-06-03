@@ -1,7 +1,10 @@
+import api from './api'
+
 export interface MangaExtension {
   id: string
   name: string
-  baseUrl: string
+  version: string
+  lang: string
   
   search: (query: string, page: number) => Promise<any[]>
   getMangaDetail: (mangaId: string) => Promise<any>
@@ -19,12 +22,56 @@ export class ExtensionManager {
     return this.instance
   }
 
-  async install(id: string, jsCode: string) {
-    // This is the foundation for the JS engine.
-    // We will use a sandboxed approach to execute the JS code.
-    console.log(`Installing JS extension: ${id}. Code len: ${jsCode.length}`)
-    
-    // Placeholder: In a real implementation, we'd use a Worker or a safe eval.
-    // For now, we'll store the logic.
+  async install(pkgId: string, name: string, lang: string, version: string) {
+    try {
+      const res = await api.get(`/sources/code/${pkgId}`)
+      const jsCode = res.data.code
+      
+      // In a production environment, we'd use a Web Worker or a strict sandbox.
+      // For this prototype, we'll use a dynamic Function constructor to isolate logic.
+      
+      const factory = new Function('api', 'domParser', `
+        ${jsCode}
+        return {
+          search: async (query, page) => { 
+            /* Scraper logic here */
+            return [] 
+          },
+          getMangaDetail: async (id) => { return {} },
+          getPages: async (id) => { return [] }
+        }
+      `)
+
+      const extensionLogic = factory(api, new DOMParser())
+      
+      const extension: MangaExtension = {
+        id: pkgId,
+        name,
+        lang,
+        version,
+        ...extensionLogic
+      }
+
+      this.extensions.set(pkgId, extension)
+      
+      // Persist to local storage so user doesn't have to re-install
+      const installed = JSON.parse(localStorage.getItem('installed-extensions') || '[]')
+      if (!installed.find((e: any) => e.id === pkgId)) {
+        installed.push({ id: pkgId, name, lang, version })
+        localStorage.setItem('installed-extensions', JSON.stringify(installed))
+      }
+
+      return true
+    } catch (err) {
+      console.error('Failed to install extension:', err)
+      return false
+    }
+  }
+
+  async loadInstalled() {
+    const installed = JSON.parse(localStorage.getItem('installed-extensions') || '[]')
+    for (const ext of installed) {
+      await this.install(ext.id, ext.name, ext.lang, ext.version)
+    }
   }
 }

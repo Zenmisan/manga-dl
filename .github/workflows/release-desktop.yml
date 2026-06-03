@@ -22,7 +22,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
@@ -49,8 +49,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: v__VERSION__ # Placeholder for manual run
-          releaseName: "Manga OS Release"
-          releaseBody: "Automated multi-platform build."
+          projectPath: ./frontend
+          tagName: ${{ github.ref_type == 'tag' && github.ref_name || format('v0.0.0-build-{0}', github.run_number) }}
+          releaseName: "Manga OS ${{ github.ref_type == 'tag' && github.ref_name || 'Manual Build' }}"
+          releaseBody: "Automated multi-platform desktop build."
           releaseDraft: true
-          prerelease: false
+          prerelease: true

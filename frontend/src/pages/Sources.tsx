@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import api from '../lib/api'
-import { Download, CheckCircle2, Search, Filter, ShieldAlert } from 'lucide-react'
+import { Download, CheckCircle2, Search, Filter, ShieldAlert, Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
+import { ExtensionManager } from '../lib/extensions'
 
 interface Source {
   id: string
@@ -19,8 +20,13 @@ export default function SourcesPage() {
   const [search, setSearch] = useState('')
   const [filterLang, setFilterLang] = useState('all')
   const [installing, setInstalling] = useState<string[]>([])
+  const [installedIds, setInstalledIds] = useState<string[]>([])
 
   useEffect(() => {
+    // Load existing installed list
+    const manager = ExtensionManager.getInstance()
+    setInstalledIds(Array.from(manager.extensions.keys()))
+
     api.get('/sources/market').then(res => {
       setSources(res.data)
       setLoading(false)
@@ -30,18 +36,18 @@ export default function SourcesPage() {
     })
   }, [])
 
-  const handleInstall = async (id: string) => {
-    setInstalling(prev => [...prev, id])
-    try {
-      await api.post(`/sources/install/${id}`)
-      // In a real app, we'd update local state to show 'Installed'
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setTimeout(() => {
-        setInstalling(prev => prev.filter(i => i !== id))
-      }, 1000)
+  const handleInstall = async (s: Source) => {
+    setInstalling(prev => [...prev, s.id])
+    const manager = ExtensionManager.getInstance()
+    const success = await manager.install(s.id, s.name, s.lang, s.version)
+    
+    if (success) {
+      setInstalledIds(prev => [...prev, s.id])
+    } else {
+      alert("Extension download failed. This source might not be web-compatible yet.")
     }
+    
+    setInstalling(prev => prev.filter(i => i !== s.id))
   }
 
   const filteredSources = sources.filter(s => {
@@ -125,17 +131,21 @@ export default function SourcesPage() {
                 </div>
 
                 <button
-                  onClick={() => handleInstall(s.id)}
-                  disabled={installing.includes(s.id)}
+                  onClick={() => handleInstall(s)}
+                  disabled={installing.includes(s.id) || installedIds.includes(s.id)}
                   className={cn(
                     "p-2.5 rounded-xl transition-all border shrink-0",
-                    installing.includes(s.id) 
-                      ? "bg-emerald-500/20 border-emerald-500/20 text-emerald-400" 
-                      : "bg-white/5 border-white/5 text-white/40 hover:text-white hover:bg-red-600 hover:border-red-600"
+                    installedIds.includes(s.id)
+                      ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500"
+                      : installing.includes(s.id) 
+                        ? "bg-white/5 border-white/5 text-white/20" 
+                        : "bg-white/5 border-white/5 text-white/40 hover:text-white hover:bg-red-600 hover:border-red-600"
                   )}
                 >
-                  {installing.includes(s.id) ? (
+                  {installedIds.includes(s.id) ? (
                     <CheckCircle2 className="w-5 h-5" />
+                  ) : installing.includes(s.id) ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
                   ) : (
                     <Download className="w-5 h-5" />
                   )}

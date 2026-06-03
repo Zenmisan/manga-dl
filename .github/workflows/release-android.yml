@@ -20,10 +20,10 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
-          java-version: '17'
+          java-version: '21'
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
@@ -37,11 +37,13 @@ jobs:
 
       - name: Sync Capacitor
         working-directory: ./frontend
-        run: bun run android:sync
+        run: npx cap sync android
 
       - name: Build APK (Debug/Unsigned)
         working-directory: ./frontend/android
-        run: ./gradlew assembleDebug
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
 
       - name: Rename APK
         run: mv frontend/android/app/build/outputs/apk/debug/app-debug.apk MangaOS.apk
@@ -51,6 +53,7 @@ jobs:
         with:
           files: MangaOS.apk
           draft: true
-          tag_name: android-release
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('v0.0.0-android-{0}', github.run_number) }}
+          name: "Manga OS Android ${{ github.ref_type == 'tag' && github.ref_name || 'Manual Build' }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
