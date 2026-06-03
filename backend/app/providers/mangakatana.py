@@ -5,7 +5,7 @@ Fingerprints are checked before every scraping session to detect site layout cha
 import re
 import json
 import asyncio
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup  # pyright: ignore[reportMissingImports]
 from app.providers.base import (
     Provider, MangaResult, MangaDetail, ChapterResult,
     HealthReport, ProviderHealth, ScraperFingerprint,
@@ -30,8 +30,6 @@ class MangaKatanaProvider(Provider):
         """
         Validate by hitting the search page and a known manga page.
         """
-        from bs4 import BeautifulSoup
-
         failures: list[str] = []
         critical_failure = False
 
