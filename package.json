@@ -6,6 +6,7 @@
     "dev:frontend": "cd frontend && bun dev",
     "dev": "bun x concurrently \"bun run dev:backend\" \"bun run dev:frontend\"",
     "install:all": "cd frontend && bun install && cd ../backend && ./venv/bin/pip install -r requirements.txt",
+    "build": "cd frontend && bun run build",
     "start": "bun run dev",
     "build:frontend": "cd frontend && bun run build",
     "backend:test": "cd backend && ./venv/bin/pytest"

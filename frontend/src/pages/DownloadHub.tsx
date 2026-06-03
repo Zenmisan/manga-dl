@@ -4,7 +4,7 @@ import { Download, Monitor, Apple, Smartphone, Laptop } from 'lucide-react'
 
 type OS = 'windows' | 'mac' | 'linux' | 'android' | 'ios' | 'unknown'
 
-const GITHUB_RELEASES_URL = "https://github.com/zenmi/manga-dl/releases/latest"
+const GITHUB_RELEASES_URL = "https://github.com/zenmisan/manga-dl/releases/latest"
 
 export default function DownloadHub() {
   const [detectedOS, setDetectedOS] = useState<OS>('unknown')
