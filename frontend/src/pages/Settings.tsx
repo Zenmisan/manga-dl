@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Shield, Database, Save, RefreshCw, Key, HardDrive, Info, Share2, LogOut, CheckCircle2 } from 'lucide-react'
 import { motion } from 'framer-motion'
-import { cn } from '../lib/utils'
 
 export default function SettingsPage() {
   const [apiKey, setApiKey] = useState(localStorage.getItem('manga-api-key') || '')
