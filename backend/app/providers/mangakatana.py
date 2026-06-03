@@ -14,11 +14,9 @@ from app.providers.base import (
 SITE = "https://mangakatana.com"
 
 # These selectors are checked on each validate() call.
-# If the site updates its layout and these selectors disappear, the provider is flagged.
 _FINGERPRINTS = [
-    ScraperFingerprint(name=".manga_list-sbs", critical=True),      # search results grid
-    ScraperFingerprint(name=".single-header", critical=True),        # manga detail page header (checked separately)
-    ScraperFingerprint(name=".chapters", critical=True),             # chapter list
+    ScraperFingerprint(name=".manga-list, .manga_list-sbs", critical=True), # search results grid
+    ScraperFingerprint(name=".chapters, #chapters", critical=True),       # chapter list
 ]
 
 
@@ -31,7 +29,6 @@ class MangaKatanaProvider(Provider):
     async def validate(self) -> HealthReport:
         """
         Validate by hitting the search page and a known manga page.
-        Checks that key CSS selectors still exist.
         """
         from bs4 import BeautifulSoup
 
@@ -40,27 +37,24 @@ class MangaKatanaProvider(Provider):
 
         try:
             client = await self._get_client()
-            # Check search results page
-            resp = await client.get(SITE, params={"search": "one piece", "search_by": "m_name"})
+            # Check search results page - use a generic search
+            resp = await client.get(SITE, params={"search": "one", "search_by": "m_name"})
             resp.raise_for_status()
             soup = BeautifulSoup(resp.text, "html.parser")
 
-            if not soup.select_one(".manga_list-sbs"):
-                failures.append(".manga_list-sbs (search results grid)")
-                critical_failure = True
+            if not soup.select_one(".manga-list, .manga_list-sbs, .item"):
+                failures.append("manga-list (search results)")
+                # only critical if no fallback works
+                if not soup.select(".item"):
+                    critical_failure = True
 
-            # Check a known stable manga page for chapter list structure
-            # Many stable IDs like one-piece.49 exist
+            # Check a known stable manga page
             resp2 = await client.get(f"{SITE}/manga/one-piece.49")
             if resp2.status_code == 200:
                 soup2 = BeautifulSoup(resp2.text, "html.parser")
-                if not soup2.select_one(".chapters tr"):
-                    failures.append(".chapters tr (chapter list)")
+                if not soup2.select_one(".chapters, #chapters, .chapter"):
+                    failures.append("chapters (chapter list)")
                     critical_failure = True
-                if not soup2.select_one("h1.heading"):
-                    failures.append("h1.heading (manga detail header)")
-                    # not critical — detail still works without this
-
         except Exception as exc:
             report = HealthReport(status=ProviderHealth.BROKEN, failures=["network_error"], message=str(exc))
             self._health = ProviderHealth.BROKEN
