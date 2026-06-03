@@ -1,59 +1,33 @@
-# manga-dl
+# Manga OS
 
-A self-hostable manga downloader and library manager with a modern React dashboard.
+The ultimate cross-platform, local-first manga & webtoon reader. Built as a successor to Tachiyomi, Manga OS runs natively on **Windows, macOS, Linux, Android, and the Web** from a single codebase.
+
+![Manga OS Reader](frontend/public/icons.svg)
 
 ## Features
 
-- **Multi-Source Search**: Search across MangaDex, Asura Scans, MangaKatana, and OmegaScans simultaneously.
-- **Asynchronous Queue**: Efficiently download chapters with controlled concurrency.
-- **Real-time Progress**: Live progress bars via WebSockets.
-- **Auto-Sync**: Background task checks for new chapters in your subscribed manga every 6 hours.
-- **Library Manager**: Scan and view your downloaded CBZ collection.
-- **Cloudflare Bypass**: Uses `curl_cffi` to mimic real browser behavior and avoid scrapers' blocks.
-- **Security**: Optional API Key protection for remote hosting.
+- **Tri-Platform Native**: Runs via Tauri (Desktop), Capacitor (Android), and Firebase (Web).
+- **Universal Extension Engine**: Install community scrapers (like Keiyoushi) via JS sandboxes to access 500+ sources without backend limits.
+- **Smart Binge**: Zero-latency reading. Auto-prefetches next chapter pages while you read.
+- **Chameleon UI**: Interface dynamically tints to match current manga cover art.
+- **Ambilight & Modes**: Supports Webtoon (Vertical scroll), Manga LTR, and Manga RTL.
+- **Local Mastery**: Instantly read massive local CBZ/ZIP folders. No cloud upload required for native clients.
+- **Ecosystem Sync**: Bi-directional AniList tracking and cross-device progression via Supabase.
 
-## Tech Stack
+## Quick Start (Web)
 
-- **Backend**: Python 3.10+, FastAPI, SQLAlchemy (SQLite), BeautifulSoup4, `curl_cffi`.
-- **Frontend**: React 19, TypeScript, Tailwind CSS 4, Framer Motion, Lucide React.
-- **Orchestration**: Bun, Concurrently.
+Visit the live web version: [manga-dl.web.app](https://manga-dl.web.app)
 
-## Getting Started
+## Downloads (Native Apps)
 
-### Prerequisites
-- Python 3.10+
-- [Bun](https://bun.sh) (recommended) or Node.js
+*Coming soon via GitHub Actions Release pipeline.*
+- **Windows**: `.msi`, `.exe`
+- **macOS**: `.dmg` (Universal)
+- **Linux**: `.AppImage`, `.deb`
+- **Android**: `.apk`
 
-### Installation
-From the root directory:
-```bash
-bun run install:all
-```
-*Note: This installs frontend NPM packages and backend Python requirements.*
+## Documentation
 
-### Running the Project
-```bash
-bun dev
-```
-- **Frontend**: http://localhost:5173
-- **Backend API**: http://localhost:8000
-- **Documentation**: http://localhost:8000/docs
-
-## Configuration
-
-Edit `backend/app/config.py` or create a `.env` file in `backend/`:
-
-- `DATABASE_URL`: SQLAlchemy connection string (default: SQLite).
-- `LIBRARY_PATH`: Where your CBZ files are stored.
-- `API_KEY`: Set this to enable authentication (header `X-API-Key`).
-- `MAX_CONCURRENT_DOWNLOADS`: Number of parallel downloads (default: 3).
-- `SUPABASE_URL` and `SUPABASE_SERVICE_KEY`: Set these to enable Cloud Storage. The app will automatically compress images to WebP to save space and upload CBZs to a `manga-library` bucket, allowing you to use ephemeral hosts like Render without losing your collection.
-
-## Deployment
-
-For a detailed guide on how to host this project for free using Firebase, Render, and Supabase, see the [Deployment Guide](docs/DEPLOYMENT.md).
-
-## Directory Structure
-- `backend/`: FastAPI application logic.
-- `frontend/`: React dashboard.
-- `manga-library/`: Default download location.
+- [Architecture Overview](docs/ARCHITECTURE.md)
+- [Frontend Development (Web/Tauri/Capacitor)](frontend/README.md)
+- [Backend Development (FastAPI Proxy/Sync)](backend/README.md)

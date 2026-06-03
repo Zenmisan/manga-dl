@@ -10,7 +10,7 @@ from app.config import get_settings
 from app.database import init_db
 from app.core.queue import download_queue
 from app.core.tasks import start_sync_task, stop_sync_task
-from app.api import manga, downloads, settings as settings_router, library
+from app.api import manga, downloads, settings as settings_router, library, sources
 from app.providers import list_providers
 from app.core.security import verify_api_key
 
@@ -72,6 +72,7 @@ app.include_router(manga.router, prefix="/api", dependencies=api_deps)
 app.include_router(downloads.router, prefix="/api", dependencies=api_deps)
 app.include_router(settings_router.router, prefix="/api", dependencies=api_deps)
 app.include_router(library.router, prefix="/api", dependencies=api_deps)
+app.include_router(sources.router, prefix="/api", dependencies=api_deps)
 
 # Serve built frontend in production
 _frontend_dist = Path(__file__).parent.parent.parent / "frontend" / "dist"

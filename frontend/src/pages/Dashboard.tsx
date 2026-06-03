@@ -8,13 +8,14 @@ import {
   List, 
   Sparkles,
   ChevronLeft,
-  Play,
   Download,
   FileText,
   Pin,
   PinOff,
   Upload,
-  RefreshCw
+  RefreshCw,
+  HardDrive,
+  Play
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
@@ -33,15 +34,56 @@ export default function Dashboard() {
   const [selectedManga, setSelectedManga] = useState<LibraryItem | null>(null)
   const [pinnedFiles, setPinnedFiles] = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
+  const [isDesktop, setIsDesktop] = useState(false)
 
   useEffect(() => {
+    setIsDesktop(!!(window as any).__TAURI_INTERNALS__)
     api.get('/library').then(res => {
       setItems(res.data)
       setLoading(false)
     }).catch(() => setLoading(false))
   }, [])
 
+  const handleScanFolder = async () => {
+    try {
+      const { open } = await import('@tauri-apps/plugin-dialog')
+      const { readDir } = await import('@tauri-apps/plugin-fs')
+
+      const selected = await open({
+        multiple: false,
+        directory: true,
+        title: "Select Manga Folder"
+      })
+
+      if (!selected) return
+
+      setUploading(true)
+      const entries = await readDir(selected)
+      const validArchives = entries.filter(e => e.isFile && (e.name.endsWith('.cbz') || e.name.endsWith('.zip')))
+
+      if (validArchives.length === 0) {
+        alert("No .cbz or .zip files found in this folder.")
+        setUploading(false)
+        return
+      }
+
+      const folderName = selected.split(/[\\/]/).pop() || 'Local Folder'
+      setItems(prev => [{
+        title: `[Local] ${folderName}`,
+        files: validArchives.map(a => a.name)
+      }, ...prev])
+
+      alert(`Successfully scanned ${validArchives.length} archives!`)
+    } catch (err: any) {
+      console.error('Tauri scan failed:', err)
+      alert(`Could not scan folder: ${err.message}`)
+    } finally {
+      setUploading(false)
+    }
+  }
+
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+
     const file = e.target.files?.[0]
     if (!file) return
 
@@ -209,6 +251,20 @@ export default function Dashboard() {
               </div>
 
               <div className="flex bg-white/5 border border-white/5 rounded-2xl p-1.5 backdrop-blur-sm">
+                {isDesktop && (
+                  <button 
+                    onClick={handleScanFolder}
+                    disabled={uploading}
+                    className={cn(
+                      "p-2.5 rounded-xl transition-all cursor-pointer flex items-center gap-2 px-4",
+                      uploading ? "opacity-50 pointer-events-none" : "hover:bg-white/5 text-emerald-400 hover:text-emerald-300"
+                    )}
+                    title="Scan Local Manga Directory"
+                  >
+                    {uploading ? <RefreshCw className="w-4 h-4 animate-spin text-emerald-500" /> : <HardDrive className="w-4 h-4" />}
+                    <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:inline">Scan Folder</span>
+                  </button>
+                )}
                 <label className={cn(
                   "p-2.5 rounded-xl transition-all cursor-pointer flex items-center gap-2 px-4",
                   uploading ? "opacity-50 pointer-events-none" : "hover:bg-white/5 text-white/40 hover:text-white"

@@ -1,4 +1,4 @@
-import { Search, Library, Download, Settings, ExternalLink } from 'lucide-react'
+import { Search, Library, Download, Settings, ExternalLink, Globe } from 'lucide-react'
 import { Routes, Route, Link, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from './lib/utils'
@@ -9,6 +9,8 @@ import DownloadsPage from './pages/Downloads'
 import SettingsPage from './pages/Settings'
 import MangaDetail from './pages/MangaDetail'
 import Reader from './pages/Reader'
+import SourcesPage from './pages/Sources'
+import DownloadHub from './pages/DownloadHub'
 
 function App() {
   const location = useLocation()
@@ -16,7 +18,8 @@ function App() {
   const navItems = [
     { icon: Library, label: 'Library', path: '/' },
     { icon: Search, label: 'Search', path: '/search' },
-    { icon: Download, label: 'Queue', path: '/downloads' },
+    { icon: Globe, label: 'Extensions', path: '/sources' },
+    { icon: Download, label: 'Get App', path: '/download' },
     { icon: Settings, label: 'Settings', path: '/settings' },
   ]
 
@@ -85,6 +88,8 @@ function App() {
             <Routes location={location}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/search" element={<SearchPage />} />
+              <Route path="/sources" element={<SourcesPage />} />
+              <Route path="/download" element={<DownloadHub />} />
               <Route path="/downloads" element={<DownloadsPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/manga/:provider/*" element={<MangaDetail />} />

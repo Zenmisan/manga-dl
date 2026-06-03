@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '../lib/api'
+import { FastAverageColor } from 'fast-average-color'
 import { 
   ChevronLeft, 
   Download, 
@@ -43,6 +44,8 @@ export default function MangaDetail() {
   const [downloading, setDownloading] = useState<string[]>([])
   const [showQueueLink, setShowQueueLink] = useState(false)
   const [bulkLoading, setBulkLoading] = useState(false)
+  const [themeColor, setThemeColor] = useState<string>('rgba(220, 38, 38, 0.5)') // Default red fallback
+  const imgRef = useRef<HTMLImageElement>(null)
 
   useEffect(() => {
     const fetchManga = async () => {
@@ -57,6 +60,17 @@ export default function MangaDetail() {
     }
     fetchManga()
   }, [provider, mangaId])
+
+  useEffect(() => {
+    if (manga?.cover_url && imgRef.current) {
+      const fac = new FastAverageColor()
+      fac.getColorAsync(imgRef.current, { algorithm: 'dominant' })
+        .then(color => {
+          setThemeColor(color.rgba)
+        })
+        .catch(e => console.log('Color extraction failed:', e))
+    }
+  }, [manga?.cover_url])
 
   const handleDownload = async (chapterId: string) => {
     if (downloading.includes(chapterId)) return
@@ -121,12 +135,15 @@ export default function MangaDetail() {
   }
 
   return (
-    <div className="min-h-full pb-20">
+    <div 
+      className="min-h-full pb-20 transition-colors duration-1000"
+      style={{ '--theme-color': themeColor } as React.CSSProperties}
+    >
       {/* Hero Header */}
       <div className="relative h-64 md:h-96 overflow-hidden">
         <div 
-          className="absolute inset-0 bg-cover bg-center blur-3xl opacity-20 scale-110"
-          style={{ backgroundImage: `url(${manga.cover_url})` }}
+          className="absolute inset-0 bg-cover bg-center blur-3xl opacity-20 scale-110 transition-all duration-1000"
+          style={{ backgroundImage: `url(${manga.cover_url})`, backgroundColor: themeColor }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-[#09090b] via-[#09090b]/40 to-transparent" />
         
@@ -145,7 +162,8 @@ export default function MangaDetail() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
                 onClick={() => navigate('/downloads')}
-                className="absolute top-8 right-6 flex items-center gap-2 px-5 py-3 glass-panel bg-emerald-500/20 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-all shadow-xl z-10 font-bold text-sm"
+                className="absolute top-8 right-6 flex items-center gap-2 px-5 py-3 glass-panel transition-all shadow-xl z-10 font-bold text-sm"
+                style={{ backgroundColor: 'var(--theme-color)', color: '#fff', opacity: 0.9 }}
               >
                 <ExternalLink className="w-4 h-4" />
                 View Queue
@@ -163,10 +181,15 @@ export default function MangaDetail() {
             animate={{ opacity: 1, y: 0 }}
             className="w-48 md:w-64 shrink-0 mx-auto md:mx-0"
           >
-            <div className="aspect-[3/4.5] glass-panel p-2 shadow-2xl">
+            <div 
+              className="aspect-[3/4.5] glass-panel p-2 shadow-2xl transition-shadow duration-1000"
+              style={{ boxShadow: `0 25px 50px -12px ${themeColor}` }}
+            >
               <img 
+                ref={imgRef}
                 src={manga.cover_url || ''} 
                 alt={manga.title} 
+                crossOrigin="anonymous"
                 className="w-full h-full object-cover rounded-xl"
               />
             </div>
@@ -180,7 +203,10 @@ export default function MangaDetail() {
               transition={{ delay: 0.1 }}
             >
               <div className="flex items-center gap-3 mb-3">
-                <span className="px-3 py-1 bg-red-600/10 text-red-500 text-xs font-black uppercase tracking-[0.2em] border border-red-600/20 rounded-lg">
+                <span 
+                  className="px-3 py-1 text-xs font-black uppercase tracking-[0.2em] border rounded-lg transition-colors duration-1000"
+                  style={{ backgroundColor: 'var(--theme-color)', color: '#fff', borderColor: 'var(--theme-color)', opacity: 0.8 }}
+                >
                   {manga.provider}
                 </span>
                 <div className="flex items-center gap-1.5">
