@@ -1,80 +1,82 @@
-# Contributing to manga-dl
-**Version 1.0.0** · 2026-05-30 · HADS 1.0.0
+# Manga OS Development & Compilation Guide
 
----
+This guide explains how to set up your local environment to compile the Manga OS ecosystem across Web, Desktop (Tauri), and Mobile (Capacitor/Android).
 
-## AI READING INSTRUCTION
-Read `[SPEC]` and `[BUG]` blocks for authoritative facts.
-Read `[NOTE]` only if additional context is needed.
+## 1. Prerequisites
 
----
+Before starting, ensure you have the following core tools installed:
+*   **Bun**: For fast JavaScript dependency management (`curl -fsSL https://bun.sh/install | bash`).
+*   **Python 3.14+**: For the FastAPI backend sync server.
 
-## 1. Environment Setup
-**[SPEC]**
-- **Prerequisites**:
-  | Tool | Version | Purpose |
-  |------|---------|---------|
-  | Python | 3.10+ | Backend Runtime |
-  | Bun | Latest | Frontend Runtime & Orchestration |
-  | Build Tools | GCC/C++ | Required for `curl_cffi` compilation |
-- **Initial Setup**: Run `bun run install:all` from the project root.
-- **Backend Configuration**:
-  - Create `backend/.env` (optional).
-  - Defaults:
-    - `LIBRARY_PATH`: `~/manga-library`
-    - `CACHE_PATH`: `~/.manga-dl-cache`
-- **Development Server**: Run `bun dev` to start both frontend (Vite) and backend (Uvicorn) with hot-reloading.
+## 2. Web Compilation (Firebase)
 
-**[NOTE]**
-`bun run install:all` is a macro that performs a `bun install` in the frontend and a `pip install -r requirements.txt` in the backend. If you are on Windows, ensure you have the C++ Build Tools installed via Visual Studio Installer for `curl_cffi` to compile correctly.
+The web version is the foundation for all other platforms.
 
-## 2. Adding a New Provider
-**[SPEC]**
-- **File Location**: Create a new file in `backend/app/providers/{name}.py`.
-- **Inheritance**: Subclass `Provider` from `app.providers.base`.
-- **Class Attributes**:
-  - `id`: Internal string slug (e.g., `mymanga`).
-  - `name`: Display name.
-  - `base_url`: Target site homepage.
-- **Mandatory Implementation**:
-  - `search(query, page)`: Returns `list[MangaResult]`.
-  - `get_manga(manga_id)`: Returns `MangaDetail`.
-  - `get_pages(chapter_id)`: Returns `list[str]` (image URLs).
-- **Registration**: Add the provider class to the `_REGISTRY` list in `backend/app/providers/__init__.py`.
-- **Validation**: Test implementation using `POST /api/manga/providers/{id}/validate`.
+```bash
+# 1. Install dependencies
+cd frontend
+bun install
 
-**[NOTE]**
-Always use `await self._get_client()` to perform network requests; this ensures your provider uses the `curl_cffi` session with proper browser impersonation. For HTML providers, use BeautifulSoup4 to parse `resp.text`. Define `fingerprints` at the class level to enable the automated health-check system.
+# 2. Run local development server
+bun run dev
 
-## 3. Frontend Development
-**[SPEC]**
-- **Tech Stack**:
-  - **Framework**: React 19 (TypeScript)
-  - **Styling**: Tailwind CSS 4
-  - **Icons**: Lucide React
-  - **Animations**: Framer Motion
-- **Architecture**:
-  - **API Client**: Centralized in `src/lib/api.ts`. Intercepts all requests to inject `X-API-Key`.
-  - **Routing**: Managed via `react-router-dom` in `App.tsx`.
-- **Design Tokens**:
-  - Colors and common component styles (e.g., `.btn-primary`, `.panel`) are defined in `src/index.css`.
-- **Build Tool**: Vite.
+# 3. Build for production
+bun run build
+```
 
-**[NOTE]**
-Maintain the "Red/Zinc" dark-theme aesthetic. When adding new pages, wrap the content in a `motion.div` from Framer Motion for consistent entrance animations. Use the `cn()` utility from `src/lib/utils.ts` for dynamic class merging.
+## 3. Desktop Compilation (Tauri: Windows, macOS, Linux)
 
-## 4. Testing Protocols
-**[SPEC]**
-- **Backend Unit Tests**: Run `pytest` within the `backend/` directory.
-- **Provider Health Checks**:
-  - Invoke `POST /api/manga/providers/validate-all` to run fingerprint checks across all sources.
-  - Failures are categorized as `DEGRADED` (non-critical) or `BROKEN` (critical).
-- **Manual "Happy Path"**:
-  1. Search for a known manga title.
-  2. Load details and verify chapter list visibility.
-  3. Queue a small chapter.
-  4. Verify `.cbz` existence in `LIBRARY_PATH` and correct image sequencing.
-- **API Exploration**: Interactive Swagger documentation is available at `/docs`.
+Manga OS uses Tauri to wrap the React frontend into a lightweight, native desktop application with full file system access.
 
-**[NOTE]**
-Always monitor terminal logs for the Sync Engine. Since it runs in a background loop, errors may not appear in individual API responses. Look for "Auto-queueing" or "Sync task failed" log entries to verify background logic.
+### Prerequisites for Desktop
+*   **Rust**: You must install the Rust toolchain.
+    ```bash
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+    ```
+*   **Linux Dependencies**: If compiling on Linux, you need WebKit2GTK and build essentials:
+    *   *Ubuntu/Debian*: `sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev`
+    *   *Arch Linux*: `sudo pacman -S webkit2gtk-4.1 base-devel curl wget file xdotool openssl appmenu-gtk-module gtk3 libappindicator-gtk3 librsvg libvips`
+
+### Running & Building
+```bash
+cd frontend
+
+# Run the desktop app in development mode (hot-reloading)
+bun run tauri dev
+
+# Compile the final release binary (.exe, .dmg, or .AppImage/.deb)
+bun run tauri build
+```
+The compiled binaries will be located in `frontend/src-tauri/target/release/bundle/`.
+
+## 4. Android Compilation (Capacitor)
+
+Manga OS uses Capacitor to wrap the React build into a native Android APK.
+
+### Prerequisites for Android
+*   **Java Development Kit (JDK) 17**: Android's build system (Gradle) is strictly tied to Java 17. Newer versions (like Java 21 or 26) will cause build failures.
+    *   *Ubuntu/Debian*: `sudo apt install openjdk-17-jdk`
+    *   *Arch Linux*: `sudo pacman -S jre17-openjdk jdk17-openjdk` (Set via `sudo archlinux-java set java-17-openjdk`)
+*   **Android Studio**: Download and install [Android Studio](https://developer.android.com/studio). Ensure you install the Android SDK and Android SDK Command-line Tools via the SDK Manager inside Android Studio.
+
+### Running & Building
+
+Before opening Android Studio, you must build the web assets and sync them to the Android project folder:
+
+```bash
+cd frontend
+
+# 1. Build the production React assets
+bun run build
+
+# 2. Sync the built assets into the Android native folder
+bun run android:sync
+
+# 3. Open the project in Android Studio
+bun run android:open
+```
+
+Once Android Studio opens:
+1. Wait for Gradle to finish syncing (watch the progress bar at the bottom right).
+2. To run on an emulator or USB-connected phone, click the green **Play** button in the top toolbar.
+3. To generate an APK for distribution, go to **Build > Build Bundle(s) / APK(s) > Build APK(s)** in the top menu. The APK will be generated in `frontend/android/app/build/outputs/apk/debug/`.
