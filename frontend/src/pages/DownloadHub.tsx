@@ -69,7 +69,7 @@ export default function DownloadHub() {
           <div className="mt-16 pt-8 border-t border-white/10">
             <h3 className="text-xs font-bold uppercase tracking-widest text-white/30 mb-6">Other Platforms</h3>
             <div className="flex flex-wrap justify-center gap-4">
-              <a href={`${GITHUB_RELEASES_URL}/download/MangaOS-Setup.msi`} className="px-4 py-2 glass-panel text-sm font-bold text-white/60 hover:text-white flex items-center gap-2">
+              <a href={`${GITHUB_RELEASES_URL}/download/MangaOS.msi`} className="px-4 py-2 glass-panel text-sm font-bold text-white/60 hover:text-white flex items-center gap-2">
                 <Monitor className="w-4 h-4" /> Windows
               </a>
               <a href={`${GITHUB_RELEASES_URL}/download/MangaOS.dmg`} className="px-4 py-2 glass-panel text-sm font-bold text-white/60 hover:text-white flex items-center gap-2">
