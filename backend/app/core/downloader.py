@@ -109,8 +109,8 @@ async def download_chapter_to_cbz(
             filename = f"{i:04d}{ext}"
             try:
                 await download_image(client, url, tmp_dir, filename)
-            except Exception:
-                pass  # partial downloads are handled gracefully
+            except Exception as exc:
+                log.warning("Failed to download page %d/%d (%s): %s — skipping", i, len(page_urls), url, exc)
 
             if on_progress:
                 await on_progress(i, len(page_urls))

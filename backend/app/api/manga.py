@@ -1,10 +1,15 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel
 from typing import Any
 import asyncio
 
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+
 from app.providers import get_provider, list_providers
 from app.providers.base import MangaResult, MangaDetail, ProviderHealth
+from app.database import get_db
+from app.models.manga import MangaRecord
 
 router = APIRouter(prefix="/manga", tags=["manga"])
 
@@ -139,6 +144,61 @@ async def search_manga(
         )
         for r in results
     ]
+
+
+@router.post("/sync")
+async def trigger_sync():
+    """Manually trigger one sync cycle for all subscribed manga."""
+    from app.core.tasks import _sync_once
+    asyncio.create_task(_sync_once())
+    return {"status": "sync started"}
+
+
+@router.get("/subscription/{provider_id}/{manga_id:path}")
+async def get_subscription_status(provider_id: str, manga_id: str, db: AsyncSession = Depends(get_db)):
+    """Get subscription status for a manga."""
+    record_id = f"{provider_id}:{manga_id}"
+    result = await db.execute(select(MangaRecord).where(MangaRecord.id == record_id))
+    record = result.scalar_one_or_none()
+    return {"subscribed": record.subscribed if record else False}
+
+
+@router.post("/subscribe/{provider_id}/{manga_id:path}")
+async def toggle_subscribe(provider_id: str, manga_id: str, db: AsyncSession = Depends(get_db)):
+    """Toggle subscription for a manga. Creates a record if it doesn't exist."""
+    record_id = f"{provider_id}:{manga_id}"
+    result = await db.execute(select(MangaRecord).where(MangaRecord.id == record_id))
+    record = result.scalar_one_or_none()
+
+    if not record:
+        provider = get_provider(provider_id)
+        if not provider:
+            raise HTTPException(status_code=404, detail=f"Provider '{provider_id}' not found")
+        try:
+            detail = await provider.get_manga(manga_id)
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Failed to fetch manga: {exc}")
+
+        record = MangaRecord(
+            id=record_id,
+            provider=provider_id,
+            provider_manga_id=manga_id,
+            title=detail.title,
+            cover_url=detail.cover_url,
+            description=detail.description,
+            status=detail.status,
+            genres=detail.genres,
+            authors=detail.authors,
+            url=detail.url,
+            subscribed=True,
+        )
+        db.add(record)
+        await db.commit()
+        return {"subscribed": True}
+
+    record.subscribed = not record.subscribed
+    await db.commit()
+    return {"subscribed": record.subscribed}
 
 
 @router.get("/{provider_id}/{manga_id:path}", response_model=MangaDetailOut)

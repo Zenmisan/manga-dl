@@ -2,16 +2,19 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '../lib/api'
 import { FastAverageColor } from 'fast-average-color'
-import { 
-  ChevronLeft, 
-  Download, 
-  Clock, 
-  User, 
-  Tag, 
-  Info, 
-  CheckCircle2, 
+import {
+  ChevronLeft,
+  Download,
+  Clock,
+  User,
+  Tag,
+  Info,
+  CheckCircle2,
   Loader2,
-  ExternalLink
+  ExternalLink,
+  Bell,
+  BellOff,
+  ListPlus
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
@@ -44,7 +47,11 @@ export default function MangaDetail() {
   const [downloading, setDownloading] = useState<string[]>([])
   const [showQueueLink, setShowQueueLink] = useState(false)
   const [bulkLoading, setBulkLoading] = useState(false)
-  const [themeColor, setThemeColor] = useState<string>('rgba(220, 38, 38, 0.5)') // Default red fallback
+  const [subscribed, setSubscribed] = useState(false)
+  const [subscribing, setSubscribing] = useState(false)
+  const [malSyncing, setMalSyncing] = useState(false)
+  const malToken = localStorage.getItem('mal-token')
+  const [themeColor, setThemeColor] = useState<string>('rgba(220, 38, 38, 0.5)')
   const imgRef = useRef<HTMLImageElement>(null)
 
   useEffect(() => {
@@ -60,6 +67,49 @@ export default function MangaDetail() {
     }
     fetchManga()
   }, [provider, mangaId])
+
+  useEffect(() => {
+    if (!provider || !mangaId) return
+    api.get(`/manga/subscription/${provider}/${mangaId}`)
+      .then(res => setSubscribed(res.data.subscribed))
+      .catch(() => {})
+  }, [provider, mangaId])
+
+  const handleMALSync = async () => {
+    if (!malToken || malSyncing || !manga) return
+    setMalSyncing(true)
+    try {
+      const searchRes = await api.post('/auth/mal/search', { access_token: malToken, query: manga.title })
+      const results = searchRes.data.results
+      if (!results?.length) { alert('No MAL match found for this title.'); return }
+      const malId = results[0].id
+      await api.post('/auth/mal/track', {
+        access_token: malToken,
+        manga_id: malId,
+        status: 'reading',
+        chapters_read: 0,
+      })
+      alert(`Marked "${manga.title}" as Reading on MAL!`)
+    } catch (err) {
+      console.error(err)
+      alert('MAL sync failed.')
+    } finally {
+      setMalSyncing(false)
+    }
+  }
+
+  const handleSubscribe = async () => {
+    if (subscribing) return
+    setSubscribing(true)
+    try {
+      const res = await api.post(`/manga/subscribe/${provider}/${mangaId}`)
+      setSubscribed(res.data.subscribed)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setSubscribing(false)
+    }
+  }
 
   useEffect(() => {
     if (manga?.cover_url && imgRef.current) {
@@ -266,7 +316,36 @@ export default function MangaDetail() {
               </span>
             </h2>
             <div className="flex gap-2">
-              <button 
+              {malToken && (
+                <button
+                  onClick={handleMALSync}
+                  disabled={malSyncing}
+                  title="Mark as Reading on MAL"
+                  className="p-2.5 rounded-xl transition-all border bg-blue-500/10 border-blue-500/20 text-blue-400 hover:bg-blue-500/20 disabled:opacity-50"
+                >
+                  {malSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <ListPlus className="w-4 h-4" />}
+                </button>
+              )}
+              <button
+                onClick={handleSubscribe}
+                disabled={subscribing}
+                title={subscribed ? 'Unsubscribe from new chapters' : 'Subscribe to auto-download new chapters'}
+                className={cn(
+                  "p-2.5 rounded-xl transition-all border text-xs font-bold flex items-center gap-2 disabled:opacity-50",
+                  subscribed
+                    ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-400 hover:bg-red-500/20 hover:border-red-500/30 hover:text-red-400"
+                    : "bg-white/5 border-white/10 text-white/40 hover:bg-white/10 hover:text-white"
+                )}
+              >
+                {subscribing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : subscribed ? (
+                  <BellOff className="w-4 h-4" />
+                ) : (
+                  <Bell className="w-4 h-4" />
+                )}
+              </button>
+              <button
                 onClick={handleBulkDownload}
                 disabled={bulkLoading}
                 className="btn-secondary py-2 text-xs flex items-center gap-2 disabled:opacity-50"

@@ -51,6 +51,21 @@ async def _sync_manga(db: AsyncSession, manga: MangaRecord):
             except Exception as exc:
                 log.error(f"Failed fetching pages for {chapter.id}: {exc}")
 
+async def _sync_once():
+    """Run one sync cycle immediately (for manual triggers)."""
+    log.info("Running manual sync...")
+    try:
+        async with AsyncSessionLocal() as db:
+            stmt = select(MangaRecord).where(MangaRecord.subscribed == True)
+            result = await db.execute(stmt)
+            mangas = result.scalars().all()
+            for manga in mangas:
+                await _sync_manga(db, manga)
+                await asyncio.sleep(2)
+    except Exception as exc:
+        log.error(f"Manual sync failed: {exc}")
+
+
 async def sync_subscribed_manga():
     """Background task to sync subscribed manga every 6 hours."""
     while True:

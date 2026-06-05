@@ -59,6 +59,26 @@ async def queue_download(req: DownloadRequest):
     return {"download_id": download_id, "total_pages": len(pages)}
 
 
+@router.post("/pause")
+async def pause_downloads():
+    """Pause all queued downloads. In-progress downloads finish first."""
+    download_queue.pause()
+    return {"paused": True}
+
+
+@router.post("/resume")
+async def resume_downloads():
+    """Resume the download queue."""
+    download_queue.resume()
+    return {"paused": False}
+
+
+@router.get("/queue-status")
+async def queue_status():
+    """Get current queue pause state."""
+    return {"paused": download_queue.is_paused}
+
+
 @router.get("/active")
 async def list_active_downloads():
     """List all currently active/queued downloads."""

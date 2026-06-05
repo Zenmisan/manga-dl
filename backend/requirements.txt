@@ -1,7 +1,7 @@
 fastapi==0.111.0
 uvicorn==0.29.0
 beautifulsoup4==4.12.3
-sqlalchemy==2.0.29
+sqlalchemy==2.0.50
 aiosqlite==0.20.0
 pydantic-settings==2.2.1
 curl-cffi==0.6.2

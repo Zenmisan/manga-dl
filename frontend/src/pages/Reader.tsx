@@ -1,19 +1,28 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import api from '../lib/api'
-import { 
-  ChevronLeft, 
-  Download, 
+import {
+  ChevronLeft,
+  Download,
   Loader2,
   Layout,
   FileText,
+  BookOpen,
   CloudUpload,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  Tv2
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { FastAverageColor } from 'fast-average-color'
 import { cn } from '../lib/utils'
 import { useAppStore } from '../lib/store'
+
+const fac = new FastAverageColor()
+
+function withOpacity(rgba: string, opacity: number): string {
+  return rgba.replace(/[\d.]+\)$/, `${opacity})`)
+}
 
 export default function Reader() {
   const { mangaTitle, filename } = useParams()
@@ -27,6 +36,15 @@ export default function Reader() {
   const [localTitle, setLocalTitle] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [nextChapterId, setNextChapterId] = useState<string | null>(null)
+  const [ambilightColor, setAmbilightColor] = useState<string>('rgba(0,0,0,0)')
+  const [ambilightEnabled, setAmbilightEnabled] = useState(true)
+
+  const handlePageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
+    if (!ambilightEnabled) return
+    fac.getColorAsync(e.currentTarget, { algorithm: 'dominant' })
+      .then(color => setAmbilightColor(color.rgba))
+      .catch(() => {})
+  }, [ambilightEnabled])
 
   useEffect(() => {
     const fetchManifest = async () => {
@@ -137,6 +155,13 @@ export default function Reader() {
     window.open(`${base}/library/pdf/${encodeURIComponent(mangaTitle || '')}/${encodeURIComponent(filename || '')}?api_key=${apiKey}`, '_blank')
   }
 
+  const handleConvertToEpub = () => {
+    if (mangaTitle === 'local') return
+    const base = api.defaults.baseURL || ''
+    const apiKey = localStorage.getItem('manga-api-key') || ''
+    window.open(`${base}/library/epub/${encodeURIComponent(mangaTitle || '')}/${encodeURIComponent(filename || '')}?api_key=${apiKey}`, '_blank')
+  }
+
   const handleCloudUpload = async () => {
     if (mangaTitle !== 'local' || uploading) return
     
@@ -185,10 +210,18 @@ export default function Reader() {
 
   return (
     <div className="min-h-screen bg-[#050505] text-white overflow-x-hidden select-none">
-      {/* Immersive Background */}
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-0 left-0 w-full h-1/4 bg-gradient-to-b from-red-600/10 to-transparent" />
-      </div>
+      {/* Ambilight Effect */}
+      <div
+        className="fixed inset-0 pointer-events-none z-0 transition-all duration-700"
+        style={ambilightEnabled ? {
+          background: `
+            radial-gradient(ellipse 100% 30% at 50% 0%, ${withOpacity(ambilightColor, 0.18)} 0%, transparent 100%),
+            radial-gradient(ellipse 100% 30% at 50% 100%, ${withOpacity(ambilightColor, 0.18)} 0%, transparent 100%),
+            radial-gradient(ellipse 30% 100% at 0% 50%, ${withOpacity(ambilightColor, 0.12)} 0%, transparent 100%),
+            radial-gradient(ellipse 30% 100% at 100% 50%, ${withOpacity(ambilightColor, 0.12)} 0%, transparent 100%)
+          `
+        } : { background: 'none' }}
+      />
 
       {/* Floating Header Controls */}
       <AnimatePresence>
@@ -216,7 +249,18 @@ export default function Reader() {
               </div>
 
               <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-                <button 
+                <button
+                  onClick={(e) => { e.stopPropagation(); setAmbilightEnabled(prev => !prev) }}
+                  className={cn(
+                    "p-2.5 rounded-xl transition-all border flex items-center gap-2",
+                    ambilightEnabled ? "bg-violet-500/10 text-violet-400 border-violet-500/20" : "text-white/40 border-transparent hover:bg-white/5"
+                  )}
+                  title="Toggle Ambilight"
+                >
+                  <Tv2 className="w-5 h-5" />
+                  <span className="hidden lg:inline text-[10px] font-black uppercase tracking-widest">Ambilight</span>
+                </button>
+                <button
                    onClick={(e) => {
                      e.stopPropagation()
                      setUpscaling(!upscaling)
@@ -246,12 +290,19 @@ export default function Reader() {
                   </button>
                 )}
                 
-                <button 
-                   onClick={handleConvertToPdf}
-                   className="p-2.5 hover:bg-white/10 rounded-xl transition-all text-white/40 hover:text-white"
-                   title="Convert to PDF"
+                <button
+                  onClick={handleConvertToPdf}
+                  className="p-2.5 hover:bg-white/10 rounded-xl transition-all text-white/40 hover:text-white"
+                  title="Export as PDF"
                 >
                   <FileText className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={handleConvertToEpub}
+                  className="p-2.5 hover:bg-white/10 rounded-xl transition-all text-white/40 hover:text-white"
+                  title="Export as EPUB"
+                >
+                  <BookOpen className="w-5 h-5" />
                 </button>
                 <button 
                   onClick={(e) => {
@@ -302,11 +353,13 @@ export default function Reader() {
                 viewport={{ once: true, margin: "400px" }}
                 className="relative w-full"
               >
-                <img 
-                  src={getImageUrl(page)} 
+                <img
+                  src={getImageUrl(page)}
                   alt={`Page ${idx + 1}`}
                   className="w-full h-auto"
                   loading={idx < 3 ? "eager" : "lazy"}
+                  crossOrigin="anonymous"
+                  onLoad={idx === 0 ? handlePageLoad : undefined}
                 />
                 <div className="absolute bottom-4 right-4 px-2 py-1 bg-black/40 backdrop-blur-md rounded text-[10px] font-mono text-white/40">
                   {idx + 1} / {pages.length}
@@ -336,10 +389,12 @@ export default function Reader() {
                 transition={{ duration: 0.15 }}
                 className="h-full w-full flex items-center justify-center p-4"
               >
-                <img 
-                  src={getImageUrl(pages[currentPage - 1])} 
+                <img
+                  src={getImageUrl(pages[currentPage - 1])}
                   alt={`Page ${currentPage}`}
                   className="max-h-[90dvh] max-w-full object-contain shadow-2xl rounded-sm"
+                  crossOrigin="anonymous"
+                  onLoad={handlePageLoad}
                 />
               </motion.div>
             </AnimatePresence>

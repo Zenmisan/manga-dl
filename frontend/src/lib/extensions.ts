@@ -5,15 +5,79 @@ export interface MangaExtension {
   name: string
   version: string
   lang: string
-  
+
   search: (query: string, page: number) => Promise<any[]>
   getMangaDetail: (mangaId: string) => Promise<any>
   getPages: (chapterId: string) => Promise<string[]>
 }
 
+interface WorkerRequest {
+  id: string
+  method: 'search' | 'getMangaDetail' | 'getPages'
+  args: any[]
+}
+
+interface WorkerResponse {
+  id: string
+  result?: any
+  error?: string
+}
+
+function createExtensionWorker(jsCode: string, apiBaseURL: string, apiKey: string): Worker {
+  const workerSrc = `
+    const API_BASE = ${JSON.stringify(apiBaseURL)};
+    const API_KEY = ${JSON.stringify(apiKey)};
+
+    const apiFetch = async (path, opts = {}) => {
+      const url = API_BASE + path + (path.includes('?') ? '&' : '?') + 'api_key=' + API_KEY;
+      const res = await fetch(url, opts);
+      if (!res.ok) throw new Error('API error: ' + res.status);
+      return res.json();
+    };
+
+    let ext = null;
+    try {
+      ${jsCode}
+      if (typeof extension !== 'undefined') ext = extension;
+    } catch (e) {
+      console.error('Extension load error:', e);
+    }
+
+    self.onmessage = async (event) => {
+      const { id, method, args } = event.data;
+      try {
+        if (!ext || typeof ext[method] !== 'function') {
+          throw new Error('Method not found: ' + method);
+        }
+        const result = await ext[method](...args);
+        self.postMessage({ id, result });
+      } catch (err) {
+        self.postMessage({ id, error: err.message || String(err) });
+      }
+    };
+  `
+  const blob = new Blob([workerSrc], { type: 'application/javascript' })
+  return new Worker(URL.createObjectURL(blob))
+}
+
+function workerCall(worker: Worker, method: WorkerRequest['method'], args: any[]): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const id = Math.random().toString(36).slice(2)
+    const handler = (event: MessageEvent<WorkerResponse>) => {
+      if (event.data.id !== id) return
+      worker.removeEventListener('message', handler)
+      if (event.data.error) reject(new Error(event.data.error))
+      else resolve(event.data.result)
+    }
+    worker.addEventListener('message', handler)
+    worker.postMessage({ id, method, args } satisfies WorkerRequest)
+  })
+}
+
 export class ExtensionManager {
   private static instance: ExtensionManager
   public extensions: Map<string, MangaExtension> = new Map()
+  private workers: Map<string, Worker> = new Map()
 
   private constructor() {}
 
@@ -22,39 +86,31 @@ export class ExtensionManager {
     return this.instance
   }
 
-  async install(pkgId: string, name: string, lang: string, version: string) {
+  async install(pkgId: string, name: string, lang: string, version: string): Promise<boolean> {
     try {
       const res = await api.get(`/sources/code/${pkgId}`)
-      const jsCode = res.data.code
-      
-      // In a production environment, we'd use a Web Worker or a strict sandbox.
-      // For this prototype, we'll use a dynamic Function constructor to isolate logic.
-      
-      const factory = new Function('api', 'domParser', `
-        ${jsCode}
-        return {
-          search: async (query, page) => { 
-            /* Scraper logic here */
-            return [] 
-          },
-          getMangaDetail: async (id) => { return {} },
-          getPages: async (id) => { return [] }
-        }
-      `)
+      const jsCode: string = res.data.code
+      const apiBaseURL: string = api.defaults.baseURL || ''
+      const apiKey: string = localStorage.getItem('manga-api-key') || ''
 
-      const extensionLogic = factory(api, new DOMParser())
-      
+      const oldWorker = this.workers.get(pkgId)
+      if (oldWorker) oldWorker.terminate()
+
+      const worker = createExtensionWorker(jsCode, apiBaseURL, apiKey)
+      this.workers.set(pkgId, worker)
+
       const extension: MangaExtension = {
         id: pkgId,
         name,
         lang,
         version,
-        ...extensionLogic
+        search: (query, page) => workerCall(worker, 'search', [query, page]),
+        getMangaDetail: (id) => workerCall(worker, 'getMangaDetail', [id]),
+        getPages: (id) => workerCall(worker, 'getPages', [id]),
       }
 
       this.extensions.set(pkgId, extension)
-      
-      // Persist to local storage so user doesn't have to re-install
+
       const installed = JSON.parse(localStorage.getItem('installed-extensions') || '[]')
       if (!installed.find((e: any) => e.id === pkgId)) {
         installed.push({ id: pkgId, name, lang, version })
@@ -66,6 +122,14 @@ export class ExtensionManager {
       console.error('Failed to install extension:', err)
       return false
     }
+  }
+
+  uninstall(pkgId: string) {
+    this.workers.get(pkgId)?.terminate()
+    this.workers.delete(pkgId)
+    this.extensions.delete(pkgId)
+    const installed = JSON.parse(localStorage.getItem('installed-extensions') || '[]')
+    localStorage.setItem('installed-extensions', JSON.stringify(installed.filter((e: any) => e.id !== pkgId)))
   }
 
   async loadInstalled() {

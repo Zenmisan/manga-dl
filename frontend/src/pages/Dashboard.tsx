@@ -24,6 +24,8 @@ import JSZip from 'jszip'
 interface LibraryItem {
   title: string
   files: string[]
+  chapters_downloading: number
+  chapters_failed: number
 }
 
 export default function Dashboard() {
@@ -35,13 +37,33 @@ export default function Dashboard() {
   const [pinnedFiles, setPinnedFiles] = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
   const [isDesktop, setIsDesktop] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+
+  const fetchLibrary = async (showSpinner = false) => {
+    if (showSpinner) setRefreshing(true)
+    try {
+      const res = await api.get('/library')
+      setItems(res.data)
+    } catch {}
+    finally {
+      setLoading(false)
+      if (showSpinner) setRefreshing(false)
+    }
+  }
 
   useEffect(() => {
     setIsDesktop(!!(window as any).__TAURI_INTERNALS__)
-    api.get('/library').then(res => {
-      setItems(res.data)
-      setLoading(false)
-    }).catch(() => setLoading(false))
+    fetchLibrary()
+
+    // Auto-refresh every 5s while any download is active
+    const interval = setInterval(() => {
+      setItems(prev => {
+        const hasActive = prev.some(i => i.chapters_downloading > 0)
+        if (hasActive) fetchLibrary()
+        return prev
+      })
+    }, 5000)
+    return () => clearInterval(interval)
   }, [])
 
   const handleScanFolder = async () => {
@@ -251,8 +273,17 @@ export default function Dashboard() {
               </div>
 
               <div className="flex bg-white/5 border border-white/5 rounded-2xl p-1.5 backdrop-blur-sm">
+                <button
+                  onClick={() => fetchLibrary(true)}
+                  disabled={refreshing}
+                  className="p-2.5 rounded-xl transition-all cursor-pointer flex items-center gap-2 px-4 hover:bg-white/5 text-white/40 hover:text-white"
+                  title="Refresh library"
+                >
+                  <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
+                  <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:inline">Refresh</span>
+                </button>
                 {isDesktop && (
-                  <button 
+                  <button
                     onClick={handleScanFolder}
                     disabled={uploading}
                     className={cn(
@@ -339,28 +370,49 @@ export default function Dashboard() {
                   >
                     {view === 'grid' ? (
                       <>
-                        <div className="aspect-[3/4.5] glass-card overflow-hidden mb-4 relative shadow-2xl hover:border-red-500/50">
+                        <div className={cn(
+                          "aspect-[3/4.5] glass-card overflow-hidden mb-4 relative shadow-2xl",
+                          item.chapters_downloading > 0 ? "border-yellow-500/30 hover:border-yellow-500/50" :
+                          item.chapters_failed > 0 ? "border-red-500/30 hover:border-red-500/50" :
+                          "hover:border-red-500/50"
+                        )}>
                           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-60 group-hover:opacity-100 transition-opacity flex items-end p-5">
-                             <div className="flex flex-col gap-1 translate-y-2 group-hover:translate-y-0 transition-all">
-                               <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Collected</span>
-                               <span className="text-sm font-bold text-white">{item.files.length} Files</span>
-                             </div>
+                            <div className="flex flex-col gap-1 translate-y-2 group-hover:translate-y-0 transition-all">
+                              <span className="text-[10px] font-black uppercase tracking-widest text-white/40">
+                                {item.chapters_downloading > 0 ? 'Downloading' : item.chapters_failed > 0 ? 'Some Failed' : 'Collected'}
+                              </span>
+                              <span className="text-sm font-bold text-white">
+                                {item.files.length} ch
+                                {item.chapters_downloading > 0 && <span className="text-yellow-400"> +{item.chapters_downloading}</span>}
+                                {item.chapters_failed > 0 && <span className="text-red-400"> ✗{item.chapters_failed}</span>}
+                              </span>
+                            </div>
                           </div>
                           <div className="w-full h-full flex items-center justify-center text-white/5 bg-white/[0.01]">
-                            <Book className="w-16 h-16" />
+                            {item.chapters_downloading > 0
+                              ? <RefreshCw className="w-16 h-16 animate-spin opacity-20" />
+                              : <Book className="w-16 h-16" />
+                            }
                           </div>
                         </div>
                         <h3 className="font-bold text-base truncate pr-2 group-hover:text-red-400 transition-colors uppercase tracking-tight">{item.title}</h3>
-                        <p className="text-[10px] font-black text-white/20 uppercase tracking-widest mt-1">Stored in Cloud</p>
+                        <p className="text-[10px] font-black text-white/20 uppercase tracking-widest mt-1">Local Library</p>
                       </>
                     ) : (
                       <>
                         <div className="w-14 h-20 bg-white/5 rounded-xl flex items-center justify-center text-white/20 border border-white/5">
-                          <Book className="w-7 h-7" />
+                          {item.chapters_downloading > 0
+                            ? <RefreshCw className="w-7 h-7 animate-spin" />
+                            : <Book className="w-7 h-7" />
+                          }
                         </div>
                         <div className="flex-1">
                           <h3 className="font-bold text-lg uppercase tracking-tight">{item.title}</h3>
-                          <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">{item.files.length} volumes collected</p>
+                          <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">
+                            {item.files.length} ch
+                            {item.chapters_downloading > 0 && <span className="text-yellow-400"> · {item.chapters_downloading} downloading</span>}
+                            {item.chapters_failed > 0 && <span className="text-red-400"> · {item.chapters_failed} failed</span>}
+                          </p>
                         </div>
                         <button className="p-3 hover:bg-white/10 rounded-xl transition-colors text-white/40 hover:text-white">
                           <MoreVertical className="w-5 h-5" />

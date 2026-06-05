@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import api from '../lib/api'
-import { Download as DownloadIcon, CheckCircle2, XCircle, Pause, Trash2, FolderOpen, Activity } from 'lucide-react'
+import { Download as DownloadIcon, CheckCircle2, XCircle, Pause, Play, Trash2, FolderOpen, Activity } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
 
@@ -13,12 +13,26 @@ interface DownloadItem {
   progress: number
   downloaded_pages: number
   total_pages: number
+  output_path?: string
   error?: string
+}
+
+const isTauri = !!(window as any).__TAURI_INTERNALS__
+
+async function revealFile(outputPath: string | undefined) {
+  if (!outputPath || !isTauri) return
+  try {
+    const { invoke } = await import('@tauri-apps/api/core')
+    await invoke('reveal_in_file_manager', { path: outputPath })
+  } catch (e) {
+    console.warn('reveal_in_file_manager failed:', e)
+  }
 }
 
 export default function DownloadsPage() {
   const [active, setActive] = useState<DownloadItem[]>([])
   const [history, setHistory] = useState<DownloadItem[]>([])
+  const [paused, setPaused] = useState(false)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -35,7 +49,8 @@ export default function DownloadsPage() {
     }
 
     fetchData()
-    
+    api.get('/downloads/queue-status').then(res => setPaused(res.data.paused)).catch(() => {})
+
     // Setup WebSocket for real-time updates
     const getWsUrl = () => {
       const apiKey = localStorage.getItem('manga-api-key') || ''
@@ -108,8 +123,21 @@ export default function DownloadsPage() {
               </span>
             </h2>
             <div className="flex gap-2">
-              <button className="p-2.5 hover:bg-white/10 rounded-xl transition-all border border-white/5 text-white/40 hover:text-white">
-                <Pause className="w-4 h-4" />
+              <button
+                onClick={async () => {
+                  const endpoint = paused ? '/downloads/resume' : '/downloads/pause'
+                  await api.post(endpoint)
+                  setPaused(!paused)
+                }}
+                title={paused ? 'Resume downloads' : 'Pause downloads'}
+                className={cn(
+                  "p-2.5 rounded-xl transition-all border",
+                  paused
+                    ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/30"
+                    : "hover:bg-white/10 border-white/5 text-white/40 hover:text-white"
+                )}
+              >
+                {paused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
               </button>
               <button className="p-2.5 hover:bg-white/10 rounded-xl transition-all border border-white/5 text-white/40 hover:text-red-400">
                 <Trash2 className="w-4 h-4" />
@@ -212,9 +240,15 @@ export default function DownloadsPage() {
                       {item.chapter_title}
                     </p>
                   </div>
-                  <button className="opacity-0 group-hover:opacity-100 p-2.5 hover:bg-white/10 rounded-xl transition-all text-white/20 hover:text-white">
-                    <FolderOpen className="w-4 h-4" />
-                  </button>
+                  {isTauri && item.output_path && (
+                    <button
+                      onClick={() => revealFile(item.output_path)}
+                      className="opacity-0 group-hover:opacity-100 p-2.5 hover:bg-white/10 rounded-xl transition-all text-white/20 hover:text-white"
+                      title="Reveal in file manager"
+                    >
+                      <FolderOpen className="w-4 h-4" />
+                    </button>
+                  )}
                 </motion.div>
               ))
             )}

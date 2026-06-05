@@ -1,4 +1,5 @@
-import { Search, Library, Download, Settings, ExternalLink, Globe } from 'lucide-react'
+import { useEffect, useRef } from 'react'
+import { Search, Library, Download, Settings, ExternalLink, Globe, BarChart2 } from 'lucide-react'
 import { Routes, Route, Link, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from './lib/utils'
@@ -7,17 +8,64 @@ import Dashboard from './pages/Dashboard'
 import SearchPage from './pages/Search'
 import DownloadsPage from './pages/Downloads'
 import SettingsPage from './pages/Settings'
+import StatsPage from './pages/Stats'
 import MangaDetail from './pages/MangaDetail'
 import Reader from './pages/Reader'
 import SourcesPage from './pages/Sources'
 import DownloadHub from './pages/DownloadHub'
 
+function useGlobalNotifications() {
+  const wsRef = useRef<WebSocket | null>(null)
+
+  useEffect(() => {
+    if (!('Notification' in window)) return
+
+    const notificationsEnabled = localStorage.getItem('notifications-enabled') === 'true'
+    if (!notificationsEnabled) return
+
+    const apiBase = (window as any).__TAURI_INTERNALS__
+      ? 'http://127.0.0.1:8000/api'
+      : window.location.origin + '/api'
+    const apiKey = localStorage.getItem('manga-api-key') || ''
+    const protocol = apiBase.startsWith('https') ? 'wss' : 'ws'
+    const wsUrl = apiBase.replace(/^https?/, protocol).replace('/api', '') + `/api/downloads/ws?api_key=${apiKey}`
+
+    const connect = () => {
+      const ws = new WebSocket(wsUrl)
+      wsRef.current = ws
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data)
+          if (data.type === 'queued' && Notification.permission === 'granted') {
+            new Notification('New chapter queued', {
+              body: `${data.download.manga_title} — ${data.download.chapter_title}`,
+              icon: '/icon.png',
+              silent: true,
+            })
+          }
+        } catch {}
+      }
+
+      ws.onclose = () => {
+        // Reconnect after 10s if connection drops
+        setTimeout(connect, 10_000)
+      }
+    }
+
+    connect()
+    return () => wsRef.current?.close()
+  }, [])
+}
+
 function App() {
   const location = useLocation()
+  useGlobalNotifications()
 
   const navItems = [
     { icon: Library, label: 'Library', path: '/' },
     { icon: Search, label: 'Search', path: '/search' },
+    { icon: BarChart2, label: 'Stats', path: '/stats' },
     { icon: Globe, label: 'Extensions', path: '/sources' },
     { icon: Download, label: 'Get App', path: '/download' },
     { icon: Settings, label: 'Settings', path: '/settings' },
@@ -43,10 +91,7 @@ function App() {
               <Link
                 key={item.path}
                 to={item.path}
-                className={cn(
-                  "nav-link flex-row",
-                  isActive && "active"
-                )}
+                className={cn("nav-link flex-row", isActive && "active")}
               >
                 <item.icon className={cn("w-5 h-5", isActive ? "text-red-500" : "opacity-70")} />
                 <span className="font-semibold text-sm">{item.label}</span>
@@ -88,6 +133,7 @@ function App() {
             <Routes location={location}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/search" element={<SearchPage />} />
+              <Route path="/stats" element={<StatsPage />} />
               <Route path="/sources" element={<SourcesPage />} />
               <Route path="/download" element={<DownloadHub />} />
               <Route path="/downloads" element={<DownloadsPage />} />
@@ -108,10 +154,7 @@ function App() {
               <Link
                 key={item.path}
                 to={item.path}
-                className={cn(
-                  "nav-link flex-1 py-3",
-                  isActive && "active"
-                )}
+                className={cn("nav-link flex-1 py-3", isActive && "active")}
               >
                 <item.icon className={cn("w-5 h-5", isActive ? "text-red-500" : "opacity-70")} />
                 <span className="text-[10px] font-bold uppercase tracking-tighter">{item.label}</span>
