@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import api from '../lib/api'
 import {
@@ -38,6 +38,43 @@ export default function Reader() {
   const [nextChapterId, setNextChapterId] = useState<string | null>(null)
   const [ambilightColor, setAmbilightColor] = useState<string>('rgba(0,0,0,0)')
   const [ambilightEnabled, setAmbilightEnabled] = useState(true)
+  const malAutoSyncedRef = useRef(false)
+
+  // Auto-track chapter completion on MAL when last page is reached
+  useEffect(() => {
+    if (
+      pages.length === 0 ||
+      currentPage !== pages.length ||
+      mangaTitle === 'local' ||
+      malAutoSyncedRef.current
+    ) return
+
+    const malToken = localStorage.getItem('mal-token')
+    if (!malToken) return
+
+    malAutoSyncedRef.current = true
+
+    const chapterMatch = filename?.match(/(\d+)/)
+    const chaptersRead = chapterMatch ? parseInt(chapterMatch[1], 10) : 0
+
+    const autoSync = async () => {
+      try {
+        const searchRes = await api.post('/auth/mal/search', { access_token: malToken, query: mangaTitle })
+        const results = searchRes.data?.results
+        if (!results?.length) return
+        await api.post('/auth/mal/track', {
+          access_token: malToken,
+          manga_id: results[0].id,
+          status: 'reading',
+          chapters_read: chaptersRead,
+        })
+      } catch {
+        // silent — auto-sync should never interrupt reading
+      }
+    }
+
+    autoSync()
+  }, [currentPage, pages.length, mangaTitle, filename])
 
   const handlePageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     if (!ambilightEnabled) return
@@ -89,7 +126,8 @@ export default function Reader() {
       }
     }
     fetchManifest()
-    
+    malAutoSyncedRef.current = false
+
     // Hide controls after 3 seconds
     const timer = setTimeout(() => setShowControls(false), 3000)
     return () => clearTimeout(timer)
