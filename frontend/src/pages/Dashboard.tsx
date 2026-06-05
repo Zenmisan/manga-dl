@@ -92,7 +92,9 @@ export default function Dashboard() {
       const folderName = selected.split(/[\\/]/).pop() || 'Local Folder'
       setItems(prev => [{
         title: `[Local] ${folderName}`,
-        files: validArchives.map(a => a.name)
+        files: validArchives.map(a => a.name),
+        chapters_downloading: 0,
+        chapters_failed: 0,
       }, ...prev])
 
       alert(`Successfully scanned ${validArchives.length} archives!`)

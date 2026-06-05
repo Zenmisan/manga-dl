@@ -42,7 +42,6 @@ export default function SettingsPage() {
   const [syncDone, setSyncDone] = useState(false)
   // MAL
   const [malClientId, setMalClientId] = useState(localStorage.getItem('mal-client-id') || '')
-  const [malToken, setMalToken] = useState(localStorage.getItem('mal-token') || '')
   const [malUser, setMalUser] = useState(localStorage.getItem('mal-username') || '')
   const [malLoading, setMalLoading] = useState(false)
   // Notifications
@@ -93,7 +92,6 @@ export default function SettingsPage() {
       localStorage.setItem('mal-token', res.data.access_token)
       localStorage.setItem('mal-username', res.data.username)
       localStorage.removeItem('mal-code-verifier')
-      setMalToken(res.data.access_token)
       setMalUser(res.data.username)
     }).catch(err => {
       console.error('MAL auth failed:', err)
@@ -143,7 +141,6 @@ export default function SettingsPage() {
     localStorage.removeItem('mal-token')
     localStorage.removeItem('mal-username')
     localStorage.removeItem('mal-code-verifier')
-    setMalToken('')
     setMalUser('')
   }
 
