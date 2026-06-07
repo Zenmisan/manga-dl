@@ -194,7 +194,7 @@ export default function MangaDetail() {
       <div className="relative h-64 md:h-96 overflow-hidden">
         <div 
           className="absolute inset-0 bg-cover bg-center blur-3xl opacity-20 scale-110 transition-all duration-1000"
-          style={{ backgroundImage: `url(${manga.cover_url})`, backgroundColor: themeColor }}
+          style={{ backgroundImage: manga.cover_url ? `url(${api.defaults.baseURL || ''}/manga/image-proxy?url=${encodeURIComponent(manga.cover_url)}&api_key=${localStorage.getItem('manga-api-key') || ''})` : undefined, backgroundColor: themeColor }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-[#09090b] via-[#09090b]/40 to-transparent" />
         
@@ -236,10 +236,10 @@ export default function MangaDetail() {
               className="aspect-[3/4.5] glass-panel p-2 shadow-2xl transition-shadow duration-1000"
               style={{ boxShadow: `0 25px 50px -12px ${themeColor}` }}
             >
-              <img 
+              <img
                 ref={imgRef}
-                src={manga.cover_url || ''} 
-                alt={manga.title} 
+                src={manga.cover_url ? `${api.defaults.baseURL || ''}/manga/image-proxy?url=${encodeURIComponent(manga.cover_url)}&api_key=${localStorage.getItem('manga-api-key') || ''}` : ''}
+                alt={manga.title}
                 crossOrigin="anonymous"
                 className="w-full h-full object-cover rounded-xl"
               />

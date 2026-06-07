@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { loadLocalMangaIntoSession } from '../lib/localLibrary'
 import { useNavigate, useParams } from 'react-router-dom'
 import api from '../lib/api'
+import { supabase } from '../lib/supabase'
 import {
   ChevronLeft,
   Download,
@@ -40,6 +41,8 @@ export default function Reader() {
   const [ambilightColor, setAmbilightColor] = useState<string>('rgba(0,0,0,0)')
   const [ambilightEnabled, setAmbilightEnabled] = useState(true)
   const malAutoSyncedRef = useRef(false)
+  const progressSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const onlinePartsRef = useRef<{ provider: string; mangaId: string; chapterId: string } | null>(null)
 
   // Auto-track chapter completion on MAL when last page is reached
   useEffect(() => {
@@ -77,6 +80,33 @@ export default function Reader() {
     autoSync()
   }, [currentPage, pages.length, mangaTitle, filename])
 
+  const saveOnlineProgress = useCallback(async (page: number) => {
+    const parts = onlinePartsRef.current
+    if (!parts) return
+    const { data } = await supabase.auth.getSession()
+    if (!data.session) return
+    try {
+      await api.put('/users/reading-progress', {
+        provider: parts.provider,
+        manga_id: parts.mangaId,
+        chapter_id: parts.chapterId,
+        last_page: page,
+      })
+    } catch {
+      // silent
+    }
+  }, [])
+
+  // Debounced cloud save every 3 pages (online mode only)
+  useEffect(() => {
+    if (mangaTitle !== 'online' || pages.length === 0) return
+    if (progressSaveTimerRef.current) clearTimeout(progressSaveTimerRef.current)
+    progressSaveTimerRef.current = setTimeout(() => saveOnlineProgress(currentPage), 1500)
+    return () => {
+      if (progressSaveTimerRef.current) clearTimeout(progressSaveTimerRef.current)
+    }
+  }, [currentPage, mangaTitle, pages.length, saveOnlineProgress])
+
   const handlePageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     if (!ambilightEnabled) return
     fac.getColorAsync(e.currentTarget, { algorithm: 'dominant' })
@@ -94,6 +124,7 @@ export default function Reader() {
         const onlineProvider = decoded.slice(0, sepIdx)
         const onlineMangaId = decoded.slice(sepIdx + 1, sep2Idx)
         const onlineChapterId = decoded.slice(sep2Idx + 1)
+        onlinePartsRef.current = { provider: onlineProvider, mangaId: onlineMangaId, chapterId: onlineChapterId }
         const base = api.defaults.baseURL || ''
         const apiKey = localStorage.getItem('manga-api-key') || ''
         try {
@@ -105,6 +136,20 @@ export default function Reader() {
           )
           setPages(proxyPages)
           setLocalTitle(`Online — Ch. ${onlineChapterId}`)
+
+          // Restore saved page for logged-in users
+          const { data: session } = await supabase.auth.getSession()
+          if (session.session) {
+            try {
+              const prog = await api.get(
+                `/users/reading-progress/${encodeURIComponent(onlineProvider)}/${encodeURIComponent(onlineMangaId)}`,
+                { params: { chapter_id: onlineChapterId } }
+              )
+              if (prog.data.last_page > 1) setCurrentPage(prog.data.last_page)
+            } catch {
+              // no saved progress, start from page 1
+            }
+          }
         } catch (err) {
           console.error('Online read failed:', err)
         } finally {
@@ -163,10 +208,17 @@ export default function Reader() {
     }
     fetchManifest()
     malAutoSyncedRef.current = false
+    onlinePartsRef.current = null
 
-    // Hide controls after 3 seconds
     const timer = setTimeout(() => setShowControls(false), 3000)
-    return () => clearTimeout(timer)
+    return () => {
+      clearTimeout(timer)
+      // Flush progress save on chapter change / unmount
+      if (progressSaveTimerRef.current) {
+        clearTimeout(progressSaveTimerRef.current)
+        saveOnlineProgress(currentPage)
+      }
+    }
   }, [mangaTitle, filename, readingMode])
 
   // Predictive Prefetching (Smart Binge)

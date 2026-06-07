@@ -8,13 +8,14 @@ import logging
 import uuid
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, HTTPException, Request, Depends
+from fastapi import APIRouter, HTTPException, Request, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.device import UserDevice
+from app.models.reading_progress import ReadingProgress
 from app.core.supabase_auth import get_current_user
 
 log = logging.getLogger(__name__)
@@ -138,6 +139,64 @@ async def forfeit_device(
     )
     db.add(device)
     return {"status": "ok", "device_id": device.id, "forfeited_until": target.locked_until.isoformat()}
+
+
+class ReadingProgressUpsert(BaseModel):
+    provider: str
+    manga_id: str
+    chapter_id: str
+    last_page: int
+
+
+@router.put("/reading-progress")
+async def upsert_reading_progress(
+    body: ReadingProgressUpsert,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(ReadingProgress).where(
+            ReadingProgress.user_id == user_id,
+            ReadingProgress.provider == body.provider,
+            ReadingProgress.manga_id == body.manga_id,
+            ReadingProgress.chapter_id == body.chapter_id,
+        )
+    )
+    record = result.scalar_one_or_none()
+    if record:
+        record.last_page = body.last_page
+        record.updated_at = datetime.utcnow()
+    else:
+        record = ReadingProgress(
+            user_id=user_id,
+            provider=body.provider,
+            manga_id=body.manga_id,
+            chapter_id=body.chapter_id,
+            last_page=body.last_page,
+        )
+        db.add(record)
+    await db.commit()
+    return {"status": "ok", "last_page": body.last_page}
+
+
+@router.get("/reading-progress/{provider}/{manga_id:path}")
+async def get_reading_progress(
+    provider: str,
+    manga_id: str,
+    chapter_id: str = Query(...),
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(ReadingProgress).where(
+            ReadingProgress.user_id == user_id,
+            ReadingProgress.provider == provider,
+            ReadingProgress.manga_id == manga_id,
+            ReadingProgress.chapter_id == chapter_id,
+        )
+    )
+    record = result.scalar_one_or_none()
+    return {"last_page": record.last_page if record else 1}
 
 
 @router.get("/devices")

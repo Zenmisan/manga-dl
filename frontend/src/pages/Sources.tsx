@@ -23,9 +23,10 @@ export default function SourcesPage() {
   const [installedIds, setInstalledIds] = useState<string[]>([])
 
   useEffect(() => {
-    // Load existing installed list
     const manager = ExtensionManager.getInstance()
-    setInstalledIds(Array.from(manager.extensions.keys()))
+    manager.init().then(() => {
+      setInstalledIds(Array.from(manager.extensions.keys()))
+    })
 
     api.get('/sources/market').then(res => {
       setSources(res.data)

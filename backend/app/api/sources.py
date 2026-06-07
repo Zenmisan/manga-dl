@@ -1,3 +1,4 @@
+import re
 import logging
 import asyncio
 from fastapi import APIRouter, HTTPException, Depends
@@ -25,7 +26,7 @@ async def list_market_sources():
         for ext in data:
             sources.append({
                 "id": ext.get("pkg"),
-                "name": ext.get("name"),
+                "name": re.sub(r'^Tachiyomi:?\s*', '', ext.get("name", "")),
                 "version": ext.get("version"),
                 "lang": ext.get("lang"),
                 "icon": f"https://raw.githubusercontent.com/keiyoushi/extensions/repo/icon/{ext.get('pkg')}.png",

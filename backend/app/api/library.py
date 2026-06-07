@@ -17,6 +17,7 @@ from sqlalchemy import select, func, distinct
 from app.config import get_settings
 from app.database import get_db
 from app.models.download import DownloadRecord
+from app.models.manga import MangaRecord
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/library", tags=["library"])
@@ -28,6 +29,8 @@ class LibraryItem(BaseModel):
     files: list[str]
     chapters_downloading: int = 0
     chapters_failed: int = 0
+    cover_url: str | None = None
+    subscribed: bool = False
 
 
 def natural_sort_key(s):
@@ -48,7 +51,7 @@ async def list_library(db: AsyncSession = Depends(get_db)):
     for r in records:
         title = r.manga_title
         if title not in grouped:
-            grouped[title] = {"files": set(), "downloading": 0, "failed": 0}
+            grouped[title] = {"files": set(), "downloading": 0, "failed": 0, "cover_url": None, "subscribed": False}
 
         if r.status == "done" and r.output_path:
             grouped[title]["files"].add(Path(r.output_path).name)
@@ -57,12 +60,23 @@ async def list_library(db: AsyncSession = Depends(get_db)):
         elif r.status == "failed":
             grouped[title]["failed"] += 1
 
+    # Include subscribed manga even if no chapters downloaded yet
+    sub_result = await db.execute(select(MangaRecord).where(MangaRecord.subscribed == True))
+    for r in sub_result.scalars().all():
+        if r.title not in grouped:
+            grouped[r.title] = {"files": set(), "downloading": 0, "failed": 0, "cover_url": r.cover_url, "subscribed": True}
+        else:
+            grouped[r.title]["cover_url"] = r.cover_url
+            grouped[r.title]["subscribed"] = True
+
     items = [
         LibraryItem(
             title=title,
             files=sorted(list(data["files"]), key=natural_sort_key),
             chapters_downloading=data["downloading"],
             chapters_failed=data["failed"],
+            cover_url=data.get("cover_url"),
+            subscribed=data.get("subscribed", False),
         )
         for title, data in grouped.items()
     ]

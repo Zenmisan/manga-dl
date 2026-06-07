@@ -1,4 +1,5 @@
 import api from './api'
+import { supabase } from './supabase'
 
 export interface MangaExtension {
   id: string
@@ -78,12 +79,34 @@ export class ExtensionManager {
   private static instance: ExtensionManager
   public extensions: Map<string, MangaExtension> = new Map()
   private workers: Map<string, Worker> = new Map()
+  private userId = 'guest'
 
   private constructor() {}
 
   static getInstance() {
     if (!this.instance) this.instance = new ExtensionManager()
     return this.instance
+  }
+
+  private get storageKey() {
+    return `extensions-${this.userId}`
+  }
+
+  async init() {
+    const { data } = await supabase.auth.getSession()
+    this.userId = data.session?.user.id ?? 'guest'
+    await this.loadInstalled()
+  }
+
+  setUser(userId: string | null) {
+    const newId = userId ?? 'guest'
+    if (newId === this.userId) return
+    // Terminate all workers for previous user
+    for (const w of this.workers.values()) w.terminate()
+    this.workers.clear()
+    this.extensions.clear()
+    this.userId = newId
+    this.loadInstalled()
   }
 
   async install(pkgId: string, name: string, lang: string, version: string): Promise<boolean> {
@@ -111,10 +134,10 @@ export class ExtensionManager {
 
       this.extensions.set(pkgId, extension)
 
-      const installed = JSON.parse(localStorage.getItem('installed-extensions') || '[]')
+      const installed = JSON.parse(localStorage.getItem(this.storageKey) || '[]')
       if (!installed.find((e: any) => e.id === pkgId)) {
         installed.push({ id: pkgId, name, lang, version })
-        localStorage.setItem('installed-extensions', JSON.stringify(installed))
+        localStorage.setItem(this.storageKey, JSON.stringify(installed))
       }
 
       return true
@@ -128,12 +151,12 @@ export class ExtensionManager {
     this.workers.get(pkgId)?.terminate()
     this.workers.delete(pkgId)
     this.extensions.delete(pkgId)
-    const installed = JSON.parse(localStorage.getItem('installed-extensions') || '[]')
+    const installed = JSON.parse(localStorage.getItem(this.storageKey) || '[]')
     localStorage.setItem('installed-extensions', JSON.stringify(installed.filter((e: any) => e.id !== pkgId)))
   }
 
   async loadInstalled() {
-    const installed = JSON.parse(localStorage.getItem('installed-extensions') || '[]')
+    const installed = JSON.parse(localStorage.getItem(this.storageKey) || '[]')
     for (const ext of installed) {
       await this.install(ext.id, ext.name, ext.lang, ext.version)
     }
