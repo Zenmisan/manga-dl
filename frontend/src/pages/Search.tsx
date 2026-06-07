@@ -1,21 +1,38 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../lib/api'
-import { Search as SearchIcon, Globe, Loader2, ChevronRight, BookOpen, Layers, Star } from 'lucide-react'
+import { Search as SearchIcon, Globe, Loader2, ChevronRight, BookOpen, Layers, Star, BookMarked, Check } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
 import { useAppStore } from '../lib/store'
 
 export default function SearchPage() {
   const navigate = useNavigate()
-  const { 
-    searchQuery, setSearchQuery, 
+  const {
+    searchQuery, setSearchQuery,
     searchResults, setSearchResults,
     selectedProvider, setSelectedProvider,
     hasSearched, setHasSearched
   } = useAppStore()
-  
+
   const [loading, setLoading] = useState(false)
+  const [subscribing, setSubscribing] = useState<string[]>([])
+  const [subscribed, setSubscribed] = useState<string[]>([])
+
+  const handleSubscribe = async (e: React.MouseEvent, provider: string, mangaId: string) => {
+    e.stopPropagation()
+    const key = `${provider}:${mangaId}`
+    if (subscribed.includes(key) || subscribing.includes(key)) return
+    setSubscribing(prev => [...prev, key])
+    try {
+      await api.post(`/manga/subscribe/${provider}/${encodeURIComponent(mangaId)}`)
+      setSubscribed(prev => [...prev, key])
+    } catch {
+      alert('Could not add to library.')
+    } finally {
+      setSubscribing(prev => prev.filter(k => k !== key))
+    }
+  }
 
   const providers = [
     { id: 'mangadex', name: 'MangaDex' },
@@ -162,10 +179,33 @@ export default function SearchPage() {
                     </div>
                   </div>
                   
-                  <div className="flex items-center justify-between mt-4">
-                    <div className="flex gap-1">
-                      {/* Tags could go here */}
-                    </div>
+                  <div className="flex items-center justify-between mt-4 gap-2">
+                    {(() => {
+                      const key = `${r.provider}:${r.id}`
+                      const isSubscribed = subscribed.includes(key)
+                      const isSubscribing = subscribing.includes(key)
+                      return (
+                        <button
+                          onClick={(e) => handleSubscribe(e, r.provider, r.id)}
+                          disabled={isSubscribed || isSubscribing}
+                          className={cn(
+                            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all",
+                            isSubscribed
+                              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                              : "bg-white/5 border-white/10 text-white/40 hover:text-white hover:border-white/20"
+                          )}
+                        >
+                          {isSubscribing ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : isSubscribed ? (
+                            <Check className="w-3 h-3" />
+                          ) : (
+                            <BookMarked className="w-3 h-3" />
+                          )}
+                          {isSubscribed ? 'In Library' : 'Add'}
+                        </button>
+                      )
+                    })()}
                     <div className="p-2 bg-white/5 rounded-xl text-white/20 group-hover:text-white group-hover:bg-red-600 group-hover:shadow-lg group-hover:shadow-red-600/30 transition-all duration-300">
                       <ChevronRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
                     </div>

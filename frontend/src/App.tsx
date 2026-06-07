@@ -13,6 +13,9 @@ import MangaDetail from './pages/MangaDetail'
 import Reader from './pages/Reader'
 import SourcesPage from './pages/Sources'
 import DownloadHub from './pages/DownloadHub'
+import LoginPage from './pages/Login'
+import RegisterPage from './pages/Register'
+import TermsPage from './pages/Terms'
 
 function useGlobalNotifications() {
   const wsRef = useRef<WebSocket | null>(null)
@@ -140,6 +143,9 @@ function App() {
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/manga/:provider/*" element={<MangaDetail />} />
               <Route path="/read/:mangaTitle/:filename" element={<Reader />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/terms" element={<TermsPage />} />
             </Routes>
           </motion.div>
         </AnimatePresence>

@@ -10,7 +10,7 @@ from app.config import get_settings
 from app.database import init_db
 from app.core.queue import download_queue
 from app.core.tasks import start_sync_task, stop_sync_task
-from app.api import manga, downloads, settings as settings_router, library, sources, auth
+from app.api import manga, downloads, settings as settings_router, library, sources, auth, users
 from app.providers import list_providers
 from app.core.security import verify_api_key
 
@@ -36,6 +36,10 @@ async def lifespan(app: FastAPI):
 
     asyncio.create_task(validate_all())
     start_sync_task()
+
+    # Ensure Supabase storage bucket exists (no-op if credentials not set)
+    from app.core.storage import ensure_bucket_exists
+    asyncio.create_task(ensure_bucket_exists())
 
     yield
 
@@ -76,6 +80,7 @@ app.include_router(settings_router.router, prefix="/api", dependencies=api_deps)
 app.include_router(library.router, prefix="/api", dependencies=api_deps)
 app.include_router(sources.router, prefix="/api", dependencies=api_deps)
 app.include_router(auth.router, prefix="/api", dependencies=api_deps)
+app.include_router(users.router, prefix="/api")  # Uses Supabase JWT auth, not API key
 
 # Serve built frontend in production
 _frontend_dist = Path(__file__).parent.parent.parent / "frontend" / "dist"

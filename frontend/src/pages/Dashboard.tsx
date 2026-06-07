@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../lib/api'
-import { 
-  Book, 
-  MoreVertical, 
-  LayoutGrid, 
-  List, 
+import {
+  Book,
+  MoreVertical,
+  LayoutGrid,
+  List,
   Sparkles,
   ChevronLeft,
   Download,
@@ -15,17 +15,21 @@ import {
   Upload,
   RefreshCw,
   HardDrive,
-  Play
+  Play,
+  Trash2,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
 import JSZip from 'jszip'
+import { saveLocalManga, getAllLocalManga, deleteLocalManga, loadLocalMangaIntoSession } from '../lib/localLibrary'
 
 interface LibraryItem {
   title: string
   files: string[]
   chapters_downloading: number
   chapters_failed: number
+  isLocal?: boolean
+  localId?: string
 }
 
 export default function Dashboard() {
@@ -54,6 +58,26 @@ export default function Dashboard() {
   useEffect(() => {
     setIsDesktop(!!(window as any).__TAURI_INTERNALS__)
     fetchLibrary()
+
+    // Load locally stored manga from IndexedDB
+    getAllLocalManga().then(localEntries => {
+      if (localEntries.length === 0) return
+      const localItems: LibraryItem[] = localEntries
+        .sort((a, b) => b.addedAt - a.addedAt)
+        .map(e => ({
+          title: e.title,
+          files: [e.filename],
+          chapters_downloading: 0,
+          chapters_failed: 0,
+          isLocal: true,
+          localId: e.id,
+        }))
+      setItems(prev => {
+        const existingTitles = new Set(prev.map(i => i.localId).filter(Boolean))
+        const newLocals = localItems.filter(i => !existingTitles.has(i.localId))
+        return [...newLocals, ...prev]
+      })
+    }).catch(() => {})
 
     // Auto-refresh every 5s while any download is active
     const interval = setInterval(() => {
@@ -137,17 +161,38 @@ export default function Dashboard() {
         blobs.push(URL.createObjectURL(content))
       }
 
-      // 4. Start Local Session
+      // 4. Persist to IndexedDB so it survives page refresh
       const mangaTitle = file.name.replace(/\.[^/.]+$/, "")
-      const sessionId = `local-${Date.now()}`
-      
+      const localId = `local-${Date.now()}`
+
+      await saveLocalManga({
+        id: localId,
+        title: mangaTitle,
+        filename: file.name,
+        fileSize: file.size,
+        addedAt: Date.now(),
+        file: file,
+      })
+
+      // Add to library state
+      setItems(prev => [{
+        title: mangaTitle,
+        files: [file.name],
+        chapters_downloading: 0,
+        chapters_failed: 0,
+        isLocal: true,
+        localId,
+      }, ...prev.filter(i => i.localId !== localId)])
+
+      // Start session and navigate
       ;(window as any).__LOCAL_MANGA_SESSION__ = {
         title: mangaTitle,
         pages: blobs,
-        rawFile: file // For manual cloud sync later
+        rawFile: file,
+        localId,
       }
 
-      navigate(`/read/local/${sessionId}`)
+      navigate(`/read/local/${localId}`)
     } catch (err: any) {
       console.error('Local parsing failed:', err)
       alert(`Could not open: ${err.message}`)
@@ -241,13 +286,35 @@ export default function Dashboard() {
                   >
                     <Download className="w-5 h-5" />
                   </button>
-                  <button 
-                    onClick={() => navigate(`/read/${encodeURIComponent(selectedManga.title)}/${encodeURIComponent(file)}`)}
+                  <button
+                    onClick={async () => {
+                      if (selectedManga.isLocal && selectedManga.localId) {
+                        const ok = await loadLocalMangaIntoSession(selectedManga.localId)
+                        if (!ok) { alert('File not found. Please re-upload.'); return }
+                        navigate(`/read/local/${selectedManga.localId}`)
+                      } else {
+                        navigate(`/read/${encodeURIComponent(selectedManga.title)}/${encodeURIComponent(file)}`)
+                      }
+                    }}
                     className="px-5 py-3 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg"
                   >
                     <Play className="w-4 h-4 fill-current" />
                     Read
                   </button>
+                  {selectedManga.isLocal && selectedManga.localId && (
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation()
+                        await deleteLocalManga(selectedManga.localId!)
+                        setItems(prev => prev.filter(i => i.localId !== selectedManga.localId))
+                        setSelectedManga(null)
+                      }}
+                      className="p-3 bg-white/5 border border-white/5 rounded-xl text-white/40 hover:text-red-400 hover:border-red-500/20"
+                      title="Remove from local library"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  )}
                 </div>
               </motion.div>
             )

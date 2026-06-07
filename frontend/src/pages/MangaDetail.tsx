@@ -14,7 +14,8 @@ import {
   ExternalLink,
   Bell,
   BellOff,
-  ListPlus
+  ListPlus,
+  Play,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
@@ -380,22 +381,34 @@ export default function MangaDetail() {
                   </p>
                 </div>
                 
-                <button 
-                  onClick={() => handleDownload(chapter.id)}
-                  disabled={downloading.includes(chapter.id)}
-                  className={cn(
-                    "p-3 rounded-xl transition-all border shadow-lg",
-                    downloading.includes(chapter.id) 
-                      ? "bg-emerald-500/20 border-emerald-500/20 text-emerald-400 cursor-default"
-                      : "bg-white/5 border-white/10 text-white/40 hover:text-white hover:bg-red-600 hover:border-red-600 hover:shadow-red-600/20"
-                  )}
-                >
-                  {downloading.includes(chapter.id) ? (
-                    <CheckCircle2 className="w-5 h-5" />
-                  ) : (
-                    <Download className="w-5 h-5" />
-                  )}
-                </button>
+                <div className="flex gap-2 shrink-0">
+                  <button
+                    onClick={() => {
+                      const param = encodeURIComponent(`${provider}|${manga.id}|${chapter.id}`)
+                      navigate(`/read/online/${param}`)
+                    }}
+                    className="p-3 rounded-xl transition-all border bg-violet-500/10 border-violet-500/20 text-violet-400 hover:bg-violet-500 hover:text-white hover:border-violet-500 shadow-lg"
+                    title="Read Online"
+                  >
+                    <Play className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => handleDownload(chapter.id)}
+                    disabled={downloading.includes(chapter.id)}
+                    className={cn(
+                      "p-3 rounded-xl transition-all border shadow-lg",
+                      downloading.includes(chapter.id)
+                        ? "bg-emerald-500/20 border-emerald-500/20 text-emerald-400 cursor-default"
+                        : "bg-white/5 border-white/10 text-white/40 hover:text-white hover:bg-red-600 hover:border-red-600 hover:shadow-red-600/20"
+                    )}
+                  >
+                    {downloading.includes(chapter.id) ? (
+                      <CheckCircle2 className="w-5 h-5" />
+                    ) : (
+                      <Download className="w-5 h-5" />
+                    )}
+                  </button>
+                </div>
               </div>
             ))}
           </div>

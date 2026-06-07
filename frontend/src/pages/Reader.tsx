@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { loadLocalMangaIntoSession } from '../lib/localLibrary'
 import { useNavigate, useParams } from 'react-router-dom'
 import api from '../lib/api'
 import {
@@ -85,15 +86,50 @@ export default function Reader() {
 
   useEffect(() => {
     const fetchManifest = async () => {
+      // --- Handle Online Streaming ---
+      if (mangaTitle === 'online' && filename) {
+        const decoded = decodeURIComponent(filename)
+        const sepIdx = decoded.indexOf('|')
+        const sep2Idx = decoded.indexOf('|', sepIdx + 1)
+        const onlineProvider = decoded.slice(0, sepIdx)
+        const onlineMangaId = decoded.slice(sepIdx + 1, sep2Idx)
+        const onlineChapterId = decoded.slice(sep2Idx + 1)
+        const base = api.defaults.baseURL || ''
+        const apiKey = localStorage.getItem('manga-api-key') || ''
+        try {
+          const res = await api.get(
+            `/manga/${encodeURIComponent(onlineProvider)}/${encodeURIComponent(onlineMangaId)}/chapters/${encodeURIComponent(onlineChapterId)}/pages`
+          )
+          const proxyPages: string[] = res.data.pages.map(
+            (url: string) => `${base}/manga/image-proxy?url=${encodeURIComponent(url)}&api_key=${apiKey}`
+          )
+          setPages(proxyPages)
+          setLocalTitle(`Online — Ch. ${onlineChapterId}`)
+        } catch (err) {
+          console.error('Online read failed:', err)
+        } finally {
+          setLoading(false)
+        }
+        return
+      }
+
       // --- Handle Local Sessions ---
       if (mangaTitle === 'local') {
-        const session = (window as any).__LOCAL_MANGA_SESSION__
+        let session = (window as any).__LOCAL_MANGA_SESSION__
+        // If window session is missing (e.g. page refresh), reload from IndexedDB
+        if (!session && filename) {
+          const ok = await loadLocalMangaIntoSession(filename)
+          if (ok) session = (window as any).__LOCAL_MANGA_SESSION__
+        }
         if (session) {
           setLocalTitle(session.title)
           setPages(session.pages)
           setLoading(false)
           return
         }
+        // No session and not in IndexedDB — show error
+        setLoading(false)
+        return
       }
 
       // --- Handle Remote Files ---
