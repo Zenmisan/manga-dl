@@ -33,3 +33,4 @@ logs/
 *.log
 .firebase/*
 *.log
+.claude/worktrees/harmonic-humming-stardust
