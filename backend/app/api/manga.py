@@ -206,6 +206,49 @@ async def toggle_subscribe(provider_id: str, manga_id: str, db: AsyncSession = D
     return {"subscribed": record.subscribed}
 
 
+@router.get("/image-proxy")
+async def proxy_image(url: str = Query(...)):
+    """Proxy a remote manga page/cover image to avoid CORS and hotlink restrictions."""
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        referer = f"{parsed.scheme}://{parsed.netloc}/"
+        async with CurlSession(impersonate="chrome110") as client:
+            resp = await client.get(
+                url,
+                headers={"Referer": referer},
+                timeout=20.0,
+                follow_redirects=True,
+            )
+            if resp.status_code != 200:
+                raise HTTPException(status_code=resp.status_code, detail="Upstream image error")
+            content_type = resp.headers.get("content-type", "image/jpeg")
+            return StreamingResponse(
+                iter([resp.content]),
+                media_type=content_type,
+                headers={"Cache-Control": "public, max-age=86400"},
+            )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        log.error("Image proxy failed for %s: %s", url, exc)
+        raise HTTPException(status_code=502, detail="Image proxy failed")
+
+
+@router.get("/{provider_id}/chapters/{chapter_id:path}/pages")
+async def get_chapter_pages_online(provider_id: str, chapter_id: str):
+    """Return image URLs for a chapter for online streaming (no download required)."""
+    provider = get_provider(provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail=f"Provider '{provider_id}' not found")
+    try:
+        pages = await provider.get_pages(chapter_id)
+        return {"pages": pages, "total": len(pages)}
+    except Exception as exc:
+        log.error("get_pages failed for %s/%s: %s", provider_id, chapter_id, exc)
+        raise HTTPException(status_code=502, detail=f"Failed to fetch pages: {exc}")
+
+
 @router.get("/{provider_id}/{manga_id:path}", response_model=MangaDetailOut)
 async def get_manga_detail(provider_id: str, manga_id: str):
     """Get full manga details and chapter list from a specific provider."""
@@ -239,43 +282,3 @@ async def get_manga_detail(provider_id: str, manga_id: str):
             for c in detail.chapters
         ],
     )
-
-
-@router.get("/{provider_id}/{manga_id:path}/chapters/{chapter_id}/pages")
-async def get_chapter_pages_online(provider_id: str, manga_id: str, chapter_id: str):
-    """Return image URLs for a chapter for online streaming (no download required)."""
-    provider = get_provider(provider_id)
-    if not provider:
-        raise HTTPException(status_code=404, detail=f"Provider '{provider_id}' not found")
-    try:
-        pages = await provider.get_pages(chapter_id)
-        return {"pages": pages, "total": len(pages)}
-    except Exception as exc:
-        log.error("get_pages failed for %s/%s: %s", provider_id, chapter_id, exc)
-        raise HTTPException(status_code=502, detail=f"Failed to fetch pages: {exc}")
-
-
-@router.get("/image-proxy")
-async def proxy_image(url: str = Query(...)):
-    """Proxy a remote manga page image to avoid CORS and hotlink restrictions."""
-    try:
-        async with CurlSession(impersonate="chrome110") as client:
-            resp = await client.get(
-                url,
-                headers={"Referer": url},
-                timeout=20.0,
-                follow_redirects=True,
-            )
-            if resp.status_code != 200:
-                raise HTTPException(status_code=resp.status_code, detail="Upstream image error")
-            content_type = resp.headers.get("content-type", "image/jpeg")
-            return StreamingResponse(
-                iter([resp.content]),
-                media_type=content_type,
-                headers={"Cache-Control": "public, max-age=86400"},
-            )
-    except HTTPException:
-        raise
-    except Exception as exc:
-        log.error("Image proxy failed for %s: %s", url, exc)
-        raise HTTPException(status_code=502, detail="Image proxy failed")

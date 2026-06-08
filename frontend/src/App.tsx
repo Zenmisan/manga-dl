@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { Search, Library, Download, Settings, ExternalLink, Globe, BarChart2 } from 'lucide-react'
+import { Search, Library, Download, Settings, ExternalLink, Globe, BarChart2, HelpCircle } from 'lucide-react'
 import { Routes, Route, Link, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from './lib/utils'
@@ -16,6 +16,7 @@ import DownloadHub from './pages/DownloadHub'
 import LoginPage from './pages/Login'
 import RegisterPage from './pages/Register'
 import TermsPage from './pages/Terms'
+import HelpPage from './pages/Help'
 
 function useGlobalNotifications() {
   const wsRef = useRef<WebSocket | null>(null)
@@ -47,7 +48,9 @@ function useGlobalNotifications() {
               silent: true,
             })
           }
-        } catch {}
+        } catch (e) {
+          console.error('Failed to parse WebSocket message:', e)
+        }
       }
 
       ws.onclose = () => {
@@ -109,9 +112,17 @@ function App() {
           })}
         </nav>
 
-        <div className="p-6">
+        <div className="p-6 space-y-2">
+          <Link
+            to="/help"
+            className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all text-white/60 hover:text-white"
+            title="Icon legend & help"
+          >
+            <HelpCircle className="w-5 h-5" />
+            <span className="text-xs font-bold uppercase tracking-wider">Help</span>
+          </Link>
           <a
-            href="https://github.com/zenmi/manga-dl"
+            href="https://github.com/zenmisan/manga-dl"
             target="_blank"
             rel="noreferrer"
             className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all text-white/60 hover:text-white"
@@ -146,6 +157,7 @@ function App() {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/terms" element={<TermsPage />} />
+              <Route path="/help" element={<HelpPage />} />
             </Routes>
           </motion.div>
         </AnimatePresence>

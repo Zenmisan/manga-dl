@@ -8,6 +8,7 @@ from app.providers import get_provider
 from app.core.queue import download_queue, register_ws_listener, unregister_ws_listener
 from app.database import get_db, AsyncSessionLocal
 from app.models.download import DownloadRecord
+from sqlalchemy import delete
 
 router = APIRouter(prefix="/downloads", tags=["downloads"])
 
@@ -77,6 +78,25 @@ async def resume_downloads():
 async def queue_status():
     """Get current queue pause state."""
     return {"paused": download_queue.is_paused}
+
+
+@router.post("/cancel/{download_id}")
+async def cancel_download(download_id: str):
+    """Cancel a queued or in-progress download."""
+    cancelled = await download_queue.cancel(download_id, AsyncSessionLocal)
+    if not cancelled:
+        raise HTTPException(status_code=404, detail="Download not found in active queue")
+    return {"cancelled": True}
+
+
+@router.delete("/history")
+async def clear_history(db: AsyncSession = Depends(get_db)):
+    """Delete all completed/failed download records."""
+    await db.execute(
+        delete(DownloadRecord).where(DownloadRecord.status.in_(["done", "failed"]))
+    )
+    await db.commit()
+    return {"cleared": True}
 
 
 @router.get("/active")

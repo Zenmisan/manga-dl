@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import api from '../lib/api'
-import { Download as DownloadIcon, CheckCircle2, XCircle, Pause, Play, Trash2, FolderOpen, Activity } from 'lucide-react'
+import { Download as DownloadIcon, CheckCircle2, XCircle, Pause, Play, Trash2, FolderOpen, Activity, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
 
@@ -17,6 +17,7 @@ interface DownloadItem {
   error?: string
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const isTauri = !!(window as any).__TAURI_INTERNALS__
 
 async function revealFile(outputPath: string | undefined) {
@@ -139,7 +140,17 @@ export default function DownloadsPage() {
               >
                 {paused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
               </button>
-              <button className="p-2.5 hover:bg-white/10 rounded-xl transition-all border border-white/5 text-white/40 hover:text-red-400">
+              <button
+                onClick={async () => {
+                  if (!confirm('Cancel all queued downloads and clear history?')) return
+                  await Promise.allSettled(active.map(i => api.post(`/downloads/cancel/${i.id}`)))
+                  await api.delete('/downloads/history')
+                  setActive([])
+                  setHistory([])
+                }}
+                title="Cancel all downloads and clear history"
+                className="p-2.5 hover:bg-white/10 rounded-xl transition-all border border-white/5 text-white/40 hover:text-red-400"
+              >
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>
@@ -185,6 +196,17 @@ export default function DownloadsPage() {
                         <p className="text-[10px] text-white/20 font-black uppercase tracking-[0.1em]">
                           {item.downloaded_pages} / {item.total_pages} pages
                         </p>
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation()
+                            await api.post(`/downloads/cancel/${item.id}`)
+                            setActive(prev => prev.filter(i => i.id !== item.id))
+                          }}
+                          title="Cancel this download"
+                          className="p-1.5 rounded-lg hover:bg-red-500/20 text-white/20 hover:text-red-400 transition-all"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
 

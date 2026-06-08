@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
-import { Shield, Database, Save, RefreshCw, Key, HardDrive, Info, Share2, LogOut, CheckCircle2, Loader2, Bell, BellOff } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Shield, Database, Save, RefreshCw, Key, HardDrive, Info, Share2, LogOut, CheckCircle2, Loader2, Bell, BellOff, User, UserPlus } from 'lucide-react'
 import { motion } from 'framer-motion'
 import api from '../lib/api'
+import { supabase } from '../lib/supabase'
 
 // ── MAL PKCE helpers ────────────────────────────────────────────────────────
 async function generatePKCE() {
@@ -33,6 +35,8 @@ async function fetchAniListUsername(token: string): Promise<string | null> {
 }
 
 export default function SettingsPage() {
+  const navigate = useNavigate()
+  const [supabaseUser, setSupabaseUser] = useState<{ email: string | undefined } | null>(null)
   const [apiKey, setApiKey] = useState(localStorage.getItem('manga-api-key') || '')
   const [backendUrl, setBackendUrl] = useState(localStorage.getItem('manga-backend-url') || '')
   const [anilistToken, setAnilistToken] = useState(localStorage.getItem('anilist-token') || '')
@@ -49,6 +53,16 @@ export default function SettingsPage() {
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>(
     'Notification' in window ? Notification.permission : 'denied'
   )
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSupabaseUser(data.session?.user ?? null)
+    })
+    const { data: listener } = supabase.auth.onAuthStateChange((_e, session) => {
+      setSupabaseUser(session?.user ?? null)
+    })
+    return () => listener.subscription.unsubscribe()
+  }, [])
 
   // Resolve username whenever token changes
   useEffect(() => {
@@ -477,6 +491,57 @@ export default function SettingsPage() {
                 Prune Data
               </button>
             </div>
+          </div>
+        </motion.section>
+
+        {/* Account */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-panel overflow-hidden border-white/5"
+        >
+          <div className="p-6 border-b border-white/5 flex items-center gap-3 bg-white/[0.02]">
+            <div className="p-2 bg-blue-500/10 rounded-lg">
+              <User className="w-5 h-5 text-blue-400" />
+            </div>
+            <h2 className="font-bold text-lg">Account</h2>
+          </div>
+          <div className="p-6 md:p-8">
+            {supabaseUser ? (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <h4 className="font-bold text-gray-100">Signed in</h4>
+                  <p className="text-sm text-white/40 font-medium">{supabaseUser.email}</p>
+                </div>
+                <button
+                  onClick={async () => {
+                    await supabase.auth.signOut()
+                    setSupabaseUser(null)
+                  }}
+                  className="flex items-center justify-center gap-2 px-5 py-2.5 bg-white/5 hover:bg-red-500/20 hover:border-red-500/30 rounded-xl transition-all border border-white/5 text-white/60 hover:text-red-400 font-bold text-xs uppercase tracking-widest"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Sign Out
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={() => navigate('/login')}
+                  className="flex-1 flex items-center justify-center gap-2 px-5 py-3 bg-blue-600 hover:bg-blue-500 rounded-xl transition-all text-white font-bold text-sm"
+                >
+                  <User className="w-4 h-4" />
+                  Sign In
+                </button>
+                <button
+                  onClick={() => navigate('/register')}
+                  className="flex-1 flex items-center justify-center gap-2 px-5 py-3 bg-white/5 hover:bg-white/10 rounded-xl transition-all border border-white/10 text-white/70 hover:text-white font-bold text-sm"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  Create Account
+                </button>
+              </div>
+            )}
           </div>
         </motion.section>
 

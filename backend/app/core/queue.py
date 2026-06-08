@@ -252,6 +252,18 @@ class DownloadQueue:
     def get(self, download_id: str) -> dict | None:
         return _active.get(download_id)
 
+    async def cancel(self, download_id: str, db_factory) -> bool:
+        """Cancel a queued download. Returns True if found and cancelled."""
+        info = _active.get(download_id)
+        if not info:
+            return False
+        info["status"] = "failed"
+        info["error"] = "Cancelled by user"
+        await _broadcast({"type": "completed", "download": dict(info)})
+        _active.pop(download_id, None)
+        await _update_db_record(db_factory, download_id, status="failed", error="Cancelled by user")
+        return True
+
 
 # Singleton queue instance
 download_queue = DownloadQueue(max_concurrent=settings.MAX_CONCURRENT_DOWNLOADS)

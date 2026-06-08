@@ -129,7 +129,7 @@ export default function Reader() {
         const apiKey = localStorage.getItem('manga-api-key') || ''
         try {
           const res = await api.get(
-            `/manga/${encodeURIComponent(onlineProvider)}/${encodeURIComponent(onlineMangaId)}/chapters/${encodeURIComponent(onlineChapterId)}/pages`
+            `/manga/${encodeURIComponent(onlineProvider)}/chapters/${encodeURIComponent(onlineChapterId)}/pages`
           )
           const proxyPages: string[] = res.data.pages.map(
             (url: string) => `${base}/manga/image-proxy?url=${encodeURIComponent(url)}&api_key=${apiKey}`
