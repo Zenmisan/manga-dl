@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Shield, Database, Save, RefreshCw, Key, HardDrive, Info, Share2, LogOut, CheckCircle2, Loader2, Bell, BellOff, User, UserPlus } from 'lucide-react'
 import { motion } from 'framer-motion'
+import type { User as SupabaseUser } from '@supabase/supabase-js'
 import api from '../lib/api'
 import { supabase } from '../lib/supabase'
 
@@ -36,7 +37,7 @@ async function fetchAniListUsername(token: string): Promise<string | null> {
 
 export default function SettingsPage() {
   const navigate = useNavigate()
-  const [supabaseUser, setSupabaseUser] = useState<{ email: string | undefined } | null>(null)
+  const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null)
   const [apiKey, setApiKey] = useState(localStorage.getItem('manga-api-key') || '')
   const [backendUrl, setBackendUrl] = useState(localStorage.getItem('manga-backend-url') || '')
   const [anilistToken, setAnilistToken] = useState(localStorage.getItem('anilist-token') || '')
