@@ -192,6 +192,39 @@ export default function MangaDetail() {
     setShowQueueLink(true)
   }
 
+  const toggleBookmark = (chapterId: string) => {
+    const key = `${provider}:${mangaId}`
+    const next = new Set(bookmarks)
+    if (next.has(chapterId)) next.delete(chapterId); else next.add(chapterId)
+    setBookmarks(next)
+    try {
+      const bm = JSON.parse(localStorage.getItem('manga-dl-bookmarks') || '{}')
+      bm[key] = [...next]
+      localStorage.setItem('manga-dl-bookmarks', JSON.stringify(bm))
+    } catch {}
+  }
+
+  const toggleReadChapter = (chapterId: string) => {
+    if (!provider || !mangaId) return
+    if (readChapters.has(chapterId)) {
+      markUnread(provider, mangaId, chapterId)
+      setReadChapters(prev => { const s = new Set(prev); s.delete(chapterId); return s })
+    } else {
+      markRead(provider, mangaId, chapterId)
+      setReadChapters(prev => new Set([...prev, chapterId]))
+    }
+  }
+
+  const scanlators = useMemo(() => {
+    if (!manga) return []
+    const set = new Set<string>()
+    manga.chapters.forEach(c => {
+      const match = c.title.match(/\[([^\]]+)\]/)
+      if (match) set.add(match[1])
+    })
+    return [...set]
+  }, [manga])
+
   const displayedChapters = useMemo(() => {
     if (!manga) return []
     let list = [...manga.chapters]
@@ -199,6 +232,11 @@ export default function MangaDetail() {
       const q = chapterSearch.toLowerCase()
       list = list.filter(c => c.title.toLowerCase().includes(q) || String(c.number).includes(q))
     }
+    if (scanlatorFilter !== 'all') {
+      list = list.filter(c => c.title.includes(`[${scanlatorFilter}]`))
+    }
+    if (readFilter === 'unread') list = list.filter(c => !readChapters.has(c.id))
+    if (readFilter === 'read') list = list.filter(c => readChapters.has(c.id))
     switch (chapterSort) {
       case 'newest': list.sort((a, b) => (b.published_at || '').localeCompare(a.published_at || '')); break
       case 'oldest': list.sort((a, b) => (a.published_at || '').localeCompare(b.published_at || '')); break
@@ -206,7 +244,7 @@ export default function MangaDetail() {
       case 'num-desc': list.sort((a, b) => b.number - a.number); break
     }
     return list
-  }, [manga, chapterSort, chapterSearch])
+  }, [manga, chapterSort, chapterSearch, readFilter, scanlatorFilter, readChapters])
 
   if (loading) {
     return (
@@ -407,31 +445,62 @@ export default function MangaDetail() {
             </div>
             </div>
 
-            {/* Sort + Search bar */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1">
-                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
-                <input
-                  type="text"
-                  placeholder="Search chapters..."
-                  value={chapterSearch}
-                  onChange={e => setChapterSearch(e.target.value)}
-                  className="w-full bg-white/5 border border-white/5 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 text-white placeholder:text-white/20"
-                />
+            {/* Sort + Search + Filter bar */}
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="relative flex-1">
+                  <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
+                  <input
+                    type="text"
+                    placeholder="Search chapters..."
+                    value={chapterSearch}
+                    onChange={e => setChapterSearch(e.target.value)}
+                    className="w-full bg-white/5 border border-white/5 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 text-white placeholder:text-white/20"
+                  />
+                </div>
+                <div className="flex items-center gap-2 bg-white/5 border border-white/5 rounded-xl px-3 shrink-0">
+                  <ArrowUpDown className="w-3.5 h-3.5 text-white/30" />
+                  <select value={chapterSort} onChange={e => setChapterSort(e.target.value as typeof chapterSort)}
+                    className="bg-transparent text-xs font-bold text-white/60 focus:outline-none py-2 cursor-pointer">
+                    <option value="default">Default</option>
+                    <option value="newest">Newest first</option>
+                    <option value="oldest">Oldest first</option>
+                    <option value="num-desc">Highest #</option>
+                    <option value="num-asc">Lowest #</option>
+                  </select>
+                </div>
               </div>
-              <div className="flex items-center gap-2 bg-white/5 border border-white/5 rounded-xl px-3 shrink-0">
-                <ArrowUpDown className="w-3.5 h-3.5 text-white/30" />
-                <select
-                  value={chapterSort}
-                  onChange={e => setChapterSort(e.target.value as typeof chapterSort)}
-                  className="bg-transparent text-xs font-bold text-white/60 focus:outline-none py-2 cursor-pointer"
+              <div className="flex flex-wrap gap-2 items-center">
+                {/* Read filter */}
+                {(['all','unread','read'] as const).map(f => (
+                  <button key={f} onClick={() => setReadFilter(f)}
+                    className={cn("px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all",
+                      readFilter === f ? "bg-white/10 border-white/20 text-white" : "border-white/5 text-white/30 hover:border-white/10"
+                    )}
+                  >{f}</button>
+                ))}
+                {/* Scanlator filter */}
+                {scanlators.length > 0 && (
+                  <div className="flex items-center gap-1.5 bg-white/5 border border-white/5 rounded-lg px-2">
+                    <Filter className="w-3 h-3 text-white/30" />
+                    <select value={scanlatorFilter} onChange={e => setScanlatorFilter(e.target.value)}
+                      className="bg-transparent text-[10px] font-bold text-white/50 focus:outline-none py-1 cursor-pointer">
+                      <option value="all">All Groups</option>
+                      {scanlators.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                )}
+                {/* Bulk mark all read */}
+                <button
+                  onClick={() => {
+                    if (!manga || !provider || !mangaId) return
+                    markAllRead(provider, mangaId, manga.chapters.map(c => c.id))
+                    setReadChapters(new Set(manga.chapters.map(c => c.id)))
+                  }}
+                  className="ml-auto px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border border-white/5 text-white/30 hover:text-emerald-400 hover:border-emerald-500/30 transition-all flex items-center gap-1.5"
                 >
-                  <option value="default">Default</option>
-                  <option value="newest">Newest first</option>
-                  <option value="oldest">Oldest first</option>
-                  <option value="num-desc">Highest #</option>
-                  <option value="num-asc">Lowest #</option>
-                </select>
+                  <Eye className="w-3 h-3" /> Mark All Read
+                </button>
               </div>
             </div>
           </div>
