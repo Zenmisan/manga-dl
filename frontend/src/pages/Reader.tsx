@@ -13,12 +13,17 @@ import {
   CloudUpload,
   ChevronRight,
   Sparkles,
-  Tv2
+  Tv2,
+  SlidersHorizontal,
+  RotateCcw,
+  Maximize2,
+  Share2,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FastAverageColor } from 'fast-average-color'
 import { cn } from '../lib/utils'
 import { useAppStore } from '../lib/store'
+import { markRead } from '../lib/readTracking'
 
 const fac = new FastAverageColor()
 
@@ -29,11 +34,13 @@ function withOpacity(rgba: string, opacity: number): string {
 export default function Reader() {
   const { mangaTitle, filename } = useParams()
   const navigate = useNavigate()
-  const { readingMode, setReadingMode, upscaling, setUpscaling } = useAppStore()
-  
+  const { readingMode, setReadingMode, upscaling, setUpscaling, readerFilters, setReaderFilters, resetReaderFilters, imageScale, setImageScale, incognitoMode } = useAppStore()
+
   const [pages, setPages] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [showControls, setShowControls] = useState(true)
+  const [showFilterPanel, setShowFilterPanel] = useState(false)
+  const [volumeKeyMode, setVolumeKeyMode] = useState<'navigation' | 'brightness'>('navigation')
   const [currentPage, setCurrentPage] = useState(1)
   const [localTitle, setLocalTitle] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
@@ -42,7 +49,7 @@ export default function Reader() {
   const [ambilightEnabled, setAmbilightEnabled] = useState(true)
   const malAutoSyncedRef = useRef(false)
   const progressSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const onlinePartsRef = useRef<{ provider: string; mangaId: string; chapterId: string } | null>(null)
+  const onlinePartsRef = useRef<{ provider: string; mangaId: string; chapterId: string; mangaTitle?: string; chapterTitle?: string } | null>(null)
 
   // Auto-track chapter completion on MAL when last page is reached
   useEffect(() => {
@@ -81,6 +88,7 @@ export default function Reader() {
   }, [currentPage, pages.length, mangaTitle, filename])
 
   const saveOnlineProgress = useCallback(async (page: number) => {
+    if (incognitoMode) return
     const parts = onlinePartsRef.current
     if (!parts) return
     const { data } = await supabase.auth.getSession()
@@ -91,11 +99,13 @@ export default function Reader() {
         manga_id: parts.mangaId,
         chapter_id: parts.chapterId,
         last_page: page,
+        manga_title: parts.mangaTitle,
+        chapter_title: parts.chapterTitle,
       })
     } catch {
       // silent
     }
-  }, [])
+  }, [incognitoMode])
 
   // Debounced cloud save every 3 pages (online mode only)
   useEffect(() => {
@@ -119,12 +129,19 @@ export default function Reader() {
       // --- Handle Online Streaming ---
       if (mangaTitle === 'online' && filename) {
         const decoded = decodeURIComponent(filename)
-        const sepIdx = decoded.indexOf('|')
-        const sep2Idx = decoded.indexOf('|', sepIdx + 1)
-        const onlineProvider = decoded.slice(0, sepIdx)
-        const onlineMangaId = decoded.slice(sepIdx + 1, sep2Idx)
-        const onlineChapterId = decoded.slice(sep2Idx + 1)
-        onlinePartsRef.current = { provider: onlineProvider, mangaId: onlineMangaId, chapterId: onlineChapterId }
+        const parts = decoded.split('|')
+        const onlineProvider = parts[0]
+        const onlineMangaId = parts[1]
+        const onlineChapterId = parts[2]
+        const onlineMangaTitle = parts[3]
+        const onlineChapterTitle = parts[4]
+        onlinePartsRef.current = {
+          provider: onlineProvider,
+          mangaId: onlineMangaId,
+          chapterId: onlineChapterId,
+          mangaTitle: onlineMangaTitle,
+          chapterTitle: onlineChapterTitle,
+        }
         const base = api.defaults.baseURL || ''
         const apiKey = localStorage.getItem('manga-api-key') || ''
         try {
@@ -136,6 +153,7 @@ export default function Reader() {
           )
           setPages(proxyPages)
           setLocalTitle(`Online — Ch. ${onlineChapterId}`)
+          if (!incognitoMode) markRead(onlineProvider, onlineMangaId, onlineChapterId)
 
           // Restore saved page for logged-in users
           const { data: session } = await supabase.auth.getSession()
@@ -325,6 +343,42 @@ export default function Reader() {
     if (currentPage > 1) setCurrentPage(prev => prev - 1)
   }
 
+  // Keyboard + volume key navigation / brightness control
+  useEffect(() => {
+    const handle = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        if (readingMode !== 'webtoon') setCurrentPage(p => Math.min(p + 1, pages.length))
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        if (readingMode !== 'webtoon') setCurrentPage(p => Math.max(p - 1, 1))
+      } else if (e.key === 'VolumeDown') {
+        e.preventDefault()
+        if (volumeKeyMode === 'navigation') {
+          if (readingMode !== 'webtoon') setCurrentPage(p => Math.min(p + 1, pages.length))
+        } else {
+          setReaderFilters({ brightness: Math.max(0.3, readerFilters.brightness - 0.1) })
+        }
+      } else if (e.key === 'VolumeUp') {
+        e.preventDefault()
+        if (volumeKeyMode === 'navigation') {
+          if (readingMode !== 'webtoon') setCurrentPage(p => Math.max(p - 1, 1))
+        } else {
+          setReaderFilters({ brightness: Math.min(2, readerFilters.brightness + 0.1) })
+        }
+      }
+    }
+    window.addEventListener('keydown', handle)
+    return () => window.removeEventListener('keydown', handle)
+  }, [readingMode, pages.length, volumeKeyMode, readerFilters.brightness])
+
+  // Build CSS filter string from readerFilters
+  const cssFilter = [
+    readerFilters.brightness !== 1 ? `brightness(${readerFilters.brightness})` : '',
+    readerFilters.contrast !== 1 ? `contrast(${readerFilters.contrast})` : '',
+    readerFilters.grayscale ? 'grayscale(1)' : '',
+    readerFilters.invert ? 'invert(1)' : '',
+    readerFilters.sepia ? 'sepia(1)' : '',
+  ].filter(Boolean).join(' ')
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-black text-white">
@@ -430,7 +484,7 @@ export default function Reader() {
                 >
                   <BookOpen className="w-5 h-5" />
                 </button>
-                <button 
+                <button
                   onClick={(e) => {
                     e.stopPropagation()
                     if (readingMode === 'webtoon') setReadingMode('manga')
@@ -448,14 +502,133 @@ export default function Reader() {
                     {readingMode === 'manga-rtl' ? 'RTL' : readingMode}
                   </span>
                 </button>
-                <button 
+                {readingMode !== 'webtoon' && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      const scales = ['fit-screen', 'fit-width', 'fit-height', 'original'] as const
+                      const idx = scales.indexOf(imageScale)
+                      setImageScale(scales[(idx + 1) % scales.length])
+                    }}
+                    className="p-2.5 rounded-xl transition-all border text-white/40 border-transparent hover:bg-white/5 flex items-center gap-2"
+                    title={`Image scale: ${imageScale}. Click to cycle.`}
+                  >
+                    <Maximize2 className="w-5 h-5" />
+                    <span className="hidden md:inline text-[10px] font-black uppercase tracking-widest">
+                      {imageScale === 'fit-screen' ? 'Screen' : imageScale === 'fit-width' ? 'Width' : imageScale === 'fit-height' ? 'Height' : 'Original'}
+                    </span>
+                  </button>
+                )}
+                <button
                   onClick={handleDownload}
                   className="p-2.5 hover:bg-white/10 rounded-xl transition-all text-white/40 hover:text-white"
                 >
                   <Download className="w-5 h-5" />
                 </button>
+                {mangaTitle === 'online' && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      const url = window.location.href
+                      if (navigator.share) {
+                        navigator.share({ title: document.title, url })
+                      } else {
+                        navigator.clipboard.writeText(url).then(() => alert('Link copied!'))
+                      }
+                    }}
+                    className="p-2.5 hover:bg-white/10 rounded-xl transition-all text-white/40 hover:text-white"
+                    title="Share chapter link"
+                  >
+                    <Share2 className="w-5 h-5" />
+                  </button>
+                )}
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowFilterPanel(p => !p) }}
+                  className={cn(
+                    "p-2.5 rounded-xl transition-all border flex items-center gap-2",
+                    showFilterPanel ? "bg-blue-500/10 text-blue-400 border-blue-500/20" : "text-white/40 border-transparent hover:bg-white/5"
+                  )}
+                  title="Image Filters"
+                >
+                  <SlidersHorizontal className="w-5 h-5" />
+                </button>
               </div>
             </div>
+
+            {/* Filter Panel */}
+            <AnimatePresence>
+              {showFilterPanel && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  className="max-w-5xl mx-auto mt-2 glass-panel p-4 shadow-2xl border-white/5"
+                  onClick={e => e.stopPropagation()}
+                >
+                  <div className="flex flex-wrap gap-6 items-end">
+                    <div className="flex-1 min-w-[140px]">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-2 block">
+                        Brightness {Math.round(readerFilters.brightness * 100)}%
+                      </label>
+                      <input type="range" min="0.3" max="2" step="0.05"
+                        value={readerFilters.brightness}
+                        onChange={e => setReaderFilters({ brightness: parseFloat(e.target.value) })}
+                        className="w-full accent-blue-500"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-[140px]">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-2 block">
+                        Contrast {Math.round(readerFilters.contrast * 100)}%
+                      </label>
+                      <input type="range" min="0.3" max="2" step="0.05"
+                        value={readerFilters.contrast}
+                        onChange={e => setReaderFilters({ contrast: parseFloat(e.target.value) })}
+                        className="w-full accent-blue-500"
+                      />
+                    </div>
+                    <div className="flex gap-2 flex-wrap">
+                      {(['grayscale', 'invert', 'sepia'] as const).map(f => (
+                        <button key={f}
+                          onClick={() => setReaderFilters({ [f]: !readerFilters[f] })}
+                          className={cn(
+                            "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all",
+                            readerFilters[f]
+                              ? "bg-blue-500/20 text-blue-400 border-blue-500/30"
+                              : "text-white/30 border-white/10 hover:border-white/20"
+                          )}
+                        >
+                          {f}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      onClick={resetReaderFilters}
+                      className="p-2.5 rounded-xl text-white/30 hover:text-white hover:bg-white/10 transition-all border border-white/10"
+                      title="Reset filters"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-white/5 flex items-center gap-3">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-white/30">Volume keys:</span>
+                    <button
+                      onClick={() => setVolumeKeyMode(v => v === 'navigation' ? 'brightness' : 'navigation')}
+                      className={cn(
+                        "px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all",
+                        volumeKeyMode === 'navigation'
+                          ? "bg-white/10 text-white/60 border-white/20"
+                          : "bg-blue-500/20 text-blue-400 border-blue-500/30"
+                      )}
+                    >
+                      {volumeKeyMode === 'navigation' ? '↑↓ Page navigation' : '↑↓ Brightness control'}
+                    </button>
+                    <span className="text-[10px] text-white/20">
+                      {volumeKeyMode === 'navigation' ? 'Volume up/down = prev/next page' : 'Volume up/down = +/− brightness'}
+                    </span>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.header>
         )}
       </AnimatePresence>
@@ -486,6 +659,7 @@ export default function Reader() {
                   loading={idx < 3 ? "eager" : "lazy"}
                   crossOrigin="anonymous"
                   onLoad={idx === 0 ? handlePageLoad : undefined}
+                  style={cssFilter ? { filter: cssFilter } : undefined}
                 />
                 <div className="absolute bottom-4 right-4 px-2 py-1 bg-black/40 backdrop-blur-md rounded text-[10px] font-mono text-white/40">
                   {idx + 1} / {pages.length}
@@ -518,13 +692,56 @@ export default function Reader() {
                 <img
                   src={getImageUrl(pages[currentPage - 1])}
                   alt={`Page ${currentPage}`}
-                  className="max-h-[90dvh] max-w-full object-contain shadow-2xl rounded-sm"
+                  className={cn(
+                    "object-contain shadow-2xl rounded-sm",
+                    imageScale === 'fit-screen' && "max-h-[90dvh] max-w-full",
+                    imageScale === 'fit-width' && "w-full max-h-none",
+                    imageScale === 'fit-height' && "h-[95dvh] w-auto",
+                    imageScale === 'original' && "max-w-none",
+                  )}
                   crossOrigin="anonymous"
                   onLoad={handlePageLoad}
+                  style={cssFilter ? { filter: cssFilter } : undefined}
                 />
               </motion.div>
             </AnimatePresence>
             
+            {/* Chapter transition overlay on last page */}
+            <AnimatePresence>
+              {currentPage === pages.length && pages.length > 0 && (
+                <motion.div
+                  key="chapter-end"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 z-25 flex flex-col items-center justify-end pb-32 pointer-events-none"
+                >
+                  <div className="glass-panel px-6 py-4 text-center pointer-events-auto shadow-2xl border-white/10">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-1">End of chapter</p>
+                    <p className="font-bold text-sm text-white/70 mb-3">
+                      {filename?.replace('.cbz', '') ?? 'Chapter'}
+                    </p>
+                    {nextChapterId ? (
+                      <button
+                        onClick={() => {
+                          const parts = onlinePartsRef.current
+                          if (parts) {
+                            const param = encodeURIComponent(`${parts.provider}|${parts.mangaId}|${nextChapterId}|${parts.mangaTitle ?? ''}|Next Chapter`)
+                            navigate(`/read/online/${param}`)
+                          }
+                        }}
+                        className="px-5 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+                      >
+                        Next Chapter →
+                      </button>
+                    ) : (
+                      <p className="text-[10px] text-white/20 font-bold uppercase tracking-widest">No next chapter</p>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             {/* Navigation Overlays */}
             <div className="absolute bottom-10 right-10 flex gap-4 z-30">
                <button onClick={readingMode === 'manga' ? prevPage : nextPage} className={cn("p-4 glass-panel hover:bg-white/10 transition-all", ((readingMode === 'manga' && currentPage === 1) || (readingMode === 'manga-rtl' && currentPage === pages.length)) && "opacity-0 pointer-events-none")}>

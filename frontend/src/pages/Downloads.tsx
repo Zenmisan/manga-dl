@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import api from '../lib/api'
-import { Download as DownloadIcon, CheckCircle2, XCircle, Pause, Play, Trash2, FolderOpen, Activity, X } from 'lucide-react'
+import { Download as DownloadIcon, CheckCircle2, XCircle, Pause, Play, Trash2, FolderOpen, Activity, X, RotateCcw } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
 
@@ -34,6 +34,7 @@ export default function DownloadsPage() {
   const [active, setActive] = useState<DownloadItem[]>([])
   const [history, setHistory] = useState<DownloadItem[]>([])
   const [paused, setPaused] = useState(false)
+  const [retrying, setRetrying] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     const fetchData = async () => {
@@ -262,6 +263,23 @@ export default function DownloadsPage() {
                       {item.chapter_title}
                     </p>
                   </div>
+                  {item.status === 'failed' && (
+                    <button
+                      onClick={async () => {
+                        setRetrying(prev => new Set(prev).add(item.id))
+                        try {
+                          await api.post(`/downloads/retry/${item.id}`)
+                          setHistory(prev => prev.filter(i => i.id !== item.id))
+                        } catch {}
+                        setRetrying(prev => { const s = new Set(prev); s.delete(item.id); return s })
+                      }}
+                      disabled={retrying.has(item.id)}
+                      title="Retry download"
+                      className="opacity-0 group-hover:opacity-100 p-2.5 hover:bg-amber-500/20 rounded-xl transition-all text-white/20 hover:text-amber-400 disabled:opacity-40"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                    </button>
+                  )}
                   {isTauri && item.output_path && (
                     <button
                       onClick={() => revealFile(item.output_path)}

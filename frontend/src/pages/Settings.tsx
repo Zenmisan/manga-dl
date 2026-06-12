@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Shield, Database, Save, RefreshCw, Key, HardDrive, Info, Share2, LogOut, CheckCircle2, Loader2, Bell, BellOff, User, UserPlus } from 'lucide-react'
+import { Shield, Database, Save, RefreshCw, Key, HardDrive, Info, Share2, LogOut, CheckCircle2, Loader2, Bell, BellOff, User, UserPlus, EyeOff, Eye, UploadCloud, DownloadCloud } from 'lucide-react'
 import { motion } from 'framer-motion'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 import api from '../lib/api'
 import { supabase } from '../lib/supabase'
+import { useAppStore } from '../lib/store'
 
 // ── MAL PKCE helpers ────────────────────────────────────────────────────────
 async function generatePKCE() {
@@ -37,6 +38,7 @@ async function fetchAniListUsername(token: string): Promise<string | null> {
 
 export default function SettingsPage() {
   const navigate = useNavigate()
+  const { incognitoMode, setIncognitoMode } = useAppStore()
   const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null)
   const [apiKey, setApiKey] = useState(localStorage.getItem('manga-api-key') || '')
   const [backendUrl, setBackendUrl] = useState(localStorage.getItem('manga-backend-url') || '')
@@ -196,6 +198,69 @@ export default function SettingsPage() {
     if (!confirm('Clear all cached temporary files?')) return
     // Cache clearing is local-only; backend handles via OS temp path
     alert('Cache cleared.')
+  }
+
+  const handleExportBackup = async () => {
+    try {
+      const [libraryRes, historyRes] = await Promise.allSettled([
+        api.get('/library'),
+        api.get('/users/history'),
+      ])
+      const backup = {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        library: libraryRes.status === 'fulfilled' ? libraryRes.value.data : [],
+        readingHistory: historyRes.status === 'fulfilled' ? historyRes.value.data : [],
+        settings: {
+          apiKey: localStorage.getItem('manga-api-key'),
+          backendUrl: localStorage.getItem('manga-backend-url'),
+          anilistClientId: localStorage.getItem('anilist-client-id'),
+          malClientId: localStorage.getItem('mal-client-id'),
+          notificationsEnabled: localStorage.getItem('notifications-enabled'),
+          readerPrefs: localStorage.getItem('manga-dl-prefs'),
+        },
+      }
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `manga-dl-backup-${new Date().toISOString().split('T')[0]}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error(err)
+      alert('Export failed. Check console.')
+    }
+  }
+
+  const handleImportBackup = () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.json'
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (!file) return
+      try {
+        const text = await file.text()
+        const backup = JSON.parse(text)
+        if (backup.version !== 1) {
+          alert('Unsupported backup version.')
+          return
+        }
+        const s = backup.settings ?? {}
+        if (s.apiKey) { localStorage.setItem('manga-api-key', s.apiKey) }
+        if (s.backendUrl) { localStorage.setItem('manga-backend-url', s.backendUrl) }
+        if (s.anilistClientId) { localStorage.setItem('anilist-client-id', s.anilistClientId) }
+        if (s.malClientId) { localStorage.setItem('mal-client-id', s.malClientId) }
+        if (s.notificationsEnabled) { localStorage.setItem('notifications-enabled', s.notificationsEnabled) }
+        if (s.readerPrefs) { localStorage.setItem('manga-dl-prefs', s.readerPrefs) }
+        alert(`Backup imported. Settings restored.\nReload to apply.`)
+      } catch (err) {
+        console.error(err)
+        alert('Import failed — invalid backup file.')
+      }
+    }
+    input.click()
   }
 
   return (
@@ -390,6 +455,44 @@ export default function SettingsPage() {
           </div>
         </motion.section>
 
+        {/* Privacy Section */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.09 }}
+          className="glass-panel overflow-hidden border-white/5"
+        >
+          <div className="p-6 border-b border-white/5 flex items-center gap-3 bg-white/[0.02]">
+            <div className="p-2 bg-purple-500/10 rounded-lg">
+              <EyeOff className="w-5 h-5 text-purple-400" />
+            </div>
+            <h2 className="font-bold text-lg">Privacy</h2>
+          </div>
+          <div className="p-6 md:p-8">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-2xl bg-white/[0.02] border border-white/5">
+              <div className="space-y-1">
+                <h4 className="font-bold text-gray-100 flex items-center gap-2">
+                  {incognitoMode ? <EyeOff className="w-4 h-4 text-purple-400" /> : <Eye className="w-4 h-4 text-white/40" />}
+                  Incognito Mode
+                </h4>
+                <p className="text-sm text-white/30 font-medium">Reading progress will not be saved to history</p>
+              </div>
+              <button
+                onClick={() => setIncognitoMode(!incognitoMode)}
+                className={`relative w-12 h-6 rounded-full transition-all border ${
+                  incognitoMode
+                    ? 'bg-purple-500/30 border-purple-500/40'
+                    : 'bg-white/5 border-white/10'
+                }`}
+              >
+                <span className={`absolute top-0.5 w-5 h-5 rounded-full transition-all ${
+                  incognitoMode ? 'left-6 bg-purple-400' : 'left-0.5 bg-white/30'
+                }`} />
+              </button>
+            </div>
+          </div>
+        </motion.section>
+
         {/* Security Section */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
@@ -491,6 +594,27 @@ export default function SettingsPage() {
                 <HardDrive className="w-4 h-4" />
                 Prune Data
               </button>
+            </div>
+
+            <div className="pt-4 border-t border-white/5">
+              <h4 className="font-bold text-gray-100 mb-1">Backup & Restore</h4>
+              <p className="text-sm text-white/30 font-medium mb-4">Export library, reading history and settings as JSON; import to restore</p>
+              <div className="flex gap-3 flex-wrap">
+                <button
+                  onClick={handleExportBackup}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-white/5 hover:bg-emerald-500/20 hover:border-emerald-500/30 rounded-xl transition-all border border-white/5 text-white/60 hover:text-emerald-400 font-bold text-xs uppercase tracking-widest"
+                >
+                  <DownloadCloud className="w-4 h-4" />
+                  Export Backup
+                </button>
+                <button
+                  onClick={handleImportBackup}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-white/5 hover:bg-blue-500/20 hover:border-blue-500/30 rounded-xl transition-all border border-white/5 text-white/60 hover:text-blue-400 font-bold text-xs uppercase tracking-widest"
+                >
+                  <UploadCloud className="w-4 h-4" />
+                  Import Backup
+                </button>
+              </div>
             </div>
           </div>
         </motion.section>

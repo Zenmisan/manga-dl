@@ -13,3 +13,5 @@ class ReadingProgress(Base):
     chapter_id: Mapped[str] = mapped_column(String, primary_key=True)
     last_page: Mapped[int] = mapped_column(Integer, default=1)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    manga_title: Mapped[str | None] = mapped_column(String, nullable=True)
+    chapter_title: Mapped[str | None] = mapped_column(String, nullable=True)

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { Search, Library, Download, Settings, ExternalLink, Globe, BarChart2, HelpCircle } from 'lucide-react'
+import { Search, Library, Download, Settings, ExternalLink, Globe, BarChart2, HelpCircle, Clock, Bell } from 'lucide-react'
 import { Routes, Route, Link, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from './lib/utils'
@@ -17,6 +17,9 @@ import LoginPage from './pages/Login'
 import RegisterPage from './pages/Register'
 import TermsPage from './pages/Terms'
 import HelpPage from './pages/Help'
+import HistoryPage from './pages/History'
+import UpdatesPage from './pages/Updates'
+import OnboardingPage from './pages/Onboarding'
 
 function useGlobalNotifications() {
   const wsRef = useRef<WebSocket | null>(null)
@@ -71,10 +74,16 @@ function App() {
   const navItems = [
     { icon: Library, label: 'Library', path: '/' },
     { icon: Search, label: 'Search', path: '/search' },
-    { icon: BarChart2, label: 'Stats', path: '/stats' },
+    { icon: Bell, label: 'Updates', path: '/updates' },
     { icon: Globe, label: 'Extensions', path: '/sources' },
-    { icon: Download, label: 'Get App', path: '/download' },
+    { icon: Download, label: 'Downloads', path: '/downloads' },
     { icon: Settings, label: 'Settings', path: '/settings' },
+  ]
+
+  const sidebarExtra = [
+    { icon: Clock, label: 'History', path: '/history' },
+    { icon: BarChart2, label: 'Stats', path: '/stats' },
+    { icon: Download, label: 'Get App', path: '/download' },
   ]
 
   return (
@@ -111,6 +120,22 @@ function App() {
             )
           })}
         </nav>
+
+        <div className="px-4 pb-2 space-y-1 border-t border-white/5 pt-4">
+          {sidebarExtra.map((item) => {
+            const isActive = location.pathname === item.path
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={cn("nav-link flex-row", isActive && "active")}
+              >
+                <item.icon className={cn("w-5 h-5", isActive ? "text-red-500" : "opacity-70")} />
+                <span className="font-semibold text-sm">{item.label}</span>
+              </Link>
+            )
+          })}
+        </div>
 
         <div className="p-6 space-y-2">
           <Link
@@ -158,6 +183,9 @@ function App() {
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/terms" element={<TermsPage />} />
               <Route path="/help" element={<HelpPage />} />
+              <Route path="/history" element={<HistoryPage />} />
+              <Route path="/updates" element={<UpdatesPage />} />
+              <Route path="/onboarding" element={<OnboardingPage />} />
             </Routes>
           </motion.div>
         </AnimatePresence>

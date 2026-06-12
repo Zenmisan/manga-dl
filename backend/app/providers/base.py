@@ -180,6 +180,14 @@ class Provider(ABC):
     async def get_pages(self, chapter_id: str) -> list[str]:
         """Return ordered list of image URLs for a chapter."""
 
+    async def get_popular(self, page: int = 1) -> list[MangaResult]:
+        """Return popular manga. Override in providers that support it."""
+        return []
+
+    async def get_latest(self, page: int = 1) -> list[MangaResult]:
+        """Return latest updated manga. Override in providers that support it."""
+        return []
+
     # ── Registry ─────────────────────────────────────────────────────────────
 
     @classmethod

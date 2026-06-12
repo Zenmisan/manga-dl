@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../lib/api'
 import {
@@ -17,6 +17,11 @@ import {
   HardDrive,
   Play,
   Trash2,
+  WifiOff,
+  SlidersHorizontal,
+  BookOpen,
+  ArrowUpDown,
+  CheckCircle2,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
@@ -30,6 +35,11 @@ interface LibraryItem {
   chapters_failed: number
   isLocal?: boolean
   localId?: string
+  total_chapters?: number
+  provider?: string
+  provider_manga_id?: string
+  subscribed?: boolean
+  cover_url?: string | null
 }
 
 export default function Dashboard() {
@@ -42,13 +52,42 @@ export default function Dashboard() {
   const [uploading, setUploading] = useState(false)
   const [isDesktop, setIsDesktop] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const [backendDown, setBackendDown] = useState(false)
+  const [sort, setSort] = useState<'default' | 'title-asc' | 'title-desc' | 'downloaded'>('default')
+  const [filter, setFilter] = useState<'all' | 'subscribed' | 'downloading' | 'failed'>('all')
+  const [showSortPanel, setShowSortPanel] = useState(false)
+  // map of manga title → last read { provider, mangaId, chapterId, mangaTitle, chapterTitle }
+  const [lastReadMap, setLastReadMap] = useState<Record<string, { provider: string; mangaId: string; chapterId: string; mangaTitle: string; chapterTitle: string }>>({})
+
+  const fetchHistory = async () => {
+    try {
+      const res = await api.get('/users/history')
+      const map: typeof lastReadMap = {}
+      for (const entry of res.data) {
+        const key = entry.manga_title?.toLowerCase().trim()
+        if (key && !map[key]) {
+          map[key] = {
+            provider: entry.provider_id,
+            mangaId: entry.manga_id,
+            chapterId: entry.chapter_id,
+            mangaTitle: entry.manga_title,
+            chapterTitle: entry.chapter_title ?? '',
+          }
+        }
+      }
+      setLastReadMap(map)
+    } catch { /* not logged in or backend down — silent */ }
+  }
 
   const fetchLibrary = async (showSpinner = false) => {
     if (showSpinner) setRefreshing(true)
     try {
       const res = await api.get('/library')
+      setBackendDown(false)
       setItems(res.data)
-    } catch {}
+    } catch {
+      setBackendDown(true)
+    }
     finally {
       setLoading(false)
       if (showSpinner) setRefreshing(false)
@@ -58,6 +97,7 @@ export default function Dashboard() {
   useEffect(() => {
     setIsDesktop(!!(window as any).__TAURI_INTERNALS__)
     fetchLibrary()
+    fetchHistory()
 
     // Load locally stored manga from IndexedDB
     getAllLocalManga().then(localEntries => {
@@ -225,6 +265,17 @@ export default function Dashboard() {
     }
   }
 
+  const displayedItems = useMemo(() => {
+    let result = [...items]
+    if (filter === 'subscribed') result = result.filter(i => i.subscribed)
+    else if (filter === 'downloading') result = result.filter(i => i.chapters_downloading > 0)
+    else if (filter === 'failed') result = result.filter(i => i.chapters_failed > 0)
+    if (sort === 'title-asc') result.sort((a, b) => a.title.localeCompare(b.title))
+    else if (sort === 'title-desc') result.sort((a, b) => b.title.localeCompare(a.title))
+    else if (sort === 'downloaded') result.sort((a, b) => b.files.length - a.files.length)
+    return result
+  }, [items, sort, filter])
+
   if (selectedManga) {
     return (
       <div className="p-6 md:p-12 max-w-5xl mx-auto min-h-full">
@@ -333,6 +384,19 @@ export default function Dashboard() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
+            {backendDown && (
+              <div className="mb-6 flex items-start gap-3 px-5 py-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-300">
+                <WifiOff className="w-5 h-5 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold text-sm">Backend unreachable</p>
+                  {!!(window as any).__TAURI_INTERNALS__ ? (
+                    <p className="text-xs text-amber-300/70 mt-0.5">Desktop app requires Python 3.10+ in PATH. Install Python, then restart the app. Or set a custom backend URL in Settings.</p>
+                  ) : (
+                    <p className="text-xs text-amber-300/70 mt-0.5">Server may be starting up (cold start takes ~30s). Check Settings → API Key and Backend URL, then tap Refresh.</p>
+                  )}
+                </div>
+              </div>
+            )}
             <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
               <div>
                 <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-3 bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent uppercase">
@@ -374,13 +438,21 @@ export default function Dashboard() {
                   <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:inline">Upload</span>
                 </label>
                 <div className="w-px h-4 bg-white/10 my-auto mx-1" />
-                <button 
+                <button
+                  onClick={() => setShowSortPanel(p => !p)}
+                  className={cn("p-2.5 rounded-xl transition-all flex items-center gap-2", showSortPanel || sort !== 'default' || filter !== 'all' ? "bg-white/10 text-white" : "text-white/40 hover:text-white/60")}
+                  title="Sort & Filter"
+                >
+                  <SlidersHorizontal className="w-5 h-5" />
+                </button>
+                <div className="w-px h-4 bg-white/10 my-auto mx-1" />
+                <button
                   onClick={() => setView('grid')}
                   className={`p-2.5 rounded-xl transition-all ${view === 'grid' ? 'bg-white/10 text-white shadow-lg' : 'text-white/40 hover:text-white/60'}`}
                 >
                   <LayoutGrid className="w-5 h-5" />
                 </button>
-                <button 
+                <button
                   onClick={() => setView('list')}
                   className={`p-2.5 rounded-xl transition-all ${view === 'list' ? 'bg-white/10 text-white shadow-lg' : 'text-white/40 hover:text-white/60'}`}
                 >
@@ -389,11 +461,52 @@ export default function Dashboard() {
               </div>
             </header>
 
+            {/* Sort / Filter Panel */}
+            {showSortPanel && (
+              <div className="mb-6 p-4 glass-panel border-white/5 flex flex-wrap gap-6 items-start">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-2 flex items-center gap-1.5"><ArrowUpDown className="w-3 h-3" />Sort</p>
+                  <div className="flex gap-2 flex-wrap">
+                    {([['default','Default'],['title-asc','A → Z'],['title-desc','Z → A'],['downloaded','Most Downloaded']] as const).map(([v, label]) => (
+                      <button key={v} onClick={() => setSort(v)}
+                        className={cn("px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all",
+                          sort === v ? "bg-white/10 text-white border-white/20" : "text-white/30 border-white/10 hover:border-white/20"
+                        )}
+                      >{label}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-2 flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3" />Filter</p>
+                  <div className="flex gap-2 flex-wrap">
+                    {([['all','All'],['subscribed','Subscribed'],['downloading','Downloading'],['failed','Has Errors']] as const).map(([v, label]) => (
+                      <button key={v} onClick={() => setFilter(v)}
+                        className={cn("px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all",
+                          filter === v ? "bg-red-500/20 text-red-400 border-red-500/30" : "text-white/30 border-white/10 hover:border-white/20"
+                        )}
+                      >{label}</button>
+                    ))}
+                  </div>
+                </div>
+                {(sort !== 'default' || filter !== 'all') && (
+                  <button onClick={() => { setSort('default'); setFilter('all') }}
+                    className="text-[10px] font-black uppercase tracking-widest text-white/20 hover:text-white transition-all px-3 py-1 border border-white/5 rounded-lg self-end"
+                  >Reset</button>
+                )}
+              </div>
+            )}
+
             {loading ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-8">
                 {[...Array(10)].map((_, i) => (
                   <div key={i} className="aspect-[3/4.5] bg-white/5 animate-pulse rounded-2xl border border-white/5" />
                 ))}
+              </div>
+            ) : displayedItems.length === 0 && items.length > 0 ? (
+              <div className="text-center py-20 text-white/30">
+                <SlidersHorizontal className="w-8 h-8 mx-auto mb-3 opacity-30" />
+                <p className="font-bold uppercase tracking-widest text-xs">No manga match this filter</p>
+                <button onClick={() => { setSort('default'); setFilter('all') }} className="mt-4 text-xs text-red-400 hover:text-red-300 font-bold uppercase tracking-widest">Clear filters</button>
               </div>
             ) : items.length === 0 ? (
               <motion.div 
@@ -421,11 +534,13 @@ export default function Dashboard() {
                 </div>
               </motion.div>
             ) : (
-              <div className={view === 'grid' 
+              <div className={view === 'grid'
                 ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-8"
                 : "space-y-4"
               }>
-                {items.map((item, idx) => (
+                {displayedItems.map((item, idx) => {
+                  const lastRead = lastReadMap[item.title.toLowerCase().trim()]
+                  return (
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -445,51 +560,103 @@ export default function Dashboard() {
                           item.chapters_failed > 0 ? "border-red-500/30 hover:border-red-500/50" :
                           "hover:border-red-500/50"
                         )}>
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-60 group-hover:opacity-100 transition-opacity flex items-end p-5">
-                            <div className="flex flex-col gap-1 translate-y-2 group-hover:translate-y-0 transition-all">
-                              <span className="text-[10px] font-black uppercase tracking-widest text-white/40">
-                                {item.chapters_downloading > 0 ? 'Downloading' : item.chapters_failed > 0 ? 'Some Failed' : 'Collected'}
-                              </span>
+                          {item.cover_url ? (
+                            <img
+                              src={`${api.defaults.baseURL || ''}/manga/image-proxy?url=${encodeURIComponent(item.cover_url)}&api_key=${localStorage.getItem('manga-api-key') || ''}`}
+                              alt={item.title}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-white/5 bg-white/[0.01]">
+                              {item.chapters_downloading > 0
+                                ? <RefreshCw className="w-16 h-16 animate-spin opacity-20" />
+                                : <Book className="w-16 h-16" />
+                              }
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-60 group-hover:opacity-100 transition-opacity flex items-end p-3">
+                            <div className="flex flex-col gap-1 translate-y-2 group-hover:translate-y-0 transition-all w-full">
                               <span className="text-sm font-bold text-white">
                                 {item.files.length} ch
                                 {item.chapters_downloading > 0 && <span className="text-yellow-400"> +{item.chapters_downloading}</span>}
                                 {item.chapters_failed > 0 && <span className="text-red-400"> ✗{item.chapters_failed}</span>}
                               </span>
+                              {lastRead && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    const param = encodeURIComponent(`${lastRead.provider}|${lastRead.mangaId}|${lastRead.chapterId}|${lastRead.mangaTitle}|${lastRead.chapterTitle}`)
+                                    navigate(`/read/online/${param}`)
+                                  }}
+                                  className="mt-1 flex items-center gap-1.5 px-2 py-1 bg-red-600/80 hover:bg-red-500 rounded-lg text-[9px] font-black uppercase tracking-widest text-white transition-all w-fit"
+                                >
+                                  <BookOpen className="w-3 h-3" />
+                                  Continue
+                                </button>
+                              )}
                             </div>
-                          </div>
-                          <div className="w-full h-full flex items-center justify-center text-white/5 bg-white/[0.01]">
-                            {item.chapters_downloading > 0
-                              ? <RefreshCw className="w-16 h-16 animate-spin opacity-20" />
-                              : <Book className="w-16 h-16" />
-                            }
                           </div>
                         </div>
                         <h3 className="font-bold text-base truncate pr-2 group-hover:text-red-400 transition-colors uppercase tracking-tight">{item.title}</h3>
-                        <p className="text-[10px] font-black text-white/20 uppercase tracking-widest mt-1">Local Library</p>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          {item.files.length > 0 && (
+                            <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 bg-white/5 border border-white/10 rounded text-white/30">
+                              {item.files.length}{item.total_chapters ? `/${item.total_chapters}` : ''} ch
+                            </span>
+                          )}
+                          {item.subscribed && (
+                            <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded text-emerald-400">
+                              Subscribed
+                            </span>
+                          )}
+                        </div>
                       </>
                     ) : (
                       <>
-                        <div className="w-14 h-20 bg-white/5 rounded-xl flex items-center justify-center text-white/20 border border-white/5">
-                          {item.chapters_downloading > 0
-                            ? <RefreshCw className="w-7 h-7 animate-spin" />
-                            : <Book className="w-7 h-7" />
-                          }
+                        <div className="w-14 h-20 bg-white/5 rounded-xl flex items-center justify-center text-white/20 border border-white/5 overflow-hidden shrink-0">
+                          {item.cover_url ? (
+                            <img
+                              src={`${api.defaults.baseURL || ''}/manga/image-proxy?url=${encodeURIComponent(item.cover_url)}&api_key=${localStorage.getItem('manga-api-key') || ''}`}
+                              alt={item.title}
+                              className="w-full h-full object-cover"
+                              loading="lazy"
+                            />
+                          ) : item.chapters_downloading > 0 ? (
+                            <RefreshCw className="w-7 h-7 animate-spin" />
+                          ) : (
+                            <Book className="w-7 h-7" />
+                          )}
                         </div>
                         <div className="flex-1">
                           <h3 className="font-bold text-lg uppercase tracking-tight">{item.title}</h3>
                           <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">
-                            {item.files.length} ch
+                            {item.files.length}{item.total_chapters ? `/${item.total_chapters}` : ''} ch downloaded
+                            {item.subscribed && <span className="text-emerald-400"> · subscribed</span>}
                             {item.chapters_downloading > 0 && <span className="text-yellow-400"> · {item.chapters_downloading} downloading</span>}
                             {item.chapters_failed > 0 && <span className="text-red-400"> · {item.chapters_failed} failed</span>}
                           </p>
+                          {lastRead && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                const param = encodeURIComponent(`${lastRead.provider}|${lastRead.mangaId}|${lastRead.chapterId}|${lastRead.mangaTitle}|${lastRead.chapterTitle}`)
+                                navigate(`/read/online/${param}`)
+                              }}
+                              className="mt-2 flex items-center gap-1.5 px-3 py-1 bg-red-600/20 hover:bg-red-600/40 border border-red-500/30 rounded-lg text-[9px] font-black uppercase tracking-widest text-red-400 transition-all"
+                            >
+                              <BookOpen className="w-3 h-3" />
+                              Continue reading
+                            </button>
+                          )}
                         </div>
-                        <button className="p-3 hover:bg-white/10 rounded-xl transition-colors text-white/40 hover:text-white">
+                        <button className="p-3 hover:bg-white/10 rounded-xl transition-colors text-white/40 hover:text-white shrink-0">
                           <MoreVertical className="w-5 h-5" />
                         </button>
                       </>
                     )}
                   </motion.div>
-                ))}
+                )})}
               </div>
             )}
           </motion.div>

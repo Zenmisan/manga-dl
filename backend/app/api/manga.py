@@ -206,6 +206,66 @@ async def toggle_subscribe(provider_id: str, manga_id: str, db: AsyncSession = D
     return {"subscribed": record.subscribed}
 
 
+@router.get("/{provider_id}/popular", response_model=list[SearchResult])
+async def get_popular_manga(provider_id: str, page: int = Query(1, ge=1)):
+    p = get_provider(provider_id)
+    if not p:
+        raise HTTPException(status_code=404, detail=f"Provider '{provider_id}' not found")
+    results = await p.get_popular(page=page)
+    return [
+        SearchResult(id=r.id, title=r.title, cover_url=r.cover_url, provider=r.provider,
+                     url=r.url, status=r.status)
+        for r in results
+    ]
+
+
+@router.get("/{provider_id}/latest", response_model=list[SearchResult])
+async def get_latest_manga(provider_id: str, page: int = Query(1, ge=1)):
+    p = get_provider(provider_id)
+    if not p:
+        raise HTTPException(status_code=404, detail=f"Provider '{provider_id}' not found")
+    results = await p.get_latest(page=page)
+    return [
+        SearchResult(id=r.id, title=r.title, cover_url=r.cover_url, provider=r.provider,
+                     url=r.url, status=r.status)
+        for r in results
+    ]
+
+
+@router.get("/updates")
+async def get_manga_updates(db: AsyncSession = Depends(get_db)):
+    """Return latest chapters from all subscribed manga (uses cached chapter data)."""
+    result = await db.execute(select(MangaRecord).where(MangaRecord.subscribed == True))
+    manga_list = result.scalars().all()
+
+    updates = []
+    for manga in manga_list:
+        chapters_json = manga.chapters_json or {}
+        if not isinstance(chapters_json, dict):
+            continue
+        chapter_list = list(chapters_json.values())
+        chapter_list.sort(key=lambda c: c.get("number", 0) if isinstance(c, dict) else 0, reverse=True)
+        for ch in chapter_list[:10]:
+            if not isinstance(ch, dict):
+                continue
+            updates.append({
+                "manga_title": manga.title,
+                "manga_id": manga.provider_manga_id,
+                "provider": manga.provider,
+                "cover_url": manga.cover_url,
+                "chapter_id": ch.get("id", ""),
+                "chapter_title": ch.get("title", ""),
+                "chapter_number": ch.get("number", 0),
+                "published_at": ch.get("published_at", ""),
+            })
+
+    updates.sort(
+        key=lambda u: (u.get("published_at") or ""),
+        reverse=True,
+    )
+    return updates[:200]
+
+
 @router.get("/image-proxy")
 async def proxy_image(url: str = Query(...)):
     """Proxy a remote manga page/cover image to avoid CORS and hotlink restrictions."""

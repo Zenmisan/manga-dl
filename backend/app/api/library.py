@@ -31,6 +31,9 @@ class LibraryItem(BaseModel):
     chapters_failed: int = 0
     cover_url: str | None = None
     subscribed: bool = False
+    total_chapters: int = 0
+    provider: str | None = None
+    provider_manga_id: str | None = None
 
 
 def natural_sort_key(s):
@@ -63,11 +66,20 @@ async def list_library(db: AsyncSession = Depends(get_db)):
     # Include subscribed manga even if no chapters downloaded yet
     sub_result = await db.execute(select(MangaRecord).where(MangaRecord.subscribed == True))
     for r in sub_result.scalars().all():
+        chapter_count = len(r.chapters_json) if isinstance(r.chapters_json, dict) else 0
         if r.title not in grouped:
-            grouped[r.title] = {"files": set(), "downloading": 0, "failed": 0, "cover_url": r.cover_url, "subscribed": True}
+            grouped[r.title] = {
+                "files": set(), "downloading": 0, "failed": 0,
+                "cover_url": r.cover_url, "subscribed": True,
+                "total_chapters": chapter_count,
+                "provider": r.provider, "provider_manga_id": r.provider_manga_id,
+            }
         else:
             grouped[r.title]["cover_url"] = r.cover_url
             grouped[r.title]["subscribed"] = True
+            grouped[r.title]["total_chapters"] = chapter_count
+            grouped[r.title]["provider"] = r.provider
+            grouped[r.title]["provider_manga_id"] = r.provider_manga_id
 
     items = [
         LibraryItem(
@@ -77,6 +89,9 @@ async def list_library(db: AsyncSession = Depends(get_db)):
             chapters_failed=data["failed"],
             cover_url=data.get("cover_url"),
             subscribed=data.get("subscribed", False),
+            total_chapters=data.get("total_chapters", 0),
+            provider=data.get("provider"),
+            provider_manga_id=data.get("provider_manga_id"),
         )
         for title, data in grouped.items()
     ]
@@ -352,18 +367,32 @@ async def get_library_stats(db: AsyncSession = Depends(get_db)):
     )).scalar() or 0
 
     # Downloads per day — last 30 days
-    cutoff = datetime.utcnow() - timedelta(days=30)
+    cutoff_30 = datetime.utcnow() - timedelta(days=30)
     daily_rows = (await db.execute(
         select(
             func.date(DownloadRecord.completed_at).label("day"),
             func.count(DownloadRecord.id).label("count"),
         )
         .where(DownloadRecord.status == "done")
-        .where(DownloadRecord.completed_at >= cutoff)
+        .where(DownloadRecord.completed_at >= cutoff_30)
         .group_by(func.date(DownloadRecord.completed_at))
         .order_by(func.date(DownloadRecord.completed_at))
     )).all()
     daily_downloads = [{"day": str(r.day), "count": r.count} for r in daily_rows]
+
+    # Downloads per day — last 365 days (for heatmap)
+    cutoff_365 = datetime.utcnow() - timedelta(days=365)
+    yearly_rows = (await db.execute(
+        select(
+            func.date(DownloadRecord.completed_at).label("day"),
+            func.count(DownloadRecord.id).label("count"),
+        )
+        .where(DownloadRecord.status == "done")
+        .where(DownloadRecord.completed_at >= cutoff_365)
+        .group_by(func.date(DownloadRecord.completed_at))
+        .order_by(func.date(DownloadRecord.completed_at))
+    )).all()
+    yearly_downloads = [{"day": str(r.day), "count": r.count} for r in yearly_rows]
 
     # Provider breakdown
     provider_rows = (await db.execute(
@@ -388,6 +417,7 @@ async def get_library_stats(db: AsyncSession = Depends(get_db)):
         "total_pages": total_pages,
         "storage_bytes": storage_bytes,
         "daily_downloads": daily_downloads,
+        "yearly_downloads": yearly_downloads,
         "provider_breakdown": provider_breakdown,
         "streak_days": streak,
     }

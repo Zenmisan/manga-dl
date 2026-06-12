@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '../lib/api'
 import { FastAverageColor } from 'fast-average-color'
@@ -16,6 +16,8 @@ import {
   BellOff,
   ListPlus,
   Play,
+  ArrowUpDown,
+  Search as SearchIcon,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
@@ -50,6 +52,8 @@ export default function MangaDetail() {
   const [bulkLoading, setBulkLoading] = useState(false)
   const [subscribed, setSubscribed] = useState(false)
   const [subscribing, setSubscribing] = useState(false)
+  const [chapterSort, setChapterSort] = useState<'default' | 'newest' | 'oldest' | 'num-asc' | 'num-desc'>('default')
+  const [chapterSearch, setChapterSearch] = useState('')
   const [malSyncing, setMalSyncing] = useState(false)
   const malToken = localStorage.getItem('mal-token')
   const [themeColor, setThemeColor] = useState<string>('rgba(220, 38, 38, 0.5)')
@@ -167,6 +171,22 @@ export default function MangaDetail() {
     setBulkLoading(false)
     setShowQueueLink(true)
   }
+
+  const displayedChapters = useMemo(() => {
+    if (!manga) return []
+    let list = [...manga.chapters]
+    if (chapterSearch.trim()) {
+      const q = chapterSearch.toLowerCase()
+      list = list.filter(c => c.title.toLowerCase().includes(q) || String(c.number).includes(q))
+    }
+    switch (chapterSort) {
+      case 'newest': list.sort((a, b) => (b.published_at || '').localeCompare(a.published_at || '')); break
+      case 'oldest': list.sort((a, b) => (a.published_at || '').localeCompare(b.published_at || '')); break
+      case 'num-asc': list.sort((a, b) => a.number - b.number); break
+      case 'num-desc': list.sort((a, b) => b.number - a.number); break
+    }
+    return list
+  }, [manga, chapterSort, chapterSearch])
 
   if (loading) {
     return (
@@ -309,14 +329,15 @@ export default function MangaDetail() {
           transition={{ delay: 0.2 }}
           className="mt-16"
         >
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl md:text-3xl font-black flex items-center gap-4">
-              Chapters
-              <span className="text-sm font-mono bg-white/5 px-2 py-1 rounded-lg text-white/20">
-                {manga.chapters.length}
-              </span>
-            </h2>
-            <div className="flex gap-2">
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl md:text-3xl font-black flex items-center gap-4">
+                Chapters
+                <span className="text-sm font-mono bg-white/5 px-2 py-1 rounded-lg text-white/20">
+                  {displayedChapters.length}{displayedChapters.length !== manga.chapters.length ? `/${manga.chapters.length}` : ''}
+                </span>
+              </h2>
+              <div className="flex gap-2">
               {malToken && (
                 <button
                   onClick={handleMALSync}
@@ -364,10 +385,39 @@ export default function MangaDetail() {
                 )}
               </button>
             </div>
+            </div>
+
+            {/* Sort + Search bar */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
+                <input
+                  type="text"
+                  placeholder="Search chapters..."
+                  value={chapterSearch}
+                  onChange={e => setChapterSearch(e.target.value)}
+                  className="w-full bg-white/5 border border-white/5 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 text-white placeholder:text-white/20"
+                />
+              </div>
+              <div className="flex items-center gap-2 bg-white/5 border border-white/5 rounded-xl px-3 shrink-0">
+                <ArrowUpDown className="w-3.5 h-3.5 text-white/30" />
+                <select
+                  value={chapterSort}
+                  onChange={e => setChapterSort(e.target.value as typeof chapterSort)}
+                  className="bg-transparent text-xs font-bold text-white/60 focus:outline-none py-2 cursor-pointer"
+                >
+                  <option value="default">Default</option>
+                  <option value="newest">Newest first</option>
+                  <option value="oldest">Oldest first</option>
+                  <option value="num-desc">Highest #</option>
+                  <option value="num-asc">Lowest #</option>
+                </select>
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {manga.chapters.map((chapter) => (
+            {displayedChapters.map((chapter) => (
               <div 
                 key={chapter.id}
                 className="group flex items-center justify-between p-4 glass-card hover:bg-white/5 transition-all border-white/5"
@@ -384,7 +434,7 @@ export default function MangaDetail() {
                 <div className="flex gap-2 shrink-0">
                   <button
                     onClick={() => {
-                      const param = encodeURIComponent(`${provider}|${manga.id}|${chapter.id}`)
+                      const param = encodeURIComponent(`${provider}|${manga.id}|${chapter.id}|${manga.title}|${chapter.title}`)
                       navigate(`/read/online/${param}`)
                     }}
                     className="p-3 rounded-xl transition-all border bg-violet-500/10 border-violet-500/20 text-violet-400 hover:bg-violet-500 hover:text-white hover:border-violet-500 shadow-lg"

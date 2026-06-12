@@ -146,6 +146,8 @@ class ReadingProgressUpsert(BaseModel):
     manga_id: str
     chapter_id: str
     last_page: int
+    manga_title: str | None = None
+    chapter_title: str | None = None
 
 
 @router.put("/reading-progress")
@@ -166,6 +168,10 @@ async def upsert_reading_progress(
     if record:
         record.last_page = body.last_page
         record.updated_at = datetime.utcnow()
+        if body.manga_title:
+            record.manga_title = body.manga_title
+        if body.chapter_title:
+            record.chapter_title = body.chapter_title
     else:
         record = ReadingProgress(
             user_id=user_id,
@@ -173,10 +179,51 @@ async def upsert_reading_progress(
             manga_id=body.manga_id,
             chapter_id=body.chapter_id,
             last_page=body.last_page,
+            manga_title=body.manga_title,
+            chapter_title=body.chapter_title,
         )
         db.add(record)
     await db.commit()
     return {"status": "ok", "last_page": body.last_page}
+
+
+@router.get("/history")
+async def get_reading_history(
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    limit: int = Query(100, le=500),
+):
+    result = await db.execute(
+        select(ReadingProgress)
+        .where(ReadingProgress.user_id == user_id)
+        .order_by(ReadingProgress.updated_at.desc())
+        .limit(limit)
+    )
+    records = result.scalars().all()
+    return [
+        {
+            "provider": r.provider,
+            "manga_id": r.manga_id,
+            "chapter_id": r.chapter_id,
+            "manga_title": r.manga_title or r.manga_id,
+            "chapter_title": r.chapter_title or r.chapter_id,
+            "last_page": r.last_page,
+            "updated_at": r.updated_at.isoformat() if r.updated_at else None,
+        }
+        for r in records
+    ]
+
+
+@router.delete("/history")
+async def clear_reading_history(
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await db.execute(
+        delete(ReadingProgress).where(ReadingProgress.user_id == user_id)
+    )
+    await db.commit()
+    return {"cleared": True}
 
 
 @router.get("/reading-progress/{provider}/{manga_id:path}")

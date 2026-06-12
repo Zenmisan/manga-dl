@@ -9,8 +9,41 @@ interface StatsData {
   total_pages: number
   storage_bytes: number
   daily_downloads: { day: string; count: number }[]
+  yearly_downloads: { day: string; count: number }[]
   provider_breakdown: { provider: string; count: number }[]
   streak_days: number
+}
+
+function buildHeatmapGrid(data: { day: string; count: number }[]): { day: string; count: number; label: string }[][] {
+  const map = new Map(data.map(d => [d.day, d.count]))
+  const today = new Date()
+  // Align to Sunday of last week
+  const endDay = new Date(today)
+  endDay.setDate(endDay.getDate() + (6 - endDay.getDay()))
+  const startDay = new Date(endDay)
+  startDay.setDate(startDay.getDate() - 364)
+
+  const cols: { day: string; count: number; label: string }[][] = []
+  const cur = new Date(startDay)
+  while (cur <= endDay) {
+    const col: { day: string; count: number; label: string }[] = []
+    for (let dow = 0; dow < 7; dow++) {
+      const key = cur.toISOString().split('T')[0]
+      const label = cur.toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' })
+      col.push({ day: key, count: map.get(key) ?? 0, label })
+      cur.setDate(cur.getDate() + 1)
+    }
+    cols.push(col)
+  }
+  return cols
+}
+
+function heatColor(count: number): string {
+  if (count === 0) return 'bg-white/5'
+  if (count <= 2) return 'bg-emerald-900/60'
+  if (count <= 5) return 'bg-emerald-700/70'
+  if (count <= 10) return 'bg-emerald-500/80'
+  return 'bg-emerald-400'
 }
 
 function formatBytes(bytes: number): string {
@@ -77,6 +110,7 @@ export default function StatsPage() {
 
   const daily = fillDays(stats.daily_downloads)
   const maxDaily = Math.max(...daily.map(d => d.count), 1)
+  const heatmapCols = buildHeatmapGrid(stats.yearly_downloads ?? [])
 
   return (
     <div className="p-6 md:p-12 max-w-5xl mx-auto min-h-full">
@@ -126,6 +160,45 @@ export default function StatsPage() {
             <p className="text-xs text-white/30 font-medium">Keep it going — download something today</p>
           </div>
         </motion.div>
+      )}
+
+      {/* Reading Heatmap */}
+      {heatmapCols.length > 0 && (
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="glass-panel border-white/5 overflow-hidden mb-8"
+        >
+          <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+            <div className="flex items-center gap-3">
+              <Flame className="w-5 h-5 text-emerald-500" />
+              <h2 className="font-bold">Reading Heatmap — Last Year</h2>
+            </div>
+            <div className="flex items-center gap-1.5 text-[10px] text-white/30 font-bold">
+              <span>Less</span>
+              {['bg-white/5','bg-emerald-900/60','bg-emerald-700/70','bg-emerald-500/80','bg-emerald-400'].map((c, i) => (
+                <span key={i} className={`w-3 h-3 rounded-sm ${c}`} />
+              ))}
+              <span>More</span>
+            </div>
+          </div>
+          <div className="p-4 overflow-x-auto">
+            <div className="flex gap-[3px] min-w-max">
+              {heatmapCols.map((col, ci) => (
+                <div key={ci} className="flex flex-col gap-[3px]">
+                  {col.map((cell) => (
+                    <div
+                      key={cell.day}
+                      className={`w-3 h-3 rounded-sm transition-all duration-150 hover:scale-125 ${heatColor(cell.count)}`}
+                      title={`${cell.label}: ${cell.count} chapter${cell.count !== 1 ? 's' : ''}`}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        </motion.section>
       )}
 
       {/* Activity Chart */}

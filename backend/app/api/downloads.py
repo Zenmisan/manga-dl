@@ -89,6 +89,41 @@ async def cancel_download(download_id: str):
     return {"cancelled": True}
 
 
+@router.post("/retry/{download_id}")
+async def retry_download(download_id: str, db: AsyncSession = Depends(get_db)):
+    """Re-queue a failed download using its stored metadata."""
+    result = await db.execute(
+        select(DownloadRecord).where(DownloadRecord.id == download_id)
+    )
+    record = result.scalar_one_or_none()
+    if not record:
+        raise HTTPException(status_code=404, detail="Download record not found")
+
+    provider = get_provider(record.provider)
+    if not provider:
+        raise HTTPException(status_code=404, detail=f"Provider '{record.provider}' not found")
+
+    try:
+        pages = await provider.get_pages(record.chapter_id)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Failed to fetch pages: {exc}")
+
+    if not pages:
+        raise HTTPException(status_code=422, detail="No pages found")
+
+    new_id = await download_queue.enqueue(
+        db_session_factory=AsyncSessionLocal,
+        provider_id=record.provider,
+        manga_id=record.manga_id,
+        manga_title=record.manga_title,
+        chapter_id=record.chapter_id,
+        chapter_title=record.chapter_title,
+        chapter_number=record.chapter_number,
+        page_urls=pages,
+    )
+    return {"download_id": new_id, "total_pages": len(pages)}
+
+
 @router.delete("/history")
 async def clear_history(db: AsyncSession = Depends(get_db)):
     """Delete all completed/failed download records."""

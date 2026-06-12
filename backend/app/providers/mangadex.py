@@ -64,6 +64,34 @@ class MangaDexProvider(Provider):
 
         return self._to_manga_detail(manga_data, chapters)
 
+    async def get_popular(self, page: int = 1) -> list[MangaResult]:
+        client = await self._get_client()
+        offset = (page - 1) * 20
+        resp = await client.get(f"{API}/manga", params={
+            "limit": 20,
+            "offset": offset,
+            "includes[]": ["cover_art"],
+            "availableTranslatedLanguage[]": ["en"],
+            "contentRating[]": ["safe", "suggestive"],
+            "order[followedCount]": "desc",
+        })
+        resp.raise_for_status()
+        return [self._to_manga_result(item) for item in resp.json().get("data", [])]
+
+    async def get_latest(self, page: int = 1) -> list[MangaResult]:
+        client = await self._get_client()
+        offset = (page - 1) * 20
+        resp = await client.get(f"{API}/manga", params={
+            "limit": 20,
+            "offset": offset,
+            "includes[]": ["cover_art"],
+            "availableTranslatedLanguage[]": ["en"],
+            "contentRating[]": ["safe", "suggestive"],
+            "order[latestUploadedChapter]": "desc",
+        })
+        resp.raise_for_status()
+        return [self._to_manga_result(item) for item in resp.json().get("data", [])]
+
     async def get_pages(self, chapter_id: str) -> list[str]:
         client = await self._get_client()
         resp = await client.get(f"{API}/at-home/server/{chapter_id}")
