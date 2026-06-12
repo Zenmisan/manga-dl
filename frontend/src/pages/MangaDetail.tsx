@@ -18,7 +18,13 @@ import {
   Play,
   ArrowUpDown,
   Search as SearchIcon,
+  Bookmark,
+  BookmarkCheck,
+  Eye,
+  EyeOff,
+  Filter,
 } from 'lucide-react'
+import { markRead, markUnread, markAllRead, getReadChapters, isRead } from '../lib/readTracking'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
 
@@ -54,6 +60,12 @@ export default function MangaDetail() {
   const [subscribing, setSubscribing] = useState(false)
   const [chapterSort, setChapterSort] = useState<'default' | 'newest' | 'oldest' | 'num-asc' | 'num-desc'>('default')
   const [chapterSearch, setChapterSearch] = useState('')
+  const [readFilter, setReadFilter] = useState<'all' | 'unread' | 'read'>('all')
+  const [scanlatorFilter, setScanlatorFilter] = useState<string>('all')
+  const [bookmarks, setBookmarks] = useState<Set<string>>(new Set(
+    JSON.parse(localStorage.getItem('manga-dl-bookmarks') || '{}')[`${provider}:${provider}`] || []
+  ))
+  const [readChapters, setReadChapters] = useState<Set<string>>(new Set())
   const [malSyncing, setMalSyncing] = useState(false)
   const malToken = localStorage.getItem('mal-token')
   const [themeColor, setThemeColor] = useState<string>('rgba(220, 38, 38, 0.5)')
@@ -64,6 +76,14 @@ export default function MangaDetail() {
       try {
         const res = await api.get(`/manga/${provider}/${mangaId}`)
         setManga(res.data)
+        if (provider && mangaId) {
+          setReadChapters(getReadChapters(provider, mangaId))
+          // load bookmarks for this manga
+          try {
+            const bm = JSON.parse(localStorage.getItem('manga-dl-bookmarks') || '{}')
+            setBookmarks(new Set(bm[`${provider}:${mangaId}`] || []))
+          } catch {}
+        }
       } catch (err) {
         console.error(err)
       } finally {
