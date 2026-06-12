@@ -27,6 +27,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
 import JSZip from 'jszip'
 import { saveLocalManga, getAllLocalManga, deleteLocalManga, loadLocalMangaIntoSession } from '../lib/localLibrary'
+import { getReadCount } from '../lib/readTracking'
+import { getMangaCategoryList, getCategories, setMangaCategory } from '../lib/categories'
 
 interface LibraryItem {
   title: string
@@ -56,6 +58,8 @@ export default function Dashboard() {
   const [sort, setSort] = useState<'default' | 'title-asc' | 'title-desc' | 'downloaded'>('default')
   const [filter, setFilter] = useState<'all' | 'subscribed' | 'downloading' | 'failed'>('all')
   const [showSortPanel, setShowSortPanel] = useState(false)
+  const [activeCategory, setActiveCategory] = useState<string | null>(null)
+  const [categories] = useState(() => getCategories())
   // map of manga title → last read { provider, mangaId, chapterId, mangaTitle, chapterTitle }
   const [lastReadMap, setLastReadMap] = useState<Record<string, { provider: string; mangaId: string; chapterId: string; mangaTitle: string; chapterTitle: string }>>({})
 
@@ -270,11 +274,14 @@ export default function Dashboard() {
     if (filter === 'subscribed') result = result.filter(i => i.subscribed)
     else if (filter === 'downloading') result = result.filter(i => i.chapters_downloading > 0)
     else if (filter === 'failed') result = result.filter(i => i.chapters_failed > 0)
+    if (activeCategory) {
+      result = result.filter(i => getMangaCategoryList(i.title).includes(activeCategory))
+    }
     if (sort === 'title-asc') result.sort((a, b) => a.title.localeCompare(b.title))
     else if (sort === 'title-desc') result.sort((a, b) => b.title.localeCompare(a.title))
     else if (sort === 'downloaded') result.sort((a, b) => b.files.length - a.files.length)
     return result
-  }, [items, sort, filter])
+  }, [items, sort, filter, activeCategory])
 
   if (selectedManga) {
     return (
@@ -397,6 +404,22 @@ export default function Dashboard() {
                 </div>
               </div>
             )}
+            {/* Category tabs */}
+            <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar pb-1">
+              <button onClick={() => setActiveCategory(null)}
+                className={cn("px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest border transition-all shrink-0",
+                  !activeCategory ? "bg-white/10 border-white/20 text-white" : "border-white/5 text-white/30 hover:border-white/10"
+                )}
+              >All</button>
+              {categories.map(cat => (
+                <button key={cat} onClick={() => setActiveCategory(cat === activeCategory ? null : cat)}
+                  className={cn("px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest border transition-all shrink-0",
+                    activeCategory === cat ? "bg-red-500/20 border-red-500/30 text-red-400" : "border-white/5 text-white/30 hover:border-white/10"
+                  )}
+                >{cat}</button>
+              ))}
+            </div>
+
             <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
               <div>
                 <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-3 bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent uppercase">
@@ -610,6 +633,17 @@ export default function Dashboard() {
                               Subscribed
                             </span>
                           )}
+                          {(() => {
+                            if (!item.provider || !item.provider_manga_id || !item.total_chapters) return null
+                            const readCount = getReadCount(item.provider, item.provider_manga_id)
+                            const unread = item.total_chapters - readCount
+                            if (unread <= 0) return null
+                            return (
+                              <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 bg-blue-500/10 border border-blue-500/20 rounded text-blue-400">
+                                {unread} new
+                              </span>
+                            )
+                          })()}
                         </div>
                       </>
                     ) : (
