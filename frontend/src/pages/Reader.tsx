@@ -54,7 +54,7 @@ export default function Reader() {
   const onlinePartsRef = useRef<{ provider: string; mangaId: string; chapterId: string; mangaTitle?: string; chapterTitle?: string } | null>(null)
   const chapterListRef = useRef<{ id: string; number?: number }[]>([])
 
-  // Auto-track chapter completion on MAL when last page is reached
+  // Auto-track chapter completion on MAL + AniList when last page is reached
   useEffect(() => {
     if (
       pages.length === 0 ||
@@ -63,27 +63,46 @@ export default function Reader() {
       malAutoSyncedRef.current
     ) return
 
-    const malToken = localStorage.getItem('mal-token')
-    if (!malToken) return
-
     malAutoSyncedRef.current = true
-
-    const chapterMatch = filename?.match(/(\d+)/)
-    const chaptersRead = chapterMatch ? parseInt(chapterMatch[1], 10) : 0
+    const parts = onlinePartsRef.current
+    const chapterNumMatch = filename?.match(/(\d+)/)
+    const chapterNum = chapterNumMatch ? parseInt(chapterNumMatch[1], 10) : 0
 
     const autoSync = async () => {
-      try {
-        const searchRes = await api.post('/auth/mal/search', { access_token: malToken, query: mangaTitle })
-        const results = searchRes.data?.results
-        if (!results?.length) return
-        await api.post('/auth/mal/track', {
-          access_token: malToken,
-          manga_id: results[0].id,
-          status: 'reading',
-          chapters_read: chaptersRead,
-        })
-      } catch {
-        // silent — auto-sync should never interrupt reading
+      // MAL sync (search-based fallback if no tracker link)
+      const malToken = localStorage.getItem('mal-token')
+      if (malToken) {
+        try {
+          let malId: number | null = null
+          if (parts) {
+            const links = JSON.parse(localStorage.getItem('manga-dl-tracker-links') || '{}')
+            malId = links[`${parts.provider}:${parts.mangaId}`]?.mal?.id ?? null
+          }
+          if (!malId) {
+            const searchRes = await api.post('/auth/mal/search', { access_token: malToken, query: mangaTitle })
+            malId = searchRes.data?.results?.[0]?.id ?? null
+          }
+          if (malId) {
+            await api.post('/auth/mal/track', { access_token: malToken, manga_id: malId, status: 'reading', chapters_read: chapterNum })
+          }
+        } catch { /* silent */ }
+      }
+
+      // AniList sync (requires linked entry)
+      const anilistToken = localStorage.getItem('anilist-token')
+      if (anilistToken && parts) {
+        try {
+          const links = JSON.parse(localStorage.getItem('manga-dl-tracker-links') || '{}')
+          const anilistId = links[`${parts.provider}:${parts.mangaId}`]?.anilist?.id
+          if (anilistId) {
+            const mutation = `mutation($id:Int,$progress:Int){SaveMediaListEntry(mediaId:$id,status:CURRENT,progress:$progress){id}}`
+            await fetch('https://graphql.anilist.co', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${anilistToken}` },
+              body: JSON.stringify({ query: mutation, variables: { id: anilistId, progress: chapterNum } }),
+            })
+          }
+        } catch { /* silent */ }
       }
     }
 

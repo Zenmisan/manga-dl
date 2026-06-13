@@ -80,6 +80,68 @@ export default function MangaDetail() {
   const swipeStartX = useRef<number>(0)
   const imgRef = useRef<HTMLImageElement>(null)
 
+  // Tracker linking
+  const TRACKER_LINKS_KEY = 'manga-dl-tracker-links'
+  const trackerKey = `${provider}:${mangaId}`
+  const getTrackerLinks = () => {
+    try { return JSON.parse(localStorage.getItem(TRACKER_LINKS_KEY) || '{}') } catch { return {} }
+  }
+  const [trackerLinks, setTrackerLinksState] = useState<Record<string, { id: number; title: string; score?: number; status?: string; progress?: number }>>(() => getTrackerLinks()[trackerKey] || {})
+  const [showTrackerModal, setShowTrackerModal] = useState<'anilist' | 'mal' | null>(null)
+  const [trackerSearch, setTrackerSearch] = useState('')
+  const [trackerResults, setTrackerResults] = useState<{ id: number; title: string; cover?: string; year?: number; score?: number; status?: string; progress?: number }[]>([])
+  const [trackerSearching, setTrackerSearching] = useState(false)
+
+  const saveTrackerLink = (tracker: string, entry: { id: number; title: string; score?: number; status?: string; progress?: number }) => {
+    const all = getTrackerLinks()
+    all[trackerKey] = { ...(all[trackerKey] || {}), [tracker]: entry }
+    localStorage.setItem(TRACKER_LINKS_KEY, JSON.stringify(all))
+    setTrackerLinksState(all[trackerKey])
+  }
+
+  const removeTrackerLink = (tracker: string) => {
+    const all = getTrackerLinks()
+    if (all[trackerKey]) { delete all[trackerKey][tracker]; if (Object.keys(all[trackerKey]).length === 0) delete all[trackerKey] }
+    localStorage.setItem(TRACKER_LINKS_KEY, JSON.stringify(all))
+    setTrackerLinksState(all[trackerKey] || {})
+  }
+
+  const searchTracker = async (query: string, tracker: 'anilist' | 'mal') => {
+    setTrackerSearching(true)
+    setTrackerResults([])
+    try {
+      if (tracker === 'anilist') {
+        const body = { query: `query($q:String){Page(perPage:5){media(search:$q,type:MANGA){id title{romaji}coverImage{medium}startDate{year}averageScore}}}`, variables: { q: query } }
+        const r = await fetch('https://graphql.anilist.co', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+        const d = await r.json()
+        setTrackerResults((d.data?.Page?.media ?? []).map((m: any) => ({ id: m.id, title: m.title.romaji, cover: m.coverImage?.medium, year: m.startDate?.year, score: m.averageScore })))
+      } else if (tracker === 'mal') {
+        const token = localStorage.getItem('mal-token')
+        if (!token) { alert('Log in to MAL first in Settings.'); return }
+        const r = await api.post('/auth/mal/search', { access_token: token, query })
+        setTrackerResults((r.data?.results ?? []).map((m: any) => ({ id: m.id, title: m.title, cover: m.cover_url, year: m.year })))
+      }
+    } catch { /* silent */ }
+    setTrackerSearching(false)
+  }
+
+  const linkTracker = async (tracker: 'anilist' | 'mal', result: { id: number; title: string; score?: number; status?: string; progress?: number }) => {
+    if (tracker === 'anilist') {
+      try {
+        const token = localStorage.getItem('anilist-token')
+        if (token) {
+          const body = { query: `query($id:Int){Media(id:$id,type:MANGA){mediaListEntry{status score progress}}}`, variables: { id: result.id } }
+          const r = await fetch('https://graphql.anilist.co', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(body) })
+          const d = await r.json()
+          const entry = d.data?.Media?.mediaListEntry
+          if (entry) { result.status = entry.status; result.score = entry.score; result.progress = entry.progress }
+        }
+      } catch { /* non-fatal */ }
+    }
+    saveTrackerLink(tracker, result)
+    setShowTrackerModal(null)
+  }
+
   useEffect(() => {
     const fetchManga = async () => {
       try {
@@ -460,8 +522,115 @@ export default function MangaDetail() {
                 )}
               </div>
             </motion.div>
+
+            {/* Tracker Links */}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }} className="p-6 glass-card border-white/5">
+              <h3 className="text-xs font-black uppercase tracking-widest text-white/30 mb-4 flex items-center gap-2">
+                <ListPlus className="w-3.5 h-3.5" />
+                Tracker Links
+              </h3>
+              <div className="space-y-2">
+                {(['anilist', 'mal'] as const).map(tracker => {
+                  const link = trackerLinks[tracker]
+                  return (
+                    <div key={tracker} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded border ${tracker === 'anilist' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'}`}>
+                          {tracker === 'anilist' ? 'AniList' : 'MAL'}
+                        </span>
+                        {link ? (
+                          <>
+                            <span className="text-xs font-bold text-white/70 truncate">{link.title}</span>
+                            {link.score != null && link.score > 0 && <span className="text-[10px] text-amber-400 shrink-0">★ {link.score}</span>}
+                            {link.status && <span className="text-[10px] text-white/30 uppercase shrink-0">{link.status}</span>}
+                            {link.progress != null && <span className="text-[10px] text-white/20 shrink-0">Ch.{link.progress}</span>}
+                          </>
+                        ) : (
+                          <span className="text-xs text-white/20">Not linked</span>
+                        )}
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        {link ? (
+                          <button onClick={() => removeTrackerLink(tracker)} className="px-2 py-1 text-[10px] font-black uppercase tracking-widest text-red-400/60 hover:text-red-400 transition-colors">
+                            Unlink
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => { setShowTrackerModal(tracker); setTrackerSearch(manga.title); setTrackerResults([]); setTimeout(() => searchTracker(manga.title, tracker), 100) }}
+                            className="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border border-white/10 text-white/30 hover:border-white/20 hover:text-white/60 transition-all"
+                          >
+                            Link
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </motion.div>
           </div>
         </div>
+
+        {/* Tracker Search Modal */}
+        <AnimatePresence>
+          {showTrackerModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+              onClick={() => setShowTrackerModal(null)}
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className="glass-panel w-full max-w-md p-6 border-white/10"
+                onClick={e => e.stopPropagation()}
+              >
+                <h3 className="font-bold text-lg mb-4">
+                  Link to {showTrackerModal === 'anilist' ? 'AniList' : 'MAL'}
+                </h3>
+                <div className="flex gap-2 mb-4">
+                  <input
+                    type="text"
+                    value={trackerSearch}
+                    onChange={e => setTrackerSearch(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && searchTracker(trackerSearch, showTrackerModal)}
+                    className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-white/30"
+                    placeholder="Search manga title..."
+                  />
+                  <button
+                    onClick={() => searchTracker(trackerSearch, showTrackerModal)}
+                    disabled={trackerSearching}
+                    className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-sm font-bold transition-all disabled:opacity-50"
+                  >
+                    {trackerSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <SearchIcon className="w-4 h-4" />}
+                  </button>
+                </div>
+                <div className="space-y-2 max-h-72 overflow-y-auto">
+                  {trackerResults.map(result => (
+                    <button
+                      key={result.id}
+                      onClick={() => linkTracker(showTrackerModal, result)}
+                      className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/10 transition-all text-left border border-transparent hover:border-white/10"
+                    >
+                      {result.cover && <img src={result.cover} alt="" className="w-10 h-14 object-cover rounded-lg shrink-0" />}
+                      <div className="min-w-0">
+                        <p className="font-bold text-sm truncate">{result.title}</p>
+                        {result.year && <p className="text-[10px] text-white/30">{result.year}</p>}
+                        {result.score && <p className="text-[10px] text-amber-400">★ {result.score}</p>}
+                      </div>
+                    </button>
+                  ))}
+                  {!trackerSearching && trackerResults.length === 0 && trackerSearch && (
+                    <p className="text-xs text-white/20 text-center py-6">No results. Try a different title.</p>
+                  )}
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Chapters Section */}
         <motion.div 

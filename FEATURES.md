@@ -154,8 +154,8 @@ Features are grouped by area, then tagged:
 | Sync: score | ❌ | |
 | Sync: start / finish dates | ❌ | |
 | Auto-update tracker on chapter completion | ✅ | MAL only |
-| Search manga on tracker (link manga) | ❌ | |
-| Pull from tracker (update manga from tracker) | ❌ | |
+| Search manga on tracker (link manga) | ✅ | AniList + MAL search modal on MangaDetail; saves link + fetches current entry |
+| Pull from tracker (update manga from tracker) | ✅ | Score/status/progress fetched on link and displayed on MangaDetail |
 | Tracker filter in library | ❌ | |
 
 ---
@@ -392,6 +392,21 @@ Features are grouped by area, then tagged:
 28. ✅ Public profile page — `/profile/:userId`, shareable, shows chapters/manga/streak + recent activity
 29. ✅ Dynamic source filters — filter panel on Popular tab, MangaDex: content rating, sort, status, demographic
 30. ✅ Manga notes & personal star rating — 5-star + free-text note, persisted in localStorage per manga
+
+### Phase 7 — Tracker Depth ✅ complete
+45. ✅ Search & link manga to AniList/MAL — "Link" button per tracker on MangaDetail, search modal, saves to `manga-dl-tracker-links` localStorage
+46. ✅ Display tracker score/status/progress on MangaDetail — shown inline next to tracker name after linking
+47. ✅ Unlink tracker — removes association per tracker independently
+48. ✅ AniList auto-sync on chapter completion — fires SaveMediaListEntry mutation if manga linked + anilist-token present
+49. ✅ MAL auto-sync enhanced — uses linked MAL ID first, falls back to title search
+
+### Phase 6 — Reader Power ✅ complete
+39. ✅ Crop Borders — toggle in Settings → Appearance; `object-cover` + fixed height in pager/vertical modes
+40. ✅ Dual-page spread — Auto (landscape), Always On, or Off; pages shown as pairs with "2-3 / 20" counter
+41. ✅ Tap zone layouts — Default / L-Nav / Edge / Disabled; configurable in Settings → Appearance
+42. ✅ Light theme — full light palette via `html.light` CSS class; white/gray backgrounds, dark text
+43. ✅ System theme — follows `prefers-color-scheme` media query auto
+44. ✅ AMOLED pitch black — `html.amoled` class replaces all dark backgrounds with `#000000`
 
 ### Phase 5 — Web QoL ✅ complete
 31. ✅ Vertical pager reading mode — slides pages top→bottom with `y: 40/-40` animation
