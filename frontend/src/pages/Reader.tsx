@@ -45,7 +45,7 @@ export default function Reader() {
   const [localTitle, setLocalTitle] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [nextChapterId, setNextChapterId] = useState<string | null>(null)
-  const [prevChapterId, setPrevChapterId] = useState<string | null>(null)
+  const [_prevChapterId, setPrevChapterId] = useState<string | null>(null)
   const [ambilightColor, setAmbilightColor] = useState<string>('rgba(0,0,0,0)')
   const [ambilightEnabled, setAmbilightEnabled] = useState(true)
   const [isLandscape, setIsLandscape] = useState(window.innerWidth > window.innerHeight)

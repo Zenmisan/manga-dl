@@ -26,7 +26,7 @@ import {
   Star,
   MessageSquare,
 } from 'lucide-react'
-import { markRead, markUnread, markAllRead, getReadChapters, isRead } from '../lib/readTracking'
+import { markRead, markUnread, markAllRead, getReadChapters } from '../lib/readTracking'
 import { getMangaNote, setMangaNote, setMangaRating } from '../lib/mangaNotes'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'

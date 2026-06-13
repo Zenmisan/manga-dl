@@ -52,7 +52,7 @@ export default function SettingsPage() {
   const [malUser, setMalUser] = useState(localStorage.getItem('mal-username') || '')
   const [malLoading, setMalLoading] = useState(false)
   // Kitsu
-  const [kitsuToken, setKitsuToken] = useState(localStorage.getItem('kitsu-token') || '')
+  const [_kitsuToken, setKitsuToken] = useState(localStorage.getItem('kitsu-token') || '')
   const [kitsuUser, setKitsuUser] = useState(localStorage.getItem('kitsu-username') || '')
   const [kitsuEmail, setKitsuEmail] = useState('')
   const [kitsuPass, setKitsuPass] = useState('')

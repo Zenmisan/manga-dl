@@ -28,7 +28,7 @@ import { cn } from '../lib/utils'
 import JSZip from 'jszip'
 import { saveLocalManga, getAllLocalManga, deleteLocalManga, loadLocalMangaIntoSession } from '../lib/localLibrary'
 import { getReadCount } from '../lib/readTracking'
-import { getMangaCategoryList, getCategories, setMangaCategory } from '../lib/categories'
+import { getMangaCategoryList, getCategories } from '../lib/categories'
 
 interface LibraryItem {
   title: string
