@@ -20,6 +20,9 @@ export interface ReaderFilters {
   sepia: boolean
 }
 
+export type TapZoneLayout = 'default' | 'l-nav' | 'edge' | 'disabled'
+export type AppTheme = 'dark' | 'light' | 'system'
+
 interface AppState {
   // Search State
   searchQuery: string
@@ -32,15 +35,29 @@ interface AppState {
   setHasSearched: (val: boolean) => void
 
   // Reader Preferences
-  readingMode: 'webtoon' | 'manga' | 'manga-rtl'
+  readingMode: 'webtoon' | 'manga' | 'manga-rtl' | 'vertical-pager'
   upscaling: boolean
   readerFilters: ReaderFilters
   imageScale: 'fit-screen' | 'fit-width' | 'fit-height' | 'original'
-  setReadingMode: (mode: 'webtoon' | 'manga' | 'manga-rtl') => void
+  skipReadChapters: boolean
+  cropBorders: boolean
+  dualPageSpread: 'auto' | 'on' | 'off'
+  tapZoneLayout: TapZoneLayout
+  setReadingMode: (mode: 'webtoon' | 'manga' | 'manga-rtl' | 'vertical-pager') => void
   setUpscaling: (val: boolean) => void
   setReaderFilters: (filters: Partial<ReaderFilters>) => void
   resetReaderFilters: () => void
   setImageScale: (scale: 'fit-screen' | 'fit-width' | 'fit-height' | 'original') => void
+  setSkipReadChapters: (val: boolean) => void
+  setCropBorders: (val: boolean) => void
+  setDualPageSpread: (val: 'auto' | 'on' | 'off') => void
+  setTapZoneLayout: (val: TapZoneLayout) => void
+
+  // Appearance
+  theme: AppTheme
+  amoledBlack: boolean
+  setTheme: (val: AppTheme) => void
+  setAmoledBlack: (val: boolean) => void
 
   // Privacy
   incognitoMode: boolean
@@ -71,12 +88,25 @@ export const useAppStore = create<AppState>()(
       upscaling: false,
       readerFilters: defaultFilters,
       imageScale: 'fit-screen',
+      skipReadChapters: false,
+      cropBorders: false,
+      dualPageSpread: 'auto',
+      tapZoneLayout: 'default',
       setReadingMode: (mode) => set({ readingMode: mode }),
       setUpscaling: (val) => set({ upscaling: val }),
       setReaderFilters: (filters) =>
         set((state) => ({ readerFilters: { ...state.readerFilters, ...filters } })),
       resetReaderFilters: () => set({ readerFilters: defaultFilters }),
       setImageScale: (scale) => set({ imageScale: scale }),
+      setSkipReadChapters: (val) => set({ skipReadChapters: val }),
+      setCropBorders: (val) => set({ cropBorders: val }),
+      setDualPageSpread: (val) => set({ dualPageSpread: val }),
+      setTapZoneLayout: (val) => set({ tapZoneLayout: val }),
+
+      theme: 'dark',
+      amoledBlack: false,
+      setTheme: (val) => set({ theme: val }),
+      setAmoledBlack: (val) => set({ amoledBlack: val }),
 
       incognitoMode: false,
       setIncognitoMode: (val) => set({ incognitoMode: val }),
@@ -89,6 +119,12 @@ export const useAppStore = create<AppState>()(
         readerFilters: state.readerFilters,
         imageScale: state.imageScale,
         incognitoMode: state.incognitoMode,
+        skipReadChapters: state.skipReadChapters,
+        cropBorders: state.cropBorders,
+        dualPageSpread: state.dualPageSpread,
+        tapZoneLayout: state.tapZoneLayout,
+        theme: state.theme,
+        amoledBlack: state.amoledBlack,
       }),
     }
   )

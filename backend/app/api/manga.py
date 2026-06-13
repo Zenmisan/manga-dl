@@ -206,6 +206,47 @@ async def toggle_subscribe(provider_id: str, manga_id: str, db: AsyncSession = D
     return {"subscribed": record.subscribed}
 
 
+@router.get("/{provider_id}/filters")
+async def get_source_filters(provider_id: str):
+    """Return available filter definitions for a source."""
+    p = get_provider(provider_id)
+    if not p:
+        raise HTTPException(status_code=404, detail=f"Provider '{provider_id}' not found")
+    filters = await p.get_filters()
+    return [
+        {
+            "id": f.id,
+            "label": f.label,
+            "type": f.type,
+            "options": [{"value": o.value, "label": o.label} for o in f.options],
+            "default": f.default,
+        }
+        for f in filters
+    ]
+
+
+@router.get("/{provider_id}/browse", response_model=list[SearchResult])
+async def get_browse_manga(
+    provider_id: str,
+    page: int = Query(1, ge=1),
+    sort: str = Query("followedCount"),
+    contentRating: str = Query("safe,suggestive"),
+    status: str = Query(""),
+    demographic: str = Query(""),
+):
+    """Browse a source with dynamic filters."""
+    p = get_provider(provider_id)
+    if not p:
+        raise HTTPException(status_code=404, detail=f"Provider '{provider_id}' not found")
+    filters = {k: v for k, v in {"sort": sort, "contentRating": contentRating, "status": status, "demographic": demographic}.items() if v}
+    results = await p.get_popular_filtered(page=page, filters=filters)
+    return [
+        SearchResult(id=r.id, title=r.title, cover_url=r.cover_url, provider=r.provider,
+                     url=r.url, status=r.status)
+        for r in results
+    ]
+
+
 @router.get("/{provider_id}/popular", response_model=list[SearchResult])
 async def get_popular_manga(provider_id: str, page: int = Query(1, ge=1)):
     p = get_provider(provider_id)

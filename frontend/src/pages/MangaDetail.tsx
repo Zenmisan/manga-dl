@@ -23,8 +23,11 @@ import {
   Eye,
   EyeOff,
   Filter,
+  Star,
+  MessageSquare,
 } from 'lucide-react'
 import { markRead, markUnread, markAllRead, getReadChapters, isRead } from '../lib/readTracking'
+import { getMangaNote, setMangaNote, setMangaRating } from '../lib/mangaNotes'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
 
@@ -67,8 +70,14 @@ export default function MangaDetail() {
   ))
   const [readChapters, setReadChapters] = useState<Set<string>>(new Set())
   const [malSyncing, setMalSyncing] = useState(false)
+  const [userNote, setUserNote] = useState('')
+  const [userRating, setUserRating] = useState(0)
+  const [noteEditing, setNoteEditing] = useState(false)
+  const [noteDraft, setNoteDraft] = useState('')
   const malToken = localStorage.getItem('mal-token')
   const [themeColor, setThemeColor] = useState<string>('rgba(220, 38, 38, 0.5)')
+  const [swipedChapterId, setSwipedChapterId] = useState<string | null>(null)
+  const swipeStartX = useRef<number>(0)
   const imgRef = useRef<HTMLImageElement>(null)
 
   useEffect(() => {
@@ -78,11 +87,14 @@ export default function MangaDetail() {
         setManga(res.data)
         if (provider && mangaId) {
           setReadChapters(getReadChapters(provider, mangaId))
-          // load bookmarks for this manga
           try {
             const bm = JSON.parse(localStorage.getItem('manga-dl-bookmarks') || '{}')
             setBookmarks(new Set(bm[`${provider}:${mangaId}`] || []))
           } catch {}
+          const savedNote = getMangaNote(provider, mangaId)
+          setUserNote(savedNote.note)
+          setUserRating(savedNote.rating)
+          setNoteDraft(savedNote.note)
         }
       } catch (err) {
         console.error(err)
@@ -367,7 +379,7 @@ export default function MangaDetail() {
                 </div>
               </div>
 
-              <div className="glass-panel p-6 border-white/5 mb-8">
+              <div className="glass-panel p-6 border-white/5 mb-4">
                 <h3 className="text-sm font-bold uppercase tracking-widest text-white/20 mb-3 flex items-center gap-2">
                   <Info className="w-4 h-4" />
                   Synopsis
@@ -375,6 +387,77 @@ export default function MangaDetail() {
                 <p className="text-white/60 leading-relaxed line-clamp-4 md:line-clamp-none text-sm md:text-base font-medium">
                   {manga.description || 'No description available for this series.'}
                 </p>
+              </div>
+
+              {/* Personal rating + notes */}
+              <div className="glass-panel p-6 border-white/5 mb-8">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-bold uppercase tracking-widest text-white/20 flex items-center gap-2">
+                    <Star className="w-4 h-4" />
+                    My Rating & Notes
+                  </h3>
+                  <button
+                    onClick={() => { setNoteEditing(e => !e); setNoteDraft(userNote) }}
+                    className="p-1.5 rounded-lg hover:bg-white/10 transition-colors text-white/30 hover:text-white"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Star rating */}
+                <div className="flex gap-1 mb-4">
+                  {[1, 2, 3, 4, 5].map(star => (
+                    <button
+                      key={star}
+                      onClick={() => {
+                        const newRating = star === userRating ? 0 : star
+                        setUserRating(newRating)
+                        if (provider && mangaId) setMangaRating(provider, mangaId, newRating)
+                      }}
+                      className="transition-transform hover:scale-110"
+                    >
+                      <Star
+                        className={cn(
+                          "w-6 h-6 transition-colors",
+                          star <= userRating ? "text-amber-400 fill-amber-400" : "text-white/20"
+                        )}
+                      />
+                    </button>
+                  ))}
+                  {userRating > 0 && (
+                    <span className="ml-2 text-sm font-bold text-amber-400 self-center">{userRating}/5</span>
+                  )}
+                </div>
+
+                {/* Note */}
+                {noteEditing ? (
+                  <div className="space-y-2">
+                    <textarea
+                      value={noteDraft}
+                      onChange={(e) => setNoteDraft(e.target.value)}
+                      placeholder="Write a personal note about this manga..."
+                      rows={3}
+                      className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-red-500/20 resize-none"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          if (provider && mangaId) { setMangaNote(provider, mangaId, noteDraft); setUserNote(noteDraft) }
+                          setNoteEditing(false)
+                        }}
+                        className="px-4 py-1.5 bg-red-600/80 hover:bg-red-500 text-white rounded-lg text-xs font-bold uppercase tracking-widest transition-all"
+                      >Save</button>
+                      <button
+                        onClick={() => { setNoteEditing(false); setNoteDraft(userNote) }}
+                        className="px-4 py-1.5 bg-white/5 hover:bg-white/10 text-white/50 rounded-lg text-xs font-bold uppercase tracking-widest transition-all"
+                      >Cancel</button>
+                    </div>
+                  </div>
+                ) : userNote ? (
+                  <p className="text-sm text-white/50 italic leading-relaxed">&ldquo;{userNote}&rdquo;</p>
+                ) : (
+                  <p className="text-xs text-white/20 italic">No personal notes yet — click the icon to add one.</p>
+                )}
               </div>
             </motion.div>
           </div>
@@ -509,64 +592,94 @@ export default function MangaDetail() {
             {displayedChapters.map((chapter) => {
               const isChRead = readChapters.has(chapter.id)
               const isBookmarked = bookmarks.has(chapter.id)
+              const isSwiped = swipedChapterId === chapter.id
               return (
-              <div
-                key={chapter.id}
-                className={cn(
-                  "group flex items-center justify-between p-4 glass-card hover:bg-white/5 transition-all border-white/5",
-                  isChRead && "opacity-50 hover:opacity-100"
-                )}
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    {isBookmarked && <BookmarkCheck className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
-                    <h4 className={cn("font-bold truncate transition-colors", isChRead ? "text-white/40 group-hover:text-white/70" : "text-white/90 group-hover:text-red-400")}>
-                      {chapter.title}
-                    </h4>
-                  </div>
-                  <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest mt-1">
-                    {chapter.published_at || 'Recently updated'}
-                    {isChRead && <span className="text-emerald-500/60 ml-2">· Read</span>}
-                  </p>
+              <div key={chapter.id} className="relative overflow-hidden rounded-2xl">
+                {/* Swipe action tray (revealed behind row) */}
+                <div className="absolute inset-y-0 right-0 flex items-center gap-1 px-2 bg-neutral-900">
+                  <button onClick={() => { toggleBookmark(chapter.id); setSwipedChapterId(null) }}
+                    className={cn("p-2.5 rounded-xl transition-all", isBookmarked ? "bg-amber-500/20 text-amber-400" : "bg-white/5 text-white/40 hover:text-amber-400")}
+                    title={isBookmarked ? "Remove bookmark" : "Bookmark"}
+                  >{isBookmarked ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}</button>
+                  <button onClick={() => { toggleReadChapter(chapter.id); setSwipedChapterId(null) }}
+                    className={cn("p-2.5 rounded-xl transition-all", isChRead ? "bg-emerald-500/20 text-emerald-400" : "bg-white/5 text-white/40 hover:text-emerald-400")}
+                    title={isChRead ? "Mark unread" : "Mark read"}
+                  >{isChRead ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
+                  <button onClick={() => { handleDownload(chapter.id); setSwipedChapterId(null) }}
+                    disabled={downloading.includes(chapter.id)}
+                    className="p-2.5 rounded-xl bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white transition-all"
+                    title="Download"
+                  >{downloading.includes(chapter.id) ? <CheckCircle2 className="w-4 h-4" /> : <Download className="w-4 h-4" />}</button>
                 </div>
 
-                <div className="flex gap-1.5 shrink-0">
-                  <button onClick={() => toggleBookmark(chapter.id)}
-                    className={cn("p-2 rounded-lg transition-all border",
-                      isBookmarked ? "bg-amber-500/10 border-amber-500/20 text-amber-400" : "border-transparent text-white/20 hover:text-amber-400 opacity-0 group-hover:opacity-100"
-                    )} title={isBookmarked ? "Remove bookmark" : "Bookmark"}
-                  >
-                    {isBookmarked ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
-                  </button>
-                  <button onClick={() => toggleReadChapter(chapter.id)}
-                    className={cn("p-2 rounded-lg transition-all border opacity-0 group-hover:opacity-100",
-                      isChRead ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "border-transparent text-white/20 hover:text-emerald-400"
-                    )} title={isChRead ? "Mark unread" : "Mark read"}
-                  >
-                    {isChRead ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                  <button
-                    onClick={() => {
-                      const param = encodeURIComponent(`${provider}|${manga.id}|${chapter.id}|${manga.title}|${chapter.title}`)
-                      navigate(`/read/online/${param}`)
-                    }}
-                    className="p-3 rounded-xl transition-all border bg-violet-500/10 border-violet-500/20 text-violet-400 hover:bg-violet-500 hover:text-white hover:border-violet-500 shadow-lg"
-                    title="Read Online"
-                  >
-                    <Play className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={() => handleDownload(chapter.id)}
-                    disabled={downloading.includes(chapter.id)}
-                    className={cn(
-                      "p-3 rounded-xl transition-all border shadow-lg",
-                      downloading.includes(chapter.id)
-                        ? "bg-emerald-500/20 border-emerald-500/20 text-emerald-400 cursor-default"
-                        : "bg-white/5 border-white/10 text-white/40 hover:text-white hover:bg-red-600 hover:border-red-600 hover:shadow-red-600/20"
-                    )}
-                  >
-                    {downloading.includes(chapter.id) ? <CheckCircle2 className="w-5 h-5" /> : <Download className="w-5 h-5" />}
-                  </button>
+                {/* Chapter row (slides left on swipe) */}
+                <div
+                  className={cn(
+                    "group flex items-center justify-between p-4 glass-card hover:bg-white/5 transition-all border-white/5 relative z-10",
+                    isChRead && "opacity-50 hover:opacity-100",
+                    isSwiped ? "-translate-x-[140px]" : "translate-x-0",
+                    "transition-transform duration-200"
+                  )}
+                  onPointerDown={(e) => { swipeStartX.current = e.clientX }}
+                  onPointerUp={(e) => {
+                    const delta = e.clientX - swipeStartX.current
+                    if (delta < -50) setSwipedChapterId(chapter.id)
+                    else if (delta > 20) setSwipedChapterId(null)
+                  }}
+                  onClick={() => { if (isSwiped) setSwipedChapterId(null) }}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      {isBookmarked && <BookmarkCheck className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
+                      <h4 className={cn("font-bold truncate transition-colors", isChRead ? "text-white/40 group-hover:text-white/70" : "text-white/90 group-hover:text-red-400")}>
+                        {chapter.title}
+                      </h4>
+                    </div>
+                    <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest mt-1">
+                      {chapter.published_at || 'Recently updated'}
+                      {isChRead && <span className="text-emerald-500/60 ml-2">· Read</span>}
+                    </p>
+                  </div>
+
+                  <div className="flex gap-1.5 shrink-0">
+                    <button onClick={(e) => { e.stopPropagation(); toggleBookmark(chapter.id) }}
+                      className={cn("p-2 rounded-lg transition-all border",
+                        isBookmarked ? "bg-amber-500/10 border-amber-500/20 text-amber-400" : "border-transparent text-white/20 hover:text-amber-400 opacity-0 group-hover:opacity-100"
+                      )} title={isBookmarked ? "Remove bookmark" : "Bookmark"}
+                    >
+                      {isBookmarked ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); toggleReadChapter(chapter.id) }}
+                      className={cn("p-2 rounded-lg transition-all border opacity-0 group-hover:opacity-100",
+                        isChRead ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "border-transparent text-white/20 hover:text-emerald-400"
+                      )} title={isChRead ? "Mark unread" : "Mark read"}
+                    >
+                      {isChRead ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        const param = encodeURIComponent(`${provider}|${manga.id}|${chapter.id}|${manga.title}|${chapter.title}`)
+                        navigate(`/read/online/${param}`)
+                      }}
+                      className="p-3 rounded-xl transition-all border bg-violet-500/10 border-violet-500/20 text-violet-400 hover:bg-violet-500 hover:text-white hover:border-violet-500 shadow-lg"
+                      title="Read Online"
+                    >
+                      <Play className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDownload(chapter.id) }}
+                      disabled={downloading.includes(chapter.id)}
+                      className={cn(
+                        "p-3 rounded-xl transition-all border shadow-lg",
+                        downloading.includes(chapter.id)
+                          ? "bg-emerald-500/20 border-emerald-500/20 text-emerald-400 cursor-default"
+                          : "bg-white/5 border-white/10 text-white/40 hover:text-white hover:bg-red-600 hover:border-red-600 hover:shadow-red-600/20"
+                      )}
+                    >
+                      {downloading.includes(chapter.id) ? <CheckCircle2 className="w-5 h-5" /> : <Download className="w-5 h-5" />}
+                    </button>
+                  </div>
                 </div>
               </div>
               )

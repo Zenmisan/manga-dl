@@ -38,7 +38,33 @@ def _safe_filename(s: str) -> str:
     return re.sub(r'[<>:"/\\|?*]', "_", s).strip()
 
 
-def package_cbz(image_dir: Path, output_path: Path):
+def build_comic_info_xml(
+    manga_title: str = "",
+    chapter_title: str = "",
+    chapter_number: float = 0,
+    page_count: int = 0,
+) -> str:
+    num_str = f"{chapter_number:g}" if chapter_number else ""
+    return (
+        '<?xml version="1.0" encoding="utf-8"?>\n'
+        '<ComicInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
+        'xmlns:xsd="http://www.w3.org/2001/XMLSchema">\n'
+        f'  <Series>{manga_title}</Series>\n'
+        f'  <Title>{chapter_title}</Title>\n'
+        f'  <Number>{num_str}</Number>\n'
+        f'  <PageCount>{page_count}</PageCount>\n'
+        '  <Manga>Yes</Manga>\n'
+        '</ComicInfo>\n'
+    )
+
+
+def package_cbz(
+    image_dir: Path,
+    output_path: Path,
+    manga_title: str = "",
+    chapter_title: str = "",
+    chapter_number: float = 0,
+):
     """
     Compress images to WebP to save space and zip them into a CBZ at output_path.
     """
@@ -52,23 +78,24 @@ def package_cbz(image_dir: Path, output_path: Path):
         return
 
     with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as zf:
+        # Embed ComicInfo.xml for Kavita/Komga/Paperback compatibility
+        comic_info = build_comic_info_xml(
+            manga_title=manga_title,
+            chapter_title=chapter_title,
+            chapter_number=chapter_number,
+            page_count=len(images),
+        )
+        zf.writestr("ComicInfo.xml", comic_info.encode("utf-8"))
+
         for img_path in images:
             try:
-                # Open the image, convert to RGB (removing alpha if saving as JPEG, but we use WebP which supports alpha)
                 with Image.open(img_path) as img:
-                    # Convert to WebP format in memory
                     webp_buffer = BytesIO()
-                    # Use a sensible quality (e.g. 75) to drastically reduce size
                     img.save(webp_buffer, format="WEBP", quality=75, method=4)
-                    
-                    # Determine new filename (replace extension with .webp)
                     new_name = img_path.stem + ".webp"
-                    
-                    # Write the compressed bytes to the zip
                     zf.writestr(new_name, webp_buffer.getvalue())
             except Exception as e:
                 log.error("Failed to process and compress %s: %s", img_path, e)
-                # Fallback to original if conversion fails
                 zf.write(img_path, img_path.name)
 
 
@@ -118,7 +145,7 @@ async def download_chapter_to_cbz(
             await asyncio.sleep(0.05)  # polite delay between page downloads
 
     # Run blocking image compression and zip packaging in a thread
-    await asyncio.to_thread(package_cbz, tmp_dir, cbz_path)
+    await asyncio.to_thread(package_cbz, tmp_dir, cbz_path, manga_title, chapter_title, chapter_number)
 
     # Clean up temp images
     import shutil

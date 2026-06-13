@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { useAppStore } from './lib/store'
 import { Search, Library, Download, Settings, ExternalLink, Globe, BarChart2, HelpCircle, Clock, Bell } from 'lucide-react'
 import { Routes, Route, Link, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -20,6 +21,7 @@ import HelpPage from './pages/Help'
 import HistoryPage from './pages/History'
 import UpdatesPage from './pages/Updates'
 import OnboardingPage from './pages/Onboarding'
+import ProfilePage from './pages/Profile'
 
 function useGlobalNotifications() {
   const wsRef = useRef<WebSocket | null>(null)
@@ -69,7 +71,29 @@ function useGlobalNotifications() {
 
 function App() {
   const location = useLocation()
+  const { theme, amoledBlack } = useAppStore()
   useGlobalNotifications()
+
+  useEffect(() => {
+    const root = document.documentElement
+    const applyTheme = (isDark: boolean) => {
+      root.classList.toggle('dark', isDark)
+      root.classList.toggle('light', !isDark)
+    }
+    if (theme === 'system') {
+      const mq = window.matchMedia('(prefers-color-scheme: dark)')
+      applyTheme(mq.matches)
+      const handler = (e: MediaQueryListEvent) => applyTheme(e.matches)
+      mq.addEventListener('change', handler)
+      return () => mq.removeEventListener('change', handler)
+    } else {
+      applyTheme(theme === 'dark')
+    }
+  }, [theme])
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('amoled', amoledBlack)
+  }, [amoledBlack])
 
   const navItems = [
     { icon: Library, label: 'Library', path: '/' },
@@ -186,6 +210,7 @@ function App() {
               <Route path="/history" element={<HistoryPage />} />
               <Route path="/updates" element={<UpdatesPage />} />
               <Route path="/onboarding" element={<OnboardingPage />} />
+              <Route path="/profile/:userId" element={<ProfilePage />} />
             </Routes>
           </motion.div>
         </AnimatePresence>

@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 import asyncio
 import logging
 
@@ -30,6 +30,19 @@ class HealthReport:
     failures: list[str] = field(default_factory=list)
     message: str = ""
 
+
+@dataclass
+class FilterOption:
+    value: str
+    label: str
+
+@dataclass
+class SourceFilter:
+    id: str
+    label: str
+    type: Literal["select", "multiselect", "checkbox", "text"]
+    options: list[FilterOption] = field(default_factory=list)
+    default: str = ""
 
 @dataclass
 class MangaResult:
@@ -187,6 +200,14 @@ class Provider(ABC):
     async def get_latest(self, page: int = 1) -> list[MangaResult]:
         """Return latest updated manga. Override in providers that support it."""
         return []
+
+    async def get_filters(self) -> list[SourceFilter]:
+        """Return available browse filters for this source. Override in providers that support it."""
+        return []
+
+    async def get_popular_filtered(self, page: int = 1, filters: dict[str, Any] = {}) -> list[MangaResult]:
+        """Browse popular manga with optional filters. Falls back to get_popular."""
+        return await self.get_popular(page)
 
     # ── Registry ─────────────────────────────────────────────────────────────
 

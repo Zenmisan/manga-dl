@@ -23,7 +23,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { FastAverageColor } from 'fast-average-color'
 import { cn } from '../lib/utils'
 import { useAppStore } from '../lib/store'
-import { markRead } from '../lib/readTracking'
+import { markRead, getReadChapters } from '../lib/readTracking'
 
 const fac = new FastAverageColor()
 
@@ -34,7 +34,7 @@ function withOpacity(rgba: string, opacity: number): string {
 export default function Reader() {
   const { mangaTitle, filename } = useParams()
   const navigate = useNavigate()
-  const { readingMode, setReadingMode, upscaling, setUpscaling, readerFilters, setReaderFilters, resetReaderFilters, imageScale, setImageScale, incognitoMode } = useAppStore()
+  const { readingMode, setReadingMode, upscaling, setUpscaling, readerFilters, setReaderFilters, resetReaderFilters, imageScale, setImageScale, incognitoMode, skipReadChapters, setSkipReadChapters, cropBorders, dualPageSpread, tapZoneLayout } = useAppStore()
 
   const [pages, setPages] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
@@ -45,11 +45,14 @@ export default function Reader() {
   const [localTitle, setLocalTitle] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [nextChapterId, setNextChapterId] = useState<string | null>(null)
+  const [prevChapterId, setPrevChapterId] = useState<string | null>(null)
   const [ambilightColor, setAmbilightColor] = useState<string>('rgba(0,0,0,0)')
   const [ambilightEnabled, setAmbilightEnabled] = useState(true)
+  const [isLandscape, setIsLandscape] = useState(window.innerWidth > window.innerHeight)
   const malAutoSyncedRef = useRef(false)
   const progressSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const onlinePartsRef = useRef<{ provider: string; mangaId: string; chapterId: string; mangaTitle?: string; chapterTitle?: string } | null>(null)
+  const chapterListRef = useRef<{ id: string; number?: number }[]>([])
 
   // Auto-track chapter completion on MAL when last page is reached
   useEffect(() => {
@@ -154,6 +157,28 @@ export default function Reader() {
           setPages(proxyPages)
           setLocalTitle(`Online — Ch. ${onlineChapterId}`)
           if (!incognitoMode) markRead(onlineProvider, onlineMangaId, onlineChapterId)
+
+          // Discord Rich Presence (Tauri desktop only)
+          if ('__TAURI_INTERNALS__' in window) {
+            import('@tauri-apps/api/core').then(({ invoke }) => {
+              invoke('discord_update_presence', {
+                details: onlineMangaTitle || 'Reading manga',
+                stateText: `Chapter ${onlineChapterTitle || onlineChapterId}`,
+              }).catch(() => {})
+            }).catch(() => {})
+          }
+
+          // Fetch chapter list for next/prev navigation + skip-read
+          try {
+            const mangaRes = await api.get(`/manga/${encodeURIComponent(onlineProvider)}/${encodeURIComponent(onlineMangaId)}`)
+            const chapters: { id: string; number: number }[] = mangaRes.data.chapters ?? []
+            chapterListRef.current = chapters
+            const idx = chapters.findIndex(c => c.id === onlineChapterId)
+            if (idx !== -1) {
+              setNextChapterId(chapters[idx + 1]?.id ?? null)
+              setPrevChapterId(chapters[idx - 1]?.id ?? null)
+            }
+          } catch { /* non-fatal */ }
 
           // Restore saved page for logged-in users
           const { data: session } = await supabase.auth.getSession()
@@ -335,13 +360,64 @@ export default function Reader() {
 
   const nextPage = (e?: React.MouseEvent) => {
     e?.stopPropagation()
-    if (currentPage < pages.length) setCurrentPage(prev => prev + 1)
+    const step = showSpread ? 2 : 1
+    if (currentPage < pages.length) setCurrentPage(prev => Math.min(prev + step, pages.length))
   }
 
   const prevPage = (e?: React.MouseEvent) => {
     e?.stopPropagation()
-    if (currentPage > 1) setCurrentPage(prev => prev - 1)
+    const step = showSpread ? 2 : 1
+    if (currentPage > 1) setCurrentPage(prev => Math.max(prev - step, 1))
   }
+
+  const tapZoneLeft = tapZoneLayout === 'l-nav' ? 'w-1/2' : tapZoneLayout === 'edge' ? 'w-[15%]' : tapZoneLayout === 'disabled' ? 'w-0' : 'w-1/3'
+  const tapZoneRight = tapZoneLayout === 'l-nav' ? 'w-1/2' : tapZoneLayout === 'edge' ? 'w-[15%]' : tapZoneLayout === 'disabled' ? 'w-0' : 'w-1/3'
+
+  // Dual-page spread — must be before nextPage/prevPage
+  const spreadActive = (dualPageSpread === 'on') || (dualPageSpread === 'auto' && isLandscape)
+  const pagerMode = readingMode === 'manga' || readingMode === 'manga-rtl' || readingMode === 'vertical-pager'
+  const showSpread = spreadActive && pagerMode && readingMode !== 'vertical-pager'
+  const spreadPage2Idx = showSpread ? currentPage : -1
+
+  const getNextUnreadChapterId = (): string | null => {
+    const parts = onlinePartsRef.current
+    if (!parts || !skipReadChapters) return nextChapterId
+    const readSet = getReadChapters(parts.provider, parts.mangaId)
+    const chapters = chapterListRef.current
+    const currentIdx = chapters.findIndex(c => c.id === parts.chapterId)
+    for (let i = currentIdx + 1; i < chapters.length; i++) {
+      if (!readSet.has(chapters[i].id)) return chapters[i].id
+    }
+    return null
+  }
+
+  const navigateToNextChapter = () => {
+    const parts = onlinePartsRef.current
+    if (!parts) return
+    const targetId = getNextUnreadChapterId()
+    if (!targetId) return
+    const param = encodeURIComponent(`${parts.provider}|${parts.mangaId}|${targetId}|${parts.mangaTitle ?? ''}|Next Chapter`)
+    navigate(`/read/online/${param}`)
+  }
+
+  useEffect(() => {
+    const update = () => setIsLandscape(window.innerWidth > window.innerHeight)
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [])
+
+  // Image prefetch — cache next 3 pages in browser memory
+  useEffect(() => {
+    if (!pages.length) return
+    const prefetchFrom = currentPage // prefetch pages currentPage+1..+3
+    for (let i = 1; i <= 3; i++) {
+      const idx = prefetchFrom + i - 1
+      if (idx < pages.length) {
+        const img = new Image()
+        img.src = getImageUrl(pages[idx])
+      }
+    }
+  }, [currentPage, pages])
 
   // Keyboard + volume key navigation / brightness control
   useEffect(() => {
@@ -487,9 +563,9 @@ export default function Reader() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
-                    if (readingMode === 'webtoon') setReadingMode('manga')
-                    else if (readingMode === 'manga') setReadingMode('manga-rtl')
-                    else setReadingMode('webtoon')
+                    const modes = ['webtoon', 'manga', 'manga-rtl', 'vertical-pager'] as const
+                    const idx = modes.indexOf(readingMode as typeof modes[number])
+                    setReadingMode(modes[(idx + 1) % modes.length])
                   }}
                   className={cn(
                     "p-2.5 rounded-xl transition-all border flex items-center gap-2",
@@ -499,7 +575,7 @@ export default function Reader() {
                 >
                   <Layout className="w-5 h-5" />
                   <span className="hidden md:inline text-[10px] font-black uppercase tracking-widest">
-                    {readingMode === 'manga-rtl' ? 'RTL' : readingMode}
+                    {readingMode === 'manga-rtl' ? 'RTL' : readingMode === 'vertical-pager' ? 'Vert' : readingMode}
                   </span>
                 </button>
                 {readingMode !== 'webtoon' && (
@@ -609,7 +685,7 @@ export default function Reader() {
                       <RotateCcw className="w-4 h-4" />
                     </button>
                   </div>
-                  <div className="mt-3 pt-3 border-t border-white/5 flex items-center gap-3">
+                  <div className="mt-3 pt-3 border-t border-white/5 flex flex-wrap items-center gap-3">
                     <span className="text-[10px] font-black uppercase tracking-widest text-white/30">Volume keys:</span>
                     <button
                       onClick={() => setVolumeKeyMode(v => v === 'navigation' ? 'brightness' : 'navigation')}
@@ -622,9 +698,25 @@ export default function Reader() {
                     >
                       {volumeKeyMode === 'navigation' ? '↑↓ Page navigation' : '↑↓ Brightness control'}
                     </button>
-                    <span className="text-[10px] text-white/20">
+                    <span className="text-[10px] text-white/20 mr-auto">
                       {volumeKeyMode === 'navigation' ? 'Volume up/down = prev/next page' : 'Volume up/down = +/− brightness'}
                     </span>
+                    {mangaTitle === 'online' && (
+                      <>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-white/30">Skip read:</span>
+                        <button
+                          onClick={() => setSkipReadChapters(!skipReadChapters)}
+                          className={cn(
+                            "px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all",
+                            skipReadChapters
+                              ? "bg-green-500/20 text-green-400 border-green-500/30"
+                              : "bg-white/5 text-white/30 border-white/10 hover:border-white/20"
+                          )}
+                        >
+                          {skipReadChapters ? 'On — Skip read chapters' : 'Off'}
+                        </button>
+                      </>
+                    )}
                   </div>
                 </motion.div>
               )}
@@ -641,7 +733,40 @@ export default function Reader() {
         )}
         onClick={() => setShowControls(prev => !prev)}
       >
-        {readingMode === 'webtoon' ? (
+        {readingMode === 'vertical-pager' ? (
+          /* Vertical Pager — one page at a time, slides up/down */
+          <div className="relative w-full h-full flex items-center justify-center">
+            <div className={`absolute inset-y-0 left-0 ${tapZoneLeft} z-20 cursor-pointer`} onClick={tapZoneLayout !== 'disabled' ? prevPage : undefined} />
+            <div className={`absolute inset-y-0 right-0 ${tapZoneRight} z-20 cursor-pointer`} onClick={tapZoneLayout !== 'disabled' ? nextPage : undefined} />
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentPage}
+                initial={{ opacity: 0, y: 40 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -40 }}
+                transition={{ duration: 0.18 }}
+                className="h-full w-full flex items-center justify-center p-4"
+              >
+                <img
+                  src={getImageUrl(pages[currentPage - 1])}
+                  alt={`Page ${currentPage}`}
+                  className={cn(
+                    "shadow-2xl rounded-sm",
+                    cropBorders ? "object-cover" : "object-contain",
+                    imageScale === 'fit-screen' && "max-h-[90dvh] max-w-full",
+                    imageScale === 'fit-width' && "w-full max-h-none",
+                    imageScale === 'fit-height' && "h-[95dvh] w-auto",
+                    imageScale === 'original' && "max-w-none",
+                    cropBorders && "w-full h-[90dvh]",
+                  )}
+                  crossOrigin="anonymous"
+                  onLoad={handlePageLoad}
+                  style={cssFilter ? { filter: cssFilter } : undefined}
+                />
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        ) : readingMode === 'webtoon' ? (
           <div className="flex flex-col">
             {pages.map((page, idx) => (
               <motion.div 
@@ -671,13 +796,13 @@ export default function Reader() {
           /* Paged Manga Mode (LTR / RTL) */
           <div className="relative w-full h-full flex items-center justify-center">
             {/* Click regions for paging */}
-            <div 
-              className="absolute inset-y-0 left-0 w-1/3 z-20 cursor-pointer" 
-              onClick={readingMode === 'manga' ? prevPage : nextPage} 
+            <div
+              className={`absolute inset-y-0 left-0 ${tapZoneLeft} z-20 cursor-pointer`}
+              onClick={tapZoneLayout !== 'disabled' ? (readingMode === 'manga' ? prevPage : nextPage) : undefined}
             />
-            <div 
-              className="absolute inset-y-0 right-0 w-1/3 z-20 cursor-pointer" 
-              onClick={readingMode === 'manga' ? nextPage : prevPage} 
+            <div
+              className={`absolute inset-y-0 right-0 ${tapZoneRight} z-20 cursor-pointer`}
+              onClick={tapZoneLayout !== 'disabled' ? (readingMode === 'manga' ? nextPage : prevPage) : undefined}
             />
             
             <AnimatePresence mode="wait">
@@ -687,25 +812,36 @@ export default function Reader() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: readingMode === 'manga' ? -40 : 40 }}
                 transition={{ duration: 0.15 }}
-                className="h-full w-full flex items-center justify-center p-4"
+                className={cn("h-full w-full flex items-center justify-center p-4", showSpread && "gap-1")}
               >
                 <img
                   src={getImageUrl(pages[currentPage - 1])}
                   alt={`Page ${currentPage}`}
                   className={cn(
-                    "object-contain shadow-2xl rounded-sm",
-                    imageScale === 'fit-screen' && "max-h-[90dvh] max-w-full",
-                    imageScale === 'fit-width' && "w-full max-h-none",
-                    imageScale === 'fit-height' && "h-[95dvh] w-auto",
-                    imageScale === 'original' && "max-w-none",
+                    "shadow-2xl rounded-sm",
+                    cropBorders ? "object-cover" : "object-contain",
+                    showSpread ? "max-h-[90dvh] max-w-[50%]" : imageScale === 'fit-screen' ? "max-h-[90dvh] max-w-full" : "",
+                    !showSpread && imageScale === 'fit-width' && "w-full max-h-none",
+                    !showSpread && imageScale === 'fit-height' && "h-[95dvh] w-auto",
+                    !showSpread && imageScale === 'original' && "max-w-none",
+                    !showSpread && cropBorders && "w-full h-[90dvh]",
                   )}
                   crossOrigin="anonymous"
                   onLoad={handlePageLoad}
                   style={cssFilter ? { filter: cssFilter } : undefined}
                 />
+                {showSpread && spreadPage2Idx < pages.length && (
+                  <img
+                    src={getImageUrl(pages[spreadPage2Idx])}
+                    alt={`Page ${spreadPage2Idx + 1}`}
+                    className="shadow-2xl rounded-sm object-contain max-h-[90dvh] max-w-[50%]"
+                    crossOrigin="anonymous"
+                    style={cssFilter ? { filter: cssFilter } : undefined}
+                  />
+                )}
               </motion.div>
             </AnimatePresence>
-            
+
             {/* Chapter transition overlay on last page */}
             <AnimatePresence>
               {currentPage === pages.length && pages.length > 0 && (
@@ -721,21 +857,17 @@ export default function Reader() {
                     <p className="font-bold text-sm text-white/70 mb-3">
                       {filename?.replace('.cbz', '') ?? 'Chapter'}
                     </p>
-                    {nextChapterId ? (
+                    {getNextUnreadChapterId() ? (
                       <button
-                        onClick={() => {
-                          const parts = onlinePartsRef.current
-                          if (parts) {
-                            const param = encodeURIComponent(`${parts.provider}|${parts.mangaId}|${nextChapterId}|${parts.mangaTitle ?? ''}|Next Chapter`)
-                            navigate(`/read/online/${param}`)
-                          }
-                        }}
+                        onClick={navigateToNextChapter}
                         className="px-5 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all"
                       >
-                        Next Chapter →
+                        {skipReadChapters ? 'Next Unread →' : 'Next Chapter →'}
                       </button>
                     ) : (
-                      <p className="text-[10px] text-white/20 font-bold uppercase tracking-widest">No next chapter</p>
+                      <p className="text-[10px] text-white/20 font-bold uppercase tracking-widest">
+                        {skipReadChapters && nextChapterId ? 'All caught up!' : 'No next chapter'}
+                      </p>
                     )}
                   </div>
                 </motion.div>
@@ -758,7 +890,12 @@ export default function Reader() {
       {/* Footer Info */}
       <footer className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
         <div className="glass-panel px-4 py-2 text-[10px] font-bold tracking-[0.2em] text-white/30 uppercase flex items-center gap-4">
-          <span>Page {currentPage} of {pages.length}</span>
+          <span>
+            {showSpread && spreadPage2Idx < pages.length
+              ? `Pages ${currentPage}-${spreadPage2Idx + 1} of ${pages.length}`
+              : `Page ${currentPage} of ${pages.length}`
+            }
+          </span>
           <span className="w-1 h-1 bg-white/10 rounded-full" />
           <span className="hidden md:inline">Click to toggle UI</span>
         </div>

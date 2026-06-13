@@ -35,6 +35,7 @@ export default function HistoryPage() {
   const [loading, setLoading] = useState(true)
   const [authed, setAuthed] = useState(false)
   const [clearing, setClearing] = useState(false)
+  const [clearingMangaId, setClearingMangaId] = useState<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -58,6 +59,15 @@ export default function HistoryPage() {
       setHistory([])
     } catch {}
     setClearing(false)
+  }
+
+  const handleClearManga = async (provider: string, mangaId: string) => {
+    setClearingMangaId(mangaId)
+    try {
+      await api.delete(`/users/history/${encodeURIComponent(provider)}/${encodeURIComponent(mangaId)}`)
+      setHistory(prev => prev.filter(e => !(e.provider === provider && e.manga_id === mangaId)))
+    } catch {}
+    setClearingMangaId(null)
   }
 
   const resumeChapter = (entry: HistoryEntry) => {
@@ -158,6 +168,17 @@ export default function HistoryPage() {
                     className="p-2 rounded-lg bg-violet-500/10 border border-violet-500/20 text-violet-400 hover:bg-violet-500 hover:text-white transition-all opacity-0 group-hover:opacity-100"
                   >
                     <Play className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => handleClearManga(entry.provider, entry.manga_id)}
+                    title="Remove this manga from history"
+                    disabled={clearingMangaId === entry.manga_id}
+                    className="p-2 rounded-lg bg-white/5 border border-white/5 text-white/20 hover:bg-red-500/20 hover:border-red-500/20 hover:text-red-400 transition-all opacity-0 group-hover:opacity-100"
+                  >
+                    {clearingMangaId === entry.manga_id
+                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      : <Trash2 className="w-3.5 h-3.5" />
+                    }
                   </button>
                 </div>
               </motion.div>

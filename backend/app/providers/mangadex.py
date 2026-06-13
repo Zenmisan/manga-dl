@@ -3,7 +3,7 @@ MangaDex provider — uses the official public API.
 Docs: https://api.mangadex.org/docs/
 """
 import asyncio
-from app.providers.base import Provider, MangaResult, MangaDetail, ChapterResult, HealthReport, ProviderHealth, ScraperFingerprint
+from app.providers.base import Provider, MangaResult, MangaDetail, ChapterResult, HealthReport, ProviderHealth, ScraperFingerprint, SourceFilter, FilterOption
 
 
 API = "https://api.mangadex.org"
@@ -75,6 +75,85 @@ class MangaDexProvider(Provider):
             "contentRating[]": ["safe", "suggestive"],
             "order[followedCount]": "desc",
         })
+        resp.raise_for_status()
+        return [self._to_manga_result(item) for item in resp.json().get("data", [])]
+
+    async def get_filters(self) -> list[SourceFilter]:
+        return [
+            SourceFilter(
+                id="contentRating",
+                label="Content Rating",
+                type="multiselect",
+                options=[
+                    FilterOption("safe", "Safe"),
+                    FilterOption("suggestive", "Suggestive"),
+                    FilterOption("erotica", "Erotica"),
+                ],
+                default="safe,suggestive",
+            ),
+            SourceFilter(
+                id="sort",
+                label="Sort By",
+                type="select",
+                options=[
+                    FilterOption("followedCount", "Most Followed"),
+                    FilterOption("latestUploadedChapter", "Latest Update"),
+                    FilterOption("relevance", "Relevance"),
+                    FilterOption("rating", "Highest Rated"),
+                    FilterOption("createdAt", "Newest"),
+                ],
+                default="followedCount",
+            ),
+            SourceFilter(
+                id="status",
+                label="Status",
+                type="select",
+                options=[
+                    FilterOption("", "Any"),
+                    FilterOption("ongoing", "Ongoing"),
+                    FilterOption("completed", "Completed"),
+                    FilterOption("hiatus", "Hiatus"),
+                    FilterOption("cancelled", "Cancelled"),
+                ],
+                default="",
+            ),
+            SourceFilter(
+                id="demographic",
+                label="Demographic",
+                type="multiselect",
+                options=[
+                    FilterOption("shounen", "Shounen"),
+                    FilterOption("shoujo", "Shoujo"),
+                    FilterOption("josei", "Josei"),
+                    FilterOption("seinen", "Seinen"),
+                ],
+                default="",
+            ),
+        ]
+
+    async def get_popular_filtered(self, page: int = 1, filters: dict = {}) -> list[MangaResult]:
+        client = await self._get_client()
+        offset = (page - 1) * 20
+
+        sort_field = filters.get("sort", "followedCount")
+        content_ratings = filters.get("contentRating", "safe,suggestive").split(",") if filters.get("contentRating") else ["safe", "suggestive"]
+        status = filters.get("status", "")
+        demographics = filters.get("demographic", "").split(",") if filters.get("demographic") else []
+
+        params: dict = {
+            "limit": 20,
+            "offset": offset,
+            "includes[]": ["cover_art"],
+            "availableTranslatedLanguage[]": ["en"],
+            "contentRating[]": content_ratings,
+            f"order[{sort_field}]": "desc",
+        }
+        if status:
+            params["status[]"] = [status]
+        if demographics:
+            params["publicationDemographic[]"] = demographics
+
+        resp = await client.get(f"{API}/manga", params=params)
         resp.raise_for_status()
         return [self._to_manga_result(item) for item in resp.json().get("data", [])]
 

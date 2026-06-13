@@ -69,3 +69,45 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Light theme overrides */
+html.light {
+  --bg: #f4f4f5;
+  --fg: #09090b;
+  --surface: rgba(0, 0, 0, 0.04);
+  --surface-hover: rgba(0, 0, 0, 0.07);
+  --glass-border: rgba(0, 0, 0, 0.1);
+}
+
+html.light body {
+  background-color: #f4f4f5;
+  color: #09090b;
+  background-image: none;
+}
+
+html.light .glass-panel {
+  background-color: rgba(255,255,255,0.8);
+  border-color: rgba(0,0,0,0.08);
+  color: #09090b;
+}
+
+html.light .glass-card {
+  background-color: rgba(255,255,255,0.7);
+  border-color: rgba(0,0,0,0.08);
+  color: #09090b;
+}
+
+/* AMOLED pitch black */
+html.amoled {
+  --bg: #000000;
+}
+
+html.amoled body {
+  background-color: #000000;
+  background-image: none;
+}
+
+html.amoled .glass-panel,
+html.amoled .glass-card {
+  background-color: rgba(255,255,255,0.02);
+}

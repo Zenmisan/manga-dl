@@ -10,12 +10,13 @@ from datetime import datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Request, Depends, Query
 from pydantic import BaseModel
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.device import UserDevice
 from app.models.reading_progress import ReadingProgress
+from app.models.manga import MangaRecord
 from app.core.supabase_auth import get_current_user
 
 log = logging.getLogger(__name__)
@@ -226,6 +227,24 @@ async def clear_reading_history(
     return {"cleared": True}
 
 
+@router.delete("/history/{provider}/{manga_id:path}")
+async def clear_manga_history(
+    provider: str,
+    manga_id: str,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await db.execute(
+        delete(ReadingProgress).where(
+            ReadingProgress.user_id == user_id,
+            ReadingProgress.provider == provider,
+            ReadingProgress.manga_id == manga_id,
+        )
+    )
+    await db.commit()
+    return {"cleared": True}
+
+
 @router.get("/reading-progress/{provider}/{manga_id:path}")
 async def get_reading_progress(
     provider: str,
@@ -263,3 +282,74 @@ async def list_devices(
         }
         for d in devices
     ]
+
+
+# ── Public profile (no auth) ──────────────────────────────────────────────────
+
+@router.get("/profile/{user_id}")
+async def get_public_profile(user_id: str, db: AsyncSession = Depends(get_db)):
+    """Return publicly shareable reading stats for a user."""
+    chapters_read = await db.scalar(
+        select(func.count()).select_from(ReadingProgress).where(ReadingProgress.user_id == user_id)
+    ) or 0
+
+    manga_result = await db.execute(
+        select(ReadingProgress.manga_id, ReadingProgress.provider, ReadingProgress.manga_title)
+        .where(ReadingProgress.user_id == user_id)
+        .distinct()
+    )
+    manga_rows = manga_result.all()
+    manga_count = len(manga_rows)
+
+    # Recent activity (last 10 chapters read)
+    recent_result = await db.execute(
+        select(ReadingProgress)
+        .where(ReadingProgress.user_id == user_id)
+        .order_by(ReadingProgress.updated_at.desc())
+        .limit(10)
+    )
+    recent = recent_result.scalars().all()
+
+    # Reading streak (days with at least 1 chapter)
+    streak_result = await db.execute(
+        select(func.date(ReadingProgress.updated_at))
+        .where(ReadingProgress.user_id == user_id)
+        .distinct()
+        .order_by(func.date(ReadingProgress.updated_at).desc())
+    )
+    streak_days_raw = [row[0] for row in streak_result.all()]
+    streak = 0
+    if streak_days_raw:
+        today = datetime.utcnow().date()
+        prev = today
+        for d in streak_days_raw:
+            day = d if isinstance(d, type(today)) else datetime.fromisoformat(str(d)).date()
+            if (prev - day).days <= 1:
+                streak += 1
+                prev = day
+            else:
+                break
+
+    return {
+        "user_id": user_id,
+        "chapters_read": chapters_read,
+        "manga_count": manga_count,
+        "streak_days": streak,
+        "recent_activity": [
+            {
+                "manga_title": r.manga_title or r.manga_id,
+                "chapter_title": r.chapter_title or r.chapter_id,
+                "provider": r.provider,
+                "updated_at": r.updated_at.isoformat() if r.updated_at else None,
+            }
+            for r in recent
+        ],
+    }
+
+
+@router.get("/me/profile-slug")
+async def get_or_create_profile_slug(
+    user_id: str = Depends(get_current_user),
+):
+    """Return the shareable profile URL for the current user."""
+    return {"url": f"/profile/{user_id}"}

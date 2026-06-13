@@ -1,7 +1,23 @@
 import { useState, useEffect } from 'react'
 import api from '../lib/api'
-import { BarChart2, Book, Download, Layers, HardDrive, Flame, Loader2 } from 'lucide-react'
+import { BarChart2, Book, Download, Layers, HardDrive, Flame, Loader2, Target, CheckCircle2, Edit3 } from 'lucide-react'
 import { motion } from 'framer-motion'
+
+const GOALS_KEY = 'manga-dl-reading-goals'
+
+interface ReadingGoals {
+  monthlyChapters: number
+  yearlyManga: number
+}
+
+function getGoals(): ReadingGoals {
+  try { return JSON.parse(localStorage.getItem(GOALS_KEY) || '{}') as ReadingGoals }
+  catch { return { monthlyChapters: 0, yearlyManga: 0 } }
+}
+
+function saveGoals(g: ReadingGoals) {
+  localStorage.setItem(GOALS_KEY, JSON.stringify(g))
+}
 
 interface StatsData {
   total_chapters: number
@@ -83,6 +99,15 @@ const PROVIDER_COLORS: Record<string, string> = {
 export default function StatsPage() {
   const [stats, setStats] = useState<StatsData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [goals, setGoals] = useState<ReadingGoals>({ monthlyChapters: 0, yearlyManga: 0 })
+  const [editGoals, setEditGoals] = useState(false)
+  const [goalDraft, setGoalDraft] = useState<ReadingGoals>({ monthlyChapters: 0, yearlyManga: 0 })
+
+  useEffect(() => {
+    const g = getGoals()
+    setGoals(g)
+    setGoalDraft(g)
+  }, [])
 
   useEffect(() => {
     api.get('/library/stats')
@@ -232,6 +257,106 @@ export default function StatsPage() {
             <span>{daily[14]?.label}</span>
             <span>{daily[29]?.label}</span>
           </div>
+        </div>
+      </motion.section>
+
+      {/* Reading Goals */}
+      <motion.section
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.25 }}
+        className="glass-panel border-white/5 overflow-hidden mb-8"
+      >
+        <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+          <div className="flex items-center gap-3">
+            <Target className="w-5 h-5 text-violet-400" />
+            <h2 className="font-bold">Reading Goals</h2>
+          </div>
+          <button
+            onClick={() => setEditGoals(e => !e)}
+            className="p-2 rounded-lg hover:bg-white/10 transition-colors text-white/40 hover:text-white"
+          >
+            <Edit3 className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="p-6 space-y-6">
+          {editGoals ? (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-widest text-white/40">Monthly Chapter Goal</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={goalDraft.monthlyChapters}
+                  onChange={(e) => setGoalDraft(g => ({ ...g, monthlyChapters: parseInt(e.target.value) || 0 }))}
+                  className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-violet-500/20 text-white text-sm"
+                  placeholder="e.g. 100"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-widest text-white/40">Yearly Manga Goal</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={goalDraft.yearlyManga}
+                  onChange={(e) => setGoalDraft(g => ({ ...g, yearlyManga: parseInt(e.target.value) || 0 }))}
+                  className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-violet-500/20 text-white text-sm"
+                  placeholder="e.g. 20"
+                />
+              </div>
+              <button
+                onClick={() => { saveGoals(goalDraft); setGoals(goalDraft); setEditGoals(false) }}
+                className="px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center gap-2"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                Save Goals
+              </button>
+            </div>
+          ) : (
+            <>
+              {goals.monthlyChapters > 0 && stats && (() => {
+                const now = new Date()
+                const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+                const thisMonthCount = (stats.daily_downloads || [])
+                  .filter(d => d.day.startsWith(thisMonth))
+                  .reduce((s, d) => s + d.count, 0)
+                const pct = Math.min(Math.round((thisMonthCount / goals.monthlyChapters) * 100), 100)
+                return (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-bold text-white/70">Monthly chapters</span>
+                      <span className="text-xs font-mono text-white/40">{thisMonthCount} / {goals.monthlyChapters}</span>
+                    </div>
+                    <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full bg-violet-500 transition-all duration-700" style={{ width: `${pct}%` }} />
+                    </div>
+                    <div className="text-[10px] font-bold text-white/30 mt-1">{pct}% complete this month</div>
+                  </div>
+                )
+              })()}
+              {goals.yearlyManga > 0 && stats && (() => {
+                const pct = Math.min(Math.round((stats.total_manga / goals.yearlyManga) * 100), 100)
+                return (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-bold text-white/70">Yearly manga</span>
+                      <span className="text-xs font-mono text-white/40">{stats.total_manga} / {goals.yearlyManga}</span>
+                    </div>
+                    <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full bg-pink-500 transition-all duration-700" style={{ width: `${pct}%` }} />
+                    </div>
+                    <div className="text-[10px] font-bold text-white/30 mt-1">{pct}% of goal reached</div>
+                  </div>
+                )
+              })()}
+              {goals.monthlyChapters === 0 && goals.yearlyManga === 0 && (
+                <div className="text-center py-6 text-white/20">
+                  <Target className="w-8 h-8 mx-auto mb-3 opacity-30" />
+                  <p className="text-xs font-bold uppercase tracking-widest">No goals set — click the edit icon to add some</p>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </motion.section>
 

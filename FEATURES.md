@@ -18,15 +18,15 @@ Features are grouped by area, then tagged:
 | Basic library view (grid/list) | ✅ | Grid + list toggle |
 | Library cards with cover | ✅ | |
 | Subscribe to manga | ✅ | |
-| Unread chapter badge on card | ❌ | Show count of unread chapters |
+| Unread chapter badge on card | ✅ | Blue "N new" badge in grid; "· N unread" in list |
 | Download status badge | ✅ | files.length/total_chapters shown on card |
 | Cover image on library cards | ✅ | Proxied cover art in grid + list view |
 | Continue reading button on card | ✅ | Pulls from history, navigates to last chapter |
 | Sort by: title A-Z, Z-A, most downloaded | ✅ | Sort panel in library toolbar |
 | Filter by: subscribed, downloading, failed | ✅ | Filter panel in library toolbar |
-| Categories / collections | ❌ | Drag-drop organisation like folders |
-| Default category assignment | ❌ | |
-| Sort by: last read, last update, unread count, date added | ❌ | Title + downloaded sort exist |
+| Categories / collections | ✅ | Category tabs above library; 5 default + custom |
+| Default category assignment | ✅ | Set from MangaDetail page |
+| Sort by: last read, last update, unread count, date added | ✅ | Title, downloaded, last read, unread count sorts added |
 | Filter by: downloaded, unread, started, completed, tracker | ❌ | subscribed/downloading/failed filters exist |
 | Batch actions: multi-select delete / move / download | ❌ | |
 | Cover image cache | 🔨 | Proxied but not cached locally |
@@ -82,6 +82,8 @@ Features are grouped by area, then tagged:
 | Cloud reading progress sync | ✅ | Supabase-backed |
 | Resume last page on open | ✅ | |
 | Incognito mode (skip history save) | ✅ | Toggle in Settings + respected in Reader |
+| Shareable chapter link | ✅ | Web Share API + clipboard fallback |
+| Discord Rich Presence (desktop) | ✅ | Tauri invoke to discord-rich-presence crate |
 | Swipe actions on chapter items | ❌ | Bookmark, mark read, download |
 
 ---
@@ -101,8 +103,8 @@ Features are grouped by area, then tagged:
 | Multiple extension repos | ❌ | Only Keiyoushi |
 | Browse source: Popular listing | ✅ | MangaDex popular tab (sorted by followedCount) |
 | Browse source: Latest updates | ✅ | MangaDex latest tab (sorted by latestUploadedChapter) |
-| Dynamic source filters (checkboxes, selects, text per-source) | ❌ | |
-| Global multi-source parallel search | ❌ | Single source at a time |
+| Dynamic source filters (checkboxes, selects, text per-source) | ✅ | Filter panel on Popular tab; MangaDex supports content rating, sort, status, demographic |
+| Global multi-source parallel search | ✅ | Results grouped by provider when searching all sources |
 | Pin favourite sources | ❌ | |
 | Source deep link (open manga from URL) | ❌ | |
 | Non-library source browsing | ❌ | Browsing without adding to library |
@@ -121,6 +123,7 @@ Features are grouped by area, then tagged:
 | Real-time progress via WebSocket | ✅ | |
 | Cloud storage (Supabase) | ⭐ | manga-dl exclusive |
 | CBZ format | ✅ | |
+| ComicInfo.xml embedded in CBZ | ✅ | Series/Title/Number/PageCount/Manga fields |
 | Retry failed downloads | ✅ | Retry button on failed history items |
 | Folder format (source/manga/chapter/page) | ❌ | |
 | Download only on WiFi | ❌ | |
@@ -140,7 +143,7 @@ Features are grouped by area, then tagged:
 | AniList OAuth | ✅ | |
 | MyAnimeList OAuth | ✅ | |
 | MAL auto-sync on chapter completion | ✅ | Fires when last page reached |
-| Kitsu OAuth | ❌ | |
+| Kitsu OAuth (password grant) | ✅ | Email+password → token; username shown |
 | MangaUpdates | ❌ | |
 | Shikimori (Russian) | ❌ | |
 | Bangumi (Chinese) | ❌ | |
@@ -166,7 +169,7 @@ Features are grouped by area, then tagged:
 | Last page read per chapter | ✅ | Cloud synced |
 | Manga title + chapter title in history | ✅ | Saved via 5-part URL encoding |
 | Clear history (global) | ✅ | "Clear All" button on history page |
-| Clear history (per manga) | ❌ | |
+| Clear history (per manga) | ✅ | Trash icon per row; DELETE /users/history/{provider}/{manga_id} |
 | Filter history by date | ❌ | |
 | Resume reading from history | ✅ | Resume button navigates back to exact chapter |
 | Incognito mode bypasses history | ✅ | |
@@ -186,6 +189,7 @@ Features are grouped by area, then tagged:
 | Provider breakdown chart | ✅ | |
 | Download streak | ✅ | |
 | All-time reading heatmap (GitHub-style) | ✅ | 52-week grid, green intensity by count |
+| Reading goals (monthly chapters / yearly manga) | ✅ | Set targets with progress bars; persisted locally |
 | Reading time estimate | ❌ | Based on pages × avg time |
 | Per-category stats | ❌ | |
 | Tracker score distribution | ❌ | |
@@ -203,12 +207,14 @@ Features are grouped by area, then tagged:
 | Backup: manga list | ✅ | Via library API |
 | Backup: reading history | ✅ | Via history API |
 | Backup: app settings | ✅ | API key, backend URL, tracker IDs, reader prefs |
-| Backup: categories | ❌ | Categories not implemented yet |
+| Backup: categories | ✅ | categories + manga-categories localStorage keys exported |
+| Backup: read tracking + bookmarks | ✅ | Included in cloud backup |
 | Backup: tracking data | ❌ | Tokens not exported (security) |
 | Backup: downloaded chapters list | ❌ | |
 | Selective restore | ❌ | All-or-nothing import currently |
 | Auto-backup (scheduled) | ❌ | |
-| Cloud backup (Supabase) | 💡 | Upload backup JSON to user's Supabase storage |
+| Cloud backup (Supabase) | ✅ | Upload/download backup JSON via manga-backups storage bucket |
+| Tachiyomi backup import (JSON) | ✅ | Reads backupManga list + backupCategories |
 
 ---
 
@@ -239,7 +245,7 @@ Features are grouped by area, then tagged:
 | Custom user agent | ❌ | |
 | Download only on WiFi | ❌ | |
 | Verbose network logging | ❌ | |
-| Offline PWA (service worker cache) | 💡 | Web-specific feature |
+| Offline PWA (service worker cache) | ✅ | vite-plugin-pwa with workbox NetworkFirst/CacheFirst strategies |
 | Preload next chapter while reading | ❌ | |
 | Image prefetch in reader | ❌ | |
 
@@ -294,7 +300,7 @@ Features are grouped by area, then tagged:
 | RAR/CBR support | ❌ | |
 | 7Z support | ❌ | |
 | Custom cover for local manga | ❌ | |
-| Metadata file parsing (ComicInfo.xml) | ❌ | Standard comic metadata format |
+| Metadata file parsing (ComicInfo.xml) | ✅ | Embedded when packaging CBZ (Series/Title/Number/PageCount/Manga) |
 | Import from Google Drive | 💡 | Cloud file picker |
 | Import from Dropbox | 💡 | |
 
@@ -307,15 +313,15 @@ Features are grouped by area, then tagged:
 | Chapter sort: number, date, alphabetical | ✅ | Sort dropdown in MangaDetail |
 | Chapter search by title | ✅ | Search input in MangaDetail |
 | Chapter sort ascending/descending | 🔨 | Preset modes only, no explicit asc/desc flip |
-| Chapter filter: read/unread, downloaded, bookmarked | ❌ | |
-| Bookmark individual chapters | ❌ | |
-| Scanlator filter (hide specific groups) | ❌ | |
-| Mark chapters read/unread in bulk | ❌ | |
+| Chapter filter: read/unread/all | ✅ | Filter buttons above chapter list |
+| Bookmark individual chapters | ✅ | Amber bookmark icon per chapter, persisted in localStorage |
+| Scanlator filter (hide specific groups) | ✅ | Dropdown filtered from [GroupName] in chapter titles |
+| Mark chapters read/unread in bulk | ✅ | "Mark All Read" button in MangaDetail |
 | Source migration (move manga between sources) | ❌ | |
 | Duplicate manga detection | ❌ | |
 | Manual manga metadata edit | ❌ | Edit title, cover, description |
 | Custom cover upload | ❌ | |
-| Manga notes / personal rating | 💡 | |
+| Manga notes / personal rating | ✅ | 5-star rating + free-text note per manga, localStorage-persisted |
 
 ---
 
@@ -332,17 +338,17 @@ Features are grouped by area, then tagged:
 | ⭐ AI upscale (beta) | Sharp low-res pages |
 | ⭐ Online streaming | Read without downloading |
 | ⭐ GitHub-style reading heatmap | ✅ 52-week activity grid in Stats |
-| 💡 Shareable chapter link | Send a reading link to a friend |
+| ✅ Shareable chapter link | Web Share API + clipboard fallback |
+| ✅ Reading goals | Monthly chapters + yearly manga targets with progress bars |
+| ✅ ComicInfo.xml support | Embedded in every CBZ; Kavita/Komga/Paperback compatible |
+| ✅ Offline PWA | Service worker via vite-plugin-pwa |
+| ✅ Cloud backup to Supabase | Export/import through manga-backups bucket |
+| ✅ Discord Rich Presence (desktop) | Updates when reading via Tauri IPC |
+| ✅ Import from Tachiyomi backup | JSON backup: reads manga list + categories |
+| ✅ Public profile page | `/profile/:userId` — shareable, chapters/manga/streak + recent activity |
+| ✅ Manga notes & personal star rating | 5-star + free-text note per manga |
 | 💡 Reading sessions / Pomodoro mode | Timed reading with session tracking |
 | 💡 "Similar to X" recommendations | AI-powered discovery |
-| 💡 ComicInfo.xml metadata support | Industry standard format |
-| 💡 Public profile page | Share your library / reading activity |
-| 💡 Manga notes & personal star rating | Private per-manga annotations |
-| 💡 Offline PWA | Service worker so web app works offline |
-| 💡 Cloud backup to Supabase | Export/import JSON backup through account |
-| 💡 Discord Rich Presence (desktop) | Show what you're reading in Discord |
-| 💡 Import from Tachiyomi backup | Migrate existing Tachiyomi library |
-| 💡 Reading goals | Set weekly/monthly chapter targets |
 
 ---
 
@@ -355,7 +361,7 @@ Features are grouped by area, then tagged:
 4. ✅ Chapter sort + search within manga detail
 5. ✅ Continue reading button on library card
 6. ✅ Onboarding screen (first-run flow)
-7. ⬜ Unread badge on library cards (needs read-tracking per chapter)
+7. ✅ Unread badge on library cards
 
 ### Phase 2 — Power user features ✅ complete
 8. ✅ Reader: brightness + contrast + color filters
@@ -369,20 +375,30 @@ Features are grouped by area, then tagged:
 16. ✅ Source browse: Popular + Latest tabs (MangaDex; other providers return [] gracefully)
 17. ✅ Cover images on library cards
 
-### Phase 3 — Polish & differentiation
-17. ⬜ Library categories / collections
-18. ⬜ Dynamic source filters
-19. ⬜ Global multi-source search
-20. ⬜ Kitsu tracker
-21. ⬜ Chapter bookmarks + scanlator filter
-22. ⬜ Offline PWA (service worker)
-23. ⬜ ComicInfo.xml metadata support
-24. ⬜ Reader: crop borders, dual-page spread, tap zones
+### Phase 3 — Polish & differentiation ✅ complete
+17. ✅ Library categories / collections
+18. ✅ Chapter bookmarks + scanlator filter
+19. ✅ Global multi-source search (results grouped by provider)
+20. ✅ Kitsu tracker (password grant)
+21. ✅ Offline PWA (vite-plugin-pwa + workbox)
+22. ✅ ComicInfo.xml embedded in CBZ output
+23. ✅ Reading goals in Stats
+24. ✅ Cloud backup to Supabase storage
+25. ✅ Tachiyomi backup importer (JSON format)
+26. ✅ Discord Rich Presence (Tauri desktop)
+27. ✅ Shareable chapter links
 
-### Phase 4 — Original features (manga-dl identity)
-25. ⬜ Cloud backup to Supabase
-26. ⬜ Shareable chapter links
-27. ⬜ Tachiyomi backup importer
-28. ⬜ Reading goals + sessions
-29. ⬜ Public profile page
-30. ⬜ Discord Rich Presence (Tauri desktop)
+### Phase 4 — Original features ✅ complete
+28. ✅ Public profile page — `/profile/:userId`, shareable, shows chapters/manga/streak + recent activity
+29. ✅ Dynamic source filters — filter panel on Popular tab, MangaDex: content rating, sort, status, demographic
+30. ✅ Manga notes & personal star rating — 5-star + free-text note, persisted in localStorage per manga
+
+### Phase 5 — Web QoL ✅ complete
+31. ✅ Vertical pager reading mode — slides pages top→bottom with `y: 40/-40` animation
+32. ✅ Skip read chapters — toggle in Reader filter panel; "Next Unread →" skips already-read chapters
+33. ✅ Image prefetch — next 3 pages pre-loaded into browser memory while reading
+34. ✅ Dashboard sort: last read + unread count — sorts library by reading recency or most unread
+35. ✅ Dashboard filter: has unread — filters to manga with chapters not yet read
+36. ✅ Download badge on grid cards — X/Y chapters downloaded shown on card overlay + badge row
+37. ✅ Chapter row swipe actions — swipe left on chapter row to reveal bookmark/mark-read/download tray
+38. ✅ Clear history per manga — trash icon per history row; backend DELETE /users/history/{provider}/{manga_id}

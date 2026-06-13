@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../lib/api'
-import { Search as SearchIcon, Globe, Loader2, ChevronRight, BookOpen, Layers, Star, BookMarked, Check, TrendingUp, Clock } from 'lucide-react'
+import { Search as SearchIcon, Globe, Loader2, ChevronRight, BookOpen, Layers, Star, BookMarked, Check, TrendingUp, Clock, SlidersHorizontal, ChevronDown } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
 import { useAppStore } from '../lib/store'
@@ -129,6 +129,12 @@ export default function SearchPage() {
   const [browseLoading, setBrowseLoading] = useState(false)
   const [browseHasMore, setBrowseHasMore] = useState(true)
 
+  // Dynamic source filters
+  interface FilterDef { id: string; label: string; type: string; options: { value: string; label: string }[]; default: string }
+  const [sourceFilters, setSourceFilters] = useState<FilterDef[]>([])
+  const [activeFilters, setActiveFilters] = useState<Record<string, string>>({})
+  const [showFilterPanel, setShowFilterPanel] = useState(false)
+
   const handleSubscribe = async (e: React.MouseEvent, provider: string, mangaId: string) => {
     e.stopPropagation()
     const key = `${provider}:${mangaId}`
@@ -162,10 +168,14 @@ export default function SearchPage() {
     }
   }
 
-  const fetchBrowse = async (provider: string, page: number, endpoint: 'popular' | 'latest') => {
+  const fetchBrowse = useCallback(async (provider: string, page: number, endpoint: 'popular' | 'latest', filters: Record<string, string> = {}) => {
     setBrowseLoading(true)
     try {
-      const res = await api.get(`/manga/${provider}/${endpoint}`, { params: { page } })
+      const hasFilters = Object.keys(filters).length > 0
+      const url = (endpoint === 'popular' && hasFilters)
+        ? `/manga/${provider}/browse`
+        : `/manga/${provider}/${endpoint}`
+      const res = await api.get(url, { params: { page, ...filters } })
       const data: MangaResult[] = res.data
       setBrowseResults(prev => page === 1 ? data : [...prev, ...data])
       setBrowseHasMore(data.length === 20)
@@ -175,21 +185,42 @@ export default function SearchPage() {
     } finally {
       setBrowseLoading(false)
     }
-  }
+  }, [])
+
+  // Load filter definitions when provider changes
+  useEffect(() => {
+    api.get(`/manga/${browseProvider}/filters`)
+      .then(res => {
+        setSourceFilters(res.data)
+        // seed defaults
+        const defaults: Record<string, string> = {}
+        for (const f of res.data) { if (f.default) defaults[f.id] = f.default }
+        setActiveFilters(defaults)
+      })
+      .catch(() => setSourceFilters([]))
+  }, [browseProvider])
 
   useEffect(() => {
     if (tab === 'popular' || tab === 'latest') {
       setBrowsePage(1)
       setBrowseResults([])
       setBrowseHasMore(true)
-      fetchBrowse(browseProvider, 1, tab)
+      fetchBrowse(browseProvider, 1, tab, tab === 'popular' ? activeFilters : {})
     }
   }, [tab, browseProvider])
 
   const loadMoreBrowse = () => {
     const nextPage = browsePage + 1
     setBrowsePage(nextPage)
-    fetchBrowse(browseProvider, nextPage, tab as 'popular' | 'latest')
+    fetchBrowse(browseProvider, nextPage, tab as 'popular' | 'latest', tab === 'popular' ? activeFilters : {})
+  }
+
+  const applyFilters = () => {
+    setBrowsePage(1)
+    setBrowseResults([])
+    setBrowseHasMore(true)
+    fetchBrowse(browseProvider, 1, 'popular', activeFilters)
+    setShowFilterPanel(false)
   }
 
   return (
@@ -275,21 +306,97 @@ export default function SearchPage() {
         )}
 
         {(tab === 'popular' || tab === 'latest') && (
-          <div className="flex flex-wrap gap-2.5">
-            {PROVIDERS.map(p => (
-              <button
-                key={p.id}
-                onClick={() => setBrowseProvider(p.id)}
-                className={cn(
-                  "px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-widest border transition-all",
-                  browseProvider === p.id
-                    ? "bg-white/10 border-white/20 text-white shadow-lg"
-                    : "bg-white/[0.02] border-white/5 text-white/40 hover:text-white/60 hover:border-white/10"
-                )}
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-2.5 items-center">
+              {PROVIDERS.map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => setBrowseProvider(p.id)}
+                  className={cn(
+                    "px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-widest border transition-all",
+                    browseProvider === p.id
+                      ? "bg-white/10 border-white/20 text-white shadow-lg"
+                      : "bg-white/[0.02] border-white/5 text-white/40 hover:text-white/60 hover:border-white/10"
+                  )}
+                >
+                  {p.name}
+                </button>
+              ))}
+              {tab === 'popular' && sourceFilters.length > 0 && (
+                <button
+                  onClick={() => setShowFilterPanel(f => !f)}
+                  className={cn(
+                    "ml-auto flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest border transition-all",
+                    showFilterPanel
+                      ? "bg-red-500/20 border-red-500/30 text-red-400"
+                      : "bg-white/[0.02] border-white/5 text-white/40 hover:text-white/60 hover:border-white/10"
+                  )}
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5" />
+                  Filters
+                </button>
+              )}
+            </div>
+
+            {/* Dynamic filter panel */}
+            {showFilterPanel && tab === 'popular' && sourceFilters.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="glass-panel p-5 border-white/5 space-y-4"
               >
-                {p.name}
-              </button>
-            ))}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {sourceFilters.map(f => (
+                    <div key={f.id} className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-white/30">{f.label}</label>
+                      {f.type === 'select' ? (
+                        <div className="relative">
+                          <select
+                            value={activeFilters[f.id] ?? f.default}
+                            onChange={e => setActiveFilters(prev => ({ ...prev, [f.id]: e.target.value }))}
+                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-red-500/20 appearance-none cursor-pointer"
+                          >
+                            {f.options.map(o => (
+                              <option key={o.value} value={o.value} className="bg-neutral-900">{o.label}</option>
+                            ))}
+                          </select>
+                          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30 pointer-events-none" />
+                        </div>
+                      ) : f.type === 'multiselect' ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {f.options.map(o => {
+                            const current = (activeFilters[f.id] ?? f.default).split(',').filter(Boolean)
+                            const active = current.includes(o.value)
+                            return (
+                              <button
+                                key={o.value}
+                                onClick={() => {
+                                  const next = active ? current.filter(v => v !== o.value) : [...current, o.value]
+                                  setActiveFilters(prev => ({ ...prev, [f.id]: next.join(',') }))
+                                }}
+                                className={cn(
+                                  "px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all",
+                                  active ? "bg-red-500/20 border-red-500/30 text-red-400" : "bg-white/5 border-white/5 text-white/30 hover:border-white/10"
+                                )}
+                              >
+                                {o.label}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={applyFilters}
+                  className="px-6 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all"
+                >
+                  Apply Filters
+                </button>
+              </motion.div>
+            )}
           </div>
         )}
       </header>
@@ -303,15 +410,46 @@ export default function SearchPage() {
               ))}
             </div>
           ) : searchResults.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-              <AnimatePresence mode="popLayout">
-                {searchResults.map((r, idx) => (
-                  <MangaCard key={r.id + r.provider} r={r} idx={idx}
-                    onSubscribe={handleSubscribe} subscribed={subscribed} subscribing={subscribing} navigate={navigate}
-                  />
+            selectedProvider ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                <AnimatePresence mode="popLayout">
+                  {searchResults.map((r, idx) => (
+                    <MangaCard key={r.id + r.provider} r={r} idx={idx}
+                      onSubscribe={handleSubscribe} subscribed={subscribed} subscribing={subscribing} navigate={navigate}
+                    />
+                  ))}
+                </AnimatePresence>
+              </div>
+            ) : (
+              // Grouped by provider when searching all sources
+              <div className="space-y-10">
+                {Object.entries(
+                  searchResults.reduce<Record<string, MangaResult[]>>((acc, r) => {
+                    ;(acc[r.provider] ??= []).push(r)
+                    return acc
+                  }, {})
+                ).map(([provider, results]) => (
+                  <div key={provider}>
+                    <div className="flex items-center gap-3 mb-4">
+                      <span className="text-xs font-black uppercase tracking-[0.25em] text-white/40 px-3 py-1 bg-white/5 rounded-full border border-white/5">
+                        {provider}
+                      </span>
+                      <div className="flex-1 h-px bg-white/5" />
+                      <span className="text-xs text-white/20 font-mono">{results.length} result{results.length !== 1 ? 's' : ''}</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                      <AnimatePresence mode="popLayout">
+                        {results.map((r, idx) => (
+                          <MangaCard key={r.id + r.provider} r={r} idx={idx}
+                            onSubscribe={handleSubscribe} subscribed={subscribed} subscribing={subscribing} navigate={navigate}
+                          />
+                        ))}
+                      </AnimatePresence>
+                    </div>
+                  </div>
                 ))}
-              </AnimatePresence>
-            </div>
+              </div>
+            )
           ) : hasSearched ? (
             <motion.div
               initial={{ opacity: 0 }}

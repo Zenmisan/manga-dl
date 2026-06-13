@@ -55,8 +55,8 @@ export default function Dashboard() {
   const [isDesktop, setIsDesktop] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [backendDown, setBackendDown] = useState(false)
-  const [sort, setSort] = useState<'default' | 'title-asc' | 'title-desc' | 'downloaded'>('default')
-  const [filter, setFilter] = useState<'all' | 'subscribed' | 'downloading' | 'failed'>('all')
+  const [sort, setSort] = useState<'default' | 'title-asc' | 'title-desc' | 'downloaded' | 'last-read' | 'unread-count'>('default')
+  const [filter, setFilter] = useState<'all' | 'subscribed' | 'downloading' | 'failed' | 'unread'>('all')
   const [showSortPanel, setShowSortPanel] = useState(false)
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
   const [categories] = useState(() => getCategories())
@@ -274,14 +274,35 @@ export default function Dashboard() {
     if (filter === 'subscribed') result = result.filter(i => i.subscribed)
     else if (filter === 'downloading') result = result.filter(i => i.chapters_downloading > 0)
     else if (filter === 'failed') result = result.filter(i => i.chapters_failed > 0)
+    else if (filter === 'unread') result = result.filter(i => {
+      const read = getReadCount(i.provider ?? '', i.provider_manga_id ?? '')
+      const total = i.total_chapters ?? i.files.length
+      return total > read
+    })
     if (activeCategory) {
       result = result.filter(i => getMangaCategoryList(i.title).includes(activeCategory))
     }
     if (sort === 'title-asc') result.sort((a, b) => a.title.localeCompare(b.title))
     else if (sort === 'title-desc') result.sort((a, b) => b.title.localeCompare(a.title))
     else if (sort === 'downloaded') result.sort((a, b) => b.files.length - a.files.length)
+    else if (sort === 'last-read') {
+      result.sort((a, b) => {
+        const aHas = !!lastReadMap[a.title.toLowerCase().trim()]
+        const bHas = !!lastReadMap[b.title.toLowerCase().trim()]
+        if (aHas && !bHas) return -1
+        if (!aHas && bHas) return 1
+        return 0
+      })
+    }
+    else if (sort === 'unread-count') {
+      result.sort((a, b) => {
+        const aUnread = (a.total_chapters ?? a.files.length) - getReadCount(a.provider ?? '', a.provider_manga_id ?? '')
+        const bUnread = (b.total_chapters ?? b.files.length) - getReadCount(b.provider ?? '', b.provider_manga_id ?? '')
+        return bUnread - aUnread
+      })
+    }
     return result
-  }, [items, sort, filter, activeCategory])
+  }, [items, sort, filter, activeCategory, lastReadMap])
 
   if (selectedManga) {
     return (
@@ -490,7 +511,7 @@ export default function Dashboard() {
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-2 flex items-center gap-1.5"><ArrowUpDown className="w-3 h-3" />Sort</p>
                   <div className="flex gap-2 flex-wrap">
-                    {([['default','Default'],['title-asc','A → Z'],['title-desc','Z → A'],['downloaded','Most Downloaded']] as const).map(([v, label]) => (
+                    {([['default','Default'],['title-asc','A → Z'],['title-desc','Z → A'],['downloaded','Most Downloaded'],['last-read','Last Read'],['unread-count','Most Unread']] as const).map(([v, label]) => (
                       <button key={v} onClick={() => setSort(v)}
                         className={cn("px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all",
                           sort === v ? "bg-white/10 text-white border-white/20" : "text-white/30 border-white/10 hover:border-white/20"
@@ -502,7 +523,7 @@ export default function Dashboard() {
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-2 flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3" />Filter</p>
                   <div className="flex gap-2 flex-wrap">
-                    {([['all','All'],['subscribed','Subscribed'],['downloading','Downloading'],['failed','Has Errors']] as const).map(([v, label]) => (
+                    {([['all','All'],['subscribed','Subscribed'],['downloading','Downloading'],['failed','Has Errors'],['unread','Has Unread']] as const).map(([v, label]) => (
                       <button key={v} onClick={() => setFilter(v)}
                         className={cn("px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all",
                           filter === v ? "bg-red-500/20 text-red-400 border-red-500/30" : "text-white/30 border-white/10 hover:border-white/20"
@@ -669,6 +690,13 @@ export default function Dashboard() {
                             {item.subscribed && <span className="text-emerald-400"> · subscribed</span>}
                             {item.chapters_downloading > 0 && <span className="text-yellow-400"> · {item.chapters_downloading} downloading</span>}
                             {item.chapters_failed > 0 && <span className="text-red-400"> · {item.chapters_failed} failed</span>}
+                            {(() => {
+                              if (!item.provider || !item.provider_manga_id || !item.total_chapters) return null
+                              const rc = getReadCount(item.provider, item.provider_manga_id)
+                              const unread = item.total_chapters - rc
+                              if (unread <= 0) return null
+                              return <span className="text-blue-400"> · {unread} unread</span>
+                            })()}
                           </p>
                           {lastRead && (
                             <button

@@ -6,8 +6,13 @@ use tauri::{
     tray::TrayIconBuilder,
     Manager,
 };
+use discord_rich_presence::{activity, DiscordIpc, DiscordIpcClient};
 
 pub struct BackendProcess(pub Mutex<Option<Child>>);
+pub struct DiscordRpc(pub Mutex<Option<DiscordIpcClient>>);
+
+// Discord application ID for manga-dl (replace with your own from discord.com/developers)
+const DISCORD_APP_ID: &str = "1515346416430485785";
 
 // ── Backend discovery ─────────────────────────────────────────────────────────
 
@@ -76,6 +81,39 @@ fn start_backend() -> Option<Child> {
 #[tauri::command]
 fn get_backend_url() -> &'static str {
     "http://127.0.0.1:8000"
+}
+
+#[tauri::command]
+fn discord_update_presence(
+    state: tauri::State<DiscordRpc>,
+    details: String,
+    state_text: String,
+) {
+    if let Ok(mut guard) = state.0.lock() {
+        let client = guard.get_or_insert_with(|| {
+            let mut c = DiscordIpcClient::new(DISCORD_APP_ID);
+            let _ = c.connect();
+            c
+        });
+        let payload = activity::Activity::new()
+            .details(&details)
+            .state(&state_text)
+            .assets(
+                activity::Assets::new()
+                    .large_image("manga_logo")
+                    .large_text("manga-dl"),
+            );
+        let _ = client.set_activity(payload);
+    }
+}
+
+#[tauri::command]
+fn discord_clear_presence(state: tauri::State<DiscordRpc>) {
+    if let Ok(mut guard) = state.0.lock() {
+        if let Some(client) = guard.as_mut() {
+            let _ = client.clear_activity();
+        }
+    }
 }
 
 #[tauri::command]
@@ -183,6 +221,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .manage(BackendProcess(Mutex::new(backend_child)))
+        .manage(DiscordRpc(Mutex::new(None)))
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
@@ -190,6 +229,8 @@ pub fn run() {
             get_backend_url,
             get_downloads_path,
             reveal_in_file_manager,
+            discord_update_presence,
+            discord_clear_presence,
         ])
         .setup(|app| {
             setup_tray(app.handle())?;

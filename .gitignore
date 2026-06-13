@@ -34,3 +34,5 @@ logs/
 .firebase/*
 *.log
 .claude/*
+.agents/*
+.kiro/*

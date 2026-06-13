@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Shield, Database, Save, RefreshCw, Key, HardDrive, Info, Share2, LogOut, CheckCircle2, Loader2, Bell, BellOff, User, UserPlus, EyeOff, Eye, UploadCloud, DownloadCloud } from 'lucide-react'
+import { Shield, Database, Save, RefreshCw, Key, HardDrive, Info, Share2, LogOut, CheckCircle2, Loader2, Bell, BellOff, User, UserPlus, EyeOff, Eye, UploadCloud, DownloadCloud, Cloud, BookOpen } from 'lucide-react'
 import { motion } from 'framer-motion'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 import api from '../lib/api'
@@ -38,7 +38,7 @@ async function fetchAniListUsername(token: string): Promise<string | null> {
 
 export default function SettingsPage() {
   const navigate = useNavigate()
-  const { incognitoMode, setIncognitoMode } = useAppStore()
+  const { incognitoMode, setIncognitoMode, theme, setTheme, amoledBlack, setAmoledBlack, tapZoneLayout, setTapZoneLayout, cropBorders, setCropBorders, dualPageSpread, setDualPageSpread } = useAppStore()
   const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null)
   const [apiKey, setApiKey] = useState(localStorage.getItem('manga-api-key') || '')
   const [backendUrl, setBackendUrl] = useState(localStorage.getItem('manga-backend-url') || '')
@@ -51,6 +51,15 @@ export default function SettingsPage() {
   const [malClientId, setMalClientId] = useState(localStorage.getItem('mal-client-id') || '')
   const [malUser, setMalUser] = useState(localStorage.getItem('mal-username') || '')
   const [malLoading, setMalLoading] = useState(false)
+  // Kitsu
+  const [kitsuToken, setKitsuToken] = useState(localStorage.getItem('kitsu-token') || '')
+  const [kitsuUser, setKitsuUser] = useState(localStorage.getItem('kitsu-username') || '')
+  const [kitsuEmail, setKitsuEmail] = useState('')
+  const [kitsuPass, setKitsuPass] = useState('')
+  const [kitsuLoading, setKitsuLoading] = useState(false)
+  // Cloud backup
+  const [cloudBackupLoading, setCloudBackupLoading] = useState(false)
+  const [cloudBackupDone, setCloudBackupDone] = useState(false)
   // Notifications
   const [notifEnabled, setNotifEnabled] = useState(localStorage.getItem('notifications-enabled') === 'true')
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>(
@@ -233,6 +242,161 @@ export default function SettingsPage() {
     }
   }
 
+  const handleKitsuLogin = async () => {
+    if (!kitsuEmail.trim() || !kitsuPass.trim()) {
+      alert('Enter your Kitsu email and password.')
+      return
+    }
+    setKitsuLoading(true)
+    try {
+      const res = await fetch('https://kitsu.app/api/oauth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'password',
+          username: kitsuEmail.trim(),
+          password: kitsuPass.trim(),
+        }),
+      })
+      if (!res.ok) throw new Error('Invalid credentials')
+      const data = await res.json()
+      const token = data.access_token
+      // Fetch username
+      const meRes = await fetch('https://kitsu.app/api/edge/users?filter[self]=true', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const meData = await meRes.json()
+      const username = meData.data?.[0]?.attributes?.name ?? kitsuEmail
+      localStorage.setItem('kitsu-token', token)
+      localStorage.setItem('kitsu-username', username)
+      setKitsuToken(token)
+      setKitsuUser(username)
+      setKitsuEmail('')
+      setKitsuPass('')
+    } catch (err) {
+      console.error(err)
+      alert('Kitsu login failed. Check your credentials.')
+    } finally {
+      setKitsuLoading(false)
+    }
+  }
+
+  const handleKitsuLogout = () => {
+    localStorage.removeItem('kitsu-token')
+    localStorage.removeItem('kitsu-username')
+    setKitsuToken('')
+    setKitsuUser('')
+  }
+
+  const handleTachiyomiImport = () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.tachibk,.json'
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (!file) return
+      try {
+        if (file.name.endsWith('.json')) {
+          const text = await file.text()
+          const data = JSON.parse(text)
+          // Tachiyomi JSON backup format: { backupManga: [{ title, source, ... }] }
+          const mangaList: string[] = (data.backupManga || data.library || []).map(
+            (m: { title?: string; name?: string }) => m.title || m.name || ''
+          ).filter(Boolean)
+          if (mangaList.length === 0) {
+            alert('No manga found in backup.')
+            return
+          }
+          const categories: string[] = (data.backupCategories || []).map(
+            (c: { name?: string }) => c.name || ''
+          ).filter(Boolean)
+          // Store imported list in localStorage for library to pick up
+          localStorage.setItem('tachiyomi-import', JSON.stringify({ manga: mangaList, categories }))
+          alert(`Imported ${mangaList.length} manga and ${categories.length} categories from Tachiyomi backup.\n\nSearch for these titles and add them to your library.`)
+        } else {
+          // .tachibk is protobuf — can't decode without schema in browser
+          alert('Binary .tachibk format not yet supported. Please export from Tachiyomi as JSON backup first (Settings → Backup → Create backup → select JSON).')
+        }
+      } catch (err) {
+        console.error(err)
+        alert('Failed to parse backup file.')
+      }
+    }
+    input.click()
+  }
+
+  const handleCloudBackup = async () => {
+    if (!supabaseUser) {
+      alert('Sign in to use cloud backup.')
+      return
+    }
+    setCloudBackupLoading(true)
+    setCloudBackupDone(false)
+    try {
+      const [libraryRes, historyRes] = await Promise.allSettled([
+        api.get('/library'),
+        api.get('/users/history'),
+      ])
+      const backup = {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        library: libraryRes.status === 'fulfilled' ? libraryRes.value.data : [],
+        readingHistory: historyRes.status === 'fulfilled' ? historyRes.value.data : [],
+        settings: {
+          readerPrefs: localStorage.getItem('manga-dl-prefs'),
+          categories: localStorage.getItem('manga-dl-categories'),
+          mangaCategories: localStorage.getItem('manga-dl-manga-categories'),
+          readTracking: localStorage.getItem('manga-dl-read'),
+          bookmarks: localStorage.getItem('manga-dl-bookmarks'),
+        },
+      }
+      const blob = new Blob([JSON.stringify(backup)], { type: 'application/json' })
+      const path = `backups/${supabaseUser.id}/backup-${Date.now()}.json`
+      const { error } = await supabase.storage.from('manga-backups').upload(path, blob, { upsert: true })
+      if (error) throw error
+      setCloudBackupDone(true)
+      setTimeout(() => setCloudBackupDone(false), 3000)
+    } catch (err) {
+      console.error(err)
+      alert('Cloud backup failed. Make sure the "manga-backups" storage bucket exists in your Supabase project.')
+    } finally {
+      setCloudBackupLoading(false)
+    }
+  }
+
+  const handleCloudRestore = async () => {
+    if (!supabaseUser) {
+      alert('Sign in to restore from cloud.')
+      return
+    }
+    try {
+      const { data: files, error } = await supabase.storage
+        .from('manga-backups')
+        .list(`backups/${supabaseUser.id}`, { sortBy: { column: 'created_at', order: 'desc' } })
+      if (error || !files?.length) {
+        alert('No cloud backups found.')
+        return
+      }
+      const latest = files[0]
+      const { data: fileData } = await supabase.storage
+        .from('manga-backups')
+        .download(`backups/${supabaseUser.id}/${latest.name}`)
+      if (!fileData) throw new Error('Download failed')
+      const text = await fileData.text()
+      const backup = JSON.parse(text)
+      const s = backup.settings ?? {}
+      if (s.readerPrefs) localStorage.setItem('manga-dl-prefs', s.readerPrefs)
+      if (s.categories) localStorage.setItem('manga-dl-categories', s.categories)
+      if (s.mangaCategories) localStorage.setItem('manga-dl-manga-categories', s.mangaCategories)
+      if (s.readTracking) localStorage.setItem('manga-dl-read', s.readTracking)
+      if (s.bookmarks) localStorage.setItem('manga-dl-bookmarks', s.bookmarks)
+      alert(`Restored from cloud backup: ${latest.name}\nReload to apply changes.`)
+    } catch (err) {
+      console.error(err)
+      alert('Restore failed. Check console.')
+    }
+  }
+
   const handleImportBackup = () => {
     const input = document.createElement('input')
     input.type = 'file'
@@ -410,6 +574,70 @@ export default function SettingsPage() {
           </div>
         </motion.section>
 
+        {/* Kitsu Section */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.07 }}
+          className="glass-panel overflow-hidden border-white/5"
+        >
+          <div className="p-6 border-b border-white/5 flex items-center gap-3 bg-white/[0.02]">
+            <div className="p-2 bg-orange-500/10 rounded-lg">
+              <BookOpen className="w-5 h-5 text-orange-400" />
+            </div>
+            <h2 className="font-bold text-lg">Kitsu</h2>
+          </div>
+          <div className="p-6 md:p-8 space-y-4">
+            {!kitsuUser && (
+              <div className="space-y-3">
+                <input
+                  type="email"
+                  value={kitsuEmail}
+                  onChange={(e) => setKitsuEmail(e.target.value)}
+                  placeholder="Kitsu email..."
+                  className="w-full bg-black/40 border border-white/5 rounded-xl px-5 py-3 focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-all text-white placeholder:text-white/10 text-sm"
+                />
+                <input
+                  type="password"
+                  value={kitsuPass}
+                  onChange={(e) => setKitsuPass(e.target.value)}
+                  placeholder="Password..."
+                  className="w-full bg-black/40 border border-white/5 rounded-xl px-5 py-3 focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-all text-white placeholder:text-white/10 text-sm"
+                />
+              </div>
+            )}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 p-6 rounded-2xl bg-white/[0.02] border border-white/5">
+              <div className="space-y-1">
+                <h4 className="font-bold text-gray-100">Kitsu Tracking</h4>
+                <p className="text-sm text-white/30 font-medium">Sync manga progress with Kitsu.app</p>
+              </div>
+              {kitsuUser ? (
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 px-4 py-2 bg-orange-500/10 text-orange-400 border border-orange-500/20 rounded-xl text-xs font-black uppercase tracking-widest">
+                    <CheckCircle2 className="w-4 h-4" />
+                    {kitsuUser}
+                  </div>
+                  <button
+                    onClick={handleKitsuLogout}
+                    className="p-2.5 bg-white/5 hover:bg-red-500/20 text-white/40 hover:text-red-400 rounded-xl transition-all border border-white/5"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={handleKitsuLogin}
+                  disabled={kitsuLoading}
+                  className="px-6 py-3 bg-orange-600/80 hover:bg-orange-500 text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all disabled:opacity-50 flex items-center gap-2"
+                >
+                  {kitsuLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Connect Kitsu
+                </button>
+              )}
+            </div>
+          </div>
+        </motion.section>
+
         {/* Notifications Section */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
@@ -451,6 +679,100 @@ export default function SettingsPage() {
                   Enable
                 </button>
               )}
+            </div>
+          </div>
+        </motion.section>
+
+        {/* Appearance Section */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.085 }}
+          className="glass-panel overflow-hidden border-white/5"
+        >
+          <div className="p-6 border-b border-white/5 flex items-center gap-3 bg-white/[0.02]">
+            <div className="p-2 bg-indigo-500/10 rounded-lg">
+              <BookOpen className="w-5 h-5 text-indigo-400" />
+            </div>
+            <h2 className="font-bold text-lg">Appearance</h2>
+          </div>
+          <div className="p-6 md:p-8 space-y-6">
+            {/* Theme */}
+            <div>
+              <label className="block text-xs font-black uppercase tracking-widest text-white/30 mb-3">Theme</label>
+              <div className="flex gap-2">
+                {(['dark', 'light', 'system'] as const).map(t => (
+                  <button key={t}
+                    onClick={() => setTheme(t)}
+                    className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border transition-all ${
+                      theme === t ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' : 'text-white/30 border-white/10 hover:border-white/20'
+                    }`}
+                  >
+                    {t === 'dark' ? '🌙 Dark' : t === 'light' ? '☀️ Light' : '⚙️ System'}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {/* AMOLED */}
+            <div className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+              <div>
+                <h4 className="font-bold text-sm">AMOLED Black</h4>
+                <p className="text-xs text-white/30 mt-0.5">Pure black backgrounds for OLED screens (dark mode only)</p>
+              </div>
+              <button
+                onClick={() => setAmoledBlack(!amoledBlack)}
+                disabled={theme === 'light'}
+                className={`w-12 h-6 rounded-full relative transition-all border ${amoledBlack && theme !== 'light' ? 'bg-indigo-500/30 border-indigo-500/40' : 'bg-white/5 border-white/10'} disabled:opacity-30`}
+              >
+                <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${amoledBlack && theme !== 'light' ? 'left-6' : 'left-0.5'}`} />
+              </button>
+            </div>
+            {/* Tap Zone Layout */}
+            <div>
+              <label className="block text-xs font-black uppercase tracking-widest text-white/30 mb-3">Reader Tap Zones</label>
+              <div className="flex gap-2 flex-wrap">
+                {([['default','Default'],['l-nav','L-Nav'],['edge','Edge'],['disabled','Disabled']] as const).map(([v, label]) => (
+                  <button key={v}
+                    onClick={() => setTapZoneLayout(v)}
+                    className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border transition-all ${
+                      tapZoneLayout === v ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' : 'text-white/30 border-white/10 hover:border-white/20'
+                    }`}
+                  >{label}</button>
+                ))}
+              </div>
+              <p className="text-[10px] text-white/20 mt-2">
+                {tapZoneLayout === 'default' && 'Left 1/3 = prev, right 1/3 = next, center = toggle UI'}
+                {tapZoneLayout === 'l-nav' && 'Left half = prev, right half = next'}
+                {tapZoneLayout === 'edge' && '15% edges only for navigation'}
+                {tapZoneLayout === 'disabled' && 'Taps only toggle UI — no navigation'}
+              </p>
+            </div>
+            {/* Crop Borders */}
+            <div className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+              <div>
+                <h4 className="font-bold text-sm">Crop Borders</h4>
+                <p className="text-xs text-white/30 mt-0.5">Remove whitespace margins from page images</p>
+              </div>
+              <button
+                onClick={() => setCropBorders(!cropBorders)}
+                className={`w-12 h-6 rounded-full relative transition-all border ${cropBorders ? 'bg-indigo-500/30 border-indigo-500/40' : 'bg-white/5 border-white/10'}`}
+              >
+                <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${cropBorders ? 'left-6' : 'left-0.5'}`} />
+              </button>
+            </div>
+            {/* Dual Page Spread */}
+            <div>
+              <label className="block text-xs font-black uppercase tracking-widest text-white/30 mb-3">Dual-Page Spread (Pager modes)</label>
+              <div className="flex gap-2">
+                {([['auto','Auto (landscape)'],['on','Always On'],['off','Off']] as const).map(([v, label]) => (
+                  <button key={v}
+                    onClick={() => setDualPageSpread(v)}
+                    className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border transition-all ${
+                      dualPageSpread === v ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' : 'text-white/30 border-white/10 hover:border-white/20'
+                    }`}
+                  >{label}</button>
+                ))}
+              </div>
             </div>
           </div>
         </motion.section>
@@ -614,6 +936,41 @@ export default function SettingsPage() {
                   <UploadCloud className="w-4 h-4" />
                   Import Backup
                 </button>
+                <button
+                  onClick={handleTachiyomiImport}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-white/5 hover:bg-teal-500/20 hover:border-teal-500/30 rounded-xl transition-all border border-white/5 text-white/60 hover:text-teal-400 font-bold text-xs uppercase tracking-widest"
+                >
+                  <BookOpen className="w-4 h-4" />
+                  Import Tachiyomi
+                </button>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-white/5">
+              <h4 className="font-bold text-gray-100 mb-1 flex items-center gap-2">
+                <Cloud className="w-4 h-4 text-violet-400" />
+                Cloud Backup
+              </h4>
+              <p className="text-sm text-white/30 font-medium mb-4">
+                {supabaseUser ? 'Backup to Supabase storage under your account' : 'Sign in to enable cloud backup'}
+              </p>
+              <div className="flex gap-3 flex-wrap">
+                <button
+                  onClick={handleCloudBackup}
+                  disabled={!supabaseUser || cloudBackupLoading}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-white/5 hover:bg-violet-500/20 hover:border-violet-500/30 rounded-xl transition-all border border-white/5 text-white/60 hover:text-violet-400 font-bold text-xs uppercase tracking-widest disabled:opacity-40"
+                >
+                  {cloudBackupLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : cloudBackupDone ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Cloud className="w-4 h-4" />}
+                  {cloudBackupDone ? 'Saved!' : 'Backup to Cloud'}
+                </button>
+                <button
+                  onClick={handleCloudRestore}
+                  disabled={!supabaseUser}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-white/5 hover:bg-violet-500/20 hover:border-violet-500/30 rounded-xl transition-all border border-white/5 text-white/60 hover:text-violet-400 font-bold text-xs uppercase tracking-widest disabled:opacity-40"
+                >
+                  <DownloadCloud className="w-4 h-4" />
+                  Restore from Cloud
+                </button>
               </div>
             </div>
           </div>
@@ -638,16 +995,25 @@ export default function SettingsPage() {
                   <h4 className="font-bold text-gray-100">Signed in</h4>
                   <p className="text-sm text-white/40 font-medium">{supabaseUser.email}</p>
                 </div>
-                <button
-                  onClick={async () => {
-                    await supabase.auth.signOut()
-                    setSupabaseUser(null)
-                  }}
-                  className="flex items-center justify-center gap-2 px-5 py-2.5 bg-white/5 hover:bg-red-500/20 hover:border-red-500/30 rounded-xl transition-all border border-white/5 text-white/60 hover:text-red-400 font-bold text-xs uppercase tracking-widest"
-                >
-                  <LogOut className="w-4 h-4" />
-                  Sign Out
-                </button>
+                <div className="flex gap-3 flex-wrap">
+                  <button
+                    onClick={() => navigate(`/profile/${supabaseUser.id}`)}
+                    className="flex items-center justify-center gap-2 px-5 py-2.5 bg-white/5 hover:bg-white/10 rounded-xl transition-all border border-white/5 text-white/60 hover:text-white font-bold text-xs uppercase tracking-widest"
+                  >
+                    <User className="w-4 h-4" />
+                    View Profile
+                  </button>
+                  <button
+                    onClick={async () => {
+                      await supabase.auth.signOut()
+                      setSupabaseUser(null)
+                    }}
+                    className="flex items-center justify-center gap-2 px-5 py-2.5 bg-white/5 hover:bg-red-500/20 hover:border-red-500/30 rounded-xl transition-all border border-white/5 text-white/60 hover:text-red-400 font-bold text-xs uppercase tracking-widest"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Sign Out
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="flex flex-col sm:flex-row gap-3">
