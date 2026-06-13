@@ -152,6 +152,11 @@ export const useAppStore = create<AppState>()(
       autoBackupInterval: 'weekly',
       setAutoBackupEnabled: (val) => set({ autoBackupEnabled: val }),
       setAutoBackupInterval: (val) => set({ autoBackupInterval: val }),
+
+      syncWifiOnly: false,
+      syncChargingOnly: false,
+      setSyncWifiOnly: (val) => set({ syncWifiOnly: val }),
+      setSyncChargingOnly: (val) => set({ syncChargingOnly: val }),
     }),
     {
       name: 'manga-dl-prefs',
@@ -173,6 +178,8 @@ export const useAppStore = create<AppState>()(
         cropBordersWebtoon: state.cropBordersWebtoon,
         autoBackupEnabled: state.autoBackupEnabled,
         autoBackupInterval: state.autoBackupInterval,
+        syncWifiOnly: state.syncWifiOnly,
+        syncChargingOnly: state.syncChargingOnly,
       }),
     }
   )
