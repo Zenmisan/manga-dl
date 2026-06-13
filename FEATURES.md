@@ -1,448 +1,228 @@
-# manga-dl — Full Feature Roadmap
+# manga-dl — Project Status
 
-Derived from a complete audit of the Tachiyomi source repo vs current manga-dl implementation.
-Features are grouped by area, then tagged:
+A tri-platform manga reader and downloader.  
+**Web:** PWA (vite-plugin-pwa + workbox)  
+**Desktop:** Tauri v2 — AppImage / .deb / .exe / .dmg  
+**Mobile:** Capacitor Android APK  
+**Backend:** FastAPI + SQLite (local) / Supabase PostgreSQL (prod) on Render
 
-- ✅ Done (already in manga-dl)
-- 🔨 Partial (exists but incomplete)
-- ❌ Missing (Tachiyomi has it, manga-dl doesn't)
-- ⭐ Original (manga-dl exclusive — not in Tachiyomi)
-- 💡 Idea (not in either — new additions to consider)
-
----
-
-## 📚 Library
-
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Basic library view (grid/list) | ✅ | Grid + list toggle |
-| Library cards with cover | ✅ | |
-| Subscribe to manga | ✅ | |
-| Unread chapter badge on card | ✅ | Blue "N new" badge in grid; "· N unread" in list |
-| Download status badge | ✅ | files.length/total_chapters shown on card |
-| Cover image on library cards | ✅ | Proxied cover art in grid + list view |
-| Continue reading button on card | ✅ | Pulls from history, navigates to last chapter |
-| Sort by: title A-Z, Z-A, most downloaded | ✅ | Sort panel in library toolbar |
-| Filter by: subscribed, downloading, failed | ✅ | Filter panel in library toolbar |
-| Categories / collections | ✅ | Category tabs above library; 5 default + custom |
-| Default category assignment | ✅ | Set from MangaDetail page |
-| Sort by: last read, last update, unread count, date added | ✅ | Title, downloaded, last read, unread count sorts added |
-| Filter by: downloaded, unread, started, completed, tracker | ❌ | subscribed/downloading/failed filters exist |
-| Batch actions: multi-select delete / move / download | ❌ | |
-| Cover image cache | 🔨 | Proxied but not cached locally |
-| Refresh library from source | ✅ | Refresh button exists |
-| Local CBZ/ZIP import | 🔨 | IndexedDB only, no folder scan on web |
-| Auto-update library (scheduled background check) | ❌ | |
-| Update restrictions: WiFi only, charging only | ❌ | |
-| Portrait/landscape column count config | ❌ | |
-| Backend-unreachable banner | ✅ | Amber WifiOff banner on fetch fail |
+Last updated: 2026-06-13
 
 ---
 
-## 📖 Reader
+## What Works ✅
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Left-to-right pager mode | ✅ | |
-| Right-to-left pager mode | ✅ | |
-| Webtoon (continuous vertical scroll) | ✅ | |
-| Vertical pager (non-continuous) | ✅ | Slides pages top→bottom with y: 40/-40 animation; 4th reading mode |
-| Page number display | ✅ | |
-| Fullscreen mode | ✅ | |
-| Ambilight / ambient glow effect | ⭐ | manga-dl exclusive |
-| AI upscale / enhance (beta) | ⭐ | manga-dl exclusive |
-| Export chapter as PDF | ⭐ | manga-dl exclusive |
-| Export chapter as EPUB | ⭐ | manga-dl exclusive |
-| Upload local CBZ to cloud | ⭐ | manga-dl exclusive |
-| Image scale types: fit screen, fit width, fit height, original | ✅ | Cycle button in header (pager mode only) |
-| Zoom start position: auto / left / right / center | ❌ | |
-| Double-tap zoom speed config | ❌ | |
-| True color mode | ❌ | |
-| Brightness slider | ✅ | In filter panel |
-| Contrast slider | ✅ | In filter panel |
-| Color filter: grayscale, invert, sepia | ✅ | Toggle buttons in filter panel |
-| Filter panel persist across sessions | ✅ | Stored in zustand persist |
-| Crop borders (pager) | ✅ | object-cover + fixed height removes whitespace |
-| Crop borders (webtoon) | ❌ | |
-| Webtoon side padding config | ❌ | |
-| Landscape zoom mode | ❌ | |
-| Dual-page spread support | ✅ | Auto (landscape) / Always On / Off; paired pages with X-Y/N counter |
-| Split dual-page spreads | ❌ | |
-| Rotate oversized pages to fit | ❌ | |
-| Tap zone layouts (default / L-nav / Kindlish / edge / disabled) | ✅ | Default / L-Nav / Edge / Disabled; configurable in Settings → Appearance |
-| Volume key navigation | ✅ | Arrow + volume keys cycle pages in pager mode |
-| Volume key → brightness/contrast mode | ✅ | Optional toggle in filter panel |
-| Long-tap enable/disable | ❌ | |
-| Tap inversion (horizontal / vertical / both) | ❌ | |
-| Skip already-read chapters | ✅ | Toggle in Reader filter panel; "Next Unread →" on end-of-chapter overlay |
-| Skip filtered chapters | ❌ | |
-| Auto-download while reading (X chapters ahead) | ❌ | |
-| Remove chapter after read (auto-delete) | ❌ | |
-| Chapter transition screen | ✅ | End-of-chapter overlay with "Next Chapter →" |
-| Cloud reading progress sync | ✅ | Supabase-backed |
-| Resume last page on open | ✅ | |
-| Incognito mode (skip history save) | ✅ | Toggle in Settings + respected in Reader |
-| Shareable chapter link | ✅ | Web Share API + clipboard fallback |
-| Discord Rich Presence (desktop) | ✅ | Tauri invoke to discord-rich-presence crate |
-| Swipe actions on chapter items | ✅ | Swipe-left on chapter row reveals bookmark/mark-read/download tray |
+### Core Reading & Library
+- Search manga across 500+ sources (Tachiyomi-compatible extension engine)
+- View manga detail + chapter list with cover images (proxied)
+- Download chapters as CBZ → local library or Supabase cloud storage
+- Download queue with real-time WebSocket progress, pause/resume/cancel/retry
+- Library shows downloaded chapters AND subscribed series
+- Subscribe / unsubscribe — auto-downloads new chapters via background sync
+- Manual sync trigger from Settings
+- CBZ reader — webtoon scroll, manga LTR, manga RTL, vertical pager
+- Ambilight ambient colour effect in reader
+- Export chapter as PDF or EPUB3
+- Reading progress saved per chapter (local + cloud sync)
+- MAL + AniList auto-track on chapter completion
+- Browser push notifications for new chapter queues
+- Reading stats page (chapters, pages, streaks, provider breakdown, reading time, pace, per-category)
 
----
+### Library Management
+- Grid/list toggle with cover images
+- Sort: A-Z, Z-A, most downloaded, last read, most unread
+- Filter: subscribed, downloading, failed, has unread, downloaded-only, started, completed (8 options)
+- Batch select mode — checkbox overlay, floating action bar (download all / delete / move to category)
+- Dynamic grid columns (2–6) configurable in Settings
+- Categories with custom creation + per-manga assignment
+- Unread badge, download badge on cards
+- Continue reading button on library cards
 
-## 🔌 Extensions / Sources
+### Reader
+- 4 modes: LTR pager, RTL pager, webtoon scroll, vertical pager
+- Brightness, contrast, grayscale, invert, sepia filters
+- Crop borders (pager + webtoon independently)
+- Webtoon side padding slider (0–80px)
+- Dual-page spread: Auto / Always On / Off
+- Tap zone layouts: Default / L-Nav / Edge / Disabled
+- Volume key navigation (keyboard + Android hardware keys)
+- Skip read chapters toggle
+- Image prefetch (next 3 pages)
+- Chapter transition screen with "Next Chapter →"
+- Incognito mode (no history saved)
+- Shareable chapter link (Web Share API + clipboard)
+- Discord Rich Presence (desktop only)
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Install extensions from repo | ✅ | |
-| Uninstall extensions | ✅ | |
-| Per-user extension storage | ✅ | Keyed by Supabase user ID |
-| Extension search in marketplace | 🔨 | Basic, no filtering |
-| Extension language filter | ❌ | |
-| Extension enable/disable toggle | ❌ | |
-| Extension update checking | ❌ | |
-| Source preferences (per-extension settings UI) | ❌ | |
-| Multiple extension repos | ❌ | Only Keiyoushi |
-| Browse source: Popular listing | ✅ | MangaDex popular tab (sorted by followedCount) |
-| Browse source: Latest updates | ✅ | MangaDex latest tab (sorted by latestUploadedChapter) |
-| Dynamic source filters (checkboxes, selects, text per-source) | ✅ | Filter panel on Popular tab; MangaDex supports content rating, sort, status, demographic |
-| Global multi-source parallel search | ✅ | Results grouped by provider when searching all sources |
-| Pin favourite sources | ❌ | |
-| Source deep link (open manga from URL) | ❌ | |
-| Non-library source browsing | ❌ | Browsing without adding to library |
-| WebView fallback for Cloudflare sources | ❌ | |
+### Online Reading
+- Stream chapter pages without downloading
+- Image proxy via curl_cffi with Chrome impersonation + correct Referer
+- Cloud reading progress sync (saves page, resumes on next open) — requires login
 
----
+### History
+- Full history page with manga title, chapter, page
+- Clear all or per-manga
+- Filter by date: Today / This Week / This Month / All
+- Search by manga title
+- Resume reading from history entry
 
-## ⬇️ Downloads
+### Statistics
+- Total manga, chapters, pages, storage
+- 30-day download activity chart
+- Provider breakdown chart + download streak
+- GitHub-style 52-week heatmap
+- Reading goals (monthly chapters / yearly manga)
+- Reading time estimate (pages × 45s)
+- Reading pace (chapters/week from last 7 days)
+- Per-category manga count bar chart
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Download queue | ✅ | |
-| Pause/resume queue | ✅ | |
-| Cancel individual download | ✅ | |
-| Clear history | ✅ | |
-| Real-time progress via WebSocket | ✅ | |
-| Cloud storage (Supabase) | ⭐ | manga-dl exclusive |
-| CBZ format | ✅ | |
-| ComicInfo.xml embedded in CBZ | ✅ | Series/Title/Number/PageCount/Manga fields |
-| Retry failed downloads | ✅ | Retry button on failed history items |
-| Folder format (source/manga/chapter/page) | ❌ | |
-| Download only on WiFi | ❌ | |
-| Custom download location (desktop) | ✅ | Folder picker via Tauri dialog; persisted in localStorage; shown in Settings → Desktop |
-| Auto-download new chapters for subscribed manga | ❌ | |
-| Auto-download exclusions per category | ❌ | |
-| Download badge on manga cards | ✅ | X/Y chapters downloaded shown on card overlay + badge row in grid view |
-| Split tall images | ❌ | For extremely tall webtoon pages |
-| Download notification with progress (mobile) | ❌ | |
+### Tracking
+- AniList OAuth + reading sync
+- MAL OAuth (PKCE) + reading sync
+- Kitsu OAuth (password grant)
+- MangaUpdates, Shikimori, Bangumi — link + display
+- Tracker sync modal: set status / score / chapters read / start date / finish date (AniList + MAL)
+- Per-manga notification mute toggle (when subscribed)
 
----
+### Backup & Restore
+- JSON backup v2 (library + history + all localStorage + categories + read tracking)
+- Selective restore (per key, with confirmation)
+- Tachiyomi JSON + .tachibk binary import
+- Cloud backup to Supabase storage bucket
+- Auto-backup: scheduled daily/weekly browser download
 
-## 📡 Tracking
+### Manga Management
+- Manual metadata edit: title, cover URL, description (persisted, overrides source data)
+- Source migration UI: pick library manga → find on new source → confirm (POST /manga/migrate)
+- Chapter bookmarks, scanlator filter, bulk mark read
+- Manga notes + 5-star personal rating
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| AniList OAuth | ✅ | |
-| MyAnimeList OAuth | ✅ | |
-| MAL auto-sync on chapter completion | ✅ | Fires when last page reached |
-| Kitsu OAuth (password grant) | ✅ | Email+password → token; username shown |
-| MangaUpdates | ✅ | Search + link + sync in MangaDetail; token in Settings |
-| Shikimori (Russian) | ✅ | Search + link + sync in MangaDetail; token in Settings |
-| Bangumi (Chinese) | ✅ | Search + link + sync in MangaDetail; token in Settings |
-| Komga (self-hosted) | ✅ | REST API provider; configure URL + credentials in Settings |
-| Suwayomi server | ✅ | GraphQL provider; configure URL in Settings |
-| Sync: last chapter read | 🔨 | Partial — chapter_id stored, not chapter number |
-| Sync: reading status | ❌ | |
-| Sync: score | ❌ | |
-| Sync: start / finish dates | ❌ | |
-| Auto-update tracker on chapter completion | ✅ | MAL only |
-| Search manga on tracker (link manga) | ✅ | AniList + MAL search modal on MangaDetail; saves link + fetches current entry |
-| Pull from tracker (update manga from tracker) | ✅ | Score/status/progress fetched on link and displayed on MangaDetail |
-| Tracker filter in library | ❌ | |
+### Local Files
+- Upload CBZ/ZIP/EPUB from disk → IndexedDB → read locally
+- EPUB support: JSZip + OPF spine parsing, images extracted and displayed as pages
+- Drag-and-drop CBZ/EPUB import (desktop only, Tauri)
 
----
+### Extensions
+- Install / uninstall from Keiyoushi index (500+ sources)
+- Language filter + search in marketplace
+- Enable/disable toggle per installed extension
+- Update checking (compares installed version vs remote)
+- Installed / available split view
 
-## 🕐 History
+### Desktop (Tauri v2)
+- Background chapter sync (Rust tokio task, configurable 15/30/60/120 min)
+- OS notification when new chapters found (tauri-plugin-notification)
+- Auto-launch on startup (tauri-plugin-autostart)
+- In-app update checker (GitHub releases API)
+- Custom download location (folder picker)
+- Drag-and-drop CBZ/EPUB import
+- Discord Rich Presence
+- System tray (hide to tray on close)
+- Reveal file in system file manager
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Reading history page | ✅ | Full page with list view |
-| Last read chapter per manga | ✅ | Stored + shown in history |
-| Last page read per chapter | ✅ | Cloud synced |
-| Manga title + chapter title in history | ✅ | Saved via 5-part URL encoding |
-| Clear history (global) | ✅ | "Clear All" button on history page |
-| Clear history (per manga) | ✅ | Trash icon per row; DELETE /users/history/{provider}/{manga_id} |
-| Filter history by date | ❌ | |
-| Resume reading from history | ✅ | Resume button navigates back to exact chapter |
-| Incognito mode bypasses history | ✅ | |
-| History across devices (cloud sync) | ⭐ | Supabase-backed |
+### Android (Capacitor)
+- Hardware back button handlers (Reader, MangaDetail, Dashboard exit)
+- Volume key page navigation (Kotlin plugin)
+- Keep screen on while reading (KeepAwake)
+- Status bar colour sync with ambilight
+- Haptic feedback on page turn (configurable)
+- Save chapter to device storage (Capacitor Filesystem → Documents/manga-dl/)
+- Download completion notification (@capacitor/local-notifications)
+
+### Account & Security
+- Register / login with Supabase Auth
+- 3-device limit enforced in backend
+- API key auth for backend
+- Incognito mode (no history)
 
 ---
 
-## 📊 Statistics
+## Not Yet Implemented 🔲
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Total manga count | ✅ | |
-| Total chapters read | ✅ | |
-| Total pages count | ✅ | |
-| Storage used | ✅ | |
-| Download activity chart (30 days) | ✅ | |
-| Provider breakdown chart | ✅ | |
-| Download streak | ✅ | |
-| All-time reading heatmap (GitHub-style) | ✅ | 52-week grid, green intensity by count |
-| Reading goals (monthly chapters / yearly manga) | ✅ | Set targets with progress bars; persisted locally |
-| Reading time estimate | ❌ | Based on pages × avg time |
-| Per-category stats | ❌ | |
-| Tracker score distribution | ❌ | |
-| Most read genre | ❌ | |
-| Reading pace (chapters/week) | ❌ | |
-
----
-
-## 💾 Backup & Restore
-
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Export backup as JSON | ✅ | Library + history + all settings |
-| Import backup from JSON | ✅ | Restores settings; prompts reload |
-| Backup: manga list | ✅ | Via library API |
-| Backup: reading history | ✅ | Via history API |
-| Backup: app settings | ✅ | API key, backend URL, tracker IDs, reader prefs |
-| Backup: categories | ✅ | categories + manga-categories localStorage keys exported |
-| Backup: read tracking + bookmarks | ✅ | Included in cloud backup |
-| Backup: tracking data | ❌ | Tokens not exported (security) |
-| Backup: downloaded chapters list | ❌ | |
-| Selective restore | ✅ | Restores individual localStorage keys + cloud history with confirmation report |
-| Manual backup (JSON v2.0) | ✅ | Includes all localStorage + cloud history; importable on another device |
-| Tachiyomi .tachibk import | ✅ | Pure-Python protobuf decoder; gzip+wire-format; restores manga + categories + read state |
-| Auto-backup (scheduled) | ❌ | |
-| Cloud backup (Supabase) | ✅ | Upload/download backup JSON via manga-backups storage bucket |
-| Tachiyomi backup import (JSON) | ✅ | Reads backupManga list + backupCategories |
+| Feature | Priority | Notes |
+|---------|----------|-------|
+| Biometric / PIN lock | Medium | @capacitor-community/biometric-auth (Android) |
+| WiFi-only / charging-only gates | Low | For auto-download + sync triggers |
+| WebView fallback for Cloudflare sources | Medium | Some sources need JS challenge solving |
+| RAR/CBR archive support | Low | Need native decompressor |
+| Folder import (bulk scan local directory) | Low | Desktop: Tauri readDir + filter |
+| Tablet multi-column reading view | Low | |
+| Custom date format | Low | |
+| DNS-over-HTTPS | Low | |
+| Custom user agent | Low | |
+| Material You dynamic colours | Low | Android 12+ only |
+| Auto-delete chapter after read | Low | |
+| Split dual-page spreads | Low | |
+| Background sync (Android WorkManager) | Low | Currently depends on app being open |
+| Tracker filter in library | Low | |
+| Badge count on app icon | Low | Requires FCM setup |
 
 ---
 
-## 🔐 Security & Privacy
+## Known Broken / Needs Setup ⚠️
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Supabase account auth | ✅ | |
-| 3-device registration | ✅ | |
-| API key auth for backend | ✅ | |
-| Default API key pre-populated | ✅ | Set on first load if not present |
-| Incognito mode (no history) | ✅ | Toggle in Settings, persisted |
-| Biometric / PIN lock | ❌ | |
-| App lock with timeout | ❌ | |
-| Secure screen (block screenshots) | ❌ | Android only |
-| Hide notification content | ❌ | |
-| Lock on screen off | ❌ | |
+### Discord Rich Presence — placeholder App ID
+- `frontend/src-tauri/src/lib.rs` → `DISCORD_APP_ID = "1234567890123456789"`
+- Replace with real Discord Developer App ID
 
----
+### Cloud Backup — Supabase bucket must be created manually
+- Supabase dashboard → Storage → New bucket → `manga-backups` → private
 
-## 🌐 Network & Performance
+### Supabase Production DB — run these SQL migrations
+```sql
+ALTER TABLE downloads ADD COLUMN IF NOT EXISTS file_size_bytes INTEGER DEFAULT 0;
+ALTER TABLE downloads ADD COLUMN IF NOT EXISTS pinned BOOLEAN DEFAULT FALSE;
+ALTER TABLE downloads ADD COLUMN IF NOT EXISTS last_page_read INTEGER DEFAULT 0;
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Image proxy (bypass hotlink protection) | ✅ | curl_cffi Chrome impersonation |
-| Custom backend URL | ✅ | |
-| DNS over HTTPS | ❌ | |
-| Custom user agent | ❌ | |
-| Download only on WiFi | ❌ | |
-| Verbose network logging | ❌ | |
-| Offline PWA (service worker cache) | ✅ | vite-plugin-pwa with workbox NetworkFirst/CacheFirst strategies |
-| Preload next chapter while reading | ✅ | Smart Binge: prefetches first 5 pages of next chapter near scroll end |
-| Image prefetch in reader | ✅ | Next 3 pages pre-loaded into browser memory on each page turn |
+CREATE TABLE IF NOT EXISTS reading_progress (
+  user_id    VARCHAR NOT NULL,
+  provider   VARCHAR NOT NULL,
+  manga_id   VARCHAR NOT NULL,
+  chapter_id VARCHAR NOT NULL,
+  last_page  INTEGER DEFAULT 1,
+  updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+  PRIMARY KEY (user_id, provider, manga_id, chapter_id)
+);
+```
 
----
-
-## 🎨 UI & Appearance
-
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Dark theme | ✅ | Dark + Light + System + AMOLED — all 4 modes implemented |
-| Glassmorphism design system | ✅ | manga-dl style |
-| Hover tooltips on buttons (web) | ✅ | |
-| Icon legend / help page | ✅ | |
-| Mobile bottom navigation | ✅ | |
-| Desktop sidebar with extra links | ✅ | History, Stats, Get App in sidebar |
-| Responsive layout (web/tablet/mobile) | ✅ | |
-| Animated transitions | ✅ | Framer Motion |
-| Relative time display ("2d ago") | ✅ | In History and Updates pages |
-| System theme follow (light/dark) | ✅ | Follows prefers-color-scheme; toggle in Settings → Appearance |
-| Light theme | ✅ | Full light palette via html.light; white/gray backgrounds, dark text |
-| Material You / dynamic colors | ❌ | Android only |
-| AMOLED pitch black mode | ✅ | html.amoled class; all backgrounds #000000 |
-| Custom date format | ❌ | |
-| Tablet multi-column layout | ❌ | |
-| Onboarding / first-run screen | ✅ | 3-step flow: welcome → backend config → done |
-| App update notification | ✅ | Update banner in Settings → Desktop when newer GitHub release detected (desktop only) |
+### Extensions — Keiyoushi index is Android APK metadata
+- No JS source files exist in the index
+- Built-in providers (MangaDex, MangaKatana, etc.) work; installed extensions are JS shims
 
 ---
 
-## 🔔 Notifications & Updates
+## Architecture
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Browser push notifications | ✅ | When chapter queued |
-| Updates feed page | ✅ | Groups new chapters by manga, Read Online + Download buttons |
-| New chapter available notification | ✅ | OS notification via Rust when background sync finds new chapters (desktop) |
-| Scheduled background chapter check | ✅ | Background sync task in Rust; configurable interval 15/30/60/120 min (desktop) |
-| Per-manga notification toggle | ❌ | |
-| Update interval configuration | ✅ | Sync interval select in Settings → Desktop (desktop only) |
-| Update only on WiFi | ❌ | |
-| Badge count on app icon (mobile) | ❌ | |
+```
+Frontend (React 19 + TypeScript + Vite + Tailwind + Zustand)
+  ├── Web        → PWA (vite-plugin-pwa + workbox)
+  ├── Desktop    → Tauri v2 shell (auto-starts Python backend)
+  └── Android    → Capacitor shell (calls Render backend by default)
 
----
+Backend (FastAPI + SQLAlchemy + aiosqlite)
+  ├── Local dev  → SQLite (manga_dl.db)
+  ├── Production → Supabase PostgreSQL (via DATABASE_URL env var)
+  └── Storage    → Supabase Storage bucket "manga-library"
 
-## 📂 Local Source & File Handling
+Auth
+  ├── API key    → X-API-Key header (all endpoints except /api/users/*)
+  └── Supabase   → JWT Bearer token (/api/users/* — reading progress, devices)
+```
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Read local CBZ/ZIP | ✅ | Via IndexedDB |
-| Read local EPUB | ❌ | |
-| Read local folder (directory of images) | ❌ | |
-| RAR/CBR support | ❌ | |
-| 7Z support | ❌ | |
-| Custom cover for local manga | ❌ | |
-| Metadata file parsing (ComicInfo.xml) | ✅ | Embedded when packaging CBZ (Series/Title/Number/PageCount/Manga) |
-| Import from Google Drive | 💡 | Cloud file picker |
-| Import from Dropbox | 💡 | |
+## Environment Variables
 
----
+### Backend (Render)
+| Var | Value |
+|-----|-------|
+| `API_KEY` | `mgdl-creator` — change in prod |
+| `SUPABASE_URL` | `https://gyivwfweldwvzccbpgoz.supabase.co` |
+| `SUPABASE_SERVICE_KEY` | Service role key |
+| `SUPABASE_JWT_SECRET` | JWT secret |
+| `CORS_ORIGINS` | Comma-separated allowed origins |
 
-## 🔀 Advanced Manga Management
-
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Chapter sort: number, date, alphabetical | ✅ | Sort dropdown in MangaDetail |
-| Chapter search by title | ✅ | Search input in MangaDetail |
-| Chapter sort ascending/descending | 🔨 | Preset modes only, no explicit asc/desc flip |
-| Chapter filter: read/unread/all | ✅ | Filter buttons above chapter list |
-| Bookmark individual chapters | ✅ | Amber bookmark icon per chapter, persisted in localStorage |
-| Scanlator filter (hide specific groups) | ✅ | Dropdown filtered from [GroupName] in chapter titles |
-| Mark chapters read/unread in bulk | ✅ | "Mark All Read" button in MangaDetail |
-| Source migration (move manga between sources) | ❌ | |
-| Duplicate manga detection | ❌ | |
-| Manual manga metadata edit | ❌ | Edit title, cover, description |
-| Custom cover upload | ❌ | |
-| Manga notes / personal rating | ✅ | 5-star rating + free-text note per manga, localStorage-persisted |
-
----
-
-## 💡 manga-dl Exclusive Ideas (Not in Tachiyomi)
-
-| Feature | Notes |
-|---------|-------|
-| ⭐ Cloud library (Supabase storage) | CBZ files in the cloud |
-| ⭐ Multi-device sync via account | Reading progress synced |
-| ⭐ Web platform | No install required |
-| ⭐ PDF export | Per-chapter |
-| ⭐ EPUB export | Per-chapter |
-| ⭐ Ambilight reader effect | Ambient colour behind pages |
-| ⭐ AI upscale (beta) | Sharp low-res pages |
-| ⭐ Online streaming | Read without downloading |
-| ⭐ GitHub-style reading heatmap | ✅ 52-week activity grid in Stats |
-| ✅ Shareable chapter link | Web Share API + clipboard fallback |
-| ✅ Reading goals | Monthly chapters + yearly manga targets with progress bars |
-| ✅ ComicInfo.xml support | Embedded in every CBZ; Kavita/Komga/Paperback compatible |
-| ✅ Offline PWA | Service worker via vite-plugin-pwa |
-| ✅ Cloud backup to Supabase | Export/import through manga-backups bucket |
-| ✅ Discord Rich Presence (desktop) | Updates when reading via Tauri IPC |
-| ✅ Import from Tachiyomi backup | JSON backup: reads manga list + categories |
-| ✅ Public profile page | `/profile/:userId` — shareable, chapters/manga/streak + recent activity |
-| ✅ Manga notes & personal star rating | 5-star + free-text note per manga |
-| 💡 Reading sessions / Pomodoro mode | Timed reading with session tracking |
-| 💡 "Similar to X" recommendations | AI-powered discovery |
-
----
-
-## Priority Execution Order
-
-### Phase 1 — Core gaps ✅ complete
-1. ✅ Reading history page + resume from history
-2. ✅ Updates feed ("new chapters in your library")
-3. ✅ Retry failed downloads
-4. ✅ Chapter sort + search within manga detail
-5. ✅ Continue reading button on library card
-6. ✅ Onboarding screen (first-run flow)
-7. ✅ Unread badge on library cards
-
-### Phase 2 — Power user features ✅ complete
-8. ✅ Reader: brightness + contrast + color filters
-9. ✅ Reader: volume key navigation + optional brightness mode
-10. ✅ Reader: chapter transition screen
-11. ✅ Reader: fit-width / fit-height / original scale types
-12. ✅ Incognito mode
-13. ✅ Backup / restore (JSON export + import)
-14. ✅ GitHub-style reading heatmap in stats
-15. ✅ Library sort (title A-Z/Z-A, most downloaded) + filter (subscribed/downloading/failed)
-16. ✅ Source browse: Popular + Latest tabs (MangaDex; other providers return [] gracefully)
-17. ✅ Cover images on library cards
-
-### Phase 3 — Polish & differentiation ✅ complete
-17. ✅ Library categories / collections
-18. ✅ Chapter bookmarks + scanlator filter
-19. ✅ Global multi-source search (results grouped by provider)
-20. ✅ Kitsu tracker (password grant)
-21. ✅ Offline PWA (vite-plugin-pwa + workbox)
-22. ✅ ComicInfo.xml embedded in CBZ output
-23. ✅ Reading goals in Stats
-24. ✅ Cloud backup to Supabase storage
-25. ✅ Tachiyomi backup importer (JSON format)
-26. ✅ Discord Rich Presence (Tauri desktop)
-27. ✅ Shareable chapter links
-
-### Phase 4 — Original features ✅ complete
-28. ✅ Public profile page — `/profile/:userId`, shareable, shows chapters/manga/streak + recent activity
-29. ✅ Dynamic source filters — filter panel on Popular tab, MangaDex: content rating, sort, status, demographic
-30. ✅ Manga notes & personal star rating — 5-star + free-text note, persisted in localStorage per manga
-
-### Phase 8 — Android Native ✅ complete
-T1. ✅ Install @capacitor/haptics, keep-awake, status-bar, filesystem
-T2. ✅ hapticFeedback in Zustand store
-T3. ✅ Keep screen on in Reader (KeepAwake plugin)
-T4. ✅ Status bar colour sync in Reader (ambilight hex)
-T5. ✅ Haptic feedback on page turn (ImpactStyle.Light)
-T6. ✅ Hardware back button handlers (Reader, MangaDetail, Dashboard)
-T7. ✅ nativeDownload.ts helper (Filesystem API + base64)
-T8. ✅ VolumeKeys Kotlin plugin (dispatchKeyEvent intercept)
-T9. ✅ Wire volume key listener in Reader (gated on isNativePlatform)
-T10. ✅ Download to device storage UI (Downloads page, native-only)
-T11. ✅ Haptic toggle in Settings (native-only)
-T12. ✅ tsc --noEmit + cap sync
-
-### Phase 9 — Desktop Native ✅ complete
-T1. ✅ tauri-plugin-notification + tauri-plugin-autostart in Cargo.toml
-T2. ✅ SyncState struct + reqwest in lib.rs
-T3. ✅ pick_folder Tauri command + Settings download location UI
-T4. ✅ Drag-and-drop CBZ import in Dashboard (tauri://drag-drop)
-T5. ✅ set_auto_launch command + Settings toggle
-T6. ✅ Update checker in Settings (GitHub releases API)
-T7. ✅ start_background_sync / stop_background_sync Rust commands
-T8. ✅ OS notification from Rust when sync finds new chapters
-T9. ✅ Sync interval setting in Settings
-T10. ✅ Notification click → navigate in App.tsx
-T11. ✅ tsc --noEmit + cargo check
-
-### Phase 7 — Tracker Depth ✅ complete
-45. ✅ Search & link manga to AniList/MAL — "Link" button per tracker on MangaDetail, search modal, saves to `manga-dl-tracker-links` localStorage
-46. ✅ Display tracker score/status/progress on MangaDetail — shown inline next to tracker name after linking
-47. ✅ Unlink tracker — removes association per tracker independently
-48. ✅ AniList auto-sync on chapter completion — fires SaveMediaListEntry mutation if manga linked + anilist-token present
-49. ✅ MAL auto-sync enhanced — uses linked MAL ID first, falls back to title search
-
-### Phase 6 — Reader Power ✅ complete
-39. ✅ Crop Borders — toggle in Settings → Appearance; `object-cover` + fixed height in pager/vertical modes
-40. ✅ Dual-page spread — Auto (landscape), Always On, or Off; pages shown as pairs with "2-3 / 20" counter
-41. ✅ Tap zone layouts — Default / L-Nav / Edge / Disabled; configurable in Settings → Appearance
-42. ✅ Light theme — full light palette via `html.light` CSS class; white/gray backgrounds, dark text
-43. ✅ System theme — follows `prefers-color-scheme` media query auto
-44. ✅ AMOLED pitch black — `html.amoled` class replaces all dark backgrounds with `#000000`
-
-### Phase 5 — Web QoL ✅ complete
-31. ✅ Vertical pager reading mode — slides pages top→bottom with `y: 40/-40` animation
-32. ✅ Skip read chapters — toggle in Reader filter panel; "Next Unread →" skips already-read chapters
-33. ✅ Image prefetch — next 3 pages pre-loaded into browser memory while reading
-34. ✅ Dashboard sort: last read + unread count — sorts library by reading recency or most unread
-35. ✅ Dashboard filter: has unread — filters to manga with chapters not yet read
-36. ✅ Download badge on grid cards — X/Y chapters downloaded shown on card overlay + badge row
-37. ✅ Chapter row swipe actions — swipe left on chapter row to reveal bookmark/mark-read/download tray
-38. ✅ Clear history per manga — trash icon per history row; backend DELETE /users/history/{provider}/{manga_id}
+### Frontend (build-time env vars)
+| Var | Value |
+|-----|-------|
+| `VITE_SUPABASE_URL` | Supabase project URL |
+| `VITE_SUPABASE_ANON_KEY` | Anon/public key |
+</content>
+</invoke>

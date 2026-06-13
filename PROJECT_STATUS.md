@@ -1,161 +1,100 @@
 # manga-dl — Project Status
 
+Last updated: 2026-06-13
+
 A tri-platform manga reader and downloader.  
-**Web:** Firebase Hosting (`manga-dl.web.app`)  
-**Desktop:** Tauri v2 — AppImage / .deb / .exe / .dmg  
-**Mobile:** Capacitor Android APK  
-**Backend:** FastAPI + SQLite (local) / Supabase PostgreSQL (prod) on Render
+**Web:** PWA · **Desktop:** Tauri v2 · **Mobile:** Capacitor Android · **Backend:** FastAPI
 
 ---
 
-## What Works ✅
+## Implementation Phases
 
-### Core Reading & Library
-- Search manga across providers (MangaKatana, etc.)
-- View manga detail + chapter list with cover images (proxied)
-- Download chapters as CBZ → local library or Supabase cloud storage
-- Download queue with real-time WebSocket progress
-- Pause / resume / cancel individual or all downloads
-- Library shows both downloaded chapters AND subscribed series
-- Subscribe / unsubscribe (auto-downloads new chapters via background sync)
-- Manual sync trigger from Settings
-- CBZ reader — webtoon scroll, manga LTR, manga RTL modes
-- Ambilight ambient colour effect in reader
-- Export chapter as PDF or EPUB3
-- Reading progress saved per chapter (local/downloaded)
-- MAL auto-track on chapter complete (fires on last page, silent)
-- AniList OAuth + reading sync
-- MAL OAuth (PKCE) + reading sync
-- Browser push notifications for new chapter queues
-- Reading stats page (chapters, pages, streaks, provider breakdown)
+### Phase 1–6 ✅ Core + Power + Polish + Tracker depth + Reader power + Web QoL
+All foundational features shipped: library, reader, downloads, history, stats, tracking (AniList/MAL/Kitsu/MangaUpdates/Shikimori/Bangumi), backup, categories, bookmarks, Discord RPC, PWA, ComicInfo.xml, all 4 reading modes, dual-page spread, tap zones, themes (dark/light/system/AMOLED).
 
-### Online Reading
-- Stream chapter pages without downloading ("Read Online" button)
-- Image proxy via curl_cffi with Chrome impersonation + correct Referer
-- Cloud reading progress sync (saves page, resumes on next open) — requires login
+### Phase 7 ✅ Desktop Native (Tauri v2)
+Background sync, OS notifications, auto-launch, update checker, custom download location, drag-drop CBZ import, folder picker.
 
-### Local Upload (Web / Desktop)
-- Upload CBZ/ZIP from disk
-- Persisted in IndexedDB — survives page refresh
-- Read locally without re-uploading
-- Upload to Supabase cloud from reader
+### Phase 8 ✅ Android Native (Capacitor)
+Volume keys (Kotlin plugin), back button handlers, KeepAwake, StatusBar ambilight, haptics, save to device storage, download completion notifications.
 
-### Extensions
-- Browse 500+ sources from Keiyoushi index
-- Tachiyomi prefix stripped from names
-- Extensions sandboxed in Web Workers
-- Per-user extension storage (keyed by Supabase user ID)
-
-### Account System
-- Register / login with email+password (Supabase Auth)
-- Terms & Conditions page with device limit policy
-- 3-device limit enforced in backend (30-day forfeit lock)
-- Account section in Settings (sign in / sign out / show email)
-- Login `/login`, Register `/register`, Terms `/terms`
-
-### Desktop (Tauri)
-- Auto-starts FastAPI backend on launch
-- System tray — hide to tray on close, show/quit menu
-- Reveal downloaded file in system file manager
-- Builds: Linux AppImage/.deb, Windows .exe, macOS .dmg
-
-### Mobile (Capacitor Android)
-- APK builds and installs
-- Points to Render backend by default (overrideable in Settings)
-- Network security config allows HTTP to LAN IPs for self-hosting
-
-### UX
-- Icon legend / help page at `/help` (sidebar Help button)
-- Hover tooltips on all major buttons
-- Dark glassmorphism design
+### Phase 9 ✅ Remaining Features (latest session)
+- **Library**: batch select (checkbox overlay + action bar: download/delete/move-to-category), dynamic grid columns (2–6)
+- **Settings**: grid column slider, webtoon padding slider, crop borders webtoon toggle, auto-backup (daily/weekly schedule)
+- **Extensions**: uninstall, enable/disable toggle, update checking, installed/available split view
+- **MangaDetail**: per-manga notification mute, metadata edit modal (title/cover/description), tracker sync modal (status/score/chapters/start+end dates)
+- **History**: date filter (Today/Week/Month/All) + search
+- **Stats**: reading time estimate, reading pace (ch/week), per-category breakdown
+- **Reader**: webtoon side padding, webtoon crop borders
+- **Downloads**: Android completion notification (@capacitor/local-notifications)
+- **App**: web/Android auto-sync every 30min (Tauri uses Rust task)
+- **Backend**: POST /manga/migrate endpoint
+- **Settings**: Source Migration UI (2-step wizard)
+- **Library**: EPUB support (.epub → JSZip + OPF spine → images displayed as pages)
 
 ---
 
-## Known Broken ❌
+## What Remains 🔲
 
-### Android APK — Blank Screen
-**Cause:** Render free tier sleeps after 15 min inactivity. Cold start takes 30–60s with no feedback shown.  
-**Also:** No onboarding — user must know to set API key (`mgdl-creator`) in Settings.  
-**Fix needed:** Show a loading/setup screen on first launch; pre-fill the API key.
-
-### Tauri Desktop — Blank Screen  
-**Cause:** Backend auto-start needs `python`/`python3` + `uvicorn` in `$PATH`. Most users don't have this.  
-**Fix needed:** Bundle a compiled backend binary, or show a "Backend not found — install Python" setup screen.
-
-### Extensions — Always Fail
-**Cause:** Keiyoushi index provides Android APK metadata — no JS source files exist.  
-**Fix needed:** Write JS shims for built-in providers (MangaKatana, etc.) that delegate to the backend API.
-
-### Supabase Production DB — Missing Columns
-Run these SQL migrations in Supabase SQL Editor:
-```sql
--- downloads table
-ALTER TABLE downloads ADD COLUMN IF NOT EXISTS file_size_bytes INTEGER DEFAULT 0;
-ALTER TABLE downloads ADD COLUMN IF NOT EXISTS pinned BOOLEAN DEFAULT FALSE;
-ALTER TABLE downloads ADD COLUMN IF NOT EXISTS last_page_read INTEGER DEFAULT 0;
-
--- reading progress (cloud sync)
-CREATE TABLE IF NOT EXISTS reading_progress (
-  user_id    VARCHAR NOT NULL,
-  provider   VARCHAR NOT NULL,
-  manga_id   VARCHAR NOT NULL,
-  chapter_id VARCHAR NOT NULL,
-  last_page  INTEGER DEFAULT 1,
-  updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
-  PRIMARY KEY (user_id, provider, manga_id, chapter_id)
-);
-```
+| Feature | Priority |
+|---------|----------|
+| Biometric / PIN lock (Android) | Medium |
+| WiFi-only / charging-only gates for sync/download | Low |
+| WebView fallback for Cloudflare sources | Medium |
+| RAR/CBR archive support | Low |
+| Local folder scan (bulk import from directory) | Low |
+| Tablet multi-column reading layout | Low |
+| Custom date format | Low |
+| DNS-over-HTTPS, custom user agent | Low |
+| Material You dynamic colours | Low |
+| Auto-delete after read, split page spreads | Low |
+| Background sync Android WorkManager | Low |
+| Badge count on app icon (requires FCM) | Low |
+| Tracker filter in library | Low |
 
 ---
 
-## Not Yet Implemented 🔲
+## Known Setup Requirements ⚠️
 
-| Feature | Priority | Notes |
-|---------|----------|-------|
-| Reading history page | Medium | Track what was read and when. DB columns exist, no UI. |
-| Device forfeit dialog | High | Backend endpoint exists. Frontend shows no dialog at 3-device limit — just an error. |
-| Download retry button | Medium | Failed downloads stay failed forever. No retry. |
-| Offline mode / service worker | Low | App unusable if Render backend is down. |
-| Search filters | Low | No genre/status/year filter on search. |
-| Bulk chapter management | Low | No "delete series", "re-download all failed", "mark all read". |
-| iOS build | Low | Capacitor iOS config not tested. |
-| Test coverage | Low | Zero automated tests backend or frontend. |
-| Rate limiting | Medium | No per-IP/user limits on API endpoints. |
-| Onboarding flow | High | New users get a blank screen with no setup guidance. |
+### Must do before shipping
+1. **Discord App ID** — replace `"1234567890123456789"` in `frontend/src-tauri/src/lib.rs`
+2. **Supabase bucket** — create `manga-backups` bucket (private) in Supabase dashboard
+3. **Supabase SQL migrations** — run the `reading_progress` table creation (see FEATURES.md)
+
+### Known code issues
+- `manga-dl-bookmarks` key uses `provider:provider` (bug — should be `provider:mangaId`) in one `useState` initializer in MangaDetail.tsx
+- Read tracking, categories, notes, bookmarks are localStorage-only — not cross-device synced
+- MAL sync sends chapter ID string instead of chapter number integer
+- `|` in manga title breaks 5-part pipe-encoded `/read/online/` URLs
+- ComicInfo.xml doesn't escape `&`/`<`/`>` in titles
 
 ---
 
-## Architecture
+## Architecture Summary
 
 ```
-Frontend (React 19 + TypeScript + Vite + Tailwind)
-  ├── Web        → Firebase Hosting (manga-dl.web.app)
-  ├── Desktop    → Tauri v2 shell (auto-starts Python backend)
-  └── Android    → Capacitor shell (calls Render backend by default)
+frontend/
+  src/
+    pages/          React page components
+    lib/            Zustand store, API client, local utilities
+    components/     Shared UI components
+  src-tauri/        Rust Tauri shell (desktop)
+  android/          Capacitor Android project
 
-Backend (FastAPI + SQLAlchemy + aiosqlite)
-  ├── Local dev  → SQLite (manga_dl.db)
-  ├── Production → Supabase PostgreSQL (via DATABASE_URL env var)
-  └── Storage    → Supabase Storage bucket "manga-library"
-
-Auth
-  ├── API key    → X-API-Key header (all endpoints except /api/users/*)
-  └── Supabase   → JWT Bearer token (/api/users/* — reading progress, devices)
+backend/
+  app/
+    api/            FastAPI route handlers
+    models/         SQLAlchemy ORM models
+    providers/      Manga source adapters
+    core/           Tasks, downloader, tachibk parser
 ```
 
-## Environment Variables
-
-### Backend (set on Render dashboard)
-| Var | Value |
-|-----|-------|
-| `API_KEY` | `mgdl-creator` — change in prod |
-| `SUPABASE_URL` | `https://gyivwfweldwvzccbpgoz.supabase.co` |
-| `SUPABASE_SERVICE_KEY` | Service role key — Supabase → Settings → API |
-| `SUPABASE_JWT_SECRET` | JWT secret — Supabase → Settings → API |
-| `CORS_ORIGINS` | `https://manga-dl.web.app,https://manga-dl.firebaseapp.com,...` |
-
-### Frontend (GitHub Actions secrets → baked into bundle at build)
-| Var | Value |
-|-----|-------|
-| `VITE_SUPABASE_URL` | Same as backend `SUPABASE_URL` |
-| `VITE_SUPABASE_ANON_KEY` | Anon/public key — Supabase → Settings → API |
+## Tech Stack
+- **Frontend**: React 19, TypeScript, Vite, Tailwind CSS, Framer Motion, Zustand (persist)
+- **Backend**: FastAPI, SQLAlchemy async, SQLite/PostgreSQL, curl_cffi (Cloudflare bypass)
+- **Desktop**: Tauri v2, Rust tokio, tauri-plugin-notification/autostart/dialog/fs
+- **Android**: Capacitor 6, @capacitor/haptics, @capacitor/filesystem, @capacitor/local-notifications, custom Kotlin VolumeKeys plugin
+- **Auth**: Supabase Auth (JWT) + API key header
+- **Storage**: Supabase Storage (CBZ cloud) + IndexedDB (local CBZ/EPUB)
+</content>
+</invoke>

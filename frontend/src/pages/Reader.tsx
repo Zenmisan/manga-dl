@@ -44,7 +44,7 @@ function extractHex(rgba: string): string {
 export default function Reader() {
   const { mangaTitle, filename } = useParams()
   const navigate = useNavigate()
-  const { readingMode, setReadingMode, upscaling, setUpscaling, readerFilters, setReaderFilters, resetReaderFilters, imageScale, setImageScale, incognitoMode, skipReadChapters, setSkipReadChapters, cropBorders, dualPageSpread, tapZoneLayout, hapticFeedback } = useAppStore()
+  const { readingMode, setReadingMode, upscaling, setUpscaling, readerFilters, setReaderFilters, resetReaderFilters, imageScale, setImageScale, incognitoMode, skipReadChapters, setSkipReadChapters, cropBorders, dualPageSpread, tapZoneLayout, hapticFeedback, webtoonSidePadding, cropBordersWebtoon } = useAppStore()
 
   const [pages, setPages] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
@@ -841,9 +841,9 @@ export default function Reader() {
             </AnimatePresence>
           </div>
         ) : readingMode === 'webtoon' ? (
-          <div className="flex flex-col">
+          <div className="flex flex-col" style={webtoonSidePadding > 0 ? { paddingLeft: webtoonSidePadding, paddingRight: webtoonSidePadding } : undefined}>
             {pages.map((page, idx) => (
-              <motion.div 
+              <motion.div
                 key={page}
                 id={`page-${idx + 1}`}
                 initial={{ opacity: 0 }}
@@ -854,7 +854,7 @@ export default function Reader() {
                 <img
                   src={getImageUrl(page)}
                   alt={`Page ${idx + 1}`}
-                  className="w-full h-auto"
+                  className={cropBordersWebtoon ? "w-full object-cover" : "w-full h-auto"}
                   loading={idx < 3 ? "eager" : "lazy"}
                   crossOrigin="anonymous"
                   onLoad={idx === 0 ? handlePageLoad : undefined}

@@ -99,10 +99,25 @@ export default function DownloadsPage() {
       } else if (data.type === 'completed') {
         setActive(prev => prev.filter(i => i.id !== data.download.id))
         setHistory(prev => {
-          // Prevent duplicates in history if refresh happens fast
           if (prev.some(i => i.id === data.download.id)) return prev
           return [data.download, ...prev].slice(0, 100)
         })
+        if (isNative) {
+          import('@capacitor/local-notifications').then(({ LocalNotifications }) => {
+            LocalNotifications.requestPermissions().then(({ display }) => {
+              if (display === 'granted') {
+                LocalNotifications.schedule({
+                  notifications: [{
+                    id: Math.floor(Math.random() * 100000),
+                    title: 'Download Complete',
+                    body: `${data.download.manga_title} — ${data.download.chapter_title} downloaded`,
+                    schedule: { at: new Date(Date.now() + 100) },
+                  }]
+                }).catch(() => {})
+              }
+            }).catch(() => {})
+          }).catch(() => {})
+        }
       }
     }
 

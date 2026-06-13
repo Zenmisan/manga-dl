@@ -66,6 +66,28 @@ interface AppState {
   // Android native
   hapticFeedback: boolean
   setHapticFeedback: (val: boolean) => void
+
+  // Grid / layout
+  gridColumns: number
+  setGridColumns: (val: number) => void
+
+  // Webtoon
+  webtoonSidePadding: number
+  setWebtoonSidePadding: (val: number) => void
+  cropBordersWebtoon: boolean
+  setCropBordersWebtoon: (val: boolean) => void
+
+  // Auto-backup
+  autoBackupEnabled: boolean
+  autoBackupInterval: 'daily' | 'weekly'
+  setAutoBackupEnabled: (val: boolean) => void
+  setAutoBackupInterval: (val: 'daily' | 'weekly') => void
+
+  // Sync gates
+  syncWifiOnly: boolean
+  syncChargingOnly: boolean
+  setSyncWifiOnly: (val: boolean) => void
+  setSyncChargingOnly: (val: boolean) => void
 }
 
 const defaultFilters: ReaderFilters = {
@@ -117,6 +139,19 @@ export const useAppStore = create<AppState>()(
 
       hapticFeedback: true,
       setHapticFeedback: (val) => set({ hapticFeedback: val }),
+
+      gridColumns: 3,
+      setGridColumns: (val) => set({ gridColumns: val }),
+
+      webtoonSidePadding: 0,
+      setWebtoonSidePadding: (val) => set({ webtoonSidePadding: val }),
+      cropBordersWebtoon: false,
+      setCropBordersWebtoon: (val) => set({ cropBordersWebtoon: val }),
+
+      autoBackupEnabled: false,
+      autoBackupInterval: 'weekly',
+      setAutoBackupEnabled: (val) => set({ autoBackupEnabled: val }),
+      setAutoBackupInterval: (val) => set({ autoBackupInterval: val }),
     }),
     {
       name: 'manga-dl-prefs',
@@ -133,6 +168,11 @@ export const useAppStore = create<AppState>()(
         theme: state.theme,
         amoledBlack: state.amoledBlack,
         hapticFeedback: state.hapticFeedback,
+        gridColumns: state.gridColumns,
+        webtoonSidePadding: state.webtoonSidePadding,
+        cropBordersWebtoon: state.cropBordersWebtoon,
+        autoBackupEnabled: state.autoBackupEnabled,
+        autoBackupInterval: state.autoBackupInterval,
       }),
     }
   )

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import api from '../lib/api'
-import { BarChart2, Book, Download, Layers, HardDrive, Flame, Loader2, Target, CheckCircle2, Edit3 } from 'lucide-react'
+import { BarChart2, Book, Download, Layers, HardDrive, Flame, Loader2, Target, CheckCircle2, Edit3, Clock, TrendingUp, BookOpen } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { getCategories } from '../lib/categories'
 
 const GOALS_KEY = 'manga-dl-reading-goals'
 
@@ -137,6 +138,33 @@ export default function StatsPage() {
   const maxDaily = Math.max(...daily.map(d => d.count), 1)
   const heatmapCols = buildHeatmapGrid(stats.yearly_downloads ?? [])
 
+  // Reading time estimate (avg 45s/page)
+  const totalReadSecs = stats.total_pages * 45
+  const readHours = Math.floor(totalReadSecs / 3600)
+  const readMins = Math.floor((totalReadSecs % 3600) / 60)
+  const readTimeStr = readHours > 0 ? `${readHours}h ${readMins}m` : `${readMins}m`
+
+  // Reading pace: chapters in last 7 days
+  const last7 = (stats.daily_downloads || [])
+    .filter(d => {
+      const diff = (Date.now() - new Date(d.day).getTime()) / 86_400_000
+      return diff <= 7
+    })
+    .reduce((s, d) => s + d.count, 0)
+  const chapPerWeek = last7
+
+  // Per-category breakdown from localStorage
+  const allCategories = getCategories()
+  const mangaCatMap: Record<string, string[]> = JSON.parse(localStorage.getItem('manga-dl-manga-categories') || '{}')
+  const catCounts: Record<string, number> = {}
+  for (const cats of Object.values(mangaCatMap)) {
+    for (const c of cats) { catCounts[c] = (catCounts[c] || 0) + 1 }
+  }
+  const categoryStats = allCategories
+    .map(cat => ({ name: cat, count: catCounts[cat] || 0 }))
+    .filter(c => c.count > 0)
+    .sort((a, b) => b.count - a.count)
+
   return (
     <div className="p-6 md:p-12 max-w-5xl mx-auto min-h-full">
       <header className="mb-12">
@@ -147,12 +175,14 @@ export default function StatsPage() {
       </header>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-10">
         {[
           { icon: Book, label: 'Manga', value: formatNum(stats.total_manga), color: 'text-blue-400', bg: 'bg-blue-500/10' },
           { icon: Download, label: 'Chapters', value: formatNum(stats.total_chapters), color: 'text-red-400', bg: 'bg-red-500/10' },
           { icon: Layers, label: 'Pages', value: formatNum(stats.total_pages), color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
           { icon: HardDrive, label: 'Storage', value: formatBytes(stats.storage_bytes), color: 'text-violet-400', bg: 'bg-violet-500/10' },
+          { icon: Clock, label: 'Read Time', value: readTimeStr, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+          { icon: TrendingUp, label: 'This Week', value: `${chapPerWeek} ch`, color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
         ].map((card, i) => (
           <motion.div
             key={card.label}
@@ -366,7 +396,7 @@ export default function StatsPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="glass-panel border-white/5 overflow-hidden"
+          className="glass-panel border-white/5 overflow-hidden mb-8"
         >
           <div className="p-6 border-b border-white/5 bg-white/[0.02]">
             <h2 className="font-bold">Sources</h2>
@@ -395,6 +425,66 @@ export default function StatsPage() {
           </div>
         </motion.section>
       )}
+
+      {/* Per-Category Breakdown */}
+      {categoryStats.length > 0 && (
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+          className="glass-panel border-white/5 overflow-hidden mb-8"
+        >
+          <div className="p-6 border-b border-white/5 flex items-center gap-3 bg-white/[0.02]">
+            <BookOpen className="w-5 h-5 text-pink-400" />
+            <h2 className="font-bold">By Category</h2>
+          </div>
+          <div className="p-6 space-y-4">
+            {(() => {
+              const total = categoryStats.reduce((s, c) => s + c.count, 0) || 1
+              return categoryStats.map(c => (
+                <div key={c.name}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-bold text-white/60">{c.name}</span>
+                    <span className="text-xs font-mono text-white/40">{c.count} ({Math.round((c.count / total) * 100)}%)</span>
+                  </div>
+                  <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full bg-pink-500/70 transition-all duration-700" style={{ width: `${(c.count / total) * 100}%` }} />
+                  </div>
+                </div>
+              ))
+            })()}
+          </div>
+        </motion.section>
+      )}
+
+      {/* Reading Pace */}
+      <motion.section
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        className="glass-panel border-white/5 overflow-hidden"
+      >
+        <div className="p-6 border-b border-white/5 flex items-center gap-3 bg-white/[0.02]">
+          <TrendingUp className="w-5 h-5 text-cyan-400" />
+          <h2 className="font-bold">Reading Pace</h2>
+        </div>
+        <div className="p-6 grid grid-cols-2 md:grid-cols-3 gap-6">
+          <div className="text-center">
+            <div className="text-3xl font-black text-cyan-400 font-mono">{chapPerWeek}</div>
+            <div className="text-[10px] font-black uppercase tracking-widest text-white/30 mt-1">Ch / Week</div>
+          </div>
+          <div className="text-center">
+            <div className="text-3xl font-black text-amber-400 font-mono">{readTimeStr}</div>
+            <div className="text-[10px] font-black uppercase tracking-widest text-white/30 mt-1">Est. Read Time</div>
+          </div>
+          <div className="text-center">
+            <div className="text-3xl font-black text-emerald-400 font-mono">
+              {stats.total_chapters > 0 ? Math.round(stats.total_pages / stats.total_chapters) : 0}
+            </div>
+            <div className="text-[10px] font-black uppercase tracking-widest text-white/30 mt-1">Avg Pages/Ch</div>
+          </div>
+        </div>
+      </motion.section>
     </div>
   )
 }

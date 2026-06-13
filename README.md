@@ -8,16 +8,21 @@ A self-hostable, tri-platform manga reader. Web app, native desktop (Windows/mac
 
 ## Features
 
-- **Multi-source search** — MangaDex, AsuraScans, MangaKatana, OmegaScans; runs concurrent queries across all providers
-- **Download queue** — real-time WebSocket progress, saves chapters as `.cbz` archives
-- **Local library** — instant scan of local CBZ files; no upload required
-- **Smart eviction** — auto-removes old unpinned chapters when storage cap is reached
-- **Cloud sync** — optional Supabase backend for reading progress across devices
+- **500+ sources** — Tachiyomi-compatible extension engine; install/uninstall/enable/disable/update extensions from Keiyoushi index; built-in MangaDex, MangaKatana, Komga, Suwayomi providers
+- **4 reading modes** — LTR pager, RTL pager, webtoon scroll, vertical pager; dual-page spread, tap zones, crop borders, webtoon padding, filters (brightness/contrast/grayscale/invert/sepia)
+- **Download queue** — real-time WebSocket progress, CBZ with ComicInfo.xml, pause/resume/cancel/retry
+- **Local library** — CBZ, ZIP, EPUB import; batch select with download/delete/move-to-category; dynamic grid columns; 8 filter modes; categories
+- **Tracking** — AniList, MAL, Kitsu, MangaUpdates, Shikimori, Bangumi; sync status/score/chapters/dates
+- **History** — full reading history with date filters (today/week/month); cloud-synced progress
+- **Stats** — reading time, pace, per-category breakdown, 52-week heatmap, reading goals
+- **Backup** — JSON export/import, Tachiyomi .tachibk + JSON import, cloud backup (Supabase), auto-backup schedule
+- **Source migration** — move a manga from one source to another, preserving library entry
+- **Cloud sync** — optional Supabase backend for reading progress, library, and backup across devices
 - **Tri-platform**:
-  - **Web** — Firebase-hosted SPA, routes all scraping through backend to bypass CORS
-  - **Desktop** — Tauri v2 (Rust) shell with native file system, system tray, and dialog support
-  - **Android** — Capacitor shell with native SQLite and offline support
-- **Glassmorphic UI** — Tailwind + Framer Motion, dynamic color theming from cover art
+  - **Web** — PWA (offline-capable), auto-sync subscribed manga every 30 min
+  - **Desktop (Tauri v2)** — background chapter sync, OS notifications, auto-launch, update checker, drag-drop import, custom download path, Discord Rich Presence
+  - **Android (Capacitor)** — hardware volume keys, back button, screen keep-on, haptics, status bar ambilight, save to device, download notifications
+- **Glassmorphic UI** — Tailwind + Framer Motion, dynamic ambilight colour theming from cover art
 
 ---
 

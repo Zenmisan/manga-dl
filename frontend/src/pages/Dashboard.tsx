@@ -22,7 +22,11 @@ import {
   BookOpen,
   ArrowUpDown,
   CheckCircle2,
+  Square,
+  CheckSquare,
+  X,
 } from 'lucide-react'
+import { useAppStore } from '../lib/store'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
 import JSZip from 'jszip'
@@ -56,7 +60,10 @@ export default function Dashboard() {
   const [refreshing, setRefreshing] = useState(false)
   const [backendDown, setBackendDown] = useState(false)
   const [sort, setSort] = useState<'default' | 'title-asc' | 'title-desc' | 'downloaded' | 'last-read' | 'unread-count'>('default')
-  const [filter, setFilter] = useState<'all' | 'subscribed' | 'downloading' | 'failed' | 'unread'>('all')
+  const [filter, setFilter] = useState<'all' | 'subscribed' | 'downloading' | 'failed' | 'unread' | 'downloaded-only' | 'started' | 'completed'>('all')
+  const [selectMode, setSelectMode] = useState(false)
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
+  const { gridColumns } = useAppStore()
   const [showSortPanel, setShowSortPanel] = useState(false)
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
   const [categories] = useState(() => getCategories())
@@ -120,7 +127,7 @@ export default function Dashboard() {
       const unlistenLeave = listen('tauri://drag-leave', () => setIsDragOver(false))
       const unlistenDrop = listen<{ paths: string[] }>('tauri://drag-drop', async ({ payload }) => {
         setIsDragOver(false)
-        const cbzPaths = payload.paths.filter(p => p.endsWith('.cbz') || p.endsWith('.zip'))
+        const cbzPaths = payload.paths.filter(p => p.endsWith('.cbz') || p.endsWith('.zip') || p.endsWith('.epub'))
         for (const filePath of cbzPaths) {
           try {
             const { readFile } = await import('@tauri-apps/plugin-fs')
@@ -224,20 +231,50 @@ export default function Dashboard() {
     if (!file) return
 
     setUploading(true)
-    
+
     try {
+      const isEpub = file.name.toLowerCase().endsWith('.epub')
       // 1. Load ZIP locally
       const zip = await JSZip.loadAsync(file)
       const imageFiles: string[] = []
       const validExtensions = ['.png', '.jpg', '.jpeg', '.webp', '.gif']
-      
-      for (const [path, zipFile] of Object.entries(zip.files)) {
-        if (!zipFile.dir && validExtensions.some(ext => path.toLowerCase().endsWith(ext))) {
-          imageFiles.push(path)
+
+      if (isEpub) {
+        // Parse EPUB: read OPF spine to get ordered image list
+        const containerXml = await zip.files['META-INF/container.xml']?.async('text').catch(() => null)
+        let opfPath = 'OEBPS/content.opf'
+        if (containerXml) {
+          const m = containerXml.match(/full-path="([^"]+\.opf)"/)
+          if (m) opfPath = m[1]
+        }
+        const opfContent = await zip.files[opfPath]?.async('text').catch(() => null)
+        if (opfContent) {
+          // Extract image hrefs from manifest
+          const itemMatches = [...opfContent.matchAll(/href="([^"]+)"/g)]
+          const opfDir = opfPath.includes('/') ? opfPath.substring(0, opfPath.lastIndexOf('/') + 1) : ''
+          for (const m of itemMatches) {
+            const href = m[1]
+            if (validExtensions.some(ext => href.toLowerCase().endsWith(ext))) {
+              const fullPath = href.startsWith('/') ? href.slice(1) : opfDir + href
+              if (zip.files[fullPath]) imageFiles.push(fullPath)
+            }
+          }
+        }
+        if (imageFiles.length === 0) {
+          // Fallback: all images in epub
+          for (const [path, zipFile] of Object.entries(zip.files)) {
+            if (!zipFile.dir && validExtensions.some(ext => path.toLowerCase().endsWith(ext))) imageFiles.push(path)
+          }
+        }
+      } else {
+        for (const [path, zipFile] of Object.entries(zip.files)) {
+          if (!zipFile.dir && validExtensions.some(ext => path.toLowerCase().endsWith(ext))) {
+            imageFiles.push(path)
+          }
         }
       }
 
-      if (imageFiles.length === 0) throw new Error("No images found in ZIP")
+      if (imageFiles.length === 0) throw new Error("No images found in archive")
 
       // 2. Natural Sort (Human-friendly)
       imageFiles.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }))
@@ -322,6 +359,16 @@ export default function Dashboard() {
       const read = getReadCount(i.provider ?? '', i.provider_manga_id ?? '')
       const total = i.total_chapters ?? i.files.length
       return total > read
+    })
+    else if (filter === 'downloaded-only') result = result.filter(i => i.files.length > 0 && !i.isLocal)
+    else if (filter === 'started') result = result.filter(i => {
+      const read = getReadCount(i.provider ?? '', i.provider_manga_id ?? '')
+      return read > 0
+    })
+    else if (filter === 'completed') result = result.filter(i => {
+      const read = getReadCount(i.provider ?? '', i.provider_manga_id ?? '')
+      const total = i.total_chapters ?? i.files.length
+      return total > 0 && read >= total
     })
     if (activeCategory) {
       result = result.filter(i => getMangaCategoryList(i.title).includes(activeCategory))
@@ -453,7 +500,7 @@ export default function Dashboard() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm border-4 border-dashed border-blue-400/60 pointer-events-none">
           <div className="text-center">
             <p className="text-2xl font-black text-blue-400">Drop CBZ to import</p>
-            <p className="text-sm text-white/40 mt-2">.cbz and .zip files supported</p>
+            <p className="text-sm text-white/40 mt-2">.cbz, .zip and .epub files supported</p>
           </div>
         </div>
       )}
@@ -529,7 +576,7 @@ export default function Dashboard() {
                   "p-2.5 rounded-xl transition-all cursor-pointer flex items-center gap-2 px-4",
                   uploading ? "opacity-50 pointer-events-none" : "hover:bg-white/5 text-white/40 hover:text-white"
                 )}>
-                  <input type="file" className="hidden" accept=".zip,.cbz" onChange={handleUpload} />
+                  <input type="file" className="hidden" accept=".zip,.cbz,.epub" onChange={handleUpload} />
                   {uploading ? <RefreshCw className="w-4 h-4 animate-spin text-red-500" /> : <Upload className="w-4 h-4" />}
                   <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:inline">Upload</span>
                 </label>
@@ -554,8 +601,95 @@ export default function Dashboard() {
                 >
                   <List className="w-5 h-5" />
                 </button>
+                <div className="w-px h-4 bg-white/10 my-auto mx-1" />
+                <button
+                  onClick={() => { setSelectMode(p => !p); setSelectedItems(new Set()) }}
+                  title="Select multiple"
+                  className={cn("p-2.5 rounded-xl transition-all", selectMode ? "bg-blue-500/20 text-blue-400" : "text-white/40 hover:text-white/60")}
+                >
+                  <CheckSquare className="w-5 h-5" />
+                </button>
               </div>
             </header>
+
+            {/* Batch action bar */}
+            {selectMode && (
+              <div className="mb-4 flex items-center gap-3 p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20">
+                <span className="text-xs font-bold text-blue-400">{selectedItems.size} selected</span>
+                <button
+                  onClick={() => setSelectedItems(new Set(displayedItems.map(i => i.title)))}
+                  className="text-xs font-bold text-white/40 hover:text-white transition-colors"
+                >Select All</button>
+                <button
+                  onClick={() => setSelectedItems(new Set())}
+                  className="text-xs font-bold text-white/40 hover:text-white transition-colors"
+                >Clear</button>
+                <div className="flex-1" />
+                {selectedItems.size > 0 && (
+                  <>
+                    <button
+                      onClick={async () => {
+                        if (!confirm(`Download all chapters for ${selectedItems.size} manga?`)) return
+                        for (const title of selectedItems) {
+                          const item = items.find(i => i.title === title)
+                          if (!item?.provider || !item.provider_manga_id) continue
+                          try {
+                            await api.post('/downloads/queue-manga', { provider: item.provider, manga_id: item.provider_manga_id })
+                          } catch {}
+                        }
+                        setSelectMode(false); setSelectedItems(new Set())
+                        alert(`Queued downloads for ${selectedItems.size} manga`)
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs font-bold hover:bg-emerald-500/30 transition-all"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      Download
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (!confirm(`Remove ${selectedItems.size} manga from library?`)) return
+                        for (const title of selectedItems) {
+                          const item = items.find(i => i.title === title)
+                          if (!item) continue
+                          if (item.isLocal && item.localId) {
+                            await deleteLocalManga(item.localId).catch(() => {})
+                          } else {
+                            await api.delete(`/library/${encodeURIComponent(title)}`).catch(() => {})
+                          }
+                        }
+                        setItems(prev => prev.filter(i => !selectedItems.has(i.title)))
+                        setSelectMode(false); setSelectedItems(new Set())
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/20 border border-red-500/30 text-red-400 text-xs font-bold hover:bg-red-500/30 transition-all"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Delete
+                    </button>
+                    <select
+                      defaultValue=""
+                      onChange={async (e) => {
+                        const cat = e.target.value
+                        if (!cat) return
+                        for (const title of selectedItems) {
+                          const raw = JSON.parse(localStorage.getItem('manga-dl-manga-categories') || '{}')
+                          const cats: string[] = raw[title] || []
+                          if (!cats.includes(cat)) { raw[title] = [...cats, cat]; localStorage.setItem('manga-dl-manga-categories', JSON.stringify(raw)) }
+                        }
+                        setSelectMode(false); setSelectedItems(new Set())
+                        e.target.value = ''
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-white/60 text-xs font-bold"
+                    >
+                      <option value="">Move to Category…</option>
+                      {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </>
+                )}
+                <button onClick={() => { setSelectMode(false); setSelectedItems(new Set()) }}>
+                  <X className="w-4 h-4 text-white/40 hover:text-white" />
+                </button>
+              </div>
+            )}
 
             {/* Sort / Filter Panel */}
             {showSortPanel && (
@@ -575,7 +709,10 @@ export default function Dashboard() {
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-2 flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3" />Filter</p>
                   <div className="flex gap-2 flex-wrap">
-                    {([['all','All'],['subscribed','Subscribed'],['downloading','Downloading'],['failed','Has Errors'],['unread','Has Unread']] as const).map(([v, label]) => (
+                    {([
+                      ['all','All'],['subscribed','Subscribed'],['downloading','Downloading'],['failed','Has Errors'],
+                      ['unread','Has Unread'],['downloaded-only','Downloaded'],['started','Started'],['completed','Completed'],
+                    ] as const).map(([v, label]) => (
                       <button key={v} onClick={() => setFilter(v)}
                         className={cn("px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all",
                           filter === v ? "bg-red-500/20 text-red-400 border-red-500/30" : "text-white/30 border-white/10 hover:border-white/20"
@@ -593,7 +730,7 @@ export default function Dashboard() {
             )}
 
             {loading ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-8">
+              <div className="grid gap-4 md:gap-8" style={{ gridTemplateColumns: `repeat(${gridColumns}, minmax(0, 1fr))` }}>
                 {[...Array(10)].map((_, i) => (
                   <div key={i} className="aspect-[3/4.5] bg-white/5 animate-pulse rounded-2xl border border-white/5" />
                 ))}
@@ -623,17 +760,17 @@ export default function Dashboard() {
                     Browse Catalog
                   </button>
                   <label className="btn-secondary flex items-center justify-center gap-2 cursor-pointer">
-                    <input type="file" className="hidden" accept=".zip,.cbz" onChange={handleUpload} />
+                    <input type="file" className="hidden" accept=".zip,.cbz,.epub" onChange={handleUpload} />
                     <Upload className="w-4 h-4" />
                     Upload File
                   </label>
                 </div>
               </motion.div>
             ) : (
-              <div className={view === 'grid'
-                ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-8"
-                : "space-y-4"
-              }>
+              <div
+                className={view === 'grid' ? "grid gap-4 md:gap-8" : "space-y-4"}
+                style={view === 'grid' ? { gridTemplateColumns: `repeat(${gridColumns}, minmax(0, 1fr))` } : undefined}
+              >
                 {displayedItems.map((item, idx) => {
                   const lastRead = lastReadMap[item.title.toLowerCase().trim()]
                   return (
@@ -642,12 +779,31 @@ export default function Dashboard() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.04 }}
                     key={item.title}
-                    onClick={() => setSelectedManga(item)}
+                    onClick={() => {
+                      if (selectMode) {
+                        setSelectedItems(prev => {
+                          const n = new Set(prev)
+                          n.has(item.title) ? n.delete(item.title) : n.add(item.title)
+                          return n
+                        })
+                      } else {
+                        setSelectedManga(item)
+                      }
+                    }}
                     className={cn(
-                      "group cursor-pointer transition-all",
-                      view === 'grid' ? 'block' : 'flex items-center gap-4 glass-card p-4 hover:bg-white/10'
+                      "group cursor-pointer transition-all relative",
+                      view === 'grid' ? 'block' : 'flex items-center gap-4 glass-card p-4 hover:bg-white/10',
+                      selectMode && selectedItems.has(item.title) && 'ring-2 ring-blue-500 rounded-2xl'
                     )}
                   >
+                    {selectMode && view === 'grid' && (
+                      <div className="absolute top-2 left-2 z-10 pointer-events-none">
+                        {selectedItems.has(item.title)
+                          ? <CheckSquare className="w-5 h-5 text-blue-400 drop-shadow-lg" />
+                          : <Square className="w-5 h-5 text-white/40 drop-shadow-lg" />
+                        }
+                      </div>
+                    )}
                     {view === 'grid' ? (
                       <>
                         <div className={cn(

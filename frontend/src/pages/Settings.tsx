@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Capacitor } from '@capacitor/core'
-import { Shield, Database, Save, RefreshCw, Key, HardDrive, Info, Share2, LogOut, CheckCircle2, Loader2, Bell, BellOff, User, UserPlus, EyeOff, Eye, UploadCloud, DownloadCloud, Cloud, BookOpen } from 'lucide-react'
+import { Shield, Database, Save, RefreshCw, Key, HardDrive, Info, Share2, LogOut, CheckCircle2, Loader2, Bell, BellOff, User, UserPlus, EyeOff, Eye, UploadCloud, DownloadCloud, Cloud, BookOpen, Shuffle } from 'lucide-react'
 import { motion } from 'framer-motion'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 import api from '../lib/api'
@@ -39,7 +39,7 @@ async function fetchAniListUsername(token: string): Promise<string | null> {
 
 export default function SettingsPage() {
   const navigate = useNavigate()
-  const { incognitoMode, setIncognitoMode, theme, setTheme, amoledBlack, setAmoledBlack, tapZoneLayout, setTapZoneLayout, cropBorders, setCropBorders, dualPageSpread, setDualPageSpread, hapticFeedback, setHapticFeedback } = useAppStore()
+  const { incognitoMode, setIncognitoMode, theme, setTheme, amoledBlack, setAmoledBlack, tapZoneLayout, setTapZoneLayout, cropBorders, setCropBorders, dualPageSpread, setDualPageSpread, hapticFeedback, setHapticFeedback, gridColumns, setGridColumns, webtoonSidePadding, setWebtoonSidePadding, cropBordersWebtoon, setCropBordersWebtoon, autoBackupEnabled, setAutoBackupEnabled, autoBackupInterval, setAutoBackupInterval } = useAppStore()
   const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null)
   const [apiKey, setApiKey] = useState(localStorage.getItem('manga-api-key') || '')
   const [backendUrl, setBackendUrl] = useState(localStorage.getItem('manga-backend-url') || '')
@@ -72,6 +72,15 @@ export default function SettingsPage() {
   const [mangaUpdatesToken, setMangaUpdatesToken] = useState(localStorage.getItem('mangaupdates-token') || '')
   const [shikimoriToken, setShikimoriToken] = useState(localStorage.getItem('shikimori-token') || '')
   const [bangumiToken, setBangumiToken] = useState(localStorage.getItem('bangumi-token') || '')
+  // Source migration
+  const [migrationSearch, setMigrationSearch] = useState('')
+  const [migrationResults, setMigrationResults] = useState<{ id: string; title: string; cover_url?: string; provider: string }[]>([])
+  const [migrationSearching, setMigrationSearching] = useState(false)
+  const [migrationSource, setMigrationSource] = useState<{ old_provider: string; old_manga_id: string; title: string } | null>(null)
+  const [migrationTarget, setMigrationTarget] = useState<{ id: string; title: string; provider: string } | null>(null)
+  const [migrating, setMigrating] = useState(false)
+  const [migrationDone, setMigrationDone] = useState(false)
+
   // Notifications
   const [notifEnabled, setNotifEnabled] = useState(localStorage.getItem('notifications-enabled') === 'true')
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>(
@@ -166,6 +175,29 @@ export default function SettingsPage() {
       alert('MAL login failed. Check console.')
     }).finally(() => setMalLoading(false))
   }, [])
+
+  useEffect(() => {
+    if (!autoBackupEnabled) return
+    const intervalMs = autoBackupInterval === 'daily' ? 86_400_000 : 7 * 86_400_000
+    const lastKey = `manga-dl-last-auto-backup`
+    const last = Number(localStorage.getItem(lastKey) || '0')
+    const check = async () => {
+      if (Date.now() - last < intervalMs) return
+      try {
+        const [libRes, histRes] = await Promise.all([api.get('/backup/export/manual'), api.get('/users/history').catch(() => ({ data: [] }))])
+        const backup = { app: 'manga-dl', version: 1, exportedAt: new Date().toISOString(), library: libRes.data, history: histRes.data, settings: { readingMode: localStorage.getItem('manga-dl-prefs') } }
+        const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url; a.download = `manga-dl-auto-backup-${new Date().toISOString().split('T')[0]}.json`
+        a.click(); URL.revokeObjectURL(url)
+        localStorage.setItem(lastKey, String(Date.now()))
+      } catch {}
+    }
+    check()
+    const timer = setInterval(check, Math.min(intervalMs, 3_600_000))
+    return () => clearInterval(timer)
+  }, [autoBackupEnabled, autoBackupInterval])
 
   const saveKey = () => {
     localStorage.setItem('manga-api-key', apiKey)
@@ -902,6 +934,48 @@ export default function SettingsPage() {
                 ))}
               </div>
             </div>
+            {/* Grid columns */}
+            <div>
+              <label className="block text-xs font-black uppercase tracking-widest text-white/30 mb-3">
+                Library Grid Columns — {gridColumns} col{gridColumns !== 1 ? 's' : ''}
+              </label>
+              <input
+                type="range"
+                min={2} max={6} step={1}
+                value={gridColumns}
+                onChange={e => setGridColumns(Number(e.target.value))}
+                className="w-full accent-indigo-500"
+              />
+              <div className="flex justify-between text-[10px] text-white/20 font-bold mt-1">
+                {[2,3,4,5,6].map(n => <span key={n}>{n}</span>)}
+              </div>
+            </div>
+            {/* Webtoon side padding */}
+            <div>
+              <label className="block text-xs font-black uppercase tracking-widest text-white/30 mb-3">
+                Webtoon Side Padding — {webtoonSidePadding}px
+              </label>
+              <input
+                type="range"
+                min={0} max={80} step={4}
+                value={webtoonSidePadding}
+                onChange={e => setWebtoonSidePadding(Number(e.target.value))}
+                className="w-full accent-indigo-500"
+              />
+            </div>
+            {/* Crop borders webtoon */}
+            <div className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+              <div>
+                <h4 className="font-bold text-sm">Crop Borders (Webtoon)</h4>
+                <p className="text-xs text-white/30 mt-0.5">Use object-cover to crop horizontal whitespace in webtoon strips</p>
+              </div>
+              <button
+                onClick={() => setCropBordersWebtoon(!cropBordersWebtoon)}
+                className={`w-12 h-6 rounded-full relative transition-all border ${cropBordersWebtoon ? 'bg-indigo-500/30 border-indigo-500/40' : 'bg-white/5 border-white/10'}`}
+              >
+                <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${cropBordersWebtoon ? 'left-6' : 'left-0.5'}`} />
+              </button>
+            </div>
           </div>
         </motion.section>
 
@@ -1095,6 +1169,34 @@ export default function SettingsPage() {
             </div>
 
             <div className="pt-4 border-t border-white/5">
+              <h4 className="font-bold text-gray-100 mb-3">Auto-Backup</h4>
+              <div className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] border border-white/5 mb-3">
+                <div>
+                  <p className="font-bold text-sm">Scheduled Auto-Backup</p>
+                  <p className="text-xs text-white/30 mt-0.5">Automatically export backup on a schedule</p>
+                </div>
+                <button
+                  onClick={() => setAutoBackupEnabled(!autoBackupEnabled)}
+                  className={`w-12 h-6 rounded-full relative transition-all border ${autoBackupEnabled ? 'bg-emerald-500/30 border-emerald-500/40' : 'bg-white/5 border-white/10'}`}
+                >
+                  <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${autoBackupEnabled ? 'left-6' : 'left-0.5'}`} />
+                </button>
+              </div>
+              {autoBackupEnabled && (
+                <div className="flex gap-2 mb-4">
+                  {(['daily', 'weekly'] as const).map(v => (
+                    <button key={v}
+                      onClick={() => setAutoBackupInterval(v)}
+                      className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border transition-all ${
+                        autoBackupInterval === v ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'text-white/30 border-white/10 hover:border-white/20'
+                      }`}
+                    >{v}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="pt-4 border-t border-white/5">
               <h4 className="font-bold text-gray-100 mb-1 flex items-center gap-2">
                 <Cloud className="w-4 h-4 text-violet-400" />
                 Cloud Backup
@@ -1121,6 +1223,150 @@ export default function SettingsPage() {
                 </button>
               </div>
             </div>
+          </div>
+        </motion.section>
+
+        {/* Source Migration */}
+        <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-panel overflow-hidden border-white/5">
+          <div className="p-6 border-b border-white/5 flex items-center gap-3 bg-white/[0.02]">
+            <div className="p-2 bg-violet-500/10 rounded-lg"><Shuffle className="w-5 h-5 text-violet-400" /></div>
+            <div>
+              <h2 className="font-bold text-lg">Source Migration</h2>
+              <p className="text-xs text-white/30">Move a manga entry from one source to another</p>
+            </div>
+          </div>
+          <div className="p-6 md:p-8 space-y-4">
+            {migrationDone && (
+              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-bold flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4" /> Migration complete!
+              </div>
+            )}
+            {/* Step 1: pick manga from library */}
+            <div>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-white/30 mb-2">Step 1 — Select manga to migrate</label>
+              <div className="flex gap-2">
+                <input
+                  value={migrationSearch}
+                  onChange={e => setMigrationSearch(e.target.value)}
+                  placeholder="Search your library..."
+                  className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-white/30"
+                />
+                <button
+                  onClick={async () => {
+                    if (!migrationSearch.trim()) return
+                    setMigrationSearching(true)
+                    try {
+                      const res = await api.get('/library/')
+                      const items: any[] = res.data
+                      setMigrationResults(items.filter(i => i.title.toLowerCase().includes(migrationSearch.toLowerCase())).slice(0, 10).map(i => ({ id: i.provider_manga_id, title: i.title, cover_url: i.cover_url, provider: i.provider })))
+                    } catch { setMigrationResults([]) }
+                    setMigrationSearching(false)
+                  }}
+                  disabled={migrationSearching}
+                  className="px-4 py-2 rounded-xl bg-violet-500/20 border border-violet-500/30 text-violet-400 hover:bg-violet-500/30 transition-all text-xs font-bold uppercase tracking-widest"
+                >
+                  {migrationSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Search'}
+                </button>
+              </div>
+              {migrationResults.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {migrationResults.map(r => (
+                    <button
+                      key={r.id}
+                      onClick={() => { setMigrationSource({ old_provider: r.provider, old_manga_id: r.id, title: r.title }); setMigrationResults([]); setMigrationSearch(r.title); setMigrationTarget(null) }}
+                      className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-all border ${migrationSource?.old_manga_id === r.id ? 'bg-violet-500/20 border-violet-500/30 text-violet-400' : 'bg-white/5 border-white/5 text-white/60 hover:bg-white/10'}`}
+                    >
+                      <span className="font-bold">{r.title}</span>
+                      <span className="text-[10px] text-white/30 ml-2">{r.provider}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {migrationSource && (
+                <div className="mt-2 p-3 rounded-xl bg-violet-500/10 border border-violet-500/20 text-sm">
+                  Selected: <span className="font-bold text-violet-400">{migrationSource.title}</span>
+                  <span className="text-[10px] text-white/30 ml-2">from {migrationSource.old_provider}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Step 2: pick target */}
+            {migrationSource && (
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-white/30 mb-2">Step 2 — Search for it on another source</label>
+                <div className="flex gap-2">
+                  <input
+                    defaultValue={migrationSource.title}
+                    id="mig-target-search"
+                    className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-white/30"
+                  />
+                  <button
+                    onClick={async () => {
+                      const q = (document.getElementById('mig-target-search') as HTMLInputElement)?.value || migrationSource.title
+                      setMigrationSearching(true)
+                      try {
+                        const res = await api.get('/manga/search', { params: { q, providers: 'all' } })
+                        setMigrationResults(res.data.filter((r: any) => r.provider !== migrationSource.old_provider).slice(0, 15))
+                      } catch { setMigrationResults([]) }
+                      setMigrationSearching(false)
+                    }}
+                    disabled={migrationSearching}
+                    className="px-4 py-2 rounded-xl bg-blue-500/20 border border-blue-500/30 text-blue-400 hover:bg-blue-500/30 transition-all text-xs font-bold uppercase tracking-widest"
+                  >
+                    {migrationSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Find'}
+                  </button>
+                </div>
+                {migrationResults.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    {migrationResults.map((r: any) => (
+                      <button
+                        key={`${r.provider}:${r.id}`}
+                        onClick={() => { setMigrationTarget({ id: r.id, title: r.title, provider: r.provider }); setMigrationResults([]) }}
+                        className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-all border ${migrationTarget?.id === r.id && migrationTarget?.provider === r.provider ? 'bg-blue-500/20 border-blue-500/30 text-blue-400' : 'bg-white/5 border-white/5 text-white/60 hover:bg-white/10'}`}
+                      >
+                        <span className="font-bold">{r.title}</span>
+                        <span className="text-[10px] text-white/30 ml-2">{r.provider}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {migrationTarget && (
+                  <div className="mt-2 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-sm">
+                    Target: <span className="font-bold text-blue-400">{migrationTarget.title}</span>
+                    <span className="text-[10px] text-white/30 ml-2">on {migrationTarget.provider}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Step 3: confirm */}
+            {migrationSource && migrationTarget && (
+              <button
+                onClick={async () => {
+                  if (!confirm(`Migrate "${migrationSource.title}" from ${migrationSource.old_provider} to "${migrationTarget.title}" on ${migrationTarget.provider}?`)) return
+                  setMigrating(true)
+                  try {
+                    await api.post('/manga/migrate', {
+                      old_provider: migrationSource.old_provider,
+                      old_manga_id: migrationSource.old_manga_id,
+                      new_provider: migrationTarget.provider,
+                      new_manga_id: migrationTarget.id,
+                    })
+                    setMigrationDone(true)
+                    setMigrationSource(null); setMigrationTarget(null); setMigrationSearch('')
+                    setTimeout(() => setMigrationDone(false), 4000)
+                  } catch {
+                    alert('Migration failed. Check server logs.')
+                  }
+                  setMigrating(false)
+                }}
+                disabled={migrating}
+                className="w-full py-3 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold text-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {migrating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shuffle className="w-4 h-4" />}
+                {migrating ? 'Migrating…' : 'Confirm Migration'}
+              </button>
+            )}
           </div>
         </motion.section>
 

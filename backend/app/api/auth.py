@@ -28,6 +28,9 @@ class MALTrackRequest(BaseModel):
     manga_id: int
     status: str = "reading"  # reading | completed | on_hold | dropped | plan_to_read
     chapters_read: int = 0
+    score: int = 0  # 0–10
+    start_date: str | None = None   # YYYY-MM-DD
+    finish_date: str | None = None  # YYYY-MM-DD
 
 
 class MALSearchRequest(BaseModel):
@@ -117,8 +120,13 @@ async def update_mal_status(req: MALTrackRequest):
             resp = await client.patch(
                 f"{MAL_API_BASE}/manga/{req.manga_id}/my_list_status",
                 data={
-                    "status": req.status,
-                    "num_chapters_read": req.chapters_read,
+                    k: v for k, v in {
+                        "status": req.status,
+                        "num_chapters_read": req.chapters_read,
+                        "score": req.score if req.score else None,
+                        "start_date": req.start_date,
+                        "finish_date": req.finish_date,
+                    }.items() if v is not None
                 },
                 headers={
                     "Authorization": f"Bearer {req.access_token}",

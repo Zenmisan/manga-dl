@@ -25,6 +25,7 @@ import {
   Filter,
   Star,
   MessageSquare,
+  Pencil,
 } from 'lucide-react'
 import { markRead, markUnread, markAllRead, getReadChapters } from '../lib/readTracking'
 import { getMangaNote, setMangaNote, setMangaRating } from '../lib/mangaNotes'
@@ -66,7 +67,7 @@ export default function MangaDetail() {
   const [readFilter, setReadFilter] = useState<'all' | 'unread' | 'read'>('all')
   const [scanlatorFilter, setScanlatorFilter] = useState<string>('all')
   const [bookmarks, setBookmarks] = useState<Set<string>>(new Set(
-    JSON.parse(localStorage.getItem('manga-dl-bookmarks') || '{}')[`${provider}:${provider}`] || []
+    JSON.parse(localStorage.getItem('manga-dl-bookmarks') || '{}')[`${provider}:${mangaId}`] || []
   ))
   const [readChapters, setReadChapters] = useState<Set<string>>(new Set())
   const [malSyncing, setMalSyncing] = useState(false)
@@ -80,6 +81,31 @@ export default function MangaDetail() {
   const swipeStartX = useRef<number>(0)
   const imgRef = useRef<HTMLImageElement>(null)
 
+  // Per-manga notification toggle
+  const notifKey = `manga-dl-notif-${provider}-${mangaId}`
+  const [notifEnabled, setNotifEnabled] = useState(() => localStorage.getItem(notifKey) !== 'false')
+  const toggleNotif = () => {
+    const next = !notifEnabled
+    setNotifEnabled(next)
+    localStorage.setItem(notifKey, String(next))
+  }
+
+  // Manual metadata edit
+  const [editingMeta, setEditingMeta] = useState(false)
+  const [metaDraft, setMetaDraft] = useState({ title: '', cover_url: '', description: '' })
+  const openMetaEdit = () => {
+    setMetaDraft({ title: manga?.title ?? '', cover_url: manga?.cover_url ?? '', description: manga?.description ?? '' })
+    setEditingMeta(true)
+  }
+  const saveMetaEdit = () => {
+    if (!manga) return
+    setManga({ ...manga, title: metaDraft.title || manga.title, cover_url: metaDraft.cover_url || manga.cover_url, description: metaDraft.description || manga.description })
+    const overrides = JSON.parse(localStorage.getItem('manga-dl-meta-overrides') || '{}')
+    overrides[`${provider}:${mangaId}`] = metaDraft
+    localStorage.setItem('manga-dl-meta-overrides', JSON.stringify(overrides))
+    setEditingMeta(false)
+  }
+
   // Tracker linking
   const TRACKER_LINKS_KEY = 'manga-dl-tracker-links'
   const trackerKey = `${provider}:${mangaId}`
@@ -91,6 +117,62 @@ export default function MangaDetail() {
   const [trackerSearch, setTrackerSearch] = useState('')
   const [trackerResults, setTrackerResults] = useState<{ id: number; title: string; cover?: string; year?: number; score?: number; status?: string; progress?: number }[]>([])
   const [trackerSearching, setTrackerSearching] = useState(false)
+  const [showSyncModal, setShowSyncModal] = useState<'anilist' | 'mal' | 'mangaupdates' | 'shikimori' | 'bangumi' | null>(null)
+  const [syncStatus, setSyncStatus] = useState('CURRENT')
+  const [syncScore, setSyncScore] = useState(0)
+  const [syncProgress, setSyncProgress] = useState(0)
+  const [syncStartDate, setSyncStartDate] = useState('')
+  const [syncEndDate, setSyncEndDate] = useState('')
+  const [syncing, setSyncing] = useState(false)
+
+  const openSyncModal = (tracker: typeof showSyncModal) => {
+    const link = trackerLinks[tracker!]
+    setSyncStatus(link?.status || 'CURRENT')
+    setSyncScore(link?.score || 0)
+    setSyncProgress(link?.progress || 0)
+    setSyncStartDate('')
+    setSyncEndDate('')
+    setShowSyncModal(tracker)
+  }
+
+  const handleTrackerSync = async () => {
+    if (!showSyncModal) return
+    const link = trackerLinks[showSyncModal]
+    if (!link) return
+    setSyncing(true)
+    try {
+      if (showSyncModal === 'anilist') {
+        const token = localStorage.getItem('anilist-token')
+        if (!token) { alert('Log in to AniList first'); setSyncing(false); return }
+        await api.post('/auth/anilist/track', {
+          access_token: token,
+          media_id: link.id,
+          status: syncStatus,
+          score: syncScore,
+          progress: syncProgress,
+          start_date: syncStartDate || undefined,
+          finish_date: syncEndDate || undefined,
+        })
+      } else if (showSyncModal === 'mal') {
+        const token = localStorage.getItem('mal-token')
+        if (!token) { alert('Log in to MAL first'); setSyncing(false); return }
+        await api.post('/auth/mal/track', {
+          access_token: token,
+          manga_id: link.id,
+          status: syncStatus.toLowerCase().replace('current', 'reading'),
+          chapters_read: syncProgress,
+          score: syncScore,
+          start_date: syncStartDate || undefined,
+          finish_date: syncEndDate || undefined,
+        })
+      }
+      saveTrackerLink(showSyncModal, { ...link, status: syncStatus, score: syncScore, progress: syncProgress })
+      setShowSyncModal(null)
+    } catch {
+      alert('Sync failed. Check your login or try again.')
+    }
+    setSyncing(false)
+  }
 
   const saveTrackerLink = (tracker: string, entry: { id: number; title: string; score?: number; status?: string; progress?: number }) => {
     const all = getTrackerLinks()
@@ -219,9 +301,9 @@ export default function MangaDetail() {
         access_token: malToken,
         manga_id: malId,
         status: 'reading',
-        chapters_read: 0,
+        chapters_read: readChapters.size,
       })
-      alert(`Marked "${manga.title}" as Reading on MAL!`)
+      alert(`Marked "${manga.title}" as Reading on MAL (${readChapters.size} chapters read)!`)
     } catch (err) {
       console.error(err)
       alert('MAL sync failed.')
@@ -455,9 +537,18 @@ export default function MangaDetail() {
                   </span>
                 </div>
               </div>
-              <h1 className="text-3xl md:text-6xl font-black tracking-tighter leading-tight mb-4 text-white">
-                {manga.title}
-              </h1>
+              <div className="flex items-start gap-3 mb-4">
+                <h1 className="text-3xl md:text-6xl font-black tracking-tighter leading-tight text-white flex-1">
+                  {manga.title}
+                </h1>
+                <button
+                  onClick={openMetaEdit}
+                  title="Edit metadata"
+                  className="mt-2 p-2 rounded-xl bg-white/5 border border-white/10 text-white/30 hover:text-white hover:bg-white/10 transition-all shrink-0"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+              </div>
               
               <div className="flex flex-wrap gap-4 text-white/40 mb-8">
                 <div className="flex items-center gap-2">
@@ -590,9 +681,19 @@ export default function MangaDetail() {
                       </div>
                       <div className="flex gap-1 shrink-0">
                         {link ? (
-                          <button onClick={() => removeTrackerLink(tracker)} className="px-2 py-1 text-[10px] font-black uppercase tracking-widest text-red-400/60 hover:text-red-400 transition-colors">
-                            Unlink
-                          </button>
+                          <>
+                            {(tracker === 'anilist' || tracker === 'mal') && (
+                              <button
+                                onClick={() => openSyncModal(tracker)}
+                                className="px-2 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-400/60 hover:text-emerald-400 transition-colors"
+                              >
+                                Sync
+                              </button>
+                            )}
+                            <button onClick={() => removeTrackerLink(tracker)} className="px-2 py-1 text-[10px] font-black uppercase tracking-widest text-red-400/60 hover:text-red-400 transition-colors">
+                              Unlink
+                            </button>
+                          </>
                         ) : (
                           <button
                             onClick={() => { setShowTrackerModal(tracker); setTrackerSearch(manga.title); setTrackerResults([]); setTimeout(() => searchTracker(manga.title, tracker), 100) }}
@@ -716,6 +817,20 @@ export default function MangaDetail() {
                   <Bell className="w-4 h-4" />
                 )}
               </button>
+              {subscribed && (
+                <button
+                  onClick={toggleNotif}
+                  title={notifEnabled ? 'Mute notifications for this manga' : 'Unmute notifications for this manga'}
+                  className={cn(
+                    "p-2.5 rounded-xl transition-all border text-xs font-bold disabled:opacity-50",
+                    notifEnabled
+                      ? "bg-white/5 border-white/10 text-white/40 hover:bg-amber-500/20 hover:border-amber-500/30 hover:text-amber-400"
+                      : "bg-amber-500/20 border-amber-500/30 text-amber-400"
+                  )}
+                >
+                  {notifEnabled ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
+                </button>
+              )}
               <button
                 onClick={handleBulkDownload}
                 disabled={bulkLoading}
@@ -895,6 +1010,129 @@ export default function MangaDetail() {
           </div>
         </motion.div>
       </div>
+
+      {/* Tracker Sync Modal */}
+      <AnimatePresence>
+        {showSyncModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+            onClick={() => setShowSyncModal(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={e => e.stopPropagation()}
+              className="w-full max-w-sm glass-panel p-6 space-y-4"
+            >
+              <h3 className="font-black text-lg flex items-center gap-2">
+                <ListPlus className="w-4 h-4" />
+                Sync to {showSyncModal === 'anilist' ? 'AniList' : 'MAL'}
+              </h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-white/30 mb-1">Status</label>
+                  <select value={syncStatus} onChange={e => setSyncStatus(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none">
+                    <option value="CURRENT">Reading</option>
+                    <option value="COMPLETED">Completed</option>
+                    <option value="PAUSED">On Hold</option>
+                    <option value="DROPPED">Dropped</option>
+                    <option value="PLANNING">Plan to Read</option>
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-white/30 mb-1">Score (0–10)</label>
+                    <input type="number" min={0} max={10} value={syncScore} onChange={e => setSyncScore(Number(e.target.value))} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-white/30 mb-1">Chapters Read</label>
+                    <input type="number" min={0} value={syncProgress} onChange={e => setSyncProgress(Number(e.target.value))} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-white/30 mb-1">Start Date</label>
+                    <input type="date" value={syncStartDate} onChange={e => setSyncStartDate(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-white/30 mb-1">Finish Date</label>
+                    <input type="date" value={syncEndDate} onChange={e => setSyncEndDate(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none" />
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button onClick={handleTrackerSync} disabled={syncing} className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+                  {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                  {syncing ? 'Syncing…' : 'Sync'}
+                </button>
+                <button onClick={() => setShowSyncModal(null)} className="px-6 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/40 hover:text-white font-bold text-sm transition-all">Cancel</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Metadata Edit Modal */}
+      <AnimatePresence>
+        {editingMeta && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+            onClick={() => setEditingMeta(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={e => e.stopPropagation()}
+              className="w-full max-w-lg glass-panel p-6 space-y-4"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-black text-lg flex items-center gap-2"><Pencil className="w-4 h-4" /> Edit Metadata</h3>
+                <button onClick={() => setEditingMeta(false)} className="text-white/30 hover:text-white text-lg">✕</button>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-white/30 mb-1">Title</label>
+                  <input
+                    value={metaDraft.title}
+                    onChange={e => setMetaDraft(d => ({ ...d, title: e.target.value }))}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-white/30"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-white/30 mb-1">Cover URL</label>
+                  <input
+                    value={metaDraft.cover_url}
+                    onChange={e => setMetaDraft(d => ({ ...d, cover_url: e.target.value }))}
+                    placeholder="https://..."
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-white/30"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-white/30 mb-1">Description</label>
+                  <textarea
+                    value={metaDraft.description}
+                    onChange={e => setMetaDraft(d => ({ ...d, description: e.target.value }))}
+                    rows={4}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-white/30 resize-none"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button onClick={saveMetaEdit} className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm transition-all">Save</button>
+                <button onClick={() => setEditingMeta(false)} className="px-6 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/40 hover:text-white font-bold text-sm transition-all">Cancel</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

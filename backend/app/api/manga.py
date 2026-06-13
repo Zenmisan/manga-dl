@@ -151,6 +151,55 @@ async def search_manga(
     ]
 
 
+class MigrationRequest(BaseModel):
+    old_provider: str
+    old_manga_id: str
+    new_provider: str
+    new_manga_id: str
+    new_title: str | None = None
+    new_cover_url: str | None = None
+
+
+@router.post("/migrate")
+async def migrate_manga_source(req: MigrationRequest, db: AsyncSession = Depends(get_db)):
+    """Migrate manga from one source to another, preserving downloads and subscription."""
+    old_id = f"{req.old_provider}:{req.old_manga_id}"
+    result = await db.execute(select(MangaRecord).where(MangaRecord.id == old_id))
+    record = result.scalar_one_or_none()
+    if not record:
+        raise HTTPException(status_code=404, detail="Manga not found in library")
+
+    new_id = f"{req.new_provider}:{req.new_manga_id}"
+    # Fetch new provider detail
+    provider = get_provider(req.new_provider)
+    if not provider:
+        raise HTTPException(status_code=404, detail=f"Provider '{req.new_provider}' not found")
+
+    try:
+        detail = await provider.get_manga(req.new_manga_id)
+    except Exception:
+        detail = None
+
+    record.id = new_id
+    record.provider = req.new_provider
+    record.provider_manga_id = req.new_manga_id
+    if detail:
+        record.title = detail.title
+        record.cover_url = detail.cover_url
+        record.description = detail.description
+        record.status = detail.status
+        record.genres = detail.genres
+        record.authors = detail.authors
+        record.url = detail.url
+    elif req.new_title:
+        record.title = req.new_title
+        if req.new_cover_url:
+            record.cover_url = req.new_cover_url
+
+    await db.commit()
+    return {"status": "migrated", "new_id": new_id}
+
+
 @router.post("/sync")
 async def trigger_sync():
     """Manually trigger one sync cycle for all subscribed manga."""

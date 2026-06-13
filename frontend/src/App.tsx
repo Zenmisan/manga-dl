@@ -4,6 +4,7 @@ import { Search, Library, Download, Settings, ExternalLink, Globe, BarChart2, He
 import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from './lib/utils'
+import api from './lib/api'
 
 import Dashboard from './pages/Dashboard'
 import SearchPage from './pages/Search'
@@ -108,6 +109,15 @@ function App() {
   useEffect(() => {
     document.documentElement.classList.toggle('amoled', amoledBlack)
   }, [amoledBlack])
+
+  // Auto-sync subscribed manga on web/Android (Tauri handles it via background Rust task)
+  useEffect(() => {
+    if ('__TAURI_INTERNALS__' in window) return
+    const run = () => api.post('/manga/sync').catch(() => {})
+    run()
+    const t = setInterval(run, 30 * 60 * 1000)
+    return () => clearInterval(t)
+  }, [])
 
   const navItems = [
     { icon: Library, label: 'Library', path: '/' },

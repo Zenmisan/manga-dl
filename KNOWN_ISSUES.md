@@ -1,143 +1,155 @@
 # Known Issues & Limitations
 
-This document tracks every known limitation, architectural caveat, and thing-that-could-break in manga-dl. Update it as issues are fixed or new ones are discovered.
+Last updated: 2026-06-13
 
 ---
 
-## 🔴 Critical / Requires Setup
+## 🔴 Critical / Requires Setup Before Shipping
 
 ### Discord Rich Presence — placeholder App ID
-- **File:** `frontend/src-tauri/src/lib.rs:13`
-- **Issue:** `DISCORD_APP_ID` is `"1234567890123456789"` — a fake ID. RPC will silently fail until a real ID is used.
-- **Fix:** Register an application at discord.com/developers/applications, copy the App ID, replace the constant.
+- **File:** `frontend/src-tauri/src/lib.rs` → `DISCORD_APP_ID`
+- **Issue:** Value is `"1234567890123456789"` — fake. RPC silently fails.
+- **Fix:** Register app at discord.com/developers/applications → copy App ID → replace constant.
 
-### Cloud Backup — Supabase bucket must exist manually
-- **File:** `frontend/src/pages/Settings.tsx` → `handleCloudBackup`
-- **Issue:** Backup uploads to `manga-backups` bucket. Supabase does NOT create buckets automatically. Upload will return a 404-class error if the bucket doesn't exist.
-- **Fix:** In Supabase dashboard → Storage → New bucket → name `manga-backups` → set to private.
+### Cloud Backup — Supabase bucket must be created manually
+- **Issue:** `handleCloudBackup` uploads to `manga-backups` bucket. Supabase doesn't auto-create buckets. Upload returns 404-class error if missing.
+- **Fix:** Supabase dashboard → Storage → New bucket → name `manga-backups` → private.
 
-### Kitsu tracker uses password grant
-- **File:** `frontend/src/pages/Settings.tsx` → `handleKitsuLogin`
-- **Issue:** Kitsu's password grant flow sends credentials directly (not via OAuth redirect). This is acceptable for personal/desktop use but Kitsu may deprecate the password grant endpoint.
-- **Fix:** If Kitsu disables password grant, switch to their PKCE authorization_code flow. No redirect URI is officially supported for web apps at this time.
+### Supabase Production DB — missing columns/tables
+Run in Supabase SQL Editor:
+```sql
+ALTER TABLE downloads ADD COLUMN IF NOT EXISTS file_size_bytes INTEGER DEFAULT 0;
+ALTER TABLE downloads ADD COLUMN IF NOT EXISTS pinned BOOLEAN DEFAULT FALSE;
+ALTER TABLE downloads ADD COLUMN IF NOT EXISTS last_page_read INTEGER DEFAULT 0;
+
+CREATE TABLE IF NOT EXISTS reading_progress (
+  user_id    VARCHAR NOT NULL,
+  provider   VARCHAR NOT NULL,
+  manga_id   VARCHAR NOT NULL,
+  chapter_id VARCHAR NOT NULL,
+  last_page  INTEGER DEFAULT 1,
+  updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+  PRIMARY KEY (user_id, provider, manga_id, chapter_id)
+);
+```
 
 ---
 
-## 🟠 Functional Gaps
+## 🟠 Functional Bugs
 
-### Tachiyomi `.tachibk` binary import not supported
-- **File:** `frontend/src/pages/Settings.tsx` → `handleTachiyomiImport`
-- **Issue:** `.tachibk` is protobuf-encoded. Parsing it in the browser requires a protobuf library + the Tachiyomi schema. Only JSON backup format works.
-- **Fix:** Add `protobufjs` to dependencies and decode using the [Tachiyomi backup proto schema](https://github.com/tachiyomiorg/tachiyomi/blob/master/app/src/main/proto/Backup.proto).
+### `manga-dl-bookmarks` key uses wrong compound key
+- **File:** `frontend/src/pages/MangaDetail.tsx:71`
+- **Issue:** `useState` initializer reads `[provider}:${provider}]` — duplicates `provider` instead of using `mangaId`. Bookmarks never load correctly on first render.
+- **Fix:** Change to `` `${provider}:${mangaId}` ``.
+
+### MAL sync sends chapter ID string, not chapter number
+- **File:** `backend/app/api/manga.py` (MAL sync endpoint)
+- **Issue:** MAL expects `num_chapters_read` as integer. Code sends chapter ID string. MAL silently rejects or stores 0.
+- **Fix:** Parse `ChapterResult.number` (float) → cast to int.
+
+### `|` in manga title breaks `/read/online/` URL encoding
+- **Files:** `frontend/src/pages/Reader.tsx`, `frontend/src/pages/MangaDetail.tsx`
+- **Issue:** 5-part pipe-separated URL param (`provider|mangaId|chapterId|mangaTitle|chapterTitle`) breaks if any field contains literal `|`.
+- **Fix:** Base64-encode each component, or switch to JSON+base64 URL param.
+
+### ComicInfo.xml doesn't escape special characters
+- **File:** `backend/app/core/downloader.py` → `build_comic_info_xml`
+- **Issue:** Manga titles with `&`, `<`, `>` produce malformed XML (e.g. `Dungeon & Fighter`).
+- **Fix:** Apply `xml.sax.saxutils.escape()` to all string fields.
+
+---
+
+## 🟡 UX / Sync Gaps
 
 ### Read tracking is localStorage-only — not cross-device
 - **Files:** `frontend/src/lib/readTracking.ts`, `frontend/src/pages/Dashboard.tsx`
-- **Issue:** Unread badge counts, read/unread chapter state, and bookmarks all live in localStorage. They do not sync across devices or browsers.
-- **Fix:** Mirror read state to Supabase `reading_progress` table (already exists) on write. On initial load, reconcile localStorage with server state.
+- **Issue:** Unread badges, read/unread chapter state, bookmarks are all localStorage. Don't sync across devices.
+- **Fix:** Mirror to Supabase `reading_progress` table on write; reconcile on load.
 
-### Manga categories are localStorage-only — not cross-device
+### Manga categories are localStorage-only
 - **File:** `frontend/src/lib/categories.ts`
-- **Issue:** Same as above — category assignments don't survive clearing browser data or switching devices.
-- **Fix:** Add `manga_categories` column to `MangaRecord` or a separate join table; sync on assignment.
+- **Issue:** Category assignments lost on browser clear or new device.
+- **Fix:** Add `manga_categories` column to `MangaRecord` or a join table; sync on assignment.
 
-### Manga notes/rating are localStorage-only
+### Manga notes / rating are localStorage-only
 - **File:** `frontend/src/lib/mangaNotes.ts`
-- **Issue:** Same pattern as categories/read tracking.
+- **Issue:** Same pattern as categories.
 
-### Scanlator filter uses regex `[GroupName]` pattern only
-- **File:** `frontend/src/pages/MangaDetail.tsx` → `scanlators` useMemo
-- **Issue:** Only extracts scanlator names that appear as `[GroupName]` in the chapter title. Providers that don't use this convention (e.g. raw chapter titles) will show no scanlator options.
-- **Fix:** Extend with per-provider extraction logic, or add a `scanlator` field to `ChapterResult` in the backend.
+### Manga metadata overrides are localStorage-only
+- **File:** `frontend/src/pages/MangaDetail.tsx` → `manga-dl-meta-overrides` key
+- **Issue:** Manual title/cover/description edits don't sync cross-device.
+- **Fix:** Store in `MangaRecord` columns or a separate `manga_overrides` table.
 
-### PWA icons are placeholders — app may not install correctly
-- **File:** `frontend/vite.config.ts`
-- **Issue:** `pwa-192x192.png` and `pwa-512x512.png` are referenced but may not exist in `public/`. Without these the PWA install prompt either won't appear or will show a broken icon.
-- **Fix:** Add actual icon files to `frontend/public/`.
-
-### Chapter bookmarks not shown in chapter filter
-- **File:** `frontend/src/pages/MangaDetail.tsx`
-- **Issue:** `readFilter` has `all/unread/read` options but no `bookmarked` filter despite bookmarks being stored.
-- **Fix:** Add `'bookmarked'` to the `readFilter` type and include it in `displayedChapters` memo.
+### Auto-backup (web) triggers browser download prompt
+- **File:** `frontend/src/pages/Settings.tsx` → auto-backup useEffect
+- **Issue:** Fires `a.click()` to download JSON, which pops a save dialog. Silent background backup not possible on web.
+- **Acceptable:** Document behaviour in Settings UI. Cloud backup (Supabase) is the silent alternative.
 
 ---
 
-## 🟡 UX / Polish Issues
+## 🟡 Extension Limitations
 
-### Search grouped results show empty providers
-- **File:** `frontend/src/pages/Search.tsx`
-- **Issue:** When searching all providers, providers that return 0 results still render a header. The `Object.entries(reduce(...))` approach only groups results that exist, but if a provider errors mid-search the `Promise.allSettled` in the backend returns partial data silently.
-- **Fix:** Add minimum 1 result check before rendering a provider group header (currently handled by the reduce, but verify with slow providers).
+### Keiyoushi index is Android APK metadata — no JS sources
+- **Issue:** Extension install succeeds (metadata stored) but sources can't execute JS. Built-in providers (MangaDex, MangaKatana, etc.) delegate to the backend and work correctly.
+- **Workaround:** Extensions act as "preferences" for which sources to show. Actual data flows through backend providers.
 
-### Category tabs in Dashboard don't persist across reload
-- **File:** `frontend/src/pages/Dashboard.tsx`
-- **Issue:** `activeCategory` state resets to `null` on page reload.
-- **Fix:** Persist in URL param (`?category=Reading`) or `sessionStorage`.
-
-### Discord RPC errors are fully silent
-- **File:** `frontend/src/pages/Reader.tsx`
-- **Issue:** The Tauri invoke call swallows all errors silently (`.catch(() => {})`). If Discord is not running or the App ID is wrong, nothing notifies the user.
-- **Fix:** Acceptable for optional RPC — keep silent. If user adds a "Discord status" indicator in Settings, surface errors there.
-
-### Dynamic filter state resets when switching tabs
-- **File:** `frontend/src/pages/Search.tsx`
-- **Issue:** `activeFilters` is local state. Switching from Popular → Latest → Popular resets to defaults.
-- **Fix:** Move `activeFilters` to the Zustand store or use `useRef` to preserve between tab switches.
-
-### Public profile shows user UUID as display name
-- **File:** `frontend/src/pages/Profile.tsx`
-- **Issue:** No username system exists — profile header shows first 8 chars of UUID (`shortId`).
-- **Fix:** Add a `display_name` column to `UserDevice` or a separate `UserProfile` table in Supabase.
-
-### `read/online/` URL encoding breaks if title contains `|`
-- **File:** `frontend/src/pages/Reader.tsx`, `frontend/src/pages/MangaDetail.tsx`
-- **Issue:** The 5-part pipe-separated URL encoding (`provider|mangaId|chapterId|mangaTitle|chapterTitle`) fails silently if any field contains a literal `|` character.
-- **Fix:** Base64-encode each component, or switch to a JSON-encoded + base64 URL param.
+### Source migration doesn't migrate downloaded files
+- **File:** `backend/app/api/manga.py` → `migrate_manga_source`
+- **Issue:** Migrating a manga updates the DB record but existing CBZ files remain under the old path/title. Re-downloading is required.
+- **Fix:** Rename the download directory for the manga on the filesystem as part of migration.
 
 ---
 
 ## 🟢 Minor / Low Priority
 
+### Category tabs in Dashboard don't persist across reload
+- **Issue:** `activeCategory` resets to `null` on reload.
+- **Fix:** Persist in URL param (`?category=Reading`) or `sessionStorage`.
+
 ### Heatmap uses download date, not read date
-- **File:** `frontend/src/pages/Stats.tsx`, `backend/app/api/library.py`
-- **Issue:** `yearly_downloads` tracks when chapters were *downloaded*, not when they were *read*. A user who bulk-downloads shows a spike, not steady reading.
-- **Fix:** Count `ReadingProgress.updated_at` entries instead of download records.
+- **Issue:** Reflects when chapters were *downloaded*, not *read*. Bulk downloads cause spikes.
+- **Fix:** Count `ReadingProgress.updated_at` from Supabase instead.
 
-### MAL sync sends chapter ID not chapter number
-- **File:** `backend/app/api/manga.py` (MAL sync endpoint)
-- **Issue:** MAL expects a chapter *number* (integer) for `num_chapters_read`. Currently sends chapter ID string. MAL may silently reject or misrecord.
-- **Fix:** Parse `ChapterResult.number` (float) and cast to int before sending.
+### Public profile shows UUID as display name
+- **File:** `frontend/src/pages/Profile.tsx`
+- **Issue:** No username system — shows first 8 chars of UUID.
+- **Fix:** Add `display_name` column to `UserDevice` or a `UserProfile` table.
 
-### Provider `get_popular_filtered` falls back to `get_popular` for non-MangaDex
-- **File:** `backend/app/providers/base.py`
-- **Issue:** Only MangaDex overrides `get_popular_filtered`. Other providers silently ignore filters and return unfiltered results.
-- **Fix:** Acceptable for now. Document in Source page UI when a source doesn't support filters (check `filters` endpoint returns empty array).
+### Search grouped results show header for zero-result providers
+- **File:** `frontend/src/pages/Search.tsx`
+- **Issue:** Headers render even when provider returns 0 results. Mostly invisible but wastes space.
+- **Fix:** Add `results.length > 0` guard before rendering provider group.
+
+### Dynamic filter state resets on tab switch
+- **File:** `frontend/src/pages/Search.tsx`
+- **Issue:** `activeFilters` local state resets when switching Popular → Latest → Popular.
+- **Fix:** Move to Zustand store or `useRef`.
 
 ### `vite-plugin-pwa` dev mode disabled
-- **File:** `frontend/vite.config.ts`
-- **Issue:** `devOptions: { enabled: false }` means the service worker is NOT registered during development. PWA features (offline, cache) only work in production builds.
-- **Fix:** Expected behaviour. Run `npm run build && npm run preview` to test PWA.
+- **Issue:** Service worker not registered in dev. PWA features only work in production build.
+- **Expected.** Run `bun run build && bun run preview` to test PWA.
 
-### CBZ `ComicInfo.xml` fields use UTF-8 but special chars not escaped
-- **File:** `backend/app/core/downloader.py` → `build_comic_info_xml`
-- **Issue:** Manga titles with `<`, `>`, `&` (e.g. `Dungeon & Fighter`) will produce malformed XML.
-- **Fix:** Use `xml.sax.saxutils.escape()` on all string fields.
+### `tauri-plugin-autostart` may not compile on all Linux distros
+- **Issue:** Requires platform autostart APIs. May fail on minimal setups.
+- **Fix:** Gate behind `[target.'cfg(target_os = "linux")'.dependencies]` if needed.
 
-### Tauri `discord-rich-presence` crate may not compile on all targets
-- **File:** `frontend/src-tauri/Cargo.toml`
-- **Issue:** `discord-rich-presence = "0.2"` uses platform IPC sockets. May fail to compile on some Linux distros without `libdbus` or similar.
-- **Fix:** Wrap in `[target.'cfg(not(target_os = "ios"))'.dependencies]` if mobile builds are needed, or add `optional = true` and gate behind a feature flag.
+### Tracker sync modal only supports AniList + MAL
+- **File:** `frontend/src/pages/MangaDetail.tsx` → `showSyncModal`
+- **Issue:** MangaUpdates, Shikimori, Bangumi show "Sync" button only for anilist/mal. Others show only "Unlink".
+- **Fix:** Add sync handlers for MU/Shiki/BGM when their APIs support status+score writes.
 
 ---
 
-## 📋 Platform-Specific Gaps (see PLATFORM_MATRIX.md for full breakdown)
+## 📋 Platform Gaps (see PLATFORM_MATRIX.md)
 
 | Feature | Web | Desktop | Android |
 |---------|-----|---------|---------|
-| Discord Rich Presence | ❌ not possible | ✅ via Tauri IPC | ❌ not applicable |
-| Volume key navigation | ✅ keyboard events | ✅ keyboard events | ❌ Android intercepts volume keys at OS level |
-| File system access (CBZ save) | ❌ download prompt only | ✅ full FS via Tauri | 🔨 Capacitor filesystem plugin |
-| Local folder scan | ❌ | ✅ | 🔨 |
-| Push notifications | ✅ Web Push | ✅ OS notifications via Tauri | ✅ Capacitor push |
-| Biometric lock | ❌ | 🔨 via OS keychain | 🔨 Capacitor biometric plugin |
-| Offline mode | ✅ PWA service worker | ✅ app is local | ✅ native app |
-| Background chapter sync | ❌ | ✅ tray process | 🔨 Capacitor background task |
+| Background sync (persistent) | ❌ | ✅ Rust task | ⬜ WorkManager |
+| Biometric lock | ❌ | ⬜ | ⬜ |
+| Discord Rich Presence | ❌ | ✅ | ❌ |
+| Volume keys | ❌ (browser) | ✅ keyboard | ✅ Kotlin plugin |
+| Filesystem (custom path) | ❌ | ✅ | ✅ Documents/ |
+| Push notifications | ✅ Web Push | ✅ OS notif | ⬜ FCM needed |
+| Download notification | ❌ | ❌ | ✅ local-notifications |
+</content>
+</invoke>

@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../lib/api'
 import { supabase } from '../lib/supabase'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Clock, Play, Trash2, ChevronLeft, Loader2, EyeOff } from 'lucide-react'
+import { Clock, Play, Trash2, ChevronLeft, Loader2, EyeOff, Calendar } from 'lucide-react'
 import { useAppStore } from '../lib/store'
+import { cn } from '../lib/utils'
 
 interface HistoryEntry {
   provider: string
@@ -15,6 +16,8 @@ interface HistoryEntry {
   last_page: number
   updated_at: string
 }
+
+type DateFilter = 'all' | 'today' | 'week' | 'month'
 
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
@@ -28,6 +31,14 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString()
 }
 
+function startOf(filter: DateFilter): number {
+  const now = new Date()
+  if (filter === 'today') { now.setHours(0, 0, 0, 0); return now.getTime() }
+  if (filter === 'week') return Date.now() - 7 * 86_400_000
+  if (filter === 'month') return Date.now() - 30 * 86_400_000
+  return 0
+}
+
 export default function HistoryPage() {
   const navigate = useNavigate()
   const { incognitoMode } = useAppStore()
@@ -36,6 +47,8 @@ export default function HistoryPage() {
   const [authed, setAuthed] = useState(false)
   const [clearing, setClearing] = useState(false)
   const [clearingMangaId, setClearingMangaId] = useState<string | null>(null)
+  const [dateFilter, setDateFilter] = useState<DateFilter>('all')
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -50,6 +63,16 @@ export default function HistoryPage() {
       }
     })
   }, [])
+
+  const filtered = useMemo(() => {
+    const cutoff = startOf(dateFilter)
+    return history.filter(e => {
+      const ts = e.updated_at ? new Date(e.updated_at).getTime() : 0
+      if (ts < cutoff) return false
+      if (search && !e.manga_title.toLowerCase().includes(search.toLowerCase())) return false
+      return true
+    })
+  }, [history, dateFilter, search])
 
   const handleClearAll = async () => {
     if (!confirm('Clear all reading history?')) return
@@ -85,9 +108,16 @@ export default function HistoryPage() {
     )
   }
 
+  const DATE_TABS: { label: string; value: DateFilter }[] = [
+    { label: 'All', value: 'all' },
+    { label: 'Today', value: 'today' },
+    { label: 'This Week', value: 'week' },
+    { label: 'This Month', value: 'month' },
+  ]
+
   return (
     <div className="p-6 md:p-12 max-w-4xl mx-auto min-h-full">
-      <header className="mb-10">
+      <header className="mb-8">
         <button
           onClick={() => navigate(-1)}
           className="flex items-center gap-2 text-white/40 hover:text-white transition-colors mb-6 text-sm font-bold"
@@ -95,7 +125,7 @@ export default function HistoryPage() {
           <ChevronLeft className="w-4 h-4" />
           Back
         </button>
-        <div className="flex items-end justify-between gap-4">
+        <div className="flex items-end justify-between gap-4 mb-6">
           <div>
             <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-2 bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent">
               History
@@ -106,13 +136,46 @@ export default function HistoryPage() {
             <button
               onClick={handleClearAll}
               disabled={clearing}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/5 hover:bg-red-500/20 hover:border-red-500/20 hover:text-red-400 text-white/40 transition-all text-xs font-bold uppercase tracking-wider"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/5 hover:bg-red-500/20 hover:border-red-500/20 hover:text-red-400 text-white/40 transition-all text-xs font-bold uppercase tracking-wider shrink-0"
             >
               {clearing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
               Clear All
             </button>
           )}
         </div>
+
+        {authed && history.length > 0 && (
+          <div className="space-y-3">
+            {/* Search */}
+            <input
+              type="search"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search history..."
+              className="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-red-500/20"
+            />
+            {/* Date filter tabs */}
+            <div className="flex items-center gap-1 bg-white/5 rounded-xl p-1 w-fit">
+              <Calendar className="w-3.5 h-3.5 text-white/30 ml-2 mr-1" />
+              {DATE_TABS.map(tab => (
+                <button
+                  key={tab.value}
+                  onClick={() => setDateFilter(tab.value)}
+                  className={cn(
+                    'px-3 py-1.5 rounded-lg text-xs font-bold transition-all',
+                    dateFilter === tab.value ? 'bg-red-600 text-white' : 'text-white/40 hover:text-white'
+                  )}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-white/20 font-medium">
+              {filtered.length} entr{filtered.length !== 1 ? 'ies' : 'y'}
+              {dateFilter !== 'all' && ` in ${DATE_TABS.find(t => t.value === dateFilter)?.label.toLowerCase()}`}
+            </p>
+          </div>
+        )}
       </header>
 
       {loading ? (
@@ -127,16 +190,20 @@ export default function HistoryPage() {
             Sign In
           </button>
         </div>
-      ) : history.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
           <Clock className="w-12 h-12 text-white/10" />
-          <p className="text-white/30 font-bold uppercase tracking-widest text-xs">No reading history yet</p>
-          <p className="text-white/20 text-sm">Chapters you read online will appear here</p>
+          <p className="text-white/30 font-bold uppercase tracking-widest text-xs">
+            {history.length === 0 ? 'No reading history yet' : 'No entries match this filter'}
+          </p>
+          <p className="text-white/20 text-sm">
+            {history.length === 0 ? 'Chapters you read online will appear here' : 'Try a different date range'}
+          </p>
         </div>
       ) : (
         <AnimatePresence>
           <div className="space-y-2">
-            {history.map((entry, i) => (
+            {filtered.map((entry, i) => (
               <motion.div
                 key={`${entry.provider}-${entry.manga_id}-${entry.chapter_id}`}
                 initial={{ opacity: 0, y: 8 }}
@@ -148,7 +215,10 @@ export default function HistoryPage() {
                   <Clock className="w-4 h-4 text-red-400" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-white/90 truncate text-sm group-hover:text-red-400 transition-colors">
+                  <p
+                    className="font-bold text-white/90 truncate text-sm group-hover:text-red-400 transition-colors cursor-pointer"
+                    onClick={() => navigate(`/manga/${entry.provider}/${encodeURIComponent(entry.manga_id)}`)}
+                  >
                     {entry.manga_title}
                   </p>
                   <p className="text-[11px] text-white/30 font-medium truncate">
