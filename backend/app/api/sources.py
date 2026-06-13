@@ -1,9 +1,12 @@
 import re
 import logging
-import asyncio
-from fastapi import APIRouter, HTTPException, Depends
+from typing import Optional
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 from curl_cffi import requests
-from app.core.security import verify_api_key
+from app.providers import get_provider
+from app.providers.komga import KomgaProvider
+from app.providers.suwayomi import SuwayomiProvider
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/sources", tags=["sources"])
@@ -37,6 +40,32 @@ async def list_market_sources():
     except Exception as e:
         log.error(f"Market fetch failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+class KomgaConfig(BaseModel):
+    base_url: str
+    username: str = ""
+    password: str = ""
+
+class SuwayomiConfig(BaseModel):
+    base_url: str
+
+@router.post("/configure/komga")
+async def configure_komga(config: KomgaConfig):
+    """Configure Komga provider with server URL + credentials."""
+    provider = get_provider("komga")
+    if not isinstance(provider, KomgaProvider):
+        raise HTTPException(500, "Komga provider not registered")
+    provider.configure(config.base_url, config.username, config.password)
+    return {"status": "ok", "base_url": config.base_url}
+
+@router.post("/configure/suwayomi")
+async def configure_suwayomi(config: SuwayomiConfig):
+    """Configure Suwayomi provider with server URL."""
+    provider = get_provider("suwayomi")
+    if not isinstance(provider, SuwayomiProvider):
+        raise HTTPException(500, "Suwayomi provider not registered")
+    provider.configure(config.base_url)
+    return {"status": "ok", "base_url": config.base_url}
 
 @router.get("/code/{pkg_id}")
 async def get_extension_code(pkg_id: str):

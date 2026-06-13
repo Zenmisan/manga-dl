@@ -3,11 +3,14 @@ from app.providers.mangadex import MangaDexProvider
 from app.providers.omegascans import OmegaScansProvider
 from app.providers.mangakatana import MangaKatanaProvider
 from app.providers.asurascans import AsuraScansProvider
+from app.providers.komga import KomgaProvider
+from app.providers.suwayomi import SuwayomiProvider
 
 # Registry: provider_id → provider instance
 _REGISTRY: dict[str, Provider] = {
     p.id: p()
-    for p in [MangaDexProvider, OmegaScansProvider, MangaKatanaProvider, AsuraScansProvider]
+    for p in [MangaDexProvider, OmegaScansProvider, MangaKatanaProvider, AsuraScansProvider,
+              KomgaProvider, SuwayomiProvider]
 }
 
 

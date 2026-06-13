@@ -62,6 +62,10 @@ interface AppState {
   // Privacy
   incognitoMode: boolean
   setIncognitoMode: (val: boolean) => void
+
+  // Android native
+  hapticFeedback: boolean
+  setHapticFeedback: (val: boolean) => void
 }
 
 const defaultFilters: ReaderFilters = {
@@ -110,6 +114,9 @@ export const useAppStore = create<AppState>()(
 
       incognitoMode: false,
       setIncognitoMode: (val) => set({ incognitoMode: val }),
+
+      hapticFeedback: true,
+      setHapticFeedback: (val) => set({ hapticFeedback: val }),
     }),
     {
       name: 'manga-dl-prefs',
@@ -125,6 +132,7 @@ export const useAppStore = create<AppState>()(
         tapZoneLayout: state.tapZoneLayout,
         theme: state.theme,
         amoledBlack: state.amoledBlack,
+        hapticFeedback: state.hapticFeedback,
       }),
     }
   )

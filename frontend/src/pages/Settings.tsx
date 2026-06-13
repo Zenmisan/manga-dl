@@ -60,6 +60,17 @@ export default function SettingsPage() {
   // Cloud backup
   const [cloudBackupLoading, setCloudBackupLoading] = useState(false)
   const [cloudBackupDone, setCloudBackupDone] = useState(false)
+  // Self-hosted sources
+  const [komgaUrl, setKomgaUrl] = useState(localStorage.getItem('komga-url') || '')
+  const [komgaUser, setKomgaUser] = useState(localStorage.getItem('komga-username') || '')
+  const [komgaPass, setKomgaPass] = useState('')
+  const [komgaSaving, setKomgaSaving] = useState(false)
+  const [suwayomiUrl, setSuwayomiUrl] = useState(localStorage.getItem('suwayomi-url') || '')
+  const [suwayomiSaving, setSuwayomiSaving] = useState(false)
+  // Additional trackers
+  const [mangaUpdatesToken, setMangaUpdatesToken] = useState(localStorage.getItem('mangaupdates-token') || '')
+  const [shikimoriToken, setShikimoriToken] = useState(localStorage.getItem('shikimori-token') || '')
+  const [bangumiToken, setBangumiToken] = useState(localStorage.getItem('bangumi-token') || '')
   // Notifications
   const [notifEnabled, setNotifEnabled] = useState(localStorage.getItem('notifications-enabled') === 'true')
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>(
@@ -211,22 +222,35 @@ export default function SettingsPage() {
 
   const handleExportBackup = async () => {
     try {
-      const [libraryRes, historyRes] = await Promise.allSettled([
+      const [libraryRes, historyRes, cloudHistoryRes] = await Promise.allSettled([
         api.get('/library'),
         api.get('/users/history'),
+        api.get('/backup/export/manual'),
       ])
       const backup = {
-        version: 1,
-        exportedAt: new Date().toISOString(),
+        version: '2.0',
+        app: 'manga-dl',
+        exported_at: new Date().toISOString(),
         library: libraryRes.status === 'fulfilled' ? libraryRes.value.data : [],
-        readingHistory: historyRes.status === 'fulfilled' ? historyRes.value.data : [],
+        cloud_history: cloudHistoryRes.status === 'fulfilled' ? cloudHistoryRes.value.data?.cloud_history ?? [] : [],
+        reading_history: historyRes.status === 'fulfilled' ? historyRes.value.data : [],
+        // All localStorage state
+        local: {
+          read_tracking: localStorage.getItem('manga-dl-read'),
+          bookmarks: localStorage.getItem('manga-dl-bookmarks'),
+          categories: localStorage.getItem('manga-dl-categories'),
+          manga_categories: localStorage.getItem('manga-dl-manga-categories'),
+          notes: localStorage.getItem('manga-dl-notes'),
+          reading_goals: localStorage.getItem('manga-dl-reading-goals'),
+          tracker_links: localStorage.getItem('manga-dl-tracker-links'),
+          reader_prefs: localStorage.getItem('manga-dl-prefs'),
+        },
+        // Non-secret settings
         settings: {
-          apiKey: localStorage.getItem('manga-api-key'),
-          backendUrl: localStorage.getItem('manga-backend-url'),
-          anilistClientId: localStorage.getItem('anilist-client-id'),
-          malClientId: localStorage.getItem('mal-client-id'),
-          notificationsEnabled: localStorage.getItem('notifications-enabled'),
-          readerPrefs: localStorage.getItem('manga-dl-prefs'),
+          backend_url: localStorage.getItem('manga-backend-url'),
+          anilist_client_id: localStorage.getItem('anilist-client-id'),
+          mal_client_id: localStorage.getItem('mal-client-id'),
+          notifications_enabled: localStorage.getItem('notifications-enabled'),
         },
       }
       const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
@@ -288,6 +312,30 @@ export default function SettingsPage() {
     setKitsuUser('')
   }
 
+  const handleKomgaSave = async () => {
+    if (!komgaUrl.trim()) return
+    setKomgaSaving(true)
+    try {
+      await api.post('/sources/configure/komga', { base_url: komgaUrl.trim(), username: komgaUser, password: komgaPass })
+      localStorage.setItem('komga-url', komgaUrl.trim())
+      localStorage.setItem('komga-username', komgaUser)
+      setKomgaPass('')
+      alert('Komga connected! Browse it in Search → Komga.')
+    } catch { alert('Failed to connect to Komga. Check URL and credentials.') }
+    setKomgaSaving(false)
+  }
+
+  const handleSuwayomiSave = async () => {
+    if (!suwayomiUrl.trim()) return
+    setSuwayomiSaving(true)
+    try {
+      await api.post('/sources/configure/suwayomi', { base_url: suwayomiUrl.trim() })
+      localStorage.setItem('suwayomi-url', suwayomiUrl.trim())
+      alert('Suwayomi connected! Browse it in Search → Suwayomi.')
+    } catch { alert('Failed to connect to Suwayomi. Check URL.') }
+    setSuwayomiSaving(false)
+  }
+
   const handleTachiyomiImport = () => {
     const input = document.createElement('input')
     input.type = 'file'
@@ -296,30 +344,55 @@ export default function SettingsPage() {
       const file = (e.target as HTMLInputElement).files?.[0]
       if (!file) return
       try {
-        if (file.name.endsWith('.json')) {
+        let parsed: { manga: any[]; categories: any[] }
+        if (file.name.endsWith('.tachibk')) {
+          // Send to backend for protobuf decode
+          const form = new FormData()
+          form.append('file', file)
+          const res = await api.post('/backup/import/tachibk', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+          parsed = res.data
+        } else {
           const text = await file.text()
           const data = JSON.parse(text)
-          // Tachiyomi JSON backup format: { backupManga: [{ title, source, ... }] }
-          const mangaList: string[] = (data.backupManga || data.library || []).map(
-            (m: { title?: string; name?: string }) => m.title || m.name || ''
-          ).filter(Boolean)
-          if (mangaList.length === 0) {
-            alert('No manga found in backup.')
-            return
+          parsed = {
+            manga: data.backupManga || data.manga || data.library || [],
+            categories: data.backupCategories || data.categories || [],
           }
-          const categories: string[] = (data.backupCategories || []).map(
-            (c: { name?: string }) => c.name || ''
-          ).filter(Boolean)
-          // Store imported list in localStorage for library to pick up
-          localStorage.setItem('tachiyomi-import', JSON.stringify({ manga: mangaList, categories }))
-          alert(`Imported ${mangaList.length} manga and ${categories.length} categories from Tachiyomi backup.\n\nSearch for these titles and add them to your library.`)
-        } else {
-          // .tachibk is protobuf — can't decode without schema in browser
-          alert('Binary .tachibk format not yet supported. Please export from Tachiyomi as JSON backup first (Settings → Backup → Create backup → select JSON).')
         }
+
+        const mangaList: string[] = parsed.manga.map(
+          (m: any) => m.title || m.name || ''
+        ).filter(Boolean)
+        const categories: string[] = parsed.categories.map(
+          (c: any) => c.name || ''
+        ).filter(Boolean)
+
+        // Restore categories to localStorage
+        if (categories.length > 0) {
+          const existing = JSON.parse(localStorage.getItem('manga-dl-categories') || '[]')
+          const merged = [...new Set([...existing, ...categories])]
+          localStorage.setItem('manga-dl-categories', JSON.stringify(merged))
+        }
+
+        // Restore read history from chapters
+        const readMap: Record<string, string[]> = JSON.parse(localStorage.getItem('manga-dl-read') || '{}')
+        let restoredChapters = 0
+        for (const m of parsed.manga) {
+          const chaps = (m.chapters || []).filter((c: any) => c.read)
+          if (chaps.length > 0 && m.url) {
+            const key = `tachi:${m.url}`
+            readMap[key] = chaps.map((c: any) => c.url)
+            restoredChapters += chaps.length
+          }
+        }
+        localStorage.setItem('manga-dl-read', JSON.stringify(readMap))
+
+        // Store manga list for library search
+        localStorage.setItem('tachiyomi-import', JSON.stringify({ manga: mangaList, categories }))
+        alert(`Imported ${mangaList.length} manga, ${categories.length} categories, ${restoredChapters} read chapters from Tachiyomi backup.\n\nSearch for these titles to add them to your library.`)
       } catch (err) {
         console.error(err)
-        alert('Failed to parse backup file.')
+        alert('Failed to parse backup file. Check console.')
       }
     }
     input.click()
@@ -407,18 +480,42 @@ export default function SettingsPage() {
       try {
         const text = await file.text()
         const backup = JSON.parse(text)
-        if (backup.version !== 1) {
-          alert('Unsupported backup version.')
+        if (backup.app !== 'manga-dl' && backup.version !== 1) {
+          alert('Unsupported backup file format.')
           return
         }
+
+        const restored: string[] = []
+
+        // v2 format — rich local data
+        const local = backup.local ?? {}
+        const settings = backup.settings ?? {}
+
+        if (local.read_tracking) { localStorage.setItem('manga-dl-read', local.read_tracking); restored.push('read tracking') }
+        if (local.bookmarks) { localStorage.setItem('manga-dl-bookmarks', local.bookmarks); restored.push('bookmarks') }
+        if (local.categories) { localStorage.setItem('manga-dl-categories', local.categories); restored.push('categories') }
+        if (local.manga_categories) { localStorage.setItem('manga-dl-manga-categories', local.manga_categories); restored.push('manga categories') }
+        if (local.notes) { localStorage.setItem('manga-dl-notes', local.notes); restored.push('notes') }
+        if (local.reading_goals) { localStorage.setItem('manga-dl-reading-goals', local.reading_goals); restored.push('reading goals') }
+        if (local.tracker_links) { localStorage.setItem('manga-dl-tracker-links', local.tracker_links); restored.push('tracker links') }
+        if (local.reader_prefs) { localStorage.setItem('manga-dl-prefs', local.reader_prefs); restored.push('reader preferences') }
+
+        // v1 compat
         const s = backup.settings ?? {}
-        if (s.apiKey) { localStorage.setItem('manga-api-key', s.apiKey) }
-        if (s.backendUrl) { localStorage.setItem('manga-backend-url', s.backendUrl) }
-        if (s.anilistClientId) { localStorage.setItem('anilist-client-id', s.anilistClientId) }
-        if (s.malClientId) { localStorage.setItem('mal-client-id', s.malClientId) }
-        if (s.notificationsEnabled) { localStorage.setItem('notifications-enabled', s.notificationsEnabled) }
-        if (s.readerPrefs) { localStorage.setItem('manga-dl-prefs', s.readerPrefs) }
-        alert(`Backup imported. Settings restored.\nReload to apply.`)
+        if (s.readerPrefs) { localStorage.setItem('manga-dl-prefs', s.readerPrefs); }
+        if (settings.backend_url) localStorage.setItem('manga-backend-url', settings.backend_url)
+        if (settings.anilist_client_id) localStorage.setItem('anilist-client-id', settings.anilist_client_id)
+        if (settings.mal_client_id) localStorage.setItem('mal-client-id', settings.mal_client_id)
+
+        // Restore cloud reading history to backend
+        if (backup.cloud_history?.length) {
+          try {
+            await api.post('/backup/import/manual', backup)
+            restored.push(`${backup.cloud_history.length} cloud history entries`)
+          } catch { /* silent if not logged in */ }
+        }
+
+        alert(`Restored: ${restored.join(', ') || 'nothing'}\n\nReload to apply changes.`)
       } catch (err) {
         console.error(err)
         alert('Import failed — invalid backup file.')
@@ -972,6 +1069,93 @@ export default function SettingsPage() {
                   Restore from Cloud
                 </button>
               </div>
+            </div>
+          </div>
+        </motion.section>
+
+        {/* Self-Hosted Sources */}
+        <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-panel overflow-hidden border-white/5">
+          <div className="p-6 border-b border-white/5 flex items-center gap-3 bg-white/[0.02]">
+            <div className="p-2 bg-teal-500/10 rounded-lg"><HardDrive className="w-5 h-5 text-teal-400" /></div>
+            <h2 className="font-bold text-lg">Self-Hosted Sources</h2>
+          </div>
+          <div className="p-6 md:p-8 space-y-6">
+            {/* Komga */}
+            <div>
+              <h3 className="font-bold text-sm mb-1 flex items-center gap-2">🏠 Komga</h3>
+              <p className="text-xs text-white/30 mb-3">Connect to a self-hosted Komga server (REST API)</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                <input value={komgaUrl} onChange={e => setKomgaUrl(e.target.value)} placeholder="http://localhost:25600" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-white/30" />
+                <input value={komgaUser} onChange={e => setKomgaUser(e.target.value)} placeholder="Username (optional)" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-white/30" />
+                <input value={komgaPass} onChange={e => setKomgaPass(e.target.value)} type="password" placeholder="Password (optional)" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-white/30" />
+              </div>
+              <button onClick={handleKomgaSave} disabled={komgaSaving || !komgaUrl.trim()} className="px-5 py-2 rounded-xl bg-teal-500/20 border border-teal-500/30 text-teal-400 hover:bg-teal-500/30 font-bold text-xs uppercase tracking-widest transition-all disabled:opacity-40 flex items-center gap-2">
+                {komgaSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                {localStorage.getItem('komga-url') ? 'Update' : 'Connect'}
+              </button>
+              {localStorage.getItem('komga-url') && <p className="text-[10px] text-emerald-400 mt-2">✓ Connected to {localStorage.getItem('komga-url')}</p>}
+            </div>
+            {/* Suwayomi */}
+            <div className="pt-4 border-t border-white/5">
+              <h3 className="font-bold text-sm mb-1 flex items-center gap-2">🌊 Suwayomi</h3>
+              <p className="text-xs text-white/30 mb-3">Connect to a self-hosted Suwayomi server (GraphQL)</p>
+              <div className="flex gap-3 mb-3">
+                <input value={suwayomiUrl} onChange={e => setSuwayomiUrl(e.target.value)} placeholder="http://localhost:4567" className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-white/30" />
+              </div>
+              <button onClick={handleSuwayomiSave} disabled={suwayomiSaving || !suwayomiUrl.trim()} className="px-5 py-2 rounded-xl bg-teal-500/20 border border-teal-500/30 text-teal-400 hover:bg-teal-500/30 font-bold text-xs uppercase tracking-widest transition-all disabled:opacity-40 flex items-center gap-2">
+                {suwayomiSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                {localStorage.getItem('suwayomi-url') ? 'Update' : 'Connect'}
+              </button>
+              {localStorage.getItem('suwayomi-url') && <p className="text-[10px] text-emerald-400 mt-2">✓ Connected to {localStorage.getItem('suwayomi-url')}</p>}
+            </div>
+          </div>
+        </motion.section>
+
+        {/* Additional Trackers */}
+        <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-panel overflow-hidden border-white/5">
+          <div className="p-6 border-b border-white/5 flex items-center gap-3 bg-white/[0.02]">
+            <div className="p-2 bg-rose-500/10 rounded-lg"><Share2 className="w-5 h-5 text-rose-400" /></div>
+            <h2 className="font-bold text-lg">Additional Trackers</h2>
+          </div>
+          <div className="p-6 md:p-8 space-y-6">
+            {/* MangaUpdates */}
+            <div>
+              <h3 className="font-bold text-sm mb-1">MangaUpdates</h3>
+              <p className="text-xs text-white/30 mb-3">Paste your MangaUpdates API token (from mangaupdates.com/account → API)</p>
+              <div className="flex gap-3">
+                <input value={mangaUpdatesToken} onChange={e => setMangaUpdatesToken(e.target.value)} type="password" placeholder="MangaUpdates API token" className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-white/30" />
+                <button onClick={() => { localStorage.setItem('mangaupdates-token', mangaUpdatesToken); alert('MangaUpdates token saved.') }} disabled={!mangaUpdatesToken.trim()} className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 font-bold text-xs uppercase tracking-widest transition-all disabled:opacity-40 flex items-center gap-2">
+                  <Save className="w-4 h-4" /> Save
+                </button>
+                {mangaUpdatesToken && <button onClick={() => { localStorage.removeItem('mangaupdates-token'); setMangaUpdatesToken('') }} className="px-3 py-2 rounded-xl text-xs text-red-400/60 hover:text-red-400 transition-colors font-bold uppercase">Logout</button>}
+              </div>
+              {localStorage.getItem('mangaupdates-token') && <p className="text-[10px] text-emerald-400 mt-2">✓ MangaUpdates connected</p>}
+            </div>
+            {/* Shikimori */}
+            <div className="pt-4 border-t border-white/5">
+              <h3 className="font-bold text-sm mb-1">Shikimori <span className="text-[10px] text-white/30 font-normal">(Russian)</span></h3>
+              <p className="text-xs text-white/30 mb-3">OAuth token from shikimori.one (Settings → API)</p>
+              <div className="flex gap-3">
+                <input value={shikimoriToken} onChange={e => setShikimoriToken(e.target.value)} type="password" placeholder="Shikimori access token" className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-white/30" />
+                <button onClick={() => { localStorage.setItem('shikimori-token', shikimoriToken); alert('Shikimori token saved.') }} disabled={!shikimoriToken.trim()} className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 font-bold text-xs uppercase tracking-widest transition-all disabled:opacity-40 flex items-center gap-2">
+                  <Save className="w-4 h-4" /> Save
+                </button>
+                {shikimoriToken && <button onClick={() => { localStorage.removeItem('shikimori-token'); setShikimoriToken('') }} className="px-3 py-2 rounded-xl text-xs text-red-400/60 hover:text-red-400 transition-colors font-bold uppercase">Logout</button>}
+              </div>
+              {localStorage.getItem('shikimori-token') && <p className="text-[10px] text-emerald-400 mt-2">✓ Shikimori connected</p>}
+            </div>
+            {/* Bangumi */}
+            <div className="pt-4 border-t border-white/5">
+              <h3 className="font-bold text-sm mb-1">Bangumi <span className="text-[10px] text-white/30 font-normal">(Chinese)</span></h3>
+              <p className="text-xs text-white/30 mb-3">Personal access token from bgm.tv (Settings → Developer)</p>
+              <div className="flex gap-3">
+                <input value={bangumiToken} onChange={e => setBangumiToken(e.target.value)} type="password" placeholder="Bangumi access token" className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-white/30" />
+                <button onClick={() => { localStorage.setItem('bangumi-token', bangumiToken); alert('Bangumi token saved.') }} disabled={!bangumiToken.trim()} className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 font-bold text-xs uppercase tracking-widest transition-all disabled:opacity-40 flex items-center gap-2">
+                  <Save className="w-4 h-4" /> Save
+                </button>
+                {bangumiToken && <button onClick={() => { localStorage.removeItem('bangumi-token'); setBangumiToken('') }} className="px-3 py-2 rounded-xl text-xs text-red-400/60 hover:text-red-400 transition-colors font-bold uppercase">Logout</button>}
+              </div>
+              {localStorage.getItem('bangumi-token') && <p className="text-[10px] text-emerald-400 mt-2">✓ Bangumi connected</p>}
             </div>
           </div>
         </motion.section>

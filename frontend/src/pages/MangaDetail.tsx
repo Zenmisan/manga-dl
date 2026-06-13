@@ -87,7 +87,7 @@ export default function MangaDetail() {
     try { return JSON.parse(localStorage.getItem(TRACKER_LINKS_KEY) || '{}') } catch { return {} }
   }
   const [trackerLinks, setTrackerLinksState] = useState<Record<string, { id: number; title: string; score?: number; status?: string; progress?: number }>>(() => getTrackerLinks()[trackerKey] || {})
-  const [showTrackerModal, setShowTrackerModal] = useState<'anilist' | 'mal' | null>(null)
+  const [showTrackerModal, setShowTrackerModal] = useState<'anilist' | 'mal' | 'mangaupdates' | 'shikimori' | 'bangumi' | null>(null)
   const [trackerSearch, setTrackerSearch] = useState('')
   const [trackerResults, setTrackerResults] = useState<{ id: number; title: string; cover?: string; year?: number; score?: number; status?: string; progress?: number }[]>([])
   const [trackerSearching, setTrackerSearching] = useState(false)
@@ -106,7 +106,7 @@ export default function MangaDetail() {
     setTrackerLinksState(all[trackerKey] || {})
   }
 
-  const searchTracker = async (query: string, tracker: 'anilist' | 'mal') => {
+  const searchTracker = async (query: string, tracker: 'anilist' | 'mal' | 'mangaupdates' | 'shikimori' | 'bangumi') => {
     setTrackerSearching(true)
     setTrackerResults([])
     try {
@@ -120,12 +120,34 @@ export default function MangaDetail() {
         if (!token) { alert('Log in to MAL first in Settings.'); return }
         const r = await api.post('/auth/mal/search', { access_token: token, query })
         setTrackerResults((r.data?.results ?? []).map((m: any) => ({ id: m.id, title: m.title, cover: m.cover_url, year: m.year })))
+      } else if (tracker === 'mangaupdates') {
+        const token = localStorage.getItem('mangaupdates-token')
+        if (!token) { alert('Add MangaUpdates API token in Settings.'); return }
+        const r = await fetch(`https://api.mangaupdates.com/v1/series/search`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ search: query, perpage: 5 }),
+        })
+        const d = await r.json()
+        setTrackerResults((d.results ?? []).map((m: any) => ({ id: m.record?.series_id, title: m.record?.title, cover: m.record?.image?.url?.original, year: m.record?.year })))
+      } else if (tracker === 'shikimori') {
+        const r = await fetch(`https://shikimori.one/api/mangas?search=${encodeURIComponent(query)}&limit=5`, {
+          headers: { 'User-Agent': 'manga-dl/1.0' }
+        })
+        const d = await r.json()
+        setTrackerResults((d ?? []).map((m: any) => ({ id: m.id, title: m.name, cover: m.image?.preview ? `https://shikimori.one${m.image.preview}` : undefined, year: m.aired_on?.split('-')[0] })))
+      } else if (tracker === 'bangumi') {
+        const r = await fetch(`https://api.bgm.tv/v0/search/subjects?type=1&limit=5`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ keyword: query }),
+        })
+        const d = await r.json()
+        setTrackerResults((d.data ?? []).map((m: any) => ({ id: m.id, title: m.name_cn || m.name, cover: m.images?.common, year: m.date?.split('-')[0] })))
       }
     } catch { /* silent */ }
     setTrackerSearching(false)
   }
 
-  const linkTracker = async (tracker: 'anilist' | 'mal', result: { id: number; title: string; score?: number; status?: string; progress?: number }) => {
+  const linkTracker = async (tracker: 'anilist' | 'mal' | 'mangaupdates' | 'shikimori' | 'bangumi', result: { id: number; title: string; score?: number; status?: string; progress?: number }) => {
     if (tracker === 'anilist') {
       try {
         const token = localStorage.getItem('anilist-token')
@@ -530,13 +552,19 @@ export default function MangaDetail() {
                 Tracker Links
               </h3>
               <div className="space-y-2">
-                {(['anilist', 'mal'] as const).map(tracker => {
+                {(['anilist', 'mal', 'mangaupdates', 'shikimori', 'bangumi'] as const).map(tracker => {
                   const link = trackerLinks[tracker]
                   return (
                     <div key={tracker} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5">
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded border ${tracker === 'anilist' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'}`}>
-                          {tracker === 'anilist' ? 'AniList' : 'MAL'}
+                        <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded border ${
+                          tracker === 'anilist' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
+                          tracker === 'mal' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' :
+                          tracker === 'mangaupdates' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' :
+                          tracker === 'shikimori' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
+                          'bg-cyan-500/10 text-cyan-400 border-cyan-500/20'
+                        }`}>
+                          {tracker === 'anilist' ? 'AniList' : tracker === 'mal' ? 'MAL' : tracker === 'mangaupdates' ? 'MU' : tracker === 'shikimori' ? 'Shiki' : 'BGM'}
                         </span>
                         {link ? (
                           <>

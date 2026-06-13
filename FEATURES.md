@@ -62,19 +62,19 @@ Features are grouped by area, then tagged:
 | Contrast slider | ✅ | In filter panel |
 | Color filter: grayscale, invert, sepia | ✅ | Toggle buttons in filter panel |
 | Filter panel persist across sessions | ✅ | Stored in zustand persist |
-| Crop borders (pager) | ❌ | Remove whitespace around pages |
+| Crop borders (pager) | ✅ | object-cover + fixed height removes whitespace |
 | Crop borders (webtoon) | ❌ | |
 | Webtoon side padding config | ❌ | |
 | Landscape zoom mode | ❌ | |
-| Dual-page spread support | ❌ | |
+| Dual-page spread support | ✅ | Auto (landscape) / Always On / Off; paired pages with X-Y/N counter |
 | Split dual-page spreads | ❌ | |
 | Rotate oversized pages to fit | ❌ | |
-| Tap zone layouts (default / L-nav / Kindlish / edge / disabled) | ❌ | Fixed layout only |
+| Tap zone layouts (default / L-nav / Kindlish / edge / disabled) | ✅ | Default / L-Nav / Edge / Disabled; configurable in Settings → Appearance |
 | Volume key navigation | ✅ | Arrow + volume keys cycle pages in pager mode |
 | Volume key → brightness/contrast mode | ✅ | Optional toggle in filter panel |
 | Long-tap enable/disable | ❌ | |
 | Tap inversion (horizontal / vertical / both) | ❌ | |
-| Skip already-read chapters | ❌ | |
+| Skip already-read chapters | ✅ | Toggle in Reader filter panel; "Next Unread →" on end-of-chapter overlay |
 | Skip filtered chapters | ❌ | |
 | Auto-download while reading (X chapters ahead) | ❌ | |
 | Remove chapter after read (auto-delete) | ❌ | |
@@ -84,7 +84,7 @@ Features are grouped by area, then tagged:
 | Incognito mode (skip history save) | ✅ | Toggle in Settings + respected in Reader |
 | Shareable chapter link | ✅ | Web Share API + clipboard fallback |
 | Discord Rich Presence (desktop) | ✅ | Tauri invoke to discord-rich-presence crate |
-| Swipe actions on chapter items | ❌ | Bookmark, mark read, download |
+| Swipe actions on chapter items | ✅ | Swipe-left on chapter row reveals bookmark/mark-read/download tray |
 
 ---
 
@@ -144,11 +144,11 @@ Features are grouped by area, then tagged:
 | MyAnimeList OAuth | ✅ | |
 | MAL auto-sync on chapter completion | ✅ | Fires when last page reached |
 | Kitsu OAuth (password grant) | ✅ | Email+password → token; username shown |
-| MangaUpdates | ❌ | |
-| Shikimori (Russian) | ❌ | |
-| Bangumi (Chinese) | ❌ | |
-| Komga (self-hosted) | ❌ | |
-| Suwayomi server | ❌ | |
+| MangaUpdates | ✅ | Search + link + sync in MangaDetail; token in Settings |
+| Shikimori (Russian) | ✅ | Search + link + sync in MangaDetail; token in Settings |
+| Bangumi (Chinese) | ✅ | Search + link + sync in MangaDetail; token in Settings |
+| Komga (self-hosted) | ✅ | REST API provider; configure URL + credentials in Settings |
+| Suwayomi server | ✅ | GraphQL provider; configure URL in Settings |
 | Sync: last chapter read | 🔨 | Partial — chapter_id stored, not chapter number |
 | Sync: reading status | ❌ | |
 | Sync: score | ❌ | |
@@ -211,7 +211,9 @@ Features are grouped by area, then tagged:
 | Backup: read tracking + bookmarks | ✅ | Included in cloud backup |
 | Backup: tracking data | ❌ | Tokens not exported (security) |
 | Backup: downloaded chapters list | ❌ | |
-| Selective restore | ❌ | All-or-nothing import currently |
+| Selective restore | ✅ | Restores individual localStorage keys + cloud history with confirmation report |
+| Manual backup (JSON v2.0) | ✅ | Includes all localStorage + cloud history; importable on another device |
+| Tachiyomi .tachibk import | ✅ | Pure-Python protobuf decoder; gzip+wire-format; restores manga + categories + read state |
 | Auto-backup (scheduled) | ❌ | |
 | Cloud backup (Supabase) | ✅ | Upload/download backup JSON via manga-backups storage bucket |
 | Tachiyomi backup import (JSON) | ✅ | Reads backupManga list + backupCategories |
@@ -264,10 +266,10 @@ Features are grouped by area, then tagged:
 | Responsive layout (web/tablet/mobile) | ✅ | |
 | Animated transitions | ✅ | Framer Motion |
 | Relative time display ("2d ago") | ✅ | In History and Updates pages |
-| System theme follow (light/dark) | ❌ | |
-| Light theme | ❌ | |
+| System theme follow (light/dark) | ✅ | Follows prefers-color-scheme; toggle in Settings → Appearance |
+| Light theme | ✅ | Full light palette via html.light; white/gray backgrounds, dark text |
 | Material You / dynamic colors | ❌ | Android only |
-| AMOLED pitch black mode | ❌ | |
+| AMOLED pitch black mode | ✅ | html.amoled class; all backgrounds #000000 |
 | Custom date format | ❌ | |
 | Tablet multi-column layout | ❌ | |
 | Onboarding / first-run screen | ✅ | 3-step flow: welcome → backend config → done |
@@ -392,6 +394,33 @@ Features are grouped by area, then tagged:
 28. ✅ Public profile page — `/profile/:userId`, shareable, shows chapters/manga/streak + recent activity
 29. ✅ Dynamic source filters — filter panel on Popular tab, MangaDex: content rating, sort, status, demographic
 30. ✅ Manga notes & personal star rating — 5-star + free-text note, persisted in localStorage per manga
+
+### Phase 8 — Android Native 🔨 in progress
+T1. ✅ Install @capacitor/haptics, keep-awake, status-bar, filesystem
+T2. ✅ hapticFeedback in Zustand store
+T3. ✅ Keep screen on in Reader (KeepAwake plugin)
+T4. ✅ Status bar colour sync in Reader (ambilight hex)
+T5. ✅ Haptic feedback on page turn (ImpactStyle.Light)
+T6. ✅ Hardware back button handlers (Reader, MangaDetail, Dashboard)
+T7. ✅ nativeDownload.ts helper (Filesystem API + base64)
+T8. ✅ VolumeKeys Kotlin plugin (dispatchKeyEvent intercept)
+T9. ✅ Wire volume key listener in Reader (gated on isNativePlatform)
+T10. ✅ Download to device storage UI (Downloads page, native-only)
+T11. ✅ Haptic toggle in Settings (native-only)
+T12. ✅ tsc --noEmit + cap sync
+
+### Phase 9 — Desktop Native 🔨 in progress
+T1. ✅ tauri-plugin-notification + tauri-plugin-autostart in Cargo.toml
+T2. ✅ SyncState struct + reqwest in lib.rs
+T3. ✅ pick_folder Tauri command + Settings download location UI
+T4. ✅ Drag-and-drop CBZ import in Dashboard (tauri://drag-drop)
+T5. ✅ set_auto_launch command + Settings toggle
+T6. ✅ Update checker in Settings (GitHub releases API)
+T7. ✅ start_background_sync / stop_background_sync Rust commands
+T8. ✅ OS notification from Rust when sync finds new chapters
+T9. ✅ Sync interval setting in Settings
+T10. ✅ Notification click → navigate in App.tsx
+T11. ✅ tsc --noEmit + cargo check
 
 ### Phase 7 — Tracker Depth ✅ complete
 45. ✅ Search & link manga to AniList/MAL — "Link" button per tracker on MangaDetail, search modal, saves to `manga-dl-tracker-links` localStorage
