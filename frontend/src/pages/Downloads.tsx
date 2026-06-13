@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import api from '../lib/api'
-import { Download as DownloadIcon, CheckCircle2, XCircle, Pause, Play, Trash2, FolderOpen, Activity, X, RotateCcw } from 'lucide-react'
+import { Download as DownloadIcon, CheckCircle2, XCircle, Pause, Play, Trash2, FolderOpen, Activity, X, RotateCcw, HardDrive } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
+import { Capacitor } from '@capacitor/core'
+import { fetchCbzAsBase64, saveToDeviceStorage, getCbzUrl } from '../lib/nativeDownload'
 
 interface DownloadItem {
   id: string
@@ -30,11 +32,14 @@ async function revealFile(outputPath: string | undefined) {
   }
 }
 
+const isNative = Capacitor.isNativePlatform()
+
 export default function DownloadsPage() {
   const [active, setActive] = useState<DownloadItem[]>([])
   const [history, setHistory] = useState<DownloadItem[]>([])
   const [paused, setPaused] = useState(false)
   const [retrying, setRetrying] = useState<Set<string>>(new Set())
+  const [savingToDevice, setSavingToDevice] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     const fetchData = async () => {
@@ -278,6 +283,28 @@ export default function DownloadsPage() {
                       className="opacity-0 group-hover:opacity-100 p-2.5 hover:bg-amber-500/20 rounded-xl transition-all text-white/20 hover:text-amber-400 disabled:opacity-40"
                     >
                       <RotateCcw className="w-4 h-4" />
+                    </button>
+                  )}
+                  {isNative && item.status === 'done' && (
+                    <button
+                      onClick={async () => {
+                        setSavingToDevice(prev => new Set(prev).add(item.id))
+                        try {
+                          const url = getCbzUrl(item.manga_title, item.chapter_title + '.cbz')
+                          const b64 = await fetchCbzAsBase64(url)
+                          await saveToDeviceStorage(item.manga_title, item.chapter_title + '.cbz', b64)
+                          alert('Saved to Documents/manga-dl/')
+                        } catch (e) {
+                          alert('Save failed: ' + (e as Error).message)
+                        } finally {
+                          setSavingToDevice(prev => { const s = new Set(prev); s.delete(item.id); return s })
+                        }
+                      }}
+                      disabled={savingToDevice.has(item.id)}
+                      title="Save to device storage"
+                      className="opacity-0 group-hover:opacity-100 p-2.5 hover:bg-emerald-500/20 rounded-xl transition-all text-white/20 hover:text-emerald-400 disabled:opacity-40"
+                    >
+                      <HardDrive className="w-4 h-4" />
                     </button>
                   )}
                   {isTauri && item.output_path && (

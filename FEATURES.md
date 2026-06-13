@@ -46,7 +46,7 @@ Features are grouped by area, then tagged:
 | Left-to-right pager mode | ✅ | |
 | Right-to-left pager mode | ✅ | |
 | Webtoon (continuous vertical scroll) | ✅ | |
-| Vertical pager (non-continuous) | ❌ | Tachiyomi has this as 4th mode |
+| Vertical pager (non-continuous) | ✅ | Slides pages top→bottom with y: 40/-40 animation; 4th reading mode |
 | Page number display | ✅ | |
 | Fullscreen mode | ✅ | |
 | Ambilight / ambient glow effect | ⭐ | manga-dl exclusive |
@@ -127,10 +127,10 @@ Features are grouped by area, then tagged:
 | Retry failed downloads | ✅ | Retry button on failed history items |
 | Folder format (source/manga/chapter/page) | ❌ | |
 | Download only on WiFi | ❌ | |
-| Custom download location (desktop) | ❌ | |
+| Custom download location (desktop) | ✅ | Folder picker via Tauri dialog; persisted in localStorage; shown in Settings → Desktop |
 | Auto-download new chapters for subscribed manga | ❌ | |
 | Auto-download exclusions per category | ❌ | |
-| Download badge on manga cards | ❌ | |
+| Download badge on manga cards | ✅ | X/Y chapters downloaded shown on card overlay + badge row in grid view |
 | Split tall images | ❌ | For extremely tall webtoon pages |
 | Download notification with progress (mobile) | ❌ | |
 
@@ -248,8 +248,8 @@ Features are grouped by area, then tagged:
 | Download only on WiFi | ❌ | |
 | Verbose network logging | ❌ | |
 | Offline PWA (service worker cache) | ✅ | vite-plugin-pwa with workbox NetworkFirst/CacheFirst strategies |
-| Preload next chapter while reading | ❌ | |
-| Image prefetch in reader | ❌ | |
+| Preload next chapter while reading | ✅ | Smart Binge: prefetches first 5 pages of next chapter near scroll end |
+| Image prefetch in reader | ✅ | Next 3 pages pre-loaded into browser memory on each page turn |
 
 ---
 
@@ -257,7 +257,7 @@ Features are grouped by area, then tagged:
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Dark theme | ✅ | Only dark — no light |
+| Dark theme | ✅ | Dark + Light + System + AMOLED — all 4 modes implemented |
 | Glassmorphism design system | ✅ | manga-dl style |
 | Hover tooltips on buttons (web) | ✅ | |
 | Icon legend / help page | ✅ | |
@@ -273,7 +273,7 @@ Features are grouped by area, then tagged:
 | Custom date format | ❌ | |
 | Tablet multi-column layout | ❌ | |
 | Onboarding / first-run screen | ✅ | 3-step flow: welcome → backend config → done |
-| App update notification | ❌ | |
+| App update notification | ✅ | Update banner in Settings → Desktop when newer GitHub release detected (desktop only) |
 
 ---
 
@@ -283,10 +283,10 @@ Features are grouped by area, then tagged:
 |---------|--------|-------|
 | Browser push notifications | ✅ | When chapter queued |
 | Updates feed page | ✅ | Groups new chapters by manga, Read Online + Download buttons |
-| New chapter available notification | ❌ | |
-| Scheduled background chapter check | ❌ | |
+| New chapter available notification | ✅ | OS notification via Rust when background sync finds new chapters (desktop) |
+| Scheduled background chapter check | ✅ | Background sync task in Rust; configurable interval 15/30/60/120 min (desktop) |
 | Per-manga notification toggle | ❌ | |
-| Update interval configuration | ❌ | |
+| Update interval configuration | ✅ | Sync interval select in Settings → Desktop (desktop only) |
 | Update only on WiFi | ❌ | |
 | Badge count on app icon (mobile) | ❌ | |
 
@@ -395,7 +395,7 @@ Features are grouped by area, then tagged:
 29. ✅ Dynamic source filters — filter panel on Popular tab, MangaDex: content rating, sort, status, demographic
 30. ✅ Manga notes & personal star rating — 5-star + free-text note, persisted in localStorage per manga
 
-### Phase 8 — Android Native 🔨 in progress
+### Phase 8 — Android Native ✅ complete
 T1. ✅ Install @capacitor/haptics, keep-awake, status-bar, filesystem
 T2. ✅ hapticFeedback in Zustand store
 T3. ✅ Keep screen on in Reader (KeepAwake plugin)
@@ -409,7 +409,7 @@ T10. ✅ Download to device storage UI (Downloads page, native-only)
 T11. ✅ Haptic toggle in Settings (native-only)
 T12. ✅ tsc --noEmit + cap sync
 
-### Phase 9 — Desktop Native 🔨 in progress
+### Phase 9 — Desktop Native ✅ complete
 T1. ✅ tauri-plugin-notification + tauri-plugin-autostart in Cargo.toml
 T2. ✅ SyncState struct + reqwest in lib.rs
 T3. ✅ pick_folder Tauri command + Settings download location UI

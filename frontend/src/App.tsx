@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useAppStore } from './lib/store'
 import { Search, Library, Download, Settings, ExternalLink, Globe, BarChart2, HelpCircle, Clock, Bell } from 'lucide-react'
-import { Routes, Route, Link, useLocation } from 'react-router-dom'
+import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from './lib/utils'
 
@@ -71,8 +71,22 @@ function useGlobalNotifications() {
 
 function App() {
   const location = useLocation()
+  const navigate = useNavigate()
   const { theme, amoledBlack } = useAppStore()
   useGlobalNotifications()
+
+  // T10: Handle new-chapters event from Tauri background sync → navigate to manga
+  useEffect(() => {
+    if (!('__TAURI_INTERNALS__' in window)) return
+    import('@tauri-apps/api/event').then(({ listen }) => {
+      const unlisten = listen<{ provider?: string; mangaId?: string; count?: number }>('new-chapters', ({ payload }) => {
+        if (payload.provider && payload.mangaId) {
+          navigate(`/manga/${payload.provider}/${encodeURIComponent(payload.mangaId)}`)
+        }
+      })
+      return () => { unlisten.then(fn => fn()) }
+    }).catch(() => {})
+  }, [navigate])
 
   useEffect(() => {
     const root = document.documentElement

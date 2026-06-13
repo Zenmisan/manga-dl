@@ -62,6 +62,7 @@ export default function Dashboard() {
   const [categories] = useState(() => getCategories())
   // map of manga title → last read { provider, mangaId, chapterId, mangaTitle, chapterTitle }
   const [lastReadMap, setLastReadMap] = useState<Record<string, { provider: string; mangaId: string; chapterId: string; mangaTitle: string; chapterTitle: string }>>({})
+  const [isDragOver, setIsDragOver] = useState(false)
 
   const fetchHistory = async () => {
     try {
@@ -97,6 +98,49 @@ export default function Dashboard() {
       if (showSpinner) setRefreshing(false)
     }
   }
+
+  useEffect(() => {
+    if (!('Capacitor' in window)) return
+    import('@capacitor/core').then(({ Capacitor }) => {
+      if (!Capacitor.isNativePlatform()) return
+      import('@capacitor/app').then(({ App }) => {
+        const handle = App.addListener('backButton', () => {
+          if (window.confirm('Exit manga-dl?')) App.exitApp()
+        })
+        return () => { handle.then((h: { remove(): void }) => h.remove()) }
+      }).catch(() => {})
+    }).catch(() => {})
+  }, [])
+
+  // T4: Drag-and-drop CBZ import (Tauri desktop only)
+  useEffect(() => {
+    if (!('__TAURI_INTERNALS__' in window)) return
+    import('@tauri-apps/api/event').then(({ listen }) => {
+      const unlistenEnter = listen('tauri://drag-enter', () => setIsDragOver(true))
+      const unlistenLeave = listen('tauri://drag-leave', () => setIsDragOver(false))
+      const unlistenDrop = listen<{ paths: string[] }>('tauri://drag-drop', async ({ payload }) => {
+        setIsDragOver(false)
+        const cbzPaths = payload.paths.filter(p => p.endsWith('.cbz') || p.endsWith('.zip'))
+        for (const filePath of cbzPaths) {
+          try {
+            const { readFile } = await import('@tauri-apps/plugin-fs')
+            const bytes = await readFile(filePath)
+            const filename = filePath.split('/').pop() || filePath.split('\\').pop() || 'unknown.cbz'
+            const file = new File([bytes], filename, { type: 'application/zip' })
+            const fakeEvent = { target: { files: [file] } } as unknown as React.ChangeEvent<HTMLInputElement>
+            await handleUpload(fakeEvent)
+          } catch (e) {
+            console.warn('Drag-drop import failed:', e)
+          }
+        }
+      })
+      return () => {
+        unlistenEnter.then(fn => fn())
+        unlistenLeave.then(fn => fn())
+        unlistenDrop.then(fn => fn())
+      }
+    }).catch(() => {})
+  }, [])
 
   useEffect(() => {
     setIsDesktop(!!(window as any).__TAURI_INTERNALS__)
@@ -404,7 +448,15 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="p-6 md:p-12 max-w-7xl mx-auto min-h-full flex flex-col">
+    <div className="p-6 md:p-12 max-w-7xl mx-auto min-h-full flex flex-col relative">
+      {isDragOver && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm border-4 border-dashed border-blue-400/60 pointer-events-none">
+          <div className="text-center">
+            <p className="text-2xl font-black text-blue-400">Drop CBZ to import</p>
+            <p className="text-sm text-white/40 mt-2">.cbz and .zip files supported</p>
+          </div>
+        </div>
+      )}
       <AnimatePresence mode="wait">
           <motion.div
             key="library-grid"

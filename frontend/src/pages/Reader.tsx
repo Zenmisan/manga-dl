@@ -3,6 +3,10 @@ import { loadLocalMangaIntoSession } from '../lib/localLibrary'
 import { useNavigate, useParams } from 'react-router-dom'
 import api from '../lib/api'
 import { supabase } from '../lib/supabase'
+import { Capacitor } from '@capacitor/core'
+import { Haptics, ImpactStyle } from '@capacitor/haptics'
+import { StatusBar } from '@capacitor/status-bar'
+import { KeepAwake } from '@capacitor-community/keep-awake'
 import {
   ChevronLeft,
   Download,
@@ -31,10 +35,16 @@ function withOpacity(rgba: string, opacity: number): string {
   return rgba.replace(/[\d.]+\)$/, `${opacity})`)
 }
 
+function extractHex(rgba: string): string {
+  const m = rgba.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/)
+  if (!m) return '#0a0a0a'
+  return '#' + [m[1], m[2], m[3]].map(n => parseInt(n).toString(16).padStart(2, '0')).join('')
+}
+
 export default function Reader() {
   const { mangaTitle, filename } = useParams()
   const navigate = useNavigate()
-  const { readingMode, setReadingMode, upscaling, setUpscaling, readerFilters, setReaderFilters, resetReaderFilters, imageScale, setImageScale, incognitoMode, skipReadChapters, setSkipReadChapters, cropBorders, dualPageSpread, tapZoneLayout } = useAppStore()
+  const { readingMode, setReadingMode, upscaling, setUpscaling, readerFilters, setReaderFilters, resetReaderFilters, imageScale, setImageScale, incognitoMode, skipReadChapters, setSkipReadChapters, cropBorders, dualPageSpread, tapZoneLayout, hapticFeedback } = useAppStore()
 
   const [pages, setPages] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
@@ -377,16 +387,22 @@ export default function Reader() {
     }
   }
 
+  const triggerHaptic = () => {
+    if (Capacitor.isNativePlatform() && hapticFeedback) {
+      Haptics.impact({ style: ImpactStyle.Light }).catch(() => {})
+    }
+  }
+
   const nextPage = (e?: React.MouseEvent) => {
     e?.stopPropagation()
     const step = showSpread ? 2 : 1
-    if (currentPage < pages.length) setCurrentPage(prev => Math.min(prev + step, pages.length))
+    if (currentPage < pages.length) { triggerHaptic(); setCurrentPage(prev => Math.min(prev + step, pages.length)) }
   }
 
   const prevPage = (e?: React.MouseEvent) => {
     e?.stopPropagation()
     const step = showSpread ? 2 : 1
-    if (currentPage > 1) setCurrentPage(prev => Math.max(prev - step, 1))
+    if (currentPage > 1) { triggerHaptic(); setCurrentPage(prev => Math.max(prev - step, 1)) }
   }
 
   const tapZoneLeft = tapZoneLayout === 'l-nav' ? 'w-1/2' : tapZoneLayout === 'edge' ? 'w-[15%]' : tapZoneLayout === 'disabled' ? 'w-0' : 'w-1/3'
@@ -425,6 +441,30 @@ export default function Reader() {
     return () => window.removeEventListener('resize', update)
   }, [])
 
+  // T6: Hardware back button (Android)
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return
+    import('@capacitor/app').then(({ App }) => {
+      const sub = App.addListener('backButton', () => navigate(-1))
+      return () => { sub.then((h: { remove(): void }) => h.remove()) }
+    }).catch(() => {})
+  }, [navigate])
+
+  // T3: Keep screen on while reading (Android)
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return
+    KeepAwake.keepAwake().catch(() => {})
+    return () => { KeepAwake.allowSleep().catch(() => {}) }
+  }, [])
+
+  // T4: Sync status bar colour to ambilight (Android)
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return
+    const hex = extractHex(ambilightColor)
+    StatusBar.setBackgroundColor({ color: hex }).catch(() => {})
+    return () => { StatusBar.setBackgroundColor({ color: '#0a0a0a' }).catch(() => {}) }
+  }, [ambilightColor])
+
   // Image prefetch — cache next 3 pages in browser memory
   useEffect(() => {
     if (!pages.length) return
@@ -437,6 +477,21 @@ export default function Reader() {
       }
     }
   }, [currentPage, pages])
+
+  // T9: Native volume key navigation via VolumeKeys plugin (Android, pager mode only)
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform() || readingMode === 'webtoon') return
+    import('../lib/volumeKeys').then(({ VolumeKeys }) => {
+      VolumeKeys.enable()
+      const upSub = VolumeKeys.addListener('volumeUp', () => prevPage())
+      const downSub = VolumeKeys.addListener('volumeDown', () => nextPage())
+      return () => {
+        VolumeKeys.disable()
+        upSub.then(h => h.remove())
+        downSub.then(h => h.remove())
+      }
+    }).catch(() => {})
+  }, [readingMode])
 
   // Keyboard + volume key navigation / brightness control
   useEffect(() => {

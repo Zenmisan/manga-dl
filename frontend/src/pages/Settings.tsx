@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Capacitor } from '@capacitor/core'
 import { Shield, Database, Save, RefreshCw, Key, HardDrive, Info, Share2, LogOut, CheckCircle2, Loader2, Bell, BellOff, User, UserPlus, EyeOff, Eye, UploadCloud, DownloadCloud, Cloud, BookOpen } from 'lucide-react'
 import { motion } from 'framer-motion'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
@@ -38,7 +39,7 @@ async function fetchAniListUsername(token: string): Promise<string | null> {
 
 export default function SettingsPage() {
   const navigate = useNavigate()
-  const { incognitoMode, setIncognitoMode, theme, setTheme, amoledBlack, setAmoledBlack, tapZoneLayout, setTapZoneLayout, cropBorders, setCropBorders, dualPageSpread, setDualPageSpread } = useAppStore()
+  const { incognitoMode, setIncognitoMode, theme, setTheme, amoledBlack, setAmoledBlack, tapZoneLayout, setTapZoneLayout, cropBorders, setCropBorders, dualPageSpread, setDualPageSpread, hapticFeedback, setHapticFeedback } = useAppStore()
   const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null)
   const [apiKey, setApiKey] = useState(localStorage.getItem('manga-api-key') || '')
   const [backendUrl, setBackendUrl] = useState(localStorage.getItem('manga-backend-url') || '')
@@ -76,6 +77,13 @@ export default function SettingsPage() {
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>(
     'Notification' in window ? Notification.permission : 'denied'
   )
+  // Desktop native (Tauri)
+  const isTauri = !!(window as any).__TAURI_INTERNALS__
+  const [downloadPath, setDownloadPath] = useState(localStorage.getItem('manga-dl-download-path') || '')
+  const [autoLaunch, setAutoLaunch] = useState(false)
+  const [syncEnabled, setSyncEnabled] = useState(localStorage.getItem('desktop-sync-enabled') === 'true')
+  const [syncInterval, setSyncInterval] = useState(Number(localStorage.getItem('desktop-sync-interval') || '60'))
+  const [updateBanner, setUpdateBanner] = useState<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -95,6 +103,29 @@ export default function SettingsPage() {
     }
     fetchAniListUsername(anilistToken).then(name => setUserName(name))
   }, [anilistToken])
+
+  // Desktop: read auto-launch state + check for updates (T5, T6)
+  useEffect(() => {
+    if (!isTauri) return
+    import('@tauri-apps/api/core').then(({ invoke }) => {
+      invoke<boolean>('get_auto_launch').then(val => setAutoLaunch(val)).catch(() => {})
+    }).catch(() => {})
+
+    // T6: Update checker (once per 24h)
+    const lastCheck = localStorage.getItem('last-update-check')
+    const now = Date.now()
+    if (!lastCheck || now - Number(lastCheck) > 86_400_000) {
+      localStorage.setItem('last-update-check', String(now))
+      const APP_VERSION = '1.0.0'
+      fetch('https://api.github.com/repos/zenmi/manga-dl/releases/latest')
+        .then(r => r.json())
+        .then(data => {
+          const latest = (data.tag_name || '').replace(/^v/, '')
+          if (latest && latest !== APP_VERSION) setUpdateBanner(latest)
+        })
+        .catch(() => {})
+    }
+  }, [isTauri])
 
   // Handle OAuth redirect — AniList returns token in URL hash
   useEffect(() => {
@@ -909,6 +940,26 @@ export default function SettingsPage() {
                 }`} />
               </button>
             </div>
+            {Capacitor.isNativePlatform() && (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-2xl bg-white/[0.02] border border-white/5 mt-4">
+                <div>
+                  <p className="font-bold text-sm">Haptic Feedback</p>
+                  <p className="text-xs text-white/40 mt-0.5">Vibrate lightly on page turn</p>
+                </div>
+                <button
+                  role="switch"
+                  aria-checked={hapticFeedback}
+                  onClick={() => setHapticFeedback(!hapticFeedback)}
+                  className={`relative w-12 h-6 rounded-full transition-colors shrink-0 ${
+                    hapticFeedback ? 'bg-purple-500/40' : 'bg-white/10'
+                  }`}
+                >
+                  <span className={`absolute top-0.5 w-5 h-5 rounded-full transition-all ${
+                    hapticFeedback ? 'left-6 bg-purple-400' : 'left-0.5 bg-white/30'
+                  }`} />
+                </button>
+              </div>
+            )}
           </div>
         </motion.section>
 
@@ -1219,6 +1270,147 @@ export default function SettingsPage() {
             )}
           </div>
         </motion.section>
+
+        {/* Desktop Section (Tauri only) */}
+        {isTauri && (
+          <motion.section
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.11 }}
+            className="glass-panel overflow-hidden border-white/5"
+          >
+            <div className="p-6 border-b border-white/5 flex items-center gap-3 bg-white/[0.02]">
+              <div className="p-2 bg-sky-500/10 rounded-lg">
+                <HardDrive className="w-5 h-5 text-sky-400" />
+              </div>
+              <h2 className="font-bold text-lg">Desktop</h2>
+            </div>
+            <div className="p-6 md:p-8 space-y-6">
+              {/* T6: Update banner */}
+              {updateBanner && (
+                <div className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
+                  <div>
+                    <p className="font-bold text-sm text-emerald-400">Update available — v{updateBanner}</p>
+                    <p className="text-xs text-white/40 mt-0.5">Your version: 1.0.0</p>
+                  </div>
+                  <a
+                    href="https://github.com/zenmi/manga-dl/releases/latest"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 rounded-xl text-black font-bold text-xs transition-colors"
+                  >
+                    View Release
+                  </a>
+                </div>
+              )}
+
+              {/* T3: Download location */}
+              <div className="space-y-3">
+                <label className="flex items-center gap-2 text-sm font-bold text-white/40 uppercase tracking-widest">
+                  <HardDrive className="w-3.5 h-3.5" />
+                  Download Location
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={downloadPath}
+                    readOnly
+                    placeholder="Default (Downloads folder)"
+                    className="flex-1 bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white/60 placeholder:text-white/20"
+                  />
+                  <button
+                    onClick={async () => {
+                      const { invoke } = await import('@tauri-apps/api/core')
+                      const path = await invoke<string | null>('pick_folder')
+                      if (path) { setDownloadPath(path); localStorage.setItem('manga-dl-download-path', path) }
+                    }}
+                    className="px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl text-sm font-bold transition-all"
+                  >
+                    Choose
+                  </button>
+                  {downloadPath && (
+                    <button
+                      onClick={() => { setDownloadPath(''); localStorage.removeItem('manga-dl-download-path') }}
+                      className="px-4 py-2.5 bg-white/5 hover:bg-red-500/20 border border-white/5 rounded-xl text-sm font-bold text-white/40 hover:text-red-400 transition-all"
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* T5: Auto-launch */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+                <div>
+                  <p className="font-bold text-sm">Launch on Startup</p>
+                  <p className="text-xs text-white/40 mt-0.5">Start manga-dl automatically when you log in</p>
+                </div>
+                <button
+                  role="switch"
+                  aria-checked={autoLaunch}
+                  onClick={async () => {
+                    const next = !autoLaunch
+                    setAutoLaunch(next)
+                    const { invoke } = await import('@tauri-apps/api/core')
+                    invoke('set_auto_launch', { enabled: next }).catch(() => setAutoLaunch(!next))
+                  }}
+                  className={`relative w-12 h-6 rounded-full transition-colors shrink-0 ${autoLaunch ? 'bg-sky-500/40' : 'bg-white/10'}`}
+                >
+                  <span className={`absolute top-0.5 w-5 h-5 rounded-full transition-all ${autoLaunch ? 'left-6 bg-sky-400' : 'left-0.5 bg-white/30'}`} />
+                </button>
+              </div>
+
+              {/* T9: Background sync */}
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+                  <div>
+                    <p className="font-bold text-sm">Background Sync</p>
+                    <p className="text-xs text-white/40 mt-0.5">Check for new chapters in the background</p>
+                  </div>
+                  <button
+                    role="switch"
+                    aria-checked={syncEnabled}
+                    onClick={async () => {
+                      const next = !syncEnabled
+                      setSyncEnabled(next)
+                      localStorage.setItem('desktop-sync-enabled', String(next))
+                      const { invoke } = await import('@tauri-apps/api/core')
+                      if (next) {
+                        invoke('start_background_sync', { intervalMinutes: syncInterval }).catch(() => {})
+                      } else {
+                        invoke('stop_background_sync').catch(() => {})
+                      }
+                    }}
+                    className={`relative w-12 h-6 rounded-full transition-colors shrink-0 ${syncEnabled ? 'bg-sky-500/40' : 'bg-white/10'}`}
+                  >
+                    <span className={`absolute top-0.5 w-5 h-5 rounded-full transition-all ${syncEnabled ? 'left-6 bg-sky-400' : 'left-0.5 bg-white/30'}`} />
+                  </button>
+                </div>
+                {syncEnabled && (
+                  <div className="flex items-center gap-3 pl-4">
+                    <label className="text-xs font-bold text-white/40 uppercase tracking-widest whitespace-nowrap">Interval</label>
+                    <select
+                      value={syncInterval}
+                      onChange={async (e) => {
+                        const val = Number(e.target.value)
+                        setSyncInterval(val)
+                        localStorage.setItem('desktop-sync-interval', String(val))
+                        const { invoke } = await import('@tauri-apps/api/core')
+                        invoke('start_background_sync', { intervalMinutes: val }).catch(() => {})
+                      }}
+                      className="bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-sm text-white"
+                    >
+                      <option value={15}>15 minutes</option>
+                      <option value={30}>30 minutes</option>
+                      <option value={60}>1 hour</option>
+                      <option value={120}>2 hours</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+            </div>
+          </motion.section>
+        )}
 
         {/* Info */}
         <motion.div

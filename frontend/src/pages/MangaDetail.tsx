@@ -165,6 +165,17 @@ export default function MangaDetail() {
   }
 
   useEffect(() => {
+    if (!('Capacitor' in window)) return
+    import('@capacitor/core').then(({ Capacitor }) => {
+      if (!Capacitor.isNativePlatform()) return
+      import('@capacitor/app').then(({ App }) => {
+        const handle = App.addListener('backButton', () => navigate(-1))
+        return () => { handle.then((h: { remove(): void }) => h.remove()) }
+      }).catch(() => {})
+    }).catch(() => {})
+  }, [navigate])
+
+  useEffect(() => {
     const fetchManga = async () => {
       try {
         const res = await api.get(`/manga/${provider}/${mangaId}`)

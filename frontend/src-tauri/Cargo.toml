@@ -1,5 +1,5 @@
 [package]
-name = "desktop "
+name = "desktop"
 version = "0.1.0"
 description = "A Tauri App"
 authors = ["you"]
@@ -22,7 +22,12 @@ tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-opener = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-dialog = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-autostart = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 discord-rich-presence = "0.2"
+reqwest = { version = "0.12", features = ["json"] }
+tokio = { version = "1", features = ["time"] }
+semver = "1"
 

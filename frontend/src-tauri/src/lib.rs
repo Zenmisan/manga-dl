@@ -4,23 +4,21 @@ use std::sync::Mutex;
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::TrayIconBuilder,
-    Manager,
+    Emitter, Manager,
 };
 use discord_rich_presence::{activity, DiscordIpc, DiscordIpcClient};
 
 pub struct BackendProcess(pub Mutex<Option<Child>>);
 pub struct DiscordRpc(pub Mutex<Option<DiscordIpcClient>>);
+pub struct SyncState(pub Mutex<Option<tokio::task::JoinHandle<()>>>);
 
-// Discord application ID for manga-dl (replace with your own from discord.com/developers)
 const DISCORD_APP_ID: &str = "1515346416430485785";
 
 // ── Backend discovery ─────────────────────────────────────────────────────────
 
 fn find_backend_dir() -> Option<PathBuf> {
     let candidates = [
-        // Dev mode: CARGO_MANIFEST_DIR is src-tauri/, backend is two levels up
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../backend"),
-        // Packaged: backend next to / near the executable
         std::env::current_exe()
             .ok()
             .and_then(|p| p.parent().map(|d| d.join("backend")))
@@ -51,7 +49,6 @@ fn start_backend() -> Option<Child> {
         }
     };
 
-    // Try python then python3
     for python in &["python", "python3"] {
         match Command::new(python)
             .args([
@@ -76,6 +73,17 @@ fn start_backend() -> Option<Child> {
     None
 }
 
+// ── Notification helper ───────────────────────────────────────────────────────
+
+fn send_notification(app: &tauri::AppHandle, title: &str, body: &str) {
+    use tauri_plugin_notification::NotificationExt;
+    let _ = app.notification()
+        .builder()
+        .title(title)
+        .body(body)
+        .show();
+}
+
 // ── Tauri commands ────────────────────────────────────────────────────────────
 
 #[tauri::command]
@@ -91,7 +99,7 @@ fn discord_update_presence(
 ) {
     if let Ok(mut guard) = state.0.lock() {
         let client = guard.get_or_insert_with(|| {
-            let mut c = DiscordIpcClient::new(DISCORD_APP_ID);
+            let mut c = DiscordIpcClient::new(DISCORD_APP_ID).expect("Discord IPC init");
             let _ = c.connect();
             c
         });
@@ -154,6 +162,87 @@ fn reveal_in_file_manager(path: String) -> Result<(), String> {
         }
     }
 
+    Ok(())
+}
+
+// T3: Custom download location folder picker
+#[tauri::command]
+async fn pick_folder(app: tauri::AppHandle) -> Option<String> {
+    use tauri_plugin_dialog::DialogExt;
+    let (tx, rx) = std::sync::mpsc::channel();
+    app.dialog().file().pick_folder(move |folder| {
+        let _ = tx.send(folder);
+    });
+    rx.recv()
+        .ok()
+        .flatten()
+        .map(|p| p.to_string())
+}
+
+// T5: Auto-launch on system startup
+#[tauri::command]
+fn set_auto_launch(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
+    use tauri_plugin_autostart::ManagerExt;
+    let mgr = app.autolaunch();
+    if enabled {
+        mgr.enable().map_err(|e| e.to_string())
+    } else {
+        mgr.disable().map_err(|e| e.to_string())
+    }
+}
+
+#[tauri::command]
+fn get_auto_launch(app: tauri::AppHandle) -> bool {
+    use tauri_plugin_autostart::ManagerExt;
+    app.autolaunch().is_enabled().unwrap_or(false)
+}
+
+// T7: Background sync task
+#[tauri::command]
+async fn start_background_sync(
+    app: tauri::AppHandle,
+    sync_state: tauri::State<'_, SyncState>,
+    interval_minutes: u64,
+) -> Result<(), String> {
+    let mut guard = sync_state.0.lock().map_err(|e| e.to_string())?;
+    if let Some(handle) = guard.take() {
+        handle.abort();
+    }
+    let app_clone = app.clone();
+    let handle = tokio::spawn(async move {
+        loop {
+            tokio::time::sleep(tokio::time::Duration::from_secs(interval_minutes * 60)).await;
+            match reqwest::get("http://127.0.0.1:8000/api/manga/sync").await {
+                Ok(resp) => {
+                    if let Ok(json) = resp.json::<serde_json::Value>().await {
+                        let new_count = json["new_chapters"].as_u64().unwrap_or(0);
+                        if new_count > 0 {
+                            send_notification(
+                                &app_clone,
+                                "manga-dl",
+                                &format!("{} new chapter(s) available!", new_count),
+                            );
+                            // T8: Emit event so frontend can navigate
+                            let _ = app_clone.emit("new-chapters", serde_json::json!({
+                                "count": new_count
+                            }));
+                        }
+                    }
+                }
+                Err(e) => eprintln!("[manga-dl] Sync check failed: {}", e),
+            }
+        }
+    });
+    *guard = Some(handle);
+    Ok(())
+}
+
+#[tauri::command]
+async fn stop_background_sync(sync_state: tauri::State<'_, SyncState>) -> Result<(), String> {
+    let mut guard = sync_state.0.lock().map_err(|e| e.to_string())?;
+    if let Some(handle) = guard.take() {
+        handle.abort();
+    }
     Ok(())
 }
 
@@ -222,22 +311,32 @@ pub fn run() {
     tauri::Builder::default()
         .manage(BackendProcess(Mutex::new(backend_child)))
         .manage(DiscordRpc(Mutex::new(None)))
+        .manage(SyncState(Mutex::new(None)))
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
         .invoke_handler(tauri::generate_handler![
             get_backend_url,
             get_downloads_path,
             reveal_in_file_manager,
             discord_update_presence,
             discord_clear_presence,
+            pick_folder,
+            set_auto_launch,
+            get_auto_launch,
+            start_background_sync,
+            stop_background_sync,
         ])
         .setup(|app| {
             setup_tray(app.handle())?;
             Ok(())
         })
         .on_window_event(|window, event| {
-            // Hide to tray instead of closing, so backend keeps running
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 window.hide().unwrap_or(());
                 api.prevent_close();
