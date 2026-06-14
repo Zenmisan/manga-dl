@@ -160,7 +160,7 @@ export default function Reader() {
     const fetchManifest = async () => {
       // --- Handle Online Streaming ---
       if (mangaTitle === 'online' && filename) {
-        const decoded = decodeURIComponent(filename)
+        const decoded = decodeURIComponent(escape(atob(filename)))
         const parts = decoded.split('|')
         const onlineProvider = parts[0]
         const onlineMangaId = parts[1]

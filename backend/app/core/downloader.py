@@ -9,6 +9,7 @@ import re
 from pathlib import Path
 import logging
 from io import BytesIO
+from xml.sax.saxutils import escape as xml_escape
 from PIL import Image
 
 log = logging.getLogger(__name__)
@@ -49,9 +50,9 @@ def build_comic_info_xml(
         '<?xml version="1.0" encoding="utf-8"?>\n'
         '<ComicInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
         'xmlns:xsd="http://www.w3.org/2001/XMLSchema">\n'
-        f'  <Series>{manga_title}</Series>\n'
-        f'  <Title>{chapter_title}</Title>\n'
-        f'  <Number>{num_str}</Number>\n'
+        f'  <Series>{xml_escape(manga_title)}</Series>\n'
+        f'  <Title>{xml_escape(chapter_title)}</Title>\n'
+        f'  <Number>{xml_escape(num_str)}</Number>\n'
         f'  <PageCount>{page_count}</PageCount>\n'
         '  <Manga>Yes</Manga>\n'
         '</ComicInfo>\n'

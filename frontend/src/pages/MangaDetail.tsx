@@ -414,6 +414,15 @@ export default function MangaDetail() {
     return [...set]
   }, [manga])
 
+  const resumeTarget = useMemo(() => {
+    if (!manga?.chapters.length) return null
+    const sorted = [...manga.chapters].sort((a, b) => a.number - b.number)
+    const firstUnread = sorted.find(c => !readChapters.has(c.id))
+    const hasRead = readChapters.size > 0
+    const target = firstUnread ?? sorted[0]
+    return { chapter: target, label: hasRead && firstUnread ? 'Resume' : 'Start' }
+  }, [manga?.chapters, readChapters])
+
   const displayedChapters = useMemo(() => {
     if (!manga) return []
     let list = [...manga.chapters]
@@ -982,7 +991,8 @@ export default function MangaDetail() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
-                        const param = encodeURIComponent(`${provider}|${manga.id}|${chapter.id}|${manga.title}|${chapter.title}`)
+                        const raw = `${provider}|${manga.id}|${chapter.id}|${manga.title}|${chapter.title}`
+                        const param = btoa(unescape(encodeURIComponent(raw)))
                         navigate(`/read/online/${param}`)
                       }}
                       className="p-3 rounded-xl transition-all border bg-violet-500/10 border-violet-500/20 text-violet-400 hover:bg-violet-500 hover:text-white hover:border-violet-500 shadow-lg"
@@ -1133,6 +1143,26 @@ export default function MangaDetail() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Floating Resume/Start FAB */}
+      {resumeTarget && (
+        <motion.button
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.4, type: 'spring', stiffness: 200 }}
+          onClick={() => {
+            const ch = resumeTarget.chapter
+            const raw = `${provider}|${manga!.id}|${ch.id}|${manga!.title}|${ch.title}`
+            const param = btoa(unescape(encodeURIComponent(raw)))
+            navigate(`/read/online/${param}`)
+          }}
+          className="fixed bottom-28 right-5 md:bottom-8 md:right-8 z-40 flex items-center gap-2.5 px-5 py-3.5 rounded-2xl bg-red-600 hover:bg-red-500 text-white font-black text-sm shadow-xl shadow-red-600/30 hover:-translate-y-0.5 transition-all"
+          style={{ boxShadow: '0 8px 30px rgba(220,38,38,.4)' }}
+        >
+          <Play className="w-4 h-4 fill-current" />
+          {resumeTarget.label}
+        </motion.button>
+      )}
     </div>
   )
 }

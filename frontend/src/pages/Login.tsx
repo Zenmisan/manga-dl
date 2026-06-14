@@ -18,7 +18,7 @@ export default function LoginPage() {
     try {
       const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
       if (authError) throw authError
-      navigate('/')
+      navigate('/r')
     } catch (err: any) {
       setError(err.message || 'Login failed.')
     } finally {

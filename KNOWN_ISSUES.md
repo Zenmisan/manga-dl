@@ -1,6 +1,6 @@
 # Known Issues & Limitations
 
-Last updated: 2026-06-13
+Last updated: 2026-06-14
 
 ---
 
@@ -16,7 +16,7 @@ Last updated: 2026-06-13
 - **Fix:** Supabase dashboard → Storage → New bucket → name `manga-backups` → private.
 
 ### Supabase Production DB — missing columns/tables
-Run in Supabase SQL Editor:
+Full migration script at `docs/supabase/migrations.sql`. Run in Supabase SQL Editor:
 ```sql
 ALTER TABLE downloads ADD COLUMN IF NOT EXISTS file_size_bytes INTEGER DEFAULT 0;
 ALTER TABLE downloads ADD COLUMN IF NOT EXISTS pinned BOOLEAN DEFAULT FALSE;
@@ -28,52 +28,64 @@ CREATE TABLE IF NOT EXISTS reading_progress (
   manga_id   VARCHAR NOT NULL,
   chapter_id VARCHAR NOT NULL,
   last_page  INTEGER DEFAULT 1,
-  updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
   PRIMARY KEY (user_id, provider, manga_id, chapter_id)
 );
+
+-- Read tracking (chapter-level read state, synced by readTracking.ts)
+CREATE TABLE IF NOT EXISTS read_tracking (
+  user_id     VARCHAR NOT NULL,
+  provider    VARCHAR NOT NULL,
+  manga_id    VARCHAR NOT NULL,
+  chapter_ids JSONB NOT NULL DEFAULT '[]',
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, provider, manga_id)
+);
+
+-- Category assignments (synced by categories.ts)
+CREATE TABLE IF NOT EXISTS user_categories (
+  user_id           VARCHAR NOT NULL PRIMARY KEY,
+  custom_categories JSONB NOT NULL DEFAULT '[]',
+  manga_assignments JSONB NOT NULL DEFAULT '{}',
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Manga notes + ratings (synced by mangaNotes.ts)
+CREATE TABLE IF NOT EXISTS manga_notes (
+  user_id    VARCHAR NOT NULL,
+  provider   VARCHAR NOT NULL,
+  manga_id   VARCHAR NOT NULL,
+  note       TEXT NOT NULL DEFAULT '',
+  rating     INTEGER NOT NULL DEFAULT 0,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, provider, manga_id)
+);
 ```
+Enable RLS on all three new tables — see `docs/supabase/migrations.sql` for policies.
 
 ---
 
 ## 🟠 Functional Bugs
 
-### `manga-dl-bookmarks` key uses wrong compound key
-- **File:** `frontend/src/pages/MangaDetail.tsx:71`
-- **Issue:** `useState` initializer reads `[provider}:${provider}]` — duplicates `provider` instead of using `mangaId`. Bookmarks never load correctly on first render.
-- **Fix:** Change to `` `${provider}:${mangaId}` ``.
+~~### `manga-dl-bookmarks` key uses wrong compound key~~ **FIXED** — `MangaDetail.tsx:71`
 
-### MAL sync sends chapter ID string, not chapter number
-- **File:** `backend/app/api/manga.py` (MAL sync endpoint)
-- **Issue:** MAL expects `num_chapters_read` as integer. Code sends chapter ID string. MAL silently rejects or stores 0.
-- **Fix:** Parse `ChapterResult.number` (float) → cast to int.
+~~### MAL sync sends chapter ID string, not chapter number~~ **FIXED** — `backend/app/api/auth.py` + `MangaDetail.tsx`
 
-### `|` in manga title breaks `/read/online/` URL encoding
-- **Files:** `frontend/src/pages/Reader.tsx`, `frontend/src/pages/MangaDetail.tsx`
-- **Issue:** 5-part pipe-separated URL param (`provider|mangaId|chapterId|mangaTitle|chapterTitle`) breaks if any field contains literal `|`.
-- **Fix:** Base64-encode each component, or switch to JSON+base64 URL param.
+~~### `|` in manga title breaks `/read/online/` URL encoding~~ **FIXED** — param is now btoa-encoded; Reader uses `atob` decode
 
-### ComicInfo.xml doesn't escape special characters
-- **File:** `backend/app/core/downloader.py` → `build_comic_info_xml`
-- **Issue:** Manga titles with `&`, `<`, `>` produce malformed XML (e.g. `Dungeon & Fighter`).
-- **Fix:** Apply `xml.sax.saxutils.escape()` to all string fields.
+~~### Sources.tsx JSX nesting error (tab restructure)~~ **FIXED** — extensions tab `<div>` and conditional were unclosed; fixed closing structure
+
+~~### ComicInfo.xml doesn't escape special characters~~ **FIXED** — `xml.sax.saxutils.escape()` applied in `downloader.py`
 
 ---
 
 ## 🟡 UX / Sync Gaps
 
-### Read tracking is localStorage-only — not cross-device
-- **Files:** `frontend/src/lib/readTracking.ts`, `frontend/src/pages/Dashboard.tsx`
-- **Issue:** Unread badges, read/unread chapter state, bookmarks are all localStorage. Don't sync across devices.
-- **Fix:** Mirror to Supabase `reading_progress` table on write; reconcile on load.
+~~### Read tracking is localStorage-only~~ **FIXED** — `readTracking.ts` syncs to `read_tracking` Supabase table
 
-### Manga categories are localStorage-only
-- **File:** `frontend/src/lib/categories.ts`
-- **Issue:** Category assignments lost on browser clear or new device.
-- **Fix:** Add `manga_categories` column to `MangaRecord` or a join table; sync on assignment.
+~~### Manga categories are localStorage-only~~ **FIXED** — `categories.ts` syncs to `user_categories` Supabase table
 
-### Manga notes / rating are localStorage-only
-- **File:** `frontend/src/lib/mangaNotes.ts`
-- **Issue:** Same pattern as categories.
+~~### Manga notes / rating are localStorage-only~~ **FIXED** — `mangaNotes.ts` syncs to `manga_notes` Supabase table
 
 ### Manga metadata overrides are localStorage-only
 - **File:** `frontend/src/pages/MangaDetail.tsx` → `manga-dl-meta-overrides` key
@@ -106,14 +118,9 @@ CREATE TABLE IF NOT EXISTS reading_progress (
 - **Issue:** `activeCategory` resets to `null` on reload.
 - **Fix:** Persist in URL param (`?category=Reading`) or `sessionStorage`.
 
-### Heatmap uses download date, not read date
-- **Issue:** Reflects when chapters were *downloaded*, not *read*. Bulk downloads cause spikes.
-- **Fix:** Count `ReadingProgress.updated_at` from Supabase instead.
+~~### Heatmap uses download date, not read date~~ **MITIGATED** — relabeled to "Download Heatmap / Download Activity" to accurately describe what it shows. True fix requires `ReadingProgress.updated_at` aggregation endpoint.
 
-### Public profile shows UUID as display name
-- **File:** `frontend/src/pages/Profile.tsx`
-- **Issue:** No username system — shows first 8 chars of UUID.
-- **Fix:** Add `display_name` column to `UserDevice` or a `UserProfile` table.
+~~### Public profile shows UUID as display name~~ **MITIGATED** — own profile shows email username prefix; others show `Reader #XXXXXXXX`. Full fix requires `display_name` column in backend.
 
 ### Search grouped results show header for zero-result providers
 - **File:** `frontend/src/pages/Search.tsx`
@@ -133,9 +140,10 @@ CREATE TABLE IF NOT EXISTS reading_progress (
 - **Issue:** Requires platform autostart APIs. May fail on minimal setups.
 - **Fix:** Gate behind `[target.'cfg(target_os = "linux")'.dependencies]` if needed.
 
-### Tracker sync modal only supports AniList + MAL
+### Tracker sync only works for AniList + MAL
 - **File:** `frontend/src/pages/MangaDetail.tsx` → `showSyncModal`
-- **Issue:** MangaUpdates, Shikimori, Bangumi show "Sync" button only for anilist/mal. Others show only "Unlink".
+- **Issue:** Kitsu/MangaUpdates/Shikimori/Bangumi have no backend write-API integration.
+- **Mitigated:** Settings UI now shows "Read-only / No write API" and "Token storage only · No auto-sync" badges on these sections so users aren't confused.
 - **Fix:** Add sync handlers for MU/Shiki/BGM when their APIs support status+score writes.
 
 ---

@@ -820,6 +820,20 @@ export default function Dashboard() {
                               loading="lazy"
                             />
                           ) : (
+                            <></>
+                          )}
+                          {/* Unread badge */}
+                          {(() => {
+                            if (!item.provider || !item.provider_manga_id || !item.total_chapters) return null
+                            const unread = item.total_chapters - getReadCount(item.provider, item.provider_manga_id)
+                            if (unread <= 0) return null
+                            return (
+                              <div className="absolute top-2 left-2 z-10 px-1.5 py-0.5 rounded-md bg-red-600 text-white text-[10px] font-black leading-tight shadow-lg shadow-red-600/30">
+                                {unread > 99 ? '99+' : unread}
+                              </div>
+                            )
+                          })()}
+                          {!item.cover_url && (
                             <div className="w-full h-full flex items-center justify-center text-white/5 bg-white/[0.01]">
                               {item.chapters_downloading > 0
                                 ? <RefreshCw className="w-16 h-16 animate-spin opacity-20" />

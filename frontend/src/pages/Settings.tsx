@@ -39,7 +39,7 @@ async function fetchAniListUsername(token: string): Promise<string | null> {
 
 export default function SettingsPage() {
   const navigate = useNavigate()
-  const { incognitoMode, setIncognitoMode, theme, setTheme, amoledBlack, setAmoledBlack, tapZoneLayout, setTapZoneLayout, cropBorders, setCropBorders, dualPageSpread, setDualPageSpread, hapticFeedback, setHapticFeedback, gridColumns, setGridColumns, webtoonSidePadding, setWebtoonSidePadding, cropBordersWebtoon, setCropBordersWebtoon, autoBackupEnabled, setAutoBackupEnabled, autoBackupInterval, setAutoBackupInterval } = useAppStore()
+  const { incognitoMode, setIncognitoMode, theme, setTheme, amoledBlack, setAmoledBlack, tapZoneLayout, setTapZoneLayout, cropBorders, setCropBorders, dualPageSpread, setDualPageSpread, hapticFeedback, setHapticFeedback, gridColumns, setGridColumns, webtoonSidePadding, setWebtoonSidePadding, cropBordersWebtoon, setCropBordersWebtoon, autoBackupEnabled, setAutoBackupEnabled, autoBackupInterval, setAutoBackupInterval, syncWifiOnly, setSyncWifiOnly, syncChargingOnly, setSyncChargingOnly, appLockEnabled, setAppLockEnabled } = useAppStore()
   const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null)
   const [apiKey, setApiKey] = useState(localStorage.getItem('manga-api-key') || '')
   const [backendUrl, setBackendUrl] = useState(localStorage.getItem('manga-backend-url') || '')
@@ -746,6 +746,7 @@ export default function SettingsPage() {
               <BookOpen className="w-5 h-5 text-orange-400" />
             </div>
             <h2 className="font-bold text-lg">Kitsu</h2>
+            <span className="ml-auto text-[9px] font-black uppercase tracking-widest px-2 py-0.5 bg-white/5 border border-white/10 rounded text-white/30">Read-only · No write API</span>
           </div>
           <div className="p-6 md:p-8 space-y-4">
             {!kitsuUser && (
@@ -1034,6 +1035,35 @@ export default function SettingsPage() {
                 </button>
               </div>
             )}
+            {Capacitor.isNativePlatform() && (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-2xl bg-white/[0.02] border border-white/5 mt-4">
+                <div>
+                  <p className="font-bold text-sm">Biometric App Lock</p>
+                  <p className="text-xs text-white/40 mt-0.5">Require fingerprint / face unlock when opening the app</p>
+                </div>
+                <button
+                  role="switch"
+                  aria-checked={appLockEnabled}
+                  onClick={async () => {
+                    if (!appLockEnabled) {
+                      // Test biometric before enabling
+                      try {
+                        const { BiometricAuth } = await import('@aparajita/capacitor-biometric-auth')
+                        const { isAvailable } = await BiometricAuth.checkBiometry()
+                        if (!isAvailable) { alert('No biometric authentication available on this device.'); return }
+                        await BiometricAuth.authenticate({ reason: 'Enable biometric app lock', cancelTitle: 'Cancel' })
+                        setAppLockEnabled(true)
+                      } catch { /* cancelled */ }
+                    } else {
+                      setAppLockEnabled(false)
+                    }
+                  }}
+                  className={`relative w-12 h-6 rounded-full transition-colors shrink-0 ${appLockEnabled ? 'bg-purple-500/40' : 'bg-white/10'}`}
+                >
+                  <span className={`absolute top-0.5 w-5 h-5 rounded-full transition-all ${appLockEnabled ? 'left-6 bg-purple-400' : 'left-0.5 bg-white/30'}`} />
+                </button>
+              </div>
+            )}
           </div>
         </motion.section>
 
@@ -1124,6 +1154,35 @@ export default function SettingsPage() {
                 )}
                 {syncing ? 'Syncing...' : syncDone ? 'Done' : 'Run Sync'}
               </button>
+            </div>
+
+            {/* Sync gates */}
+            <div className="space-y-3">
+              <label className="block text-xs font-black uppercase tracking-widest text-white/30">Sync Restrictions</label>
+              <div className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+                <div>
+                  <p className="font-bold text-sm">WiFi Only</p>
+                  <p className="text-xs text-white/30 mt-0.5">Only sync subscribed manga when connected to WiFi</p>
+                </div>
+                <button
+                  onClick={() => setSyncWifiOnly(!syncWifiOnly)}
+                  className={`w-12 h-6 rounded-full relative transition-all border ${syncWifiOnly ? 'bg-blue-500/30 border-blue-500/40' : 'bg-white/5 border-white/10'}`}
+                >
+                  <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${syncWifiOnly ? 'left-6' : 'left-0.5'}`} />
+                </button>
+              </div>
+              <div className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+                <div>
+                  <p className="font-bold text-sm">Charging Only</p>
+                  <p className="text-xs text-white/30 mt-0.5">Only sync when device is charging</p>
+                </div>
+                <button
+                  onClick={() => setSyncChargingOnly(!syncChargingOnly)}
+                  className={`w-12 h-6 rounded-full relative transition-all border ${syncChargingOnly ? 'bg-blue-500/30 border-blue-500/40' : 'bg-white/5 border-white/10'}`}
+                >
+                  <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${syncChargingOnly ? 'left-6' : 'left-0.5'}`} />
+                </button>
+              </div>
             </div>
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -1413,6 +1472,7 @@ export default function SettingsPage() {
           <div className="p-6 border-b border-white/5 flex items-center gap-3 bg-white/[0.02]">
             <div className="p-2 bg-rose-500/10 rounded-lg"><Share2 className="w-5 h-5 text-rose-400" /></div>
             <h2 className="font-bold text-lg">Additional Trackers</h2>
+            <span className="ml-auto text-[9px] font-black uppercase tracking-widest px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 rounded text-amber-400">Token storage only · No auto-sync</span>
           </div>
           <div className="p-6 md:p-8 space-y-6">
             {/* MangaUpdates */}

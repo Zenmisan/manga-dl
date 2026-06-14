@@ -36,3 +36,7 @@ logs/
 .claude/*
 .agents/*
 .kiro/*
+
+# Folders
+UI/
+

@@ -125,64 +125,129 @@ export default function SourcesPage() {
     return matchesSearch && matchesLang
   })
 
-  const languages = Array.from(new Set(sources.map(s => s.lang))).sort()
-
   const installed = filteredSources.filter(s => installedIds.includes(s.id))
   const available = filteredSources.filter(s => !installedIds.includes(s.id))
 
+  const [tab, setTab] = useState<'sources' | 'extensions' | 'migrate'>('sources')
+  const activeInstalled = installedMeta.filter(m => !m.disabled)
+
   return (
     <div className="p-6 md:p-12 max-w-7xl mx-auto min-h-full">
-      <header className="mb-12">
+      <header className="mb-8">
         <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-4 bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent">
-          Extensions
+          Browse
         </h1>
-        <p className="text-white/40 font-medium md:text-lg mb-10">Tachiyomi-compatible source engine. Browse and install 500+ sources.</p>
-
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="relative flex-1 group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/20 group-focus-within:text-red-500 transition-colors" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search extensions..."
-              className="w-full glass-panel py-4 pl-12 pr-4 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-all text-base"
-            />
-          </div>
-          <div className="relative group">
-            <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
-            <select
-              value={filterLang}
-              onChange={(e) => setFilterLang(e.target.value)}
-              className="glass-panel py-4 pl-10 pr-10 appearance-none focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-all text-sm font-bold uppercase tracking-widest bg-transparent cursor-pointer"
-            >
-              <option value="all">All Languages</option>
-              {languages.map(lang => (
-                <option key={lang} value={lang}>{lang.toUpperCase()}</option>
-              ))}
-            </select>
-          </div>
-          {installedIds.length > 0 && (
+        {/* Tab bar */}
+        <div className="flex gap-1 p-1 bg-white/5 border border-white/5 rounded-2xl w-fit">
+          {(['sources', 'extensions', 'migrate'] as const).map(t => (
             <button
-              onClick={handleCheckUpdates}
-              disabled={checkingUpdates}
-              className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-white/5 border border-white/10 text-white/50 hover:text-white hover:bg-white/10 font-bold text-xs uppercase tracking-widest transition-all"
+              key={t}
+              onClick={() => setTab(t)}
+              className={cn(
+                'px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all',
+                tab === t ? 'bg-white/10 text-white shadow' : 'text-white/30 hover:text-white/60'
+              )}
             >
-              {checkingUpdates ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-              Check Updates
+              {t}
+              {t === 'sources' && activeInstalled.length > 0 && (
+                <span className="ml-2 px-1.5 py-0.5 rounded-full bg-red-600/20 text-red-400 text-[9px]">{activeInstalled.length}</span>
+              )}
+              {t === 'extensions' && updates.length > 0 && (
+                <span className="ml-2 px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-[9px]">{updates.length}</span>
+              )}
             </button>
-          )}
+          ))}
         </div>
       </header>
 
-      {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[...Array(9)].map((_, i) => (
-            <div key={i} className="h-24 bg-white/5 animate-pulse rounded-2xl border border-white/5" />
-          ))}
+      {tab === 'sources' && (
+        <div>
+          {activeInstalled.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-24 text-center gap-4">
+              <div className="text-5xl">˚₊‧꒰ა ☆ ໒꒱ ‧₊˚</div>
+              <p className="font-bold text-white/40 uppercase tracking-widest text-xs">No sources installed</p>
+              <p className="text-white/25 text-sm max-w-xs">Install extensions from the Extensions tab to start browsing manga.</p>
+              <button onClick={() => setTab('extensions')} className="btn-primary mt-2">Go to Extensions</button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {activeInstalled.map((m, i) => {
+                const src = sources.find(s => s.id === m.id)
+                return (
+                  <motion.div
+                    key={m.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.03 }}
+                    className="glass-card p-4 flex items-center gap-4 border-white/5"
+                  >
+                    <div className="w-12 h-12 bg-white/5 rounded-xl overflow-hidden shrink-0 border border-white/10 p-2">
+                      {src?.icon && <img src={src.icon} alt={m.name} className="w-full h-full object-contain" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-sm truncate">{m.name}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-white/20 bg-white/5 px-1.5 py-0.5 rounded">{m.lang}</span>
+                        <span className="text-[9px] font-medium text-white/20">v{m.version}</span>
+                      </div>
+                    </div>
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" title="Active" />
+                  </motion.div>
+                )
+              })}
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="space-y-10">
+      )}
+
+      {tab === 'extensions' && (
+        <div>
+          <div className="flex flex-col md:flex-row gap-4 mb-8">
+            <div className="relative flex-1 group">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/20 group-focus-within:text-red-500 transition-colors" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search extensions..."
+                className="w-full glass-panel py-4 pl-12 pr-4 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-all text-base"
+              />
+            </div>
+            <div className="relative group">
+              <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
+              <select
+                value={filterLang}
+                onChange={(e) => setFilterLang(e.target.value)}
+                className="glass-panel py-4 pl-10 pr-10 appearance-none focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-all text-sm font-bold uppercase tracking-widest bg-transparent cursor-pointer"
+              >
+                <option value="all">All Languages</option>
+                {Array.from(new Set(sources.map(s => s.lang))).sort().map(lang => (
+                  <option key={lang} value={lang}>{lang.toUpperCase()}</option>
+                ))}
+              </select>
+            </div>
+            {installedIds.length > 0 && (
+              <button
+                onClick={handleCheckUpdates}
+                disabled={checkingUpdates}
+                className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-white/5 border border-white/10 text-white/50 hover:text-white hover:bg-white/10 font-bold text-xs uppercase tracking-widest transition-all"
+              >
+                {checkingUpdates ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                Check Updates
+              </button>
+            )}
+          </div>
+
+          <p className="text-white/40 text-sm mb-6">Tachiyomi-compatible source engine. Browse and install 500+ sources.</p>
+
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[...Array(9)].map((_, i) => (
+                <div key={i} className="h-24 bg-white/5 animate-pulse rounded-2xl border border-white/5" />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-10">
           {/* Installed */}
           {installed.length > 0 && (
             <div>
@@ -298,7 +363,7 @@ export default function SourcesPage() {
             </div>
           )}
 
-          {filteredSources.length === 0 && (
+          {filteredSources.length === 0 && !loading && (
             <div className="text-center py-20 text-white/20">
               <CheckCircle2 className="w-10 h-10 mx-auto mb-4 opacity-20" />
               <p className="font-bold uppercase tracking-widest text-xs">No extensions found</p>
@@ -306,6 +371,30 @@ export default function SourcesPage() {
           )}
         </div>
       )}
-    </div>
+      </div>
+      )}
+
+      {tab === 'migrate' && (
+        <div>
+          <div className="max-w-lg mx-auto py-16 text-center">
+            <div className="text-5xl mb-6">⇄</div>
+            <h2 className="text-xl font-black mb-3">Migrate Manga</h2>
+            <p className="text-white/40 text-sm mb-8 leading-relaxed">
+              Move manga from one source to another, keeping your read progress and categories intact.
+              Go to any manga's detail page and use the source badge to switch sources.
+            </p>
+            <div className="glass-panel p-6 border-white/5 text-left space-y-3">
+              <p className="text-[10px] font-black uppercase tracking-widest text-white/25">How to migrate:</p>
+              {['Open a manga from your Library', 'Tap the source badge near the title', 'Search for the same manga on a different source', 'Confirm migration — progress is preserved'].map((step, i) => (
+                <div key={i} className="flex items-start gap-3">
+                  <span className="w-5 h-5 rounded-full bg-red-600/20 text-red-400 text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
+                  <p className="text-sm text-white/50">{step}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+      </div>
   )
 }

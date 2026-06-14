@@ -40,6 +40,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true)
   const [isOwnProfile, setIsOwnProfile] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [currentEmail, setCurrentEmail] = useState<string | null>(null)
 
   useEffect(() => {
     if (!userId) return
@@ -49,7 +50,10 @@ export default function ProfilePage() {
       .finally(() => setLoading(false))
 
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session?.user?.id === userId) setIsOwnProfile(true)
+      if (data.session?.user?.id === userId) {
+        setIsOwnProfile(true)
+        setCurrentEmail(data.session.user.email ?? null)
+      }
     })
   }, [userId])
 
@@ -85,6 +89,9 @@ export default function ProfilePage() {
   }
 
   const shortId = profile.user_id.slice(0, 8).toUpperCase()
+  const displayName = isOwnProfile && currentEmail
+    ? currentEmail.split('@')[0]
+    : `Reader #${shortId}`
 
   return (
     <div className="p-6 md:p-12 max-w-3xl mx-auto min-h-full">
@@ -105,10 +112,10 @@ export default function ProfilePage() {
       >
         <div className="flex items-center gap-5">
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-red-500/30 to-red-900/30 border border-red-500/20 flex items-center justify-center text-2xl font-black text-red-400">
-            {shortId.slice(0, 2)}
+            {displayName.slice(0, 2).toUpperCase()}
           </div>
           <div>
-            <h1 className="text-2xl font-black tracking-tight">{shortId}</h1>
+            <h1 className="text-2xl font-black tracking-tight">{displayName}</h1>
             {isOwnProfile && (
               <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
                 You

@@ -1,6 +1,7 @@
 package com.zenmi.mangaos
 
 import android.view.KeyEvent
+import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
@@ -27,11 +28,11 @@ class VolumeKeysPlugin : Plugin() {
         if (!enabled) return false
         return when (keyCode) {
             KeyEvent.KEYCODE_VOLUME_UP -> {
-                notifyListeners("volumeUp", null)
+                notifyListeners("volumeUp", JSObject())
                 true
             }
             KeyEvent.KEYCODE_VOLUME_DOWN -> {
-                notifyListeners("volumeDown", null)
+                notifyListeners("volumeDown", JSObject())
                 true
             }
             else -> false

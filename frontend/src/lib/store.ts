@@ -88,6 +88,10 @@ interface AppState {
   syncChargingOnly: boolean
   setSyncWifiOnly: (val: boolean) => void
   setSyncChargingOnly: (val: boolean) => void
+
+  // App lock
+  appLockEnabled: boolean
+  setAppLockEnabled: (val: boolean) => void
 }
 
 const defaultFilters: ReaderFilters = {
@@ -157,6 +161,9 @@ export const useAppStore = create<AppState>()(
       syncChargingOnly: false,
       setSyncWifiOnly: (val) => set({ syncWifiOnly: val }),
       setSyncChargingOnly: (val) => set({ syncChargingOnly: val }),
+
+      appLockEnabled: false,
+      setAppLockEnabled: (val) => set({ appLockEnabled: val }),
     }),
     {
       name: 'manga-dl-prefs',
@@ -180,6 +187,7 @@ export const useAppStore = create<AppState>()(
         autoBackupInterval: state.autoBackupInterval,
         syncWifiOnly: state.syncWifiOnly,
         syncChargingOnly: state.syncChargingOnly,
+        appLockEnabled: state.appLockEnabled,
       }),
     }
   )

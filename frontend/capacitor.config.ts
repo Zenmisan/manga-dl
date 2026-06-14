@@ -5,8 +5,17 @@ const config: CapacitorConfig = {
   appName: 'manga-dl',
   webDir: 'dist',
   server: {
-    // Allow overriding backend URL via localStorage on the web layer
     androidScheme: 'https',
+  },
+  plugins: {
+    SplashScreen: {
+      launchShowDuration: 2000,
+      launchAutoHide: false,
+      backgroundColor: '#050505',
+      androidSplashResourceName: 'splash',
+      iosContentMode: 'scaleAspectFit',
+      showSpinner: false,
+    },
   },
 };
 
