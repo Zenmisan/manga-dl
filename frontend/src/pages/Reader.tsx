@@ -293,7 +293,7 @@ export default function Reader() {
   }, [mangaTitle, filename, readingMode])
 
   const getImageUrlForChapter = (targetFilename: string, pageName: string) => {
-    if (mangaTitle === 'local') return pageName
+    if (mangaTitle === 'local' || mangaTitle === 'online') return pageName
     const base = api.defaults.baseURL || ''
     const apiKey = localStorage.getItem('manga-api-key') || ''
     const url = `${base}/library/image/${encodeURIComponent(mangaTitle || '')}/${encodeURIComponent(targetFilename)}/${encodeURIComponent(pageName)}?api_key=${apiKey}`

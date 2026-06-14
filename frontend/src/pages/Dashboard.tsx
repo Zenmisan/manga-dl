@@ -820,6 +820,7 @@ export default function Dashboard() {
                               alt={item.title}
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                               loading="lazy"
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
                             />
                           ) : (
                             <></>
@@ -854,7 +855,8 @@ export default function Dashboard() {
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation()
-                                    const param = encodeURIComponent(`${lastRead.provider}|${lastRead.mangaId}|${lastRead.chapterId}|${lastRead.mangaTitle}|${lastRead.chapterTitle}`)
+                                    const raw = `${lastRead.provider}|${lastRead.mangaId}|${lastRead.chapterId}|${lastRead.mangaTitle}|${lastRead.chapterTitle}`
+                                    const param = btoa(unescape(encodeURIComponent(raw)))
                                     navigate(`/read/online/${param}`)
                                   }}
                                   className="mt-1 flex items-center gap-1.5 px-2 py-1 bg-red-600/80 hover:bg-red-500 rounded-lg text-[9px] font-black uppercase tracking-widest text-white transition-all w-fit"
@@ -900,6 +902,7 @@ export default function Dashboard() {
                               alt={item.title}
                               className="w-full h-full object-cover"
                               loading="lazy"
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
                             />
                           ) : item.chapters_downloading > 0 ? (
                             <RefreshCw className="w-7 h-7 animate-spin" />

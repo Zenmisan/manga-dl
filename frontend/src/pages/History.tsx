@@ -94,7 +94,8 @@ export default function HistoryPage() {
   }
 
   const resumeChapter = (entry: HistoryEntry) => {
-    const param = encodeURIComponent(`${entry.provider}|${entry.manga_id}|${entry.chapter_id}|${entry.manga_title}|${entry.chapter_title}`)
+    const raw = `${entry.provider}|${entry.manga_id}|${entry.chapter_id}|${entry.manga_title}|${entry.chapter_title}`
+    const param = btoa(unescape(encodeURIComponent(raw)))
     navigate(`/read/online/${param}`)
   }
 
