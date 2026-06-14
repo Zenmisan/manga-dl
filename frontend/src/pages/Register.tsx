@@ -36,8 +36,8 @@ export default function RegisterPage() {
       const { error: authError } = await supabase.auth.signUp({ email, password })
       if (authError) throw authError
       setSuccess(true)
-    } catch (err: any) {
-      setError(err.message || 'Registration failed.')
+    } catch (err: unknown) {
+      setError((err as { message?: string }).message || 'Registration failed.')
     } finally {
       setLoading(false)
     }

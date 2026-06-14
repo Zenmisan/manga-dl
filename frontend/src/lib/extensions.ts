@@ -7,20 +7,20 @@ export interface MangaExtension {
   version: string
   lang: string
 
-  search: (query: string, page: number) => Promise<any[]>
-  getMangaDetail: (mangaId: string) => Promise<any>
+  search: (query: string, page: number) => Promise<unknown[]>
+  getMangaDetail: (mangaId: string) => Promise<unknown>
   getPages: (chapterId: string) => Promise<string[]>
 }
 
 interface WorkerRequest {
   id: string
   method: 'search' | 'getMangaDetail' | 'getPages'
-  args: any[]
+  args: unknown[]
 }
 
 interface WorkerResponse {
   id: string
-  result?: any
+  result?: unknown
   error?: string
 }
 
@@ -61,7 +61,7 @@ function createExtensionWorker(jsCode: string, apiBaseURL: string, apiKey: strin
   return new Worker(URL.createObjectURL(blob))
 }
 
-function workerCall(worker: Worker, method: WorkerRequest['method'], args: any[]): Promise<any> {
+function workerCall(worker: Worker, method: WorkerRequest['method'], args: unknown[]): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const id = Math.random().toString(36).slice(2)
     const handler = (event: MessageEvent<WorkerResponse>) => {
@@ -127,15 +127,15 @@ export class ExtensionManager {
         name,
         lang,
         version,
-        search: (query, page) => workerCall(worker, 'search', [query, page]),
+        search: (query, page) => workerCall(worker, 'search', [query, page]) as Promise<unknown[]>,
         getMangaDetail: (id) => workerCall(worker, 'getMangaDetail', [id]),
-        getPages: (id) => workerCall(worker, 'getPages', [id]),
+        getPages: (id) => workerCall(worker, 'getPages', [id]) as Promise<string[]>,
       }
 
       this.extensions.set(pkgId, extension)
 
       const installed = JSON.parse(localStorage.getItem(this.storageKey) || '[]')
-      if (!installed.find((e: any) => e.id === pkgId)) {
+      if (!installed.find((e: { id: string }) => e.id === pkgId)) {
         installed.push({ id: pkgId, name, lang, version })
         localStorage.setItem(this.storageKey, JSON.stringify(installed))
       }
@@ -152,7 +152,7 @@ export class ExtensionManager {
     this.workers.delete(pkgId)
     this.extensions.delete(pkgId)
     const installed = JSON.parse(localStorage.getItem(this.storageKey) || '[]')
-    localStorage.setItem('installed-extensions', JSON.stringify(installed.filter((e: any) => e.id !== pkgId)))
+    localStorage.setItem('installed-extensions', JSON.stringify(installed.filter((e: { id: string }) => e.id !== pkgId)))
   }
 
   async loadInstalled() {

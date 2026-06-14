@@ -135,6 +135,7 @@ export default function Dashboard() {
             const filename = filePath.split('/').pop() || filePath.split('\\').pop() || 'unknown.cbz'
             const file = new File([bytes], filename, { type: 'application/zip' })
             const fakeEvent = { target: { files: [file] } } as unknown as React.ChangeEvent<HTMLInputElement>
+            // eslint-disable-next-line react-hooks/immutability
             await handleUpload(fakeEvent)
           } catch (e) {
             console.warn('Drag-drop import failed:', e)
@@ -150,7 +151,8 @@ export default function Dashboard() {
   }, [])
 
   useEffect(() => {
-    setIsDesktop(!!(window as any).__TAURI_INTERNALS__)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsDesktop(!!(window as unknown as Record<string, unknown>).__TAURI_INTERNALS__)
     fetchLibrary()
     fetchHistory()
 
@@ -217,9 +219,9 @@ export default function Dashboard() {
       }, ...prev])
 
       alert(`Successfully scanned ${validArchives.length} archives!`)
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Tauri scan failed:', err)
-      alert(`Could not scan folder: ${err.message}`)
+      alert(`Could not scan folder: ${(err as { message?: string }).message ?? String(err)}`)
     } finally {
       setUploading(false)
     }
@@ -310,7 +312,7 @@ export default function Dashboard() {
       }, ...prev.filter(i => i.localId !== localId)])
 
       // Start session and navigate
-      ;(window as any).__LOCAL_MANGA_SESSION__ = {
+      ;(window as unknown as Record<string, unknown>).__LOCAL_MANGA_SESSION__ = {
         title: mangaTitle,
         pages: blobs,
         rawFile: file,
@@ -318,9 +320,9 @@ export default function Dashboard() {
       }
 
       navigate(`/read/local/${localId}`)
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Local parsing failed:', err)
-      alert(`Could not open: ${err.message}`)
+      alert(`Could not open: ${(err as { message?: string }).message ?? String(err)}`)
     } finally {
       setUploading(false)
     }
@@ -516,7 +518,7 @@ export default function Dashboard() {
                 <WifiOff className="w-5 h-5 shrink-0 mt-0.5" />
                 <div>
                   <p className="font-bold text-sm">Backend unreachable</p>
-                  {!!(window as any).__TAURI_INTERNALS__ ? (
+                  {(window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ ? (
                     <p className="text-xs text-amber-300/70 mt-0.5">Desktop app requires Python 3.10+ in PATH. Install Python, then restart the app. Or set a custom backend URL in Settings.</p>
                   ) : (
                     <p className="text-xs text-amber-300/70 mt-0.5">Server may be starting up (cold start takes ~30s). Check Settings → API Key and Backend URL, then tap Refresh.</p>
@@ -635,7 +637,7 @@ export default function Dashboard() {
                           if (!item?.provider || !item.provider_manga_id) continue
                           try {
                             await api.post('/downloads/queue-manga', { provider: item.provider, manga_id: item.provider_manga_id })
-                          } catch {}
+                          } catch { /* non-fatal */ }
                         }
                         setSelectMode(false); setSelectedItems(new Set())
                         alert(`Queued downloads for ${selectedItems.size} manga`)
@@ -783,7 +785,7 @@ export default function Dashboard() {
                       if (selectMode) {
                         setSelectedItems(prev => {
                           const n = new Set(prev)
-                          n.has(item.title) ? n.delete(item.title) : n.add(item.title)
+                          if (n.has(item.title)) { n.delete(item.title) } else { n.add(item.title) }
                           return n
                         })
                       } else {

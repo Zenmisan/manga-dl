@@ -12,6 +12,7 @@ import LandingPage from './pages/Landing'
 import MorePage from './pages/More'
 import SplashScreen from './components/SplashScreen'
 import { supabase } from './lib/supabase'
+import type { Session } from '@supabase/supabase-js'
 
 import Dashboard from './pages/Dashboard'
 import SearchPage from './pages/Search'
@@ -40,7 +41,7 @@ function useGlobalNotifications() {
     const notificationsEnabled = localStorage.getItem('notifications-enabled') === 'true'
     if (!notificationsEnabled) return
 
-    const apiBase = (window as any).__TAURI_INTERNALS__
+    const apiBase = (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__
       ? 'http://127.0.0.1:8000/api'
       : window.location.origin + '/api'
     const apiKey = localStorage.getItem('manga-api-key') || ''
@@ -82,7 +83,7 @@ function App() {
   const navigate = useNavigate()
   const { theme, amoledBlack, syncWifiOnly, syncChargingOnly, appLockEnabled } = useAppStore()
   const [locked, setLocked] = React.useState(false)
-  const [session, setSession] = React.useState<any>(null)
+  const [session, setSession] = React.useState<Session | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(() => localStorage.getItem('sidebar-collapsed') === 'true')
   const [showSplash, setShowSplash] = React.useState(() => {
     if (typeof sessionStorage === 'undefined') return false
@@ -149,6 +150,7 @@ function App() {
 
   // Biometric app lock (Android native only)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!appLockEnabled) { setLocked(false); return }
     if (!('Capacitor' in window)) return
 
@@ -189,15 +191,15 @@ function App() {
           if (status.connectionType !== 'wifi') return false
         } catch {
           // Not native — use navigator.connection if available
-          const conn = (navigator as any).connection
+          const conn = (navigator as Navigator & { connection?: { type?: string } }).connection
           if (conn && conn.type && conn.type !== 'wifi') return false
         }
       }
       if (syncChargingOnly) {
         try {
-          const bat = await (navigator as any).getBattery?.()
+          const bat = await (navigator as Navigator & { getBattery?: () => Promise<{ charging: boolean }> }).getBattery?.()
           if (bat && !bat.charging) return false
-        } catch {}
+        } catch { /* non-fatal */ }
       }
       return true
     }
@@ -237,7 +239,7 @@ function App() {
               const { BiometricAuth } = await import('@aparajita/capacitor-biometric-auth')
               await BiometricAuth.authenticate({ reason: 'Unlock manga-dl', cancelTitle: 'Cancel' })
               setLocked(false)
-            } catch {}
+            } catch { /* non-fatal */ }
           }}
           className="px-6 py-3 rounded-2xl bg-white/10 border border-white/10 text-white font-bold text-sm hover:bg-white/20 transition-all"
         >

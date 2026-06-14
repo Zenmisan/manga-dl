@@ -1,7 +1,7 @@
 import axios from 'axios'
 
-const isTauri = !!(window as any).__TAURI_INTERNALS__
-const isCapacitor = !!(window as any).Capacitor?.isNativePlatform?.()
+const isTauri = !!(window as unknown as Record<string, unknown>).__TAURI_INTERNALS__
+const isCapacitor = !!(window as unknown as Record<string, { isNativePlatform?: () => boolean }>).Capacitor?.isNativePlatform?.()
 const isProd = import.meta.env.PROD
 
 function resolveBaseURL(): string {

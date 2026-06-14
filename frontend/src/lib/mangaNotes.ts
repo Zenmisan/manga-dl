@@ -32,7 +32,7 @@ async function pushToSupabase(provider: string, mangaId: string, entry: MangaNot
       rating: entry.rating,
       updated_at: entry.updatedAt,
     }, { onConflict: 'user_id,provider,manga_id' })
-  } catch {}
+  } catch { /* non-fatal */ }
 }
 
 export async function syncMangaNotesFromCloud() {

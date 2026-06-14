@@ -10,14 +10,14 @@ export function getCategories(): string[] {
     const merged = [...DEFAULT_CATEGORIES]
     for (const c of stored) { if (!merged.includes(c)) merged.push(c) }
     return merged
-  } catch { return DEFAULT_CATEGORIES }
+  } catch { /* non-fatal */ return DEFAULT_CATEGORIES }
 }
 
 export function addCategory(name: string) {
   try {
     const stored = JSON.parse(localStorage.getItem(CAT_KEY) || '[]') as string[]
     if (!stored.includes(name)) { stored.push(name); localStorage.setItem(CAT_KEY, JSON.stringify(stored)) }
-  } catch {}
+  } catch { /* non-fatal */ }
   pushCategoriesToCloud()
 }
 
@@ -31,12 +31,12 @@ export function removeCategory(name: string) {
       assigns[key] = assigns[key].filter(c => c !== name)
     }
     localStorage.setItem(ASSIGN_KEY, JSON.stringify(assigns))
-  } catch {}
+  } catch { /* non-fatal */ }
   pushCategoriesToCloud()
 }
 
 function getMangaCategories(): Record<string, string[]> {
-  try { return JSON.parse(localStorage.getItem(ASSIGN_KEY) || '{}') } catch { return {} }
+  try { return JSON.parse(localStorage.getItem(ASSIGN_KEY) || '{}') } catch { /* non-fatal */ return {} }
 }
 
 export function getMangaCategoryList(mangaTitle: string): string[] {
@@ -70,7 +70,7 @@ async function pushCategoriesToCloud() {
       manga_assignments: getMangaCategories(),
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id' })
-  } catch {}
+  } catch { /* non-fatal */ }
 }
 
 export async function syncCategoriesFromCloud() {

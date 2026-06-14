@@ -11,10 +11,15 @@ export default function DownloadHub() {
 
   useEffect(() => {
     const ua = window.navigator.userAgent.toLowerCase()
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (ua.includes('win')) setDetectedOS('windows')
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     else if (ua.includes('mac')) setDetectedOS('mac')
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     else if (ua.includes('android')) setDetectedOS('android')
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     else if (ua.includes('linux')) setDetectedOS('linux')
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     else if (ua.includes('iphone') || ua.includes('ipad')) setDetectedOS('ios')
   }, [])
 

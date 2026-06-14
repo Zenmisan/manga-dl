@@ -196,11 +196,13 @@ export default function MangaDetail() {
         const body = { query: `query($q:String){Page(perPage:5){media(search:$q,type:MANGA){id title{romaji}coverImage{medium}startDate{year}averageScore}}}`, variables: { q: query } }
         const r = await fetch('https://graphql.anilist.co', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
         const d = await r.json()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setTrackerResults((d.data?.Page?.media ?? []).map((m: any) => ({ id: m.id, title: m.title.romaji, cover: m.coverImage?.medium, year: m.startDate?.year, score: m.averageScore })))
       } else if (tracker === 'mal') {
         const token = localStorage.getItem('mal-token')
         if (!token) { alert('Log in to MAL first in Settings.'); return }
         const r = await api.post('/auth/mal/search', { access_token: token, query })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setTrackerResults((r.data?.results ?? []).map((m: any) => ({ id: m.id, title: m.title, cover: m.cover_url, year: m.year })))
       } else if (tracker === 'mangaupdates') {
         const token = localStorage.getItem('mangaupdates-token')
@@ -210,12 +212,14 @@ export default function MangaDetail() {
           body: JSON.stringify({ search: query, perpage: 5 }),
         })
         const d = await r.json()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setTrackerResults((d.results ?? []).map((m: any) => ({ id: m.record?.series_id, title: m.record?.title, cover: m.record?.image?.url?.original, year: m.record?.year })))
       } else if (tracker === 'shikimori') {
         const r = await fetch(`https://shikimori.one/api/mangas?search=${encodeURIComponent(query)}&limit=5`, {
           headers: { 'User-Agent': 'manga-dl/1.0' }
         })
         const d = await r.json()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setTrackerResults((d ?? []).map((m: any) => ({ id: m.id, title: m.name, cover: m.image?.preview ? `https://shikimori.one${m.image.preview}` : undefined, year: m.aired_on?.split('-')[0] })))
       } else if (tracker === 'bangumi') {
         const r = await fetch(`https://api.bgm.tv/v0/search/subjects?type=1&limit=5`, {
@@ -223,6 +227,7 @@ export default function MangaDetail() {
           body: JSON.stringify({ keyword: query }),
         })
         const d = await r.json()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setTrackerResults((d.data ?? []).map((m: any) => ({ id: m.id, title: m.name_cn || m.name, cover: m.images?.common, year: m.date?.split('-')[0] })))
       }
     } catch { /* silent */ }
@@ -267,7 +272,7 @@ export default function MangaDetail() {
           try {
             const bm = JSON.parse(localStorage.getItem('manga-dl-bookmarks') || '{}')
             setBookmarks(new Set(bm[`${provider}:${mangaId}`] || []))
-          } catch {}
+          } catch { /* non-fatal */ }
           const savedNote = getMangaNote(provider, mangaId)
           setUserNote(savedNote.note)
           setUserRating(savedNote.rating)
@@ -390,7 +395,7 @@ export default function MangaDetail() {
       const bm = JSON.parse(localStorage.getItem('manga-dl-bookmarks') || '{}')
       bm[key] = [...next]
       localStorage.setItem('manga-dl-bookmarks', JSON.stringify(bm))
-    } catch {}
+    } catch { /* non-fatal */ }
   }
 
   const toggleReadChapter = (chapterId: string) => {
@@ -421,7 +426,7 @@ export default function MangaDetail() {
     const hasRead = readChapters.size > 0
     const target = firstUnread ?? sorted[0]
     return { chapter: target, label: hasRead && firstUnread ? 'Resume' : 'Start' }
-  }, [manga?.chapters, readChapters])
+  }, [manga, readChapters])
 
   const displayedChapters = useMemo(() => {
     if (!manga) return []

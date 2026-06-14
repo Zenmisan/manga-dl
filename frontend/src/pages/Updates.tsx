@@ -41,11 +41,12 @@ export default function UpdatesPage() {
     try {
       const res = await api.get('/manga/updates')
       setUpdates(res.data)
-    } catch {}
+    } catch { /* non-fatal */ }
     setLoading(false)
     if (spinner) setRefreshing(false)
   }
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load() }, [])
 
   const handleDownload = async (entry: UpdateEntry) => {
@@ -58,7 +59,7 @@ export default function UpdatesPage() {
         manga_id: entry.manga_id,
         chapter_id: entry.chapter_id,
       })
-    } catch {}
+    } catch { /* non-fatal */ }
     setTimeout(() => setDownloading(prev => {
       const next = new Set(prev); next.delete(key); return next
     }), 2000)

@@ -100,15 +100,9 @@ const PROVIDER_COLORS: Record<string, string> = {
 export default function StatsPage() {
   const [stats, setStats] = useState<StatsData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [goals, setGoals] = useState<ReadingGoals>({ monthlyChapters: 0, yearlyManga: 0 })
+  const [goals, setGoals] = useState<ReadingGoals>(() => getGoals())
   const [editGoals, setEditGoals] = useState(false)
-  const [goalDraft, setGoalDraft] = useState<ReadingGoals>({ monthlyChapters: 0, yearlyManga: 0 })
-
-  useEffect(() => {
-    const g = getGoals()
-    setGoals(g)
-    setGoalDraft(g)
-  }, [])
+  const [goalDraft, setGoalDraft] = useState<ReadingGoals>(() => getGoals())
 
   useEffect(() => {
     api.get('/library/stats')
@@ -145,9 +139,11 @@ export default function StatsPage() {
   const readTimeStr = readHours > 0 ? `${readHours}h ${readMins}m` : `${readMins}m`
 
   // Reading pace: chapters in last 7 days
+  // eslint-disable-next-line react-hooks/purity
+  const now = Date.now()
   const last7 = (stats.daily_downloads || [])
     .filter(d => {
-      const diff = (Date.now() - new Date(d.day).getTime()) / 86_400_000
+      const diff = (now - new Date(d.day).getTime()) / 86_400_000
       return diff <= 7
     })
     .reduce((s, d) => s + d.count, 0)

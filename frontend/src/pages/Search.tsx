@@ -202,11 +202,15 @@ export default function SearchPage() {
 
   useEffect(() => {
     if (tab === 'popular' || tab === 'latest') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setBrowsePage(1)
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setBrowseResults([])
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setBrowseHasMore(true)
       fetchBrowse(browseProvider, 1, tab, tab === 'popular' ? activeFilters : {})
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, browseProvider])
 
   const loadMoreBrowse = () => {

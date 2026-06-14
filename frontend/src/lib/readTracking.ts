@@ -21,7 +21,7 @@ async function pushToSupabase(provider: string, mangaId: string, chapterIds: str
       chapter_ids: chapterIds,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id,provider,manga_id' })
-  } catch {}
+  } catch { /* non-fatal */ }
 }
 
 /** Pull read state from Supabase and merge into localStorage (call once on app start). */

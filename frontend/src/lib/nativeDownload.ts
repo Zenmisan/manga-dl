@@ -37,8 +37,8 @@ export async function saveToDeviceStorage(
       data: base64Data,
       directory: Directory.Documents,
     })
-  } catch (e: any) {
-    if (e?.message?.includes('permission')) {
+  } catch (e: unknown) {
+    if ((e as { message?: string })?.message?.includes('permission')) {
       alert('Storage permission denied. Please grant Files access in Settings.')
     } else {
       throw e

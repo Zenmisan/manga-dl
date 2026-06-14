@@ -87,7 +87,7 @@ export async function loadLocalMangaIntoSession(id: string): Promise<boolean> {
     blobs.push(URL.createObjectURL(blob))
   }
 
-  ;(window as any).__LOCAL_MANGA_SESSION__ = {
+  ;(window as unknown as Record<string, unknown>).__LOCAL_MANGA_SESSION__ = {
     title: entry.title,
     pages: blobs,
     rawFile: entry.file,

@@ -290,7 +290,7 @@ export default function DownloadsPage() {
                         try {
                           await api.post(`/downloads/retry/${item.id}`)
                           setHistory(prev => prev.filter(i => i.id !== item.id))
-                        } catch {}
+                        } catch { /* non-fatal */ }
                         setRetrying(prev => { const s = new Set(prev); s.delete(item.id); return s })
                       }}
                       disabled={retrying.has(item.id)}

@@ -24,13 +24,13 @@ interface InstalledMeta {
 
 function getInstalledMeta(): InstalledMeta[] {
   const manager = ExtensionManager.getInstance()
-  const key = (manager as any).storageKey as string
+  const key = (manager as unknown as Record<string, unknown>).storageKey as string
   try { return JSON.parse(localStorage.getItem(key) || '[]') } catch { return [] }
 }
 
 function saveInstalledMeta(list: InstalledMeta[]) {
   const manager = ExtensionManager.getInstance()
-  const key = (manager as any).storageKey as string
+  const key = (manager as unknown as Record<string, unknown>).storageKey as string
   localStorage.setItem(key, JSON.stringify(list))
 }
 
@@ -270,7 +270,7 @@ export default function SourcesPage() {
                       >
                         <div className="w-12 h-12 bg-white/5 rounded-xl overflow-hidden shrink-0 border border-white/10 p-2">
                           <img src={s.icon} alt={s.name} className="w-full h-full object-contain" onError={(e) => {
-                            (e.target as any).src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjEwIj48L2NpcmNsZT48L3N2Zz4='
+                            (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjEwIj48L2NpcmNsZT48L3N2Zz4='
                           }} />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -336,7 +336,7 @@ export default function SourcesPage() {
                     >
                       <div className="w-12 h-12 bg-white/5 rounded-xl overflow-hidden shrink-0 border border-white/10 p-2">
                         <img src={s.icon} alt={s.name} className="w-full h-full object-contain" onError={(e) => {
-                          (e.target as any).src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjEwIj48L2NpcmNsZT48L3N2Zz4='
+                          (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjEwIj48L2NpcmNsZT48L3N2Zz4='
                         }} />
                       </div>
                       <div className="flex-1 min-w-0">

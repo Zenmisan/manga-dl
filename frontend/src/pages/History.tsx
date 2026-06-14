@@ -80,7 +80,7 @@ export default function HistoryPage() {
     try {
       await api.delete('/users/history')
       setHistory([])
-    } catch {}
+    } catch { /* non-fatal */ }
     setClearing(false)
   }
 
@@ -89,7 +89,7 @@ export default function HistoryPage() {
     try {
       await api.delete(`/users/history/${encodeURIComponent(provider)}/${encodeURIComponent(mangaId)}`)
       setHistory(prev => prev.filter(e => !(e.provider === provider && e.manga_id === mangaId)))
-    } catch {}
+    } catch { /* non-fatal */ }
     setClearingMangaId(null)
   }
 

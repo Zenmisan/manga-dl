@@ -10,7 +10,8 @@ const VolumeKeys = registerPlugin<VolumeKeysPlugin>('VolumeKeys', {
   web: {
     enable: async () => {},
     disable: async () => {},
-    addListener: async (_e: string, _h: () => void) => ({ remove: () => {} }),
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    addListener: async (_event: string, _handler: () => void) => ({ remove: () => {} }),
   },
 })
 

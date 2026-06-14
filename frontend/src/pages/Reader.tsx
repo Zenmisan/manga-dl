@@ -55,7 +55,6 @@ export default function Reader() {
   const [localTitle, setLocalTitle] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [nextChapterId, setNextChapterId] = useState<string | null>(null)
-  const [_prevChapterId, setPrevChapterId] = useState<string | null>(null)
   const [ambilightColor, setAmbilightColor] = useState<string>('rgba(0,0,0,0)')
   const [ambilightEnabled, setAmbilightEnabled] = useState(true)
   const [isLandscape, setIsLandscape] = useState(window.innerWidth > window.innerHeight)
@@ -205,7 +204,6 @@ export default function Reader() {
             const idx = chapters.findIndex(c => c.id === onlineChapterId)
             if (idx !== -1) {
               setNextChapterId(chapters[idx + 1]?.id ?? null)
-              setPrevChapterId(chapters[idx - 1]?.id ?? null)
             }
           } catch { /* non-fatal */ }
 
@@ -232,15 +230,16 @@ export default function Reader() {
 
       // --- Handle Local Sessions ---
       if (mangaTitle === 'local') {
-        let session = (window as any).__LOCAL_MANGA_SESSION__
+        let session = (window as unknown as Record<string, unknown>).__LOCAL_MANGA_SESSION__
         // If window session is missing (e.g. page refresh), reload from IndexedDB
         if (!session && filename) {
           const ok = await loadLocalMangaIntoSession(filename)
-          if (ok) session = (window as any).__LOCAL_MANGA_SESSION__
+          if (ok) session = (window as unknown as Record<string, unknown>).__LOCAL_MANGA_SESSION__
         }
         if (session) {
-          setLocalTitle(session.title)
-          setPages(session.pages)
+          const s = session as { title: string; pages: string[] }
+          setLocalTitle(s.title)
+          setPages(s.pages)
           setLoading(false)
           return
         }
@@ -293,6 +292,18 @@ export default function Reader() {
     }
   }, [mangaTitle, filename, readingMode])
 
+  const getImageUrlForChapter = (targetFilename: string, pageName: string) => {
+    if (mangaTitle === 'local') return pageName
+    const base = api.defaults.baseURL || ''
+    const apiKey = localStorage.getItem('manga-api-key') || ''
+    const url = `${base}/library/image/${encodeURIComponent(mangaTitle || '')}/${encodeURIComponent(targetFilename)}/${encodeURIComponent(pageName)}?api_key=${apiKey}`
+    return upscaling ? `${url}&upscale=true` : url
+  }
+
+  const getImageUrl = (pageName: string) => {
+    return getImageUrlForChapter(filename || '', pageName)
+  }
+
   // Predictive Prefetching (Smart Binge)
   useEffect(() => {
     if (!nextChapterId || loading || mangaTitle === 'local') return
@@ -301,7 +312,6 @@ export default function Reader() {
       try {
         const res = await api.get(`/library/read/${encodeURIComponent(mangaTitle || '')}/${encodeURIComponent(nextChapterId)}`)
         const nextPages = res.data.pages
-        // Prefetch first 5 images of next chapter
         nextPages.slice(0, 5).forEach((page: string) => {
           const img = new Image()
           img.src = getImageUrlForChapter(nextChapterId, page)
@@ -325,19 +335,8 @@ export default function Reader() {
     } else if (currentPage > pages.length - 2) {
       prefetchNext()
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nextChapterId, currentPage, pages.length, readingMode, loading])
-
-  const getImageUrlForChapter = (targetFilename: string, pageName: string) => {
-    if (mangaTitle === 'local') return pageName
-    const base = api.defaults.baseURL || ''
-    const apiKey = localStorage.getItem('manga-api-key') || ''
-    const url = `${base}/library/image/${encodeURIComponent(mangaTitle || '')}/${encodeURIComponent(targetFilename)}/${encodeURIComponent(pageName)}?api_key=${apiKey}`
-    return upscaling ? `${url}&upscale=true` : url
-  }
-
-  const getImageUrl = (pageName: string) => {
-    return getImageUrlForChapter(filename || '', pageName)
-  }
 
   const handleDownload = () => {
     if (mangaTitle === 'local') return
@@ -363,8 +362,8 @@ export default function Reader() {
   const handleCloudUpload = async () => {
     if (mangaTitle !== 'local' || uploading) return
     
-    const session = (window as any).__LOCAL_MANGA_SESSION__
-    if (!session || !session.rawFile) {
+    const session = (window as unknown as Record<string, unknown>).__LOCAL_MANGA_SESSION__ as { rawFile?: File; title?: string } | undefined
+    if (!session?.rawFile) {
       alert("Original file data lost. Please re-upload from dashboard.")
       return
     }
@@ -537,6 +536,9 @@ export default function Reader() {
       </div>
     )
   }
+
+  // eslint-disable-next-line react-hooks/refs
+  const nextUnreadChapterId = getNextUnreadChapterId()
 
   return (
     <div className="min-h-screen bg-[#050505] text-white overflow-x-hidden select-none">
@@ -931,7 +933,7 @@ export default function Reader() {
                     <p className="font-bold text-sm text-white/70 mb-3">
                       {filename?.replace('.cbz', '') ?? 'Chapter'}
                     </p>
-                    {getNextUnreadChapterId() ? (
+                    {nextUnreadChapterId ? (
                       <button
                         onClick={navigateToNextChapter}
                         className="px-5 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all"
