@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../lib/api'
+import { ExtensionManager } from '../lib/extensions'
 import { Search as SearchIcon, Globe, Loader2, ChevronRight, BookOpen, Layers, Star, BookMarked, Check, TrendingUp, Clock, SlidersHorizontal, ChevronDown } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
@@ -156,10 +157,16 @@ export default function SearchPage() {
     setLoading(true)
     setHasSearched(false)
     try {
-      const params: Record<string, string> = { q: searchQuery }
-      if (selectedProvider) params.provider = selectedProvider
-      const res = await api.get('/manga/search', { params })
-      setSearchResults(res.data)
+      const ext = selectedProvider ? ExtensionManager.getInstance().extensions.get(selectedProvider) : null
+      if (ext) {
+        const results = await ext.search(searchQuery, 1) as MangaResult[]
+        setSearchResults(results)
+      } else {
+        const params: Record<string, string> = { q: searchQuery }
+        if (selectedProvider) params.provider = selectedProvider
+        const res = await api.get('/manga/search', { params })
+        setSearchResults(res.data)
+      }
       setHasSearched(true)
     } catch (err) {
       console.error(err)
@@ -171,12 +178,23 @@ export default function SearchPage() {
   const fetchBrowse = useCallback(async (provider: string, page: number, endpoint: 'popular' | 'latest', filters: Record<string, string> = {}) => {
     setBrowseLoading(true)
     try {
-      const hasFilters = Object.keys(filters).length > 0
-      const url = (endpoint === 'popular' && hasFilters)
-        ? `/manga/${provider}/browse`
-        : `/manga/${provider}/${endpoint}`
-      const res = await api.get(url, { params: { page, ...filters } })
-      const data: MangaResult[] = res.data
+      const ext = ExtensionManager.getInstance().extensions.get(provider)
+      let data: MangaResult[]
+      if (ext) {
+        const method = endpoint === 'popular' ? ext.getPopular : ext.getLatest
+        if (method) {
+          data = await method(page) as MangaResult[]
+        } else {
+          data = await ext.search('', page) as MangaResult[]
+        }
+      } else {
+        const hasFilters = Object.keys(filters).length > 0
+        const url = (endpoint === 'popular' && hasFilters)
+          ? `/manga/${provider}/browse`
+          : `/manga/${provider}/${endpoint}`
+        const res = await api.get(url, { params: { page, ...filters } })
+        data = res.data
+      }
       setBrowseResults(prev => page === 1 ? data : [...prev, ...data])
       setBrowseHasMore(data.length === 20)
     } catch (err) {

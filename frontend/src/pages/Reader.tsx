@@ -28,6 +28,7 @@ import { FastAverageColor } from 'fast-average-color'
 import { cn } from '../lib/utils'
 import { useAppStore } from '../lib/store'
 import { markRead, getReadChapters } from '../lib/readTracking'
+import { ExtensionManager } from '../lib/extensions'
 
 const fac = new FastAverageColor()
 
@@ -176,12 +177,22 @@ export default function Reader() {
         const base = api.defaults.baseURL || ''
         const apiKey = localStorage.getItem('manga-api-key') || ''
         try {
-          const res = await api.get(
-            `/manga/${encodeURIComponent(onlineProvider)}/chapters/${encodeURIComponent(onlineChapterId)}/pages`
-          )
-          const proxyPages: string[] = res.data.pages.map(
-            (url: string) => `${base}/manga/image-proxy?url=${encodeURIComponent(url)}&api_key=${apiKey}`
-          )
+          // Extension-first: use JS extension if available for this provider
+          const ext = ExtensionManager.getInstance().extensions.get(onlineProvider)
+          let rawPages: string[]
+          if (ext) {
+            rawPages = await ext.getPages(onlineChapterId)
+          } else {
+            const res = await api.get(
+              `/manga/${encodeURIComponent(onlineProvider)}/chapters/${encodeURIComponent(onlineChapterId)}/pages`
+            )
+            rawPages = res.data.pages
+          }
+          // Skip proxy for CORS-friendly CDNs (e.g. MangaDex uploads)
+          const skipProxy = ext?.skipProxy ?? false
+          const proxyPages: string[] = skipProxy
+            ? rawPages
+            : rawPages.map((url: string) => `${base}/manga/image-proxy?url=${encodeURIComponent(url)}&api_key=${apiKey}`)
           setPages(proxyPages)
           setLocalTitle(`Online — Ch. ${onlineChapterId}`)
           if (!incognitoMode) markRead(onlineProvider, onlineMangaId, onlineChapterId)
@@ -198,8 +209,15 @@ export default function Reader() {
 
           // Fetch chapter list for next/prev navigation + skip-read
           try {
-            const mangaRes = await api.get(`/manga/${encodeURIComponent(onlineProvider)}/${encodeURIComponent(onlineMangaId)}`)
-            const chapters: { id: string; number: number }[] = mangaRes.data.chapters ?? []
+            let chapters: { id: string; number: number }[] = []
+            const extForChapters = ExtensionManager.getInstance().extensions.get(onlineProvider)
+            if (extForChapters) {
+              const detail = await extForChapters.getMangaDetail(onlineMangaId) as { chapters?: { id: string; number: number }[] }
+              chapters = detail?.chapters ?? []
+            } else {
+              const mangaRes = await api.get(`/manga/${encodeURIComponent(onlineProvider)}/${encodeURIComponent(onlineMangaId)}`)
+              chapters = mangaRes.data.chapters ?? []
+            }
             chapterListRef.current = chapters
             const idx = chapters.findIndex(c => c.id === onlineChapterId)
             if (idx !== -1) {

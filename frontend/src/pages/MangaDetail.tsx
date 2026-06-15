@@ -28,6 +28,7 @@ import {
   Pencil,
 } from 'lucide-react'
 import { markRead, markUnread, markAllRead, getReadChapters } from '../lib/readTracking'
+import { ExtensionManager } from '../lib/extensions'
 import { getMangaNote, setMangaNote, setMangaRating } from '../lib/mangaNotes'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
@@ -265,8 +266,16 @@ export default function MangaDetail() {
   useEffect(() => {
     const fetchManga = async () => {
       try {
-        const res = await api.get(`/manga/${provider}/${mangaId}`)
-        setManga(res.data)
+        // Extension-first: use JS extension if available for this provider
+        let mangaData: MangaDetail
+        const ext = provider ? ExtensionManager.getInstance().extensions.get(provider) : null
+        if (ext) {
+          mangaData = await ext.getMangaDetail(mangaId ?? '') as MangaDetail
+        } else {
+          const res = await api.get(`/manga/${provider}/${mangaId}`)
+          mangaData = res.data
+        }
+        setManga(mangaData)
         if (provider && mangaId) {
           setReadChapters(getReadChapters(provider, mangaId))
           try {

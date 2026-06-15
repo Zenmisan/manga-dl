@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import api from '../lib/api'
-import { Download, CheckCircle2, Search, Filter, ShieldAlert, Loader2, Trash2, RefreshCw, PowerOff, Power } from 'lucide-react'
+import { Download, CheckCircle2, Search, Filter, ShieldAlert, Loader2, Trash2, RefreshCw, PowerOff, Power, Zap } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
 import { ExtensionManager } from '../lib/extensions'
@@ -44,6 +44,7 @@ export default function SourcesPage() {
   const [uninstalling, setUninstalling] = useState<string[]>([])
   const [checkingUpdates, setCheckingUpdates] = useState(false)
   const [updates, setUpdates] = useState<string[]>([])
+  const [builtinIdSet, setBuiltinIdSet] = useState<Set<string>>(new Set())
 
   const installedIds = useMemo(() => installedMeta.map(m => m.id), [installedMeta])
   const disabledIds = useMemo(() => installedMeta.filter(m => m.disabled).map(m => m.id), [installedMeta])
@@ -53,6 +54,9 @@ export default function SourcesPage() {
     manager.init().then(() => {
       setInstalledMeta(getInstalledMeta())
     })
+    api.get('/sources/builtins').then(res => {
+      setBuiltinIdSet(new Set((res.data as Array<{ id: string }>).map(b => b.id)))
+    }).catch(() => {})
     api.get('/sources/market').then(res => {
       setSources(res.data)
       setLoading(false)
@@ -125,8 +129,9 @@ export default function SourcesPage() {
     return matchesSearch && matchesLang
   })
 
-  const installed = filteredSources.filter(s => installedIds.includes(s.id))
-  const available = filteredSources.filter(s => !installedIds.includes(s.id))
+  const installedBuiltins = filteredSources.filter(s => installedIds.includes(s.id) && builtinIdSet.has(s.id))
+  const installedCommunity = filteredSources.filter(s => installedIds.includes(s.id) && !builtinIdSet.has(s.id))
+  const available = filteredSources.filter(s => !installedIds.includes(s.id) && !builtinIdSet.has(s.id))
 
   const [tab, setTab] = useState<'sources' | 'extensions' | 'migrate'>('sources')
   const activeInstalled = installedMeta.filter(m => !m.disabled)
@@ -238,7 +243,7 @@ export default function SourcesPage() {
             )}
           </div>
 
-          <p className="text-white/40 text-sm mb-6">Tachiyomi-compatible source engine. Browse and install 500+ sources.</p>
+          <p className="text-white/40 text-sm mb-6">Built-in sources are always available. Community sources require install.</p>
 
           {loading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -248,13 +253,73 @@ export default function SourcesPage() {
             </div>
           ) : (
             <div className="space-y-10">
-          {/* Installed */}
-          {installed.length > 0 && (
+
+          {/* Built-in extensions */}
+          {installedBuiltins.length > 0 && (
             <div>
-              <h2 className="text-xs font-black uppercase tracking-widest text-white/30 mb-4">Installed ({installed.length})</h2>
+              <div className="flex items-center gap-2 mb-4">
+                <Zap className="w-3.5 h-3.5 text-red-400" />
+                <h2 className="text-xs font-black uppercase tracking-widest text-white/30">Built-in ({installedBuiltins.length})</h2>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <AnimatePresence>
-                  {installed.map((s, idx) => {
+                  {installedBuiltins.map((s, idx) => {
+                    const isDisabled = disabledIds.includes(s.id)
+                    return (
+                      <motion.div
+                        key={s.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: Math.min(idx * 0.01, 0.3) }}
+                        className={cn(
+                          "group glass-card p-4 flex items-center gap-4 border-red-500/10 transition-all",
+                          isDisabled && "opacity-50"
+                        )}
+                      >
+                        <div className="w-12 h-12 bg-white/5 rounded-xl overflow-hidden shrink-0 border border-white/10 p-2 relative">
+                          <img src={s.icon} alt={s.name} className="w-full h-full object-contain" onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjEwIj48L2NpcmNsZT48L3N2Zz4='
+                          }} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-bold text-sm truncate">{s.name}</h3>
+                            <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 bg-red-600/15 border border-red-500/20 rounded text-red-400">built-in</span>
+                            {s.nsfw && <span title="NSFW"><ShieldAlert className="w-3 h-3 text-red-500" /></span>}
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-[9px] font-black uppercase tracking-widest text-white/20 bg-white/5 px-1.5 py-0.5 rounded">{s.lang}</span>
+                            <span className="text-[9px] font-medium text-white/20">v{s.version}</span>
+                            {isDisabled && <span className="text-[9px] font-black uppercase tracking-widest text-white/20">deactivated</span>}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleToggleDisable(s.id)}
+                          title={isDisabled ? 'Activate' : 'Deactivate'}
+                          className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all shrink-0",
+                            isDisabled
+                              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20"
+                              : "bg-white/5 border-white/5 text-white/30 hover:bg-white/10 hover:text-white"
+                          )}
+                        >
+                          {isDisabled ? <Power className="w-3.5 h-3.5" /> : <PowerOff className="w-3.5 h-3.5" />}
+                          {isDisabled ? 'Activate' : 'Deactivate'}
+                        </button>
+                      </motion.div>
+                    )
+                  })}
+                </AnimatePresence>
+              </div>
+            </div>
+          )}
+
+          {/* Community installed */}
+          {installedCommunity.length > 0 && (
+            <div>
+              <h2 className="text-xs font-black uppercase tracking-widest text-white/30 mb-4">Installed ({installedCommunity.length})</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <AnimatePresence>
+                  {installedCommunity.map((s, idx) => {
                     const isDisabled = disabledIds.includes(s.id)
                     const hasUpdate = updates.includes(s.id)
                     return (
@@ -320,7 +385,7 @@ export default function SourcesPage() {
             </div>
           )}
 
-          {/* Available */}
+          {/* Community available */}
           {available.length > 0 && (
             <div>
               <h2 className="text-xs font-black uppercase tracking-widest text-white/30 mb-4">Available ({available.length})</h2>

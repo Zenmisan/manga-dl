@@ -6,15 +6,22 @@ export interface MangaExtension {
   name: string
   version: string
   lang: string
+  builtin: boolean
+  skipProxy: boolean
 
   search: (query: string, page: number) => Promise<unknown[]>
   getMangaDetail: (mangaId: string) => Promise<unknown>
   getPages: (chapterId: string) => Promise<string[]>
+  getPopular?: (page: number) => Promise<unknown[]>
+  getLatest?: (page: number) => Promise<unknown[]>
 }
+
+// Providers whose image CDN is CORS-enabled — no backend proxy needed for images
+export const SKIP_PROXY_PROVIDERS = new Set(['mangadex'])
 
 interface WorkerRequest {
   id: string
-  method: 'search' | 'getMangaDetail' | 'getPages'
+  method: 'search' | 'getMangaDetail' | 'getPages' | 'getPopular' | 'getLatest'
   args: unknown[]
 }
 
@@ -41,7 +48,7 @@ function createExtensionWorker(jsCode: string, apiBaseURL: string, apiKey: strin
       ${jsCode}
       if (typeof extension !== 'undefined') ext = extension;
     } catch (e) {
-      console.error('Extension load error:', e);
+      console.error('[Extension] Load error:', e);
     }
 
     self.onmessage = async (event) => {
@@ -80,6 +87,7 @@ export class ExtensionManager {
   public extensions: Map<string, MangaExtension> = new Map()
   private workers: Map<string, Worker> = new Map()
   private userId = 'guest'
+  private builtinIds = new Set<string>()
 
   private constructor() {}
 
@@ -96,23 +104,61 @@ export class ExtensionManager {
     const { data } = await supabase.auth.getSession()
     this.userId = data.session?.user.id ?? 'guest'
     await this.loadInstalled()
+    // Auto-install built-ins that aren't already loaded
+    await this.loadBuiltins()
   }
 
   setUser(userId: string | null) {
     const newId = userId ?? 'guest'
     if (newId === this.userId) return
-    // Terminate all workers for previous user
     for (const w of this.workers.values()) w.terminate()
     this.workers.clear()
     this.extensions.clear()
     this.userId = newId
-    this.loadInstalled()
+    this.loadInstalled().then(() => this.loadBuiltins())
   }
 
-  async install(pkgId: string, name: string, lang: string, version: string): Promise<boolean> {
+  /** Fetch built-in extension list from backend and install any not already active */
+  async loadBuiltins() {
+    try {
+      const res = await api.get('/sources/builtins')
+      const builtins: Array<{ id: string; name: string; lang: string; version: string; skip_proxy: boolean }> = res.data
+      const installed = JSON.parse(localStorage.getItem(this.storageKey) || '[]') as Array<{ id: string }>
+      const installedIds = new Set(installed.map(e => e.id))
+
+      for (const b of builtins) {
+        this.builtinIds.add(b.id)
+        if (!this.extensions.has(b.id)) {
+          // Not yet active — install silently
+          await this.install(b.id, b.name, b.lang, b.version, true)
+        }
+        // Update skipProxy in case backend changed it
+        const ext = this.extensions.get(b.id)
+        if (ext) {
+          ;(ext as MangaExtension).skipProxy = b.skip_proxy ?? SKIP_PROXY_PROVIDERS.has(b.id)
+        }
+        // Save to localStorage if missing (so Sources page shows it as installed)
+        if (!installedIds.has(b.id)) {
+          const list = JSON.parse(localStorage.getItem(this.storageKey) || '[]')
+          list.push({ id: b.id, name: b.name, lang: b.lang, version: b.version })
+          localStorage.setItem(this.storageKey, JSON.stringify(list))
+          installedIds.add(b.id)
+        }
+      }
+    } catch (err) {
+      console.warn('[Extensions] Built-in load failed:', err)
+    }
+  }
+
+  isBuiltin(pkgId: string): boolean {
+    return this.builtinIds.has(pkgId)
+  }
+
+  async install(pkgId: string, name: string, lang: string, version: string, silent = false): Promise<boolean> {
     try {
       const res = await api.get(`/sources/code/${pkgId}`)
       const jsCode: string = res.data.code
+      const skipProxy: boolean = res.data.skip_proxy ?? SKIP_PROXY_PROVIDERS.has(pkgId)
       const apiBaseURL: string = api.defaults.baseURL || ''
       const apiKey: string = localStorage.getItem('manga-api-key') || ''
 
@@ -127,38 +173,50 @@ export class ExtensionManager {
         name,
         lang,
         version,
+        builtin: this.builtinIds.has(pkgId),
+        skipProxy,
         search: (query, page) => workerCall(worker, 'search', [query, page]) as Promise<unknown[]>,
         getMangaDetail: (id) => workerCall(worker, 'getMangaDetail', [id]),
         getPages: (id) => workerCall(worker, 'getPages', [id]) as Promise<string[]>,
+        getPopular: (page) => workerCall(worker, 'getPopular', [page]) as Promise<unknown[]>,
+        getLatest: (page) => workerCall(worker, 'getLatest', [page]) as Promise<unknown[]>,
       }
 
       this.extensions.set(pkgId, extension)
 
-      const installed = JSON.parse(localStorage.getItem(this.storageKey) || '[]')
-      if (!installed.find((e: { id: string }) => e.id === pkgId)) {
-        installed.push({ id: pkgId, name, lang, version })
-        localStorage.setItem(this.storageKey, JSON.stringify(installed))
+      if (!silent) {
+        const installed = JSON.parse(localStorage.getItem(this.storageKey) || '[]')
+        if (!installed.find((e: { id: string }) => e.id === pkgId)) {
+          installed.push({ id: pkgId, name, lang, version })
+          localStorage.setItem(this.storageKey, JSON.stringify(installed))
+        }
       }
 
       return true
     } catch (err) {
-      console.error('Failed to install extension:', err)
+      console.error(`[Extensions] Failed to install ${pkgId}:`, err)
       return false
     }
   }
 
   uninstall(pkgId: string) {
+    // Don't allow uninstalling built-ins
+    if (this.builtinIds.has(pkgId)) return
     this.workers.get(pkgId)?.terminate()
     this.workers.delete(pkgId)
     this.extensions.delete(pkgId)
     const installed = JSON.parse(localStorage.getItem(this.storageKey) || '[]')
-    localStorage.setItem('installed-extensions', JSON.stringify(installed.filter((e: { id: string }) => e.id !== pkgId)))
+    localStorage.setItem(this.storageKey, JSON.stringify(
+      installed.filter((e: { id: string }) => e.id !== pkgId)
+    ))
   }
 
   async loadInstalled() {
     const installed = JSON.parse(localStorage.getItem(this.storageKey) || '[]')
     for (const ext of installed) {
-      await this.install(ext.id, ext.name, ext.lang, ext.version)
+      if (!this.extensions.has(ext.id)) {
+        await this.install(ext.id, ext.name, ext.lang, ext.version, true)
+      }
     }
   }
 }

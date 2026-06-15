@@ -356,6 +356,30 @@ async def get_manga_updates(db: AsyncSession = Depends(get_db)):
     return updates[:200]
 
 
+@router.get("/proxy/html")
+async def proxy_html(url: str = Query(...)):
+    """Proxy HTML for extension Web Workers that can't bypass CORS."""
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        referer = f"{parsed.scheme}://{parsed.netloc}/"
+        async with CurlSession(impersonate="chrome110") as client:
+            resp = await client.get(
+                url,
+                headers={"Referer": referer, "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"},
+                timeout=20.0,
+                follow_redirects=True,
+            )
+            if resp.status_code != 200:
+                raise HTTPException(status_code=resp.status_code, detail="Upstream error")
+            return {"html": resp.text, "url": str(resp.url)}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        log.error("HTML proxy failed for %s: %s", url, exc)
+        raise HTTPException(status_code=502, detail="HTML proxy failed")
+
+
 @router.get("/image-proxy")
 async def proxy_image(url: str = Query(...)):
     """Proxy a remote manga page/cover image to avoid CORS and hotlink restrictions."""
