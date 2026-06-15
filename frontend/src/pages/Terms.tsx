@@ -9,7 +9,10 @@ export default function TermsPage() {
     <div className="min-h-screen bg-[#050505] text-white p-6 md:p-12">
       <div className="max-w-3xl mx-auto">
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => {
+            if (window.history.length > 1) navigate(-1)
+            else window.close()
+          }}
           className="mb-8 flex items-center gap-2 text-white/40 hover:text-white transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
