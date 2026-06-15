@@ -205,17 +205,10 @@ export default function SearchPage() {
     }
   }, [])
 
-  // Load filter definitions when provider changes
+  // Filters are extension-defined — clear on provider change
   useEffect(() => {
-    api.get(`/manga/${browseProvider}/filters`)
-      .then(res => {
-        setSourceFilters(res.data)
-        // seed defaults
-        const defaults: Record<string, string> = {}
-        for (const f of res.data) { if (f.default) defaults[f.id] = f.default }
-        setActiveFilters(defaults)
-      })
-      .catch(() => setSourceFilters([]))
+    setSourceFilters([])
+    setActiveFilters({})
   }, [browseProvider])
 
   useEffect(() => {

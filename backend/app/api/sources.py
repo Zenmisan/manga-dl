@@ -24,6 +24,11 @@ _MANGADEX_JS = r"""
 var _MD = 'https://api.mangadex.org';
 var _CDN = 'https://uploads.mangadex.org';
 
+// Route all API calls through the backend JSON proxy to avoid CORS issues.
+async function _mdFetch(path) {
+  return apiFetch('/manga/proxy/json?url=' + encodeURIComponent(_MD + path));
+}
+
 function _cover(data) {
   var rels = data.relationships || [];
   for (var i = 0; i < rels.length; i++) {
@@ -55,22 +60,17 @@ function _toResult(item) {
 var extension = {
   async search(query, page) {
     var offset = ((page || 1) - 1) * 20;
-    var url = _MD + '/manga?title=' + encodeURIComponent(query) +
+    var data = await _mdFetch('/manga?title=' + encodeURIComponent(query) +
       '&limit=20&offset=' + offset +
       '&includes[]=cover_art&availableTranslatedLanguage[]=en' +
       '&contentRating[]=safe&contentRating[]=suggestive' +
-      '&contentRating[]=erotica&contentRating[]=pornographic';
-    var res = await fetch(url);
-    if (!res.ok) throw new Error('MangaDex search: ' + res.status);
-    var data = await res.json();
+      '&contentRating[]=erotica&contentRating[]=pornographic');
     return (data.data || []).map(_toResult);
   },
 
   async getMangaDetail(mangaId) {
-    var detRes = await fetch(_MD + '/manga/' + mangaId +
-      '?includes[]=cover_art&includes[]=author&includes[]=artist');
-    if (!detRes.ok) throw new Error('MangaDex detail: ' + detRes.status);
-    var det = (await detRes.json()).data;
+    var det = (await _mdFetch('/manga/' + mangaId +
+      '?includes[]=cover_art&includes[]=author&includes[]=artist')).data;
     var attr = det.attributes || {};
 
     var genres = (attr.tags || [])
@@ -84,18 +84,15 @@ var extension = {
       }
     });
 
-    // Fetch all chapters (paginated)
     var allItems = [];
     var limit = 500;
     var offset = 0;
     while (true) {
-      var feedRes = await fetch(_MD + '/manga/' + mangaId +
+      var feedData = await _mdFetch('/manga/' + mangaId +
         '/feed?limit=' + limit + '&offset=' + offset +
         '&translatedLanguage[]=en&order[chapter]=asc' +
         '&contentRating[]=safe&contentRating[]=suggestive' +
         '&contentRating[]=erotica&contentRating[]=pornographic');
-      if (!feedRes.ok) break;
-      var feedData = await feedRes.json();
       var items = feedData.data || [];
       allItems = allItems.concat(items);
       if (items.length < limit) break;
@@ -127,9 +124,7 @@ var extension = {
   },
 
   async getPages(chapterId) {
-    var res = await fetch(_MD + '/at-home/server/' + chapterId);
-    if (!res.ok) throw new Error('MangaDex pages: ' + res.status);
-    var data = await res.json();
+    var data = await _mdFetch('/at-home/server/' + chapterId);
     var base = data.baseUrl;
     var hash = data.chapter.hash;
     return (data.chapter.data || []).map(function(f) {
@@ -139,23 +134,19 @@ var extension = {
 
   async getPopular(page) {
     var offset = ((page || 1) - 1) * 20;
-    var res = await fetch(_MD + '/manga?limit=20&offset=' + offset +
+    var data = await _mdFetch('/manga?limit=20&offset=' + offset +
       '&includes[]=cover_art&availableTranslatedLanguage[]=en' +
       '&contentRating[]=safe&contentRating[]=suggestive' +
       '&order[followedCount]=desc');
-    if (!res.ok) throw new Error('MangaDex popular: ' + res.status);
-    var data = await res.json();
     return (data.data || []).map(_toResult);
   },
 
   async getLatest(page) {
     var offset = ((page || 1) - 1) * 20;
-    var res = await fetch(_MD + '/manga?limit=20&offset=' + offset +
+    var data = await _mdFetch('/manga?limit=20&offset=' + offset +
       '&includes[]=cover_art&availableTranslatedLanguage[]=en' +
       '&contentRating[]=safe&contentRating[]=suggestive' +
       '&order[latestUploadedChapter]=desc');
-    if (!res.ok) throw new Error('MangaDex latest: ' + res.status);
-    var data = await res.json();
     return (data.data || []).map(_toResult);
   },
 };
@@ -177,24 +168,23 @@ function _osResult(item) {
   };
 }
 
+// Route all API calls through backend JSON proxy.
+async function _oaFetch(path) {
+  return apiFetch('/manga/proxy/json?url=' + encodeURIComponent(_OA + path));
+}
+
 var extension = {
   async search(query, page) {
-    var res = await fetch(_OA + '/query?adult=true&query_string=' +
+    var data = await _oaFetch('/query?adult=true&query_string=' +
       encodeURIComponent(query) + '&page=' + (page || 1) + '&perPage=20');
-    if (!res.ok) throw new Error('OmegaScans search: ' + res.status);
-    var data = await res.json();
     return (data.data || [])
       .filter(function(i) { return i.series_type === 'Comic'; })
       .map(_osResult);
   },
 
   async getMangaDetail(mangaId) {
-    var serRes = await fetch(_OA + '/series/' + mangaId);
-    if (!serRes.ok) throw new Error('OmegaScans detail: ' + serRes.status);
-    var series = await serRes.json();
-
-    var chapRes = await fetch(_OA + '/chapter/query?page=1&perPage=1999&series_id=' + series.id);
-    var chapData = chapRes.ok ? (await chapRes.json()) : { data: [] };
+    var series = await _oaFetch('/series/' + mangaId);
+    var chapData = await _oaFetch('/chapter/query?page=1&perPage=1999&series_id=' + series.id).catch(function() { return { data: [] }; });
     var chapters = (chapData.data || []).map(function(item) {
       var slug = item.chapter_slug || item.slug || '';
       var num = 0;
@@ -225,24 +215,18 @@ var extension = {
     var parts = chapterId.split('/');
     var seriesSlug = parts[0];
     var chapterSlug = parts.slice(1).join('/');
-    var res = await fetch(_OA + '/chapter/' + seriesSlug + '/' + chapterSlug);
-    if (!res.ok) throw new Error('OmegaScans pages: ' + res.status);
-    var data = await res.json();
+    var data = await _oaFetch('/chapter/' + seriesSlug + '/' + chapterSlug);
     try { return data.chapter.chapter_data.images || []; }
     catch(e) { return []; }
   },
 
   async getPopular(page) {
-    var res = await fetch(_OA + '/query?adult=true&page=' + (page || 1) + '&perPage=20&order=desc&orderBy=total_views');
-    if (!res.ok) throw new Error('OmegaScans popular: ' + res.status);
-    var data = await res.json();
+    var data = await _oaFetch('/query?adult=true&page=' + (page || 1) + '&perPage=20&order=desc&orderBy=total_views');
     return (data.data || []).filter(function(i) { return i.series_type === 'Comic'; }).map(_osResult);
   },
 
   async getLatest(page) {
-    var res = await fetch(_OA + '/query?adult=true&page=' + (page || 1) + '&perPage=20&order=desc&orderBy=created_at');
-    if (!res.ok) throw new Error('OmegaScans latest: ' + res.status);
-    var data = await res.json();
+    var data = await _oaFetch('/query?adult=true&page=' + (page || 1) + '&perPage=20&order=desc&orderBy=created_at');
     return (data.data || []).filter(function(i) { return i.series_type === 'Comic'; }).map(_osResult);
   },
 };
@@ -310,6 +294,14 @@ var extension = {
     var titleEl = doc.querySelector('h1') || doc.querySelector('span.text-xl.font-bold');
     var title = titleEl ? titleEl.textContent.trim() : mangaId;
     var img = doc.querySelector("img[alt='poster']") || doc.querySelector('img.object-cover') || doc.querySelector('img');
+    // Also try __NEXT_DATA__ for cover (SSR sites may not hydrate img src in static HTML)
+    var coverFromNext = null;
+    try {
+      var ndm = (doc.querySelector('#__NEXT_DATA__') || {textContent:'{}'}).textContent;
+      var ndObj = JSON.parse(ndm);
+      var pp = ndObj && ndObj.props && ndObj.props.pageProps;
+      coverFromNext = pp && (pp.series && pp.series.cover || pp.manga && pp.manga.cover || pp.cover || null);
+    } catch(e) {}
     var descEl = doc.querySelector('span.font-medium.text-sm') || doc.querySelector('p.text-sm');
     var genres = [];
     doc.querySelectorAll("a[href*='/genre/'], a[href*='/genres/']").forEach(function(a) {
@@ -319,7 +311,7 @@ var extension = {
     return {
       id: mangaId,
       title: title,
-      cover_url: img ? (img.getAttribute('src') || img.getAttribute('data-src')) : null,
+      cover_url: coverFromNext || (img ? (img.getAttribute('src') || img.getAttribute('data-src')) : null),
       description: descEl ? descEl.textContent.trim() : null,
       status: null,
       genres: genres,
@@ -331,24 +323,55 @@ var extension = {
   },
 
   async getPages(chapterId) {
-    var doc = await _fetchDoc(_AS + '/series/' + chapterId);
-    var pages = [];
-    doc.querySelectorAll("img[alt*='chapter'], img[alt*='page'], .chapter-content img, div[class*='reader'] img").forEach(function(img) {
-      var src = img.getAttribute('src') || img.getAttribute('data-src');
-      if (src && src.startsWith('http') && !src.includes('logo') && !src.includes('icon')) {
-        pages.push(src);
-      }
-    });
-    // Fallback: all images after removing nav/UI elements
-    if (!pages.length) {
-      doc.querySelectorAll('img').forEach(function(img) {
-        var src = img.getAttribute('src') || '';
-        if (src.startsWith('http') && (src.includes('cdn') || src.includes('chapter') || src.includes('image'))) {
-          pages.push(src);
+    var html = (await apiFetch('/manga/proxy/html?url=' + encodeURIComponent(_AS + '/series/' + chapterId))).html;
+
+    // AsuraComic is Next.js — chapter images live in __NEXT_DATA__ JSON
+    var ndMatch = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
+    if (ndMatch) {
+      try {
+        var nd = JSON.parse(ndMatch[1]);
+        // Recursively find first array of http image URLs in pageProps
+        function findImgArr(obj, depth) {
+          if (depth > 7 || !obj) return null;
+          if (Array.isArray(obj) && obj.length > 0) {
+            var strs = obj.filter(function(x) { return typeof x === 'string' && x.startsWith('http'); });
+            if (strs.length === obj.length && strs.length > 1) return strs;
+            // array of objects with url/src/image key
+            var urls = obj.map(function(x) { return x && (x.url || x.src || x.image || x.img_url); }).filter(Boolean);
+            if (urls.length > 1) return urls;
+          }
+          if (typeof obj === 'object' && obj !== null) {
+            for (var k of Object.keys(obj)) {
+              var r = findImgArr(obj[k], depth + 1);
+              if (r && r.length > 1) return r;
+            }
+          }
+          return null;
         }
-      });
+        var imgs = findImgArr(nd && nd.props && nd.props.pageProps, 0);
+        if (imgs && imgs.length > 0) return imgs;
+      } catch(e) {}
     }
-    return pages;
+
+    // Fallback: scrape image URLs from inline script tags
+    var seen = {};
+    var imgUrls = [];
+    var scriptBlocks = html.match(/<script[^>]*>([\s\S]*?)<\/script>/g) || [];
+    var urlRe = /https?:\/\/[^\s"'\\,\]]+\.(?:jpg|jpeg|png|webp)(?:\?[^\s"'\\,\]]*)?/gi;
+    for (var i = 0; i < scriptBlocks.length; i++) {
+      var u;
+      urlRe.lastIndex = 0;
+      while ((u = urlRe.exec(scriptBlocks[i])) !== null) {
+        var uu = u[0];
+        if (!seen[uu] && !uu.includes('logo') && !uu.includes('icon') && !uu.includes('avatar') && !uu.includes('favicon')) {
+          seen[uu] = true;
+          imgUrls.push(uu);
+        }
+      }
+    }
+    if (imgUrls.length > 0) return imgUrls;
+
+    return [];
   },
 
   async getPopular(page) {
@@ -445,7 +468,7 @@ var extension = {
     var doc = await _fetchDoc(_MK + '/manga/' + mangaId);
     var title = (doc.querySelector('h1.heading') || {textContent:mangaId}).textContent.trim();
     var coverEl = doc.querySelector('.cover img');
-    var cover = coverEl ? coverEl.getAttribute('src') : null;
+    var cover = coverEl ? (coverEl.getAttribute('src') || coverEl.getAttribute('data-src') || coverEl.getAttribute('data-lazy-src')) : null;
     var desc = null;
     var descEl = doc.querySelector('.summary p') || doc.querySelector('.summary');
     if (descEl) desc = descEl.textContent.trim();

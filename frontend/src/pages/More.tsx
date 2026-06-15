@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
-  Download, Settings, Search, BarChart2, Tag, HelpCircle,
+  Download, Settings, BarChart2, Tag, HelpCircle, Clock,
   EyeOff, ChevronRight, Info, ExternalLink,
 } from 'lucide-react'
 import { useAppStore } from '../lib/store'
@@ -18,7 +18,7 @@ interface NavRow {
 
 const ROWS: NavRow[] = [
   { icon: Download,    label: 'Download Queue',  path: '/downloads',   color: 'text-emerald-400' },
-  { icon: Search,      label: 'Search',           path: '/search',      color: 'text-blue-400' },
+  { icon: Clock,       label: 'History',          path: '/history',     color: 'text-blue-400' },
   { icon: BarChart2,   label: 'Statistics',       path: '/stats',       color: 'text-violet-400' },
   { icon: Tag,         label: 'Categories',       path: '/settings',    color: 'text-amber-400' },
   { icon: Settings,    label: 'Settings',         path: '/settings',    color: 'text-white/60' },

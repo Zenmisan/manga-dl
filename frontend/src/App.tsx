@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react'
 import { useAppStore } from './lib/store'
-import { Library, ExternalLink, Globe, BarChart2, HelpCircle, Clock, Bell, LogIn, MoreHorizontal } from 'lucide-react'
+import { Library, ExternalLink, Globe, BarChart2, HelpCircle, Clock, Bell, LogIn, MoreHorizontal, Search } from 'lucide-react'
 import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from './lib/utils'
@@ -215,7 +215,7 @@ function App() {
   const navItems = [
     { icon: Library, label: 'Library', path: '/r' },
     { icon: Bell, label: 'Updates', path: '/updates' },
-    { icon: Clock, label: 'History', path: '/history' },
+    { icon: Search, label: 'Search', path: '/search' },
     { icon: Globe, label: 'Browse', path: '/sources' },
     { icon: MoreHorizontal, label: 'More', path: '/more' },
   ]

@@ -266,15 +266,9 @@ export default function MangaDetail() {
   useEffect(() => {
     const fetchManga = async () => {
       try {
-        // Extension-first: use JS extension if available for this provider
-        let mangaData: MangaDetail
         const ext = provider ? ExtensionManager.getInstance().extensions.get(provider) : null
-        if (ext) {
-          mangaData = await ext.getMangaDetail(mangaId ?? '') as MangaDetail
-        } else {
-          const res = await api.get(`/manga/${provider}/${mangaId}`)
-          mangaData = res.data
-        }
+        if (!ext) throw new Error(`No extension loaded for provider: ${provider}`)
+        const mangaData = await ext.getMangaDetail(mangaId ?? '') as MangaDetail
         setManga(mangaData)
         if (provider && mangaId) {
           setReadChapters(getReadChapters(provider, mangaId))
@@ -330,7 +324,16 @@ export default function MangaDetail() {
     if (subscribing) return
     setSubscribing(true)
     try {
-      const res = await api.post(`/manga/subscribe/${provider}/${mangaId}`)
+      const meta = manga ? {
+        title: manga.title,
+        cover_url: manga.cover_url ?? null,
+        description: manga.description ?? null,
+        status: manga.status ?? null,
+        genres: manga.genres ?? [],
+        authors: manga.authors ?? [],
+        url: manga.url ?? '',
+      } : {}
+      const res = await api.post(`/manga/subscribe/${provider}/${mangaId}`, meta)
       setSubscribed(res.data.subscribed)
     } catch (err) {
       console.error(err)
@@ -340,14 +343,12 @@ export default function MangaDetail() {
   }
 
   useEffect(() => {
-    if (manga?.cover_url && imgRef.current) {
-      const fac = new FastAverageColor()
-      fac.getColorAsync(imgRef.current, { algorithm: 'dominant' })
-        .then(color => {
-          setThemeColor(color.rgba)
-        })
-        .catch(e => console.log('Color extraction failed:', e))
-    }
+    if (!manga?.cover_url) return
+    const fac = new FastAverageColor()
+    const proxyUrl = `${api.defaults.baseURL || ''}/manga/image-proxy?url=${encodeURIComponent(manga.cover_url)}&api_key=${localStorage.getItem('manga-api-key') || ''}`
+    fac.getColorAsync(proxyUrl, { algorithm: 'dominant', crossOrigin: 'anonymous' })
+      .then(color => setThemeColor(color.rgba))
+      .catch(() => {})
   }, [manga?.cover_url])
 
   const handleDownload = async (chapterId: string) => {

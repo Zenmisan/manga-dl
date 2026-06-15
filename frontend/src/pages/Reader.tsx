@@ -151,7 +151,8 @@ export default function Reader() {
 
   const handlePageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     if (!ambilightEnabled) return
-    fac.getColorAsync(e.currentTarget, { algorithm: 'dominant' })
+    const src = e.currentTarget.src
+    fac.getColorAsync(src, { algorithm: 'dominant', crossOrigin: 'anonymous' })
       .then(color => setAmbilightColor(color.rgba))
       .catch(() => {})
   }, [ambilightEnabled])
@@ -177,17 +178,9 @@ export default function Reader() {
         const base = api.defaults.baseURL || ''
         const apiKey = localStorage.getItem('manga-api-key') || ''
         try {
-          // Extension-first: use JS extension if available for this provider
           const ext = ExtensionManager.getInstance().extensions.get(onlineProvider)
-          let rawPages: string[]
-          if (ext) {
-            rawPages = await ext.getPages(onlineChapterId)
-          } else {
-            const res = await api.get(
-              `/manga/${encodeURIComponent(onlineProvider)}/chapters/${encodeURIComponent(onlineChapterId)}/pages`
-            )
-            rawPages = res.data.pages
-          }
+          if (!ext) throw new Error(`No extension loaded for provider: ${onlineProvider}`)
+          const rawPages = await ext.getPages(onlineChapterId)
           // Skip proxy for CORS-friendly CDNs (e.g. MangaDex uploads)
           const skipProxy = ext?.skipProxy ?? false
           const proxyPages: string[] = skipProxy
@@ -209,15 +202,9 @@ export default function Reader() {
 
           // Fetch chapter list for next/prev navigation + skip-read
           try {
-            let chapters: { id: string; number: number }[] = []
             const extForChapters = ExtensionManager.getInstance().extensions.get(onlineProvider)
-            if (extForChapters) {
-              const detail = await extForChapters.getMangaDetail(onlineMangaId) as { chapters?: { id: string; number: number }[] }
-              chapters = detail?.chapters ?? []
-            } else {
-              const mangaRes = await api.get(`/manga/${encodeURIComponent(onlineProvider)}/${encodeURIComponent(onlineMangaId)}`)
-              chapters = mangaRes.data.chapters ?? []
-            }
+            const detail = extForChapters ? await extForChapters.getMangaDetail(onlineMangaId) as { chapters?: { id: string; number: number }[] } : null
+            const chapters = detail?.chapters ?? []
             chapterListRef.current = chapters
             const idx = chapters.findIndex(c => c.id === onlineChapterId)
             if (idx !== -1) {
