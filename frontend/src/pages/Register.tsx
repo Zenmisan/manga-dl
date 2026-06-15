@@ -33,7 +33,11 @@ export default function RegisterPage() {
 
     setLoading(true)
     try {
-      const { error: authError } = await supabase.auth.signUp({ email, password })
+      const { error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: 'https://manga-dl.web.app/login' },
+      })
       if (authError) throw authError
       setSuccess(true)
     } catch (err: unknown) {

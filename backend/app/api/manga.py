@@ -93,11 +93,17 @@ async def proxy_image(url: str = Query(...)):
         async with CurlSession(impersonate="chrome110") as client:
             resp = await client.get(
                 url,
-                headers={"Referer": referer},
-                timeout=20.0,
+                headers={
+                    "Referer": referer,
+                    "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+                    "Accept-Language": "en-US,en;q=0.9",
+                    "Cache-Control": "no-cache",
+                },
+                timeout=30.0,
                 follow_redirects=True,
             )
             if resp.status_code != 200:
+                log.warning("Image proxy upstream %s for %s", resp.status_code, url)
                 raise HTTPException(status_code=resp.status_code, detail="Upstream image error")
             content_type = resp.headers.get("content-type", "image/jpeg")
             return StreamingResponse(

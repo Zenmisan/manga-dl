@@ -55,6 +55,7 @@ app = FastAPI(
     description="A self-hostable manga downloader with support for multiple sources",
     version="1.0.0",
     lifespan=lifespan,
+    redirect_slashes=False,
 )
 
 @app.get("/")
