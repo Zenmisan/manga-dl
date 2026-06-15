@@ -66,19 +66,7 @@ export default function SourcesPage() {
     })
   }, [])
 
-  const handleInstall = async (s: Source) => {
-    setInstalling(prev => [...prev, s.id])
-    const manager = ExtensionManager.getInstance()
-    const success = await manager.install(s.id, s.name, s.lang, s.version)
-    if (success) {
-      setInstalledMeta(getInstalledMeta())
-    } else {
-      alert("Extension download failed. This source might not be web-compatible yet.")
-    }
-    setInstalling(prev => prev.filter(i => i !== s.id))
-  }
-
-  const handleUninstall = (id: string) => {
+const handleUninstall = (id: string) => {
     if (!confirm('Uninstall this extension?')) return
     setUninstalling(prev => [...prev, id])
     const manager = ExtensionManager.getInstance()
@@ -388,7 +376,8 @@ export default function SourcesPage() {
           {/* Community available */}
           {available.length > 0 && (
             <div>
-              <h2 className="text-xs font-black uppercase tracking-widest text-white/30 mb-4">Available ({available.length})</h2>
+              <h2 className="text-xs font-black uppercase tracking-widest text-white/30 mb-1">Available ({available.length})</h2>
+              <p className="text-[10px] text-white/20 mb-4">Community extensions are Android-only (Kotlin APKs) — not installable on web.</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <AnimatePresence>
                   {available.map((s, idx) => (
@@ -415,11 +404,11 @@ export default function SourcesPage() {
                         </div>
                       </div>
                       <button
-                        onClick={() => handleInstall(s)}
-                        disabled={installing.includes(s.id)}
-                        className="p-2.5 rounded-xl transition-all border shrink-0 bg-white/5 border-white/5 text-white/40 hover:text-white hover:bg-red-600 hover:border-red-600"
+                        title="Community Tachiyomi extensions are Android-only and cannot run on web"
+                        disabled
+                        className="p-2.5 rounded-xl border shrink-0 bg-white/[0.03] border-white/5 text-white/15 cursor-not-allowed"
                       >
-                        {installing.includes(s.id) ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
+                        <Download className="w-5 h-5" />
                       </button>
                     </motion.div>
                   ))}

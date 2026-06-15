@@ -162,10 +162,7 @@ export default function SearchPage() {
         const results = await ext.search(searchQuery, 1) as MangaResult[]
         setSearchResults(results)
       } else {
-        const params: Record<string, string> = { q: searchQuery }
-        if (selectedProvider) params.provider = selectedProvider
-        const res = await api.get('/manga/search', { params })
-        setSearchResults(res.data)
+        setSearchResults([])
       }
       setHasSearched(true)
     } catch (err) {
@@ -175,7 +172,7 @@ export default function SearchPage() {
     }
   }
 
-  const fetchBrowse = useCallback(async (provider: string, page: number, endpoint: 'popular' | 'latest', filters: Record<string, string> = {}) => {
+  const fetchBrowse = useCallback(async (provider: string, page: number, endpoint: 'popular' | 'latest', _filters: Record<string, string> = {}) => {
     setBrowseLoading(true)
     try {
       const ext = ExtensionManager.getInstance().extensions.get(provider)
@@ -188,12 +185,7 @@ export default function SearchPage() {
           data = await ext.search('', page) as MangaResult[]
         }
       } else {
-        const hasFilters = Object.keys(filters).length > 0
-        const url = (endpoint === 'popular' && hasFilters)
-          ? `/manga/${provider}/browse`
-          : `/manga/${provider}/${endpoint}`
-        const res = await api.get(url, { params: { page, ...filters } })
-        data = res.data
+        data = []
       }
       setBrowseResults(prev => page === 1 ? data : [...prev, ...data])
       setBrowseHasMore(data.length === 20)
