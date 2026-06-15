@@ -521,7 +521,6 @@ export default function MangaDetail() {
                 ref={imgRef}
                 src={manga.cover_url ? `${api.defaults.baseURL || ''}/manga/image-proxy?url=${encodeURIComponent(manga.cover_url)}&api_key=${localStorage.getItem('manga-api-key') || ''}` : ''}
                 alt={manga.title}
-                crossOrigin="anonymous"
                 className="w-full h-full object-cover rounded-xl"
               />
             </div>

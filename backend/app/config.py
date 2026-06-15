@@ -14,7 +14,14 @@ class Settings(BaseSettings):
     CACHE_PATH: str = str(Path.home() / ".manga-dl-cache")
     MAX_CONCURRENT_DOWNLOADS: int = 3
     REQUEST_DELAY: float = 1.0  # seconds between requests to same host
-    CORS_ORIGINS: Any = ["http://localhost:5173", "http://localhost:3000"]
+    CORS_ORIGINS: Any = [
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "https://manga-dl.web.app",
+        "https://manga-dl.firebaseapp.com",
+        "tauri://localhost",
+        "http://tauri.localhost",
+    ]
     API_KEY: str | None = None
     
     # Supabase Storage Configuration

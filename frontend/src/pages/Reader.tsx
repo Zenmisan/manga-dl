@@ -835,7 +835,6 @@ export default function Reader() {
                     imageScale === 'original' && "max-w-none",
                     cropBorders && "w-full h-[90dvh]",
                   )}
-                  crossOrigin="anonymous"
                   onLoad={handlePageLoad}
                   style={cssFilter ? { filter: cssFilter } : undefined}
                 />
@@ -858,7 +857,6 @@ export default function Reader() {
                   alt={`Page ${idx + 1}`}
                   className={cropBordersWebtoon ? "w-full object-cover" : "w-full h-auto"}
                   loading={idx < 3 ? "eager" : "lazy"}
-                  crossOrigin="anonymous"
                   onLoad={idx === 0 ? handlePageLoad : undefined}
                   style={cssFilter ? { filter: cssFilter } : undefined}
                 />
@@ -902,7 +900,6 @@ export default function Reader() {
                     !showSpread && imageScale === 'original' && "max-w-none",
                     !showSpread && cropBorders && "w-full h-[90dvh]",
                   )}
-                  crossOrigin="anonymous"
                   onLoad={handlePageLoad}
                   style={cssFilter ? { filter: cssFilter } : undefined}
                 />
@@ -911,7 +908,6 @@ export default function Reader() {
                     src={getImageUrl(pages[spreadPage2Idx])}
                     alt={`Page ${spreadPage2Idx + 1}`}
                     className="shadow-2xl rounded-sm object-contain max-h-[90dvh] max-w-[50%]"
-                    crossOrigin="anonymous"
                     style={cssFilter ? { filter: cssFilter } : undefined}
                   />
                 )}
