@@ -2,11 +2,12 @@ import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   Download, Settings, BarChart2, Tag, HelpCircle, Clock,
-  EyeOff, ChevronRight, Info, ExternalLink,
+  EyeOff, ChevronRight, Info, ExternalLink, RefreshCw, Sparkles,
 } from 'lucide-react'
 import { useAppStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
 import { useState, useEffect } from 'react'
+import { checkForUpdate, openUpdateUrl, type ReleaseInfo } from '../lib/updates'
 
 interface NavRow {
   icon: React.ElementType
@@ -30,12 +31,28 @@ export default function MorePage() {
   const navigate = useNavigate()
   const { incognitoMode, setIncognitoMode } = useAppStore()
   const [email, setEmail] = useState<string | null>(null)
+  const [updateInfo, setUpdateInfo] = useState<ReleaseInfo | null>(null)
+  const [checkingUpdate, setCheckingUpdate] = useState(false)
+  const [updateChecked, setUpdateChecked] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setEmail(session?.user.email ?? null)
     })
   }, [])
+
+  const handleCheckUpdate = async () => {
+    setCheckingUpdate(true)
+    const info = await checkForUpdate()
+    setCheckingUpdate(false)
+    setUpdateChecked(true)
+    if (info?.isNewer) setUpdateInfo(info)
+  }
+
+  const handleInstallUpdate = async () => {
+    if (!updateInfo) return
+    await openUpdateUrl(updateInfo)
+  }
 
   return (
     <div className="p-6 md:p-12 max-w-xl mx-auto min-h-full">
@@ -129,17 +146,47 @@ export default function MorePage() {
           </div>
         </section>
 
-        {/* GitHub link */}
-        <div className="mt-8 pt-6 border-t border-white/5 flex justify-center">
-          <a
-            href="https://github.com/zenmisan/manga-dl"
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-2 text-white/20 hover:text-white/50 transition-colors text-xs font-bold"
-          >
-            <ExternalLink className="w-4 h-4" />
-            Open Source · v1.0.0
-          </a>
+        {/* Update section */}
+        <div className="mt-8 pt-6 border-t border-white/5">
+          {updateInfo ? (
+            <div className="p-4 rounded-2xl bg-red-600/10 border border-red-500/20 mb-4">
+              <div className="flex items-start gap-3">
+                <Sparkles className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-black text-sm text-red-300">Update available — v{updateInfo.version}</p>
+                  {updateInfo.notes && (
+                    <p className="text-xs text-white/40 mt-1 line-clamp-2">{updateInfo.notes.split('\n')[0]}</p>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={handleInstallUpdate}
+                className="mt-3 w-full py-2.5 bg-red-600 hover:bg-red-500 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+              >
+                Download & Install
+              </button>
+            </div>
+          ) : null}
+
+          <div className="flex items-center justify-between">
+            <a
+              href="https://github.com/zenmisan/manga-dl"
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-2 text-white/20 hover:text-white/50 transition-colors text-xs font-bold"
+            >
+              <ExternalLink className="w-4 h-4" />
+              Open Source · v1.0.0
+            </a>
+            <button
+              onClick={handleCheckUpdate}
+              disabled={checkingUpdate}
+              className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-white/25 hover:text-white/60 transition-colors disabled:opacity-40"
+            >
+              <RefreshCw className={`w-3 h-3 ${checkingUpdate ? 'animate-spin' : ''}`} />
+              {checkingUpdate ? 'Checking…' : updateChecked && !updateInfo ? 'Up to date' : 'Check for updates'}
+            </button>
+          </div>
         </div>
       </motion.div>
     </div>

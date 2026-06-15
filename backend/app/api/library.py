@@ -41,7 +41,8 @@ def natural_sort_key(s):
     return [int(text) if text.isdigit() else text.lower() for text in re.split(r'(\d+)', str(s))]
 
 
-@router.get("/", response_model=list[LibraryItem])
+@router.get("", response_model=list[LibraryItem])
+@router.get("/", response_model=list[LibraryItem], include_in_schema=False)
 async def list_library(db: AsyncSession = Depends(get_db)):
     """Fetch the library from the database. Show all series including in-progress downloads."""
     result = await db.execute(
