@@ -437,15 +437,7 @@ See `MASTER_PLAN.md` for the full task checklist.
 - Android Gradle build was failing (`VolumeKeysPlugin` Kotlin class not found by Java `MainActivity`) — fixed by adding `apply plugin: 'kotlin-android'` to `android/app/build.gradle` and bumping the Kotlin Gradle plugin classpath to `2.1.0` in `android/build.gradle` (was 1.9.25, too old for `@capacitor/filesystem`'s stdlib 2.1.0 metadata). **Verify next CI run succeeds.**
 - Supabase signup `emailRedirectTo` set to `https://manga-dl.web.app/login` in `Register.tsx` — **requires** that exact URL be added to Supabase dashboard → Authentication → URL Configuration → Redirect URLs, or it's silently rejected.
 
-**Next immediate task**: Phase C — Landing page + auth routing
-1. Create `frontend/src/pages/Landing.tsx`
-2. Change `/` route to Landing, add `/r` route to Dashboard
-3. Fix nav links: `'/'` → `'/r'` in App.tsx sidebar
-4. Fix `Login.tsx` redirect: `navigate('/')` → `navigate('/r')`
-5. Add Supabase session state to App.tsx
-6. Add Sign In / user avatar to sidebar based on session
-
-Then: Phase D — Android bottom nav restructure + More page + Settings sub-pages.
+**Next immediate task**: Phase D6 — Settings page restructure (split monolith)
 
 ## Hard rule: no git commits
 

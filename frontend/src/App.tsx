@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react'
 import { useAppStore } from './lib/store'
 import { Library, ExternalLink, Globe, BarChart2, HelpCircle, Clock, Bell, LogIn, MoreHorizontal, Search } from 'lucide-react'
-import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom'
+import { Routes, Route, Link, useLocation, useNavigate, Navigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from './lib/utils'
 import api from './lib/api'
@@ -17,7 +17,12 @@ import type { Session } from '@supabase/supabase-js'
 import Dashboard from './pages/Dashboard'
 import SearchPage from './pages/Search'
 import DownloadsPage from './pages/Downloads'
-import SettingsPage from './pages/Settings'
+import SettingsLayout from './pages/Settings'
+import SettingsGeneral from './pages/Settings/General'
+import SettingsReader from './pages/Settings/Reader'
+import SettingsLibrary from './pages/Settings/Library'
+import SettingsTrackers from './pages/Settings/Trackers'
+import SettingsSystem from './pages/Settings/System'
 import StatsPage from './pages/Stats'
 import MangaDetail from './pages/MangaDetail'
 import Reader from './pages/Reader'
@@ -422,7 +427,14 @@ function App() {
               <Route path="/sources" element={<SourcesPage />} />
               <Route path="/download" element={<DownloadHub />} />
               <Route path="/downloads" element={<DownloadsPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/settings" element={<SettingsLayout />}>
+                <Route index element={<Navigate to="general" replace />} />
+                <Route path="general" element={<SettingsGeneral />} />
+                <Route path="reader" element={<SettingsReader />} />
+                <Route path="library" element={<SettingsLibrary />} />
+                <Route path="trackers" element={<SettingsTrackers />} />
+                <Route path="system" element={<SettingsSystem />} />
+              </Route>
               <Route path="/manga/:provider/*" element={<MangaDetail />} />
               <Route path="/read/:mangaTitle/:filename" element={<Reader />} />
               <Route path="/login" element={<LoginPage />} />

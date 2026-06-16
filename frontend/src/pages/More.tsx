@@ -21,10 +21,10 @@ const ROWS: NavRow[] = [
   { icon: Download,    label: 'Download Queue',  path: '/downloads',   color: 'text-emerald-400' },
   { icon: Clock,       label: 'History',          path: '/history',     color: 'text-blue-400' },
   { icon: BarChart2,   label: 'Statistics',       path: '/stats',       color: 'text-violet-400' },
-  { icon: Tag,         label: 'Categories',       path: '/settings',    color: 'text-amber-400' },
-  { icon: Settings,    label: 'Settings',         path: '/settings',    color: 'text-white/60' },
+  { icon: Tag,         label: 'Categories',       path: '/settings/library', color: 'text-amber-400' },
+  { icon: Settings,    label: 'Settings',         path: '/settings/general', color: 'text-white/60' },
   { icon: HelpCircle,  label: 'Help',             path: '/help',        color: 'text-white/60' },
-  { icon: Info,        label: 'About',            path: '/settings',    color: 'text-white/60' },
+  { icon: Info,        label: 'System Status',    path: '/settings/system', color: 'text-white/60' },
 ]
 
 export default function MorePage() {

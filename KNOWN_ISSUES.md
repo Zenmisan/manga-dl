@@ -6,15 +6,6 @@ Last updated: 2026-06-14
 
 ## 🔴 Critical / Requires Setup Before Shipping
 
-### Discord Rich Presence — placeholder App ID
-- **File:** `frontend/src-tauri/src/lib.rs` → `DISCORD_APP_ID`
-- **Issue:** Value is `"1234567890123456789"` — fake. RPC silently fails.
-- **Fix:** Register app at discord.com/developers/applications → copy App ID → replace constant.
-
-### Cloud Backup — Supabase bucket must be created manually
-- **Issue:** `handleCloudBackup` uploads to `manga-backups` bucket. Supabase doesn't auto-create buckets. Upload returns 404-class error if missing.
-- **Fix:** Supabase dashboard → Storage → New bucket → name `manga-backups` → private.
-
 ### Supabase Production DB — missing columns/tables
 Full migration script at `docs/supabase/migrations.sql`. Run in Supabase SQL Editor:
 ```sql

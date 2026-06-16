@@ -44,12 +44,31 @@ Volume keys (Kotlin plugin), back button handlers, KeepAwake, StatusBar ambiligh
 - Fixed Android Gradle build (`kotlin-android` plugin wasn't applied to `:app`, Kotlin Gradle plugin too old for `@capacitor/filesystem`'s stdlib version — bumped to 2.1.0).
 - Added in-app update checker (GitHub Releases API) surfaced in More page — Android opens APK URL for native install; Tauri in-place updater not yet wired (needs Rust recompile).
 
+### Phase 11 ✅ Landing Page + Auth Routing (2026-06-16)
+- **Full Landing Page**: Implemented at `/` with SEO meta tags, OG tags, and 100dvh hero section.
+- **Auth Integration**: Supabase session state wired to Sidebar and Protected Routes.
+- **Route Restructure**: Moved the main app to `/r` and implemented a high-impact landing page at root.
+
+### Phase 12 ✅ Android UI Restructure (2026-06-16)
+- **Bottom Navigation**: Implemented for mobile (Library, Updates, Search, Browse, More).
+- **"More" Page**: Added with Incognito mode, History, Stats, and Settings links.
+- **MangaDetail V2**: Implemented hero-style blurred cover art and floating "Smart Binge" FAB.
+
+### Phase 13 ✅ Settings Restructure (2026-06-16)
+- **Settings Split**: Refactored the monolithic 1000+ line `Settings.tsx` into categorized sub-pages (`General`, `Reader`, `Library`, `Trackers`, `System`).
+- **Sidebar Layout**: Implemented a modern sidebar-based settings layout for desktop/tablet and a scrollable tab-strip for mobile.
+- **Nested Routing**: Updated `App.tsx` with nested routes for each settings category.
+- **Improved UX**: Categorized settings make it easier to find specific configurations across all platforms.
+
 ---
 
 ## What Remains 🔲
 
 | Feature | Priority |
 |---------|----------|
+| Settings Restructure (split monolith) | High |
+| Metadata Cloud Sync | Medium |
+| Read-based Heatmap | Medium |
 | Biometric / PIN lock (Android) | Medium |
 | WiFi-only / charging-only gates for sync/download | Low |
 | WebView fallback for Cloudflare sources | Medium |
@@ -69,16 +88,12 @@ Volume keys (Kotlin plugin), back button handlers, KeepAwake, StatusBar ambiligh
 ## Known Setup Requirements ⚠️
 
 ### Must do before shipping
-1. **Discord App ID** — replace `"1234567890123456789"` in `frontend/src-tauri/src/lib.rs`
-2. **Supabase bucket** — create `manga-backups` bucket (private) in Supabase dashboard
-3. **Supabase SQL migrations** — run the `reading_progress` table creation (see FEATURES.md)
+1. **Supabase SQL migrations** — run the `reading_progress` table creation (see FEATURES.md)
 
 ### Known code issues
-- `manga-dl-bookmarks` key uses `provider:provider` (bug — should be `provider:mangaId`) in one `useState` initializer in MangaDetail.tsx
-- Read tracking, categories, notes, bookmarks are localStorage-only — not cross-device synced
-- MAL sync sends chapter ID string instead of chapter number integer
-- `|` in manga title breaks 5-part pipe-encoded `/read/online/` URLs
-- ComicInfo.xml doesn't escape `&`/`<`/`>` in titles
+- Settings page is a monolithic 1000+ line file (`Settings.tsx`).
+- Metadata overrides (`manga-dl-meta-overrides`) are localStorage-only.
+- Heatmap tracks downloads instead of reads.
 
 ---
 
