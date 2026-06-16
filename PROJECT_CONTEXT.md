@@ -1,19 +1,34 @@
 # manga-dl — Full Project Context
 
 > Load this file at the start of any new conversation to resume work with full context.
-> Last updated: 2026-06-14
+> Last updated: 2026-06-15
 
 ---
 
 ## What Is This
 
 manga-dl is a tri-platform manga reader and downloader:
-- **Web**: React 19 PWA (hosted on Firebase)
+- **Web**: React 19 PWA (hosted on Firebase, `manga-dl.web.app`)
 - **Desktop**: Tauri v2 (Rust shell, Windows/macOS/Linux)
-- **Android**: Capacitor 6 (WebView + native Kotlin plugins)
-- **Backend**: FastAPI (Python), SQLite dev / Supabase PostgreSQL prod
+- **Android**: Capacitor 8 (WebView + native Kotlin plugins)
+- **Backend**: FastAPI (Python) on Render — **infrastructure only** (proxy + DB + downloads), no scraping
 
-Users can search 50+ manga sources, read online or download CBZ/EPUB offline, track progress with AniList/MAL/Kitsu/MangaUpdates/Shikimori/Bangumi, and sync state across devices via Supabase.
+Users browse/search manga via **JS extensions running in Web Workers** (extension-first architecture, Tachiyomi-style), read online or download CBZ/EPUB offline, track progress with AniList/MAL/Kitsu/MangaUpdates/Shikimori/Bangumi, and sync state across devices via Supabase.
+
+### Architecture shift (2026-06-15): Python scrapers removed
+
+All Python scraper providers (MangaDex, AsuraScans, OmegaScans, MangaKatana) were **deleted**. The backend no longer scrapes anything — `backend/app/providers/` now only has `KomgaProvider`/`SuwayomiProvider` (self-hosted server integrations, not scrapers).
+
+Manga sources are now **JS extensions** that run client-side in Web Workers (`frontend/src/lib/extensions.ts` — `ExtensionManager`). Built-in extension JS is hardcoded server-side in `backend/app/api/sources.py` (`BUILT_IN_EXTENSIONS` dict) and served via `GET /api/sources/code/{id}` — this exists purely to let the backend proxy CORS-blocked third-party requests on the extension's behalf, NOT to scrape.
+
+Two backend proxy endpoints exist solely so Worker-sandboxed extensions can reach third-party sites without hitting CORS:
+- `GET /api/manga/proxy/html?url=` — fetch + return raw HTML
+- `GET /api/manga/proxy/json?url=` — fetch + return parsed JSON
+- `GET /api/manga/image-proxy?url=` — proxy images (CORS + hotlink bypass), `Access-Control-Allow-Origin: *`
+
+**Community (non-built-in) Tachiyomi extensions cannot be installed on web** — Keiyoushi only distributes Android APKs (Kotlin bytecode), not JS. `Sources.tsx` shows them with a disabled install button and explanation rather than letting users hit a 404.
+
+Search's "All" tab (no provider selected) now fans out across every loaded extension via `Promise.allSettled` and merges results (`Search.tsx` `handleSearch`) — previously fell back to a since-deleted `/manga/search` backend endpoint and silently did nothing.
 
 ---
 
@@ -182,19 +197,27 @@ Storage bucket: `manga-backups` (private) — for cloud backup uploads.
 
 ## API Routes (FastAPI backend)
 
-Base: `http://127.0.0.1:8000/api` (dev) · `/api` prefix in prod via Firebase rewrites
+Base: `http://127.0.0.1:8000/api` (dev) · `https://manga-dl.onrender.com/api` (prod)
 
-Key endpoints:
-- `GET /manga/search?q=&provider=` — search
-- `GET /manga/{provider}/{manga_id}` — manga detail + chapters
-- `GET /manga/{provider}/chapters/{chapter_id}/pages` — page URLs
-- `POST /manga/sync` — sync subscribed manga for new chapters
+**No more scraping endpoints** — manga search/detail/pages all happen client-side via JS extensions now. Backend is infra-only:
+- `GET /manga/proxy/html?url=` — CORS proxy for extensions (returns `{html, url}`)
+- `GET /manga/proxy/json?url=` — CORS proxy for extensions (returns parsed JSON)
+- `GET /manga/image-proxy?url=` — image CORS/hotlink proxy
+- `GET /manga/updates` — latest chapters from subscribed manga (from cached `chapters_json`, no live fetch)
+- `POST /manga/sync` — trigger one sync cycle (re-checks cached chapter data)
+- `GET /manga/subscription/{provider}/{manga_id}` — subscription status
+- `POST /manga/subscribe/{provider}/{manga_id}` — toggle subscribe; body is `SubscribeMeta` (title/cover/description/etc — **frontend must send this**, backend has no provider to fetch it from)
 - `POST /manga/migrate` — migrate manga between sources (MigrationRequest)
+- `GET /sources/builtins` — list built-in extension metadata
+- `GET /sources/market` — built-ins + Keiyoushi community extension list (community ones are NOT installable on web)
+- `GET /sources/code/{pkg_id}` — built-in JS source code (404 for community/Tachiyomi APK-only extensions)
 - `GET /downloads` — list downloads
 - `WebSocket /downloads/ws` — real-time download progress
 - `POST /auth/anilist/track` — sync to AniList
 - `POST /auth/mal/track` — sync to MAL (score, start_date, finish_date supported)
 - `GET /stats` — reading statistics
+
+**Important**: `app = FastAPI(..., redirect_slashes=False)` in `main.py` — FastAPI's default trailing-slash redirect (307) drops CORS headers, breaking cross-origin requests from `manga-dl.web.app`. Every router must define routes for both `""` and `"/"` if both forms are called from the frontend (see `library.py`).
 
 ---
 
@@ -352,6 +375,13 @@ Required secrets: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `GITHUB_TOKEN`
 - Tablet multi-column reader layout
 - Material You dynamic colors
 
+### In-app updates (started 2026-06-15, partial)
+- `frontend/src/lib/updates.ts` checks GitHub Releases API, compares semver against hardcoded `CURRENT_VERSION` constant, surfaced via "Check for updates" button + banner in `More.tsx`.
+- Android: opens `.apk` release asset URL in browser → native install flow. Works, no extra plugin needed.
+- Desktop/Web: currently just opens the GitHub release page.
+- **Not done**: Tauri in-place updater. Needs `@tauri-apps/plugin-updater` (JS) + `tauri-plugin-updater` (Rust crate in `Cargo.toml`) + updater config block in `tauri.conf.json` pointing at a release manifest. Requires a Rust recompile — swap into `openUpdateUrl()` in `updates.ts` once added.
+- **Not done**: `CURRENT_VERSION` is a hardcoded string in `updates.ts` — should read from build-time version injection instead of being hand-maintained.
+
 ---
 
 ## Design Reference (Tachiyomi UI)
@@ -402,6 +432,11 @@ Also needs: `ALTER TABLE downloads ADD COLUMN ...` for file_size_bytes, pinned, 
 
 See `MASTER_PLAN.md` for the full task checklist.
 
+**Known unresolved as of 2026-06-15**:
+- `image-proxy` intermittent 502s on some MangaKatana/MangaDex covers — likely Render free-tier cold starts or upstream cloud-IP blocking. Headers broadened, timeout raised to 30s in `manga.py`, not a guaranteed fix.
+- Android Gradle build was failing (`VolumeKeysPlugin` Kotlin class not found by Java `MainActivity`) — fixed by adding `apply plugin: 'kotlin-android'` to `android/app/build.gradle` and bumping the Kotlin Gradle plugin classpath to `2.1.0` in `android/build.gradle` (was 1.9.25, too old for `@capacitor/filesystem`'s stdlib 2.1.0 metadata). **Verify next CI run succeeds.**
+- Supabase signup `emailRedirectTo` set to `https://manga-dl.web.app/login` in `Register.tsx` — **requires** that exact URL be added to Supabase dashboard → Authentication → URL Configuration → Redirect URLs, or it's silently rejected.
+
 **Next immediate task**: Phase C — Landing page + auth routing
 1. Create `frontend/src/pages/Landing.tsx`
 2. Change `/` route to Landing, add `/r` route to Dashboard
@@ -411,3 +446,16 @@ See `MASTER_PLAN.md` for the full task checklist.
 6. Add Sign In / user avatar to sidebar based on session
 
 Then: Phase D — Android bottom nav restructure + More page + Settings sub-pages.
+
+## Hard rule: no git commits
+
+**Never run `git commit`, never add Claude/AI co-author attribution** — in this project or any other. User has explicitly and strongly objected to this. Make code changes, then stop; let the user commit themselves.
+
+## Build/deploy
+
+Always use `bun`, never `npm`.
+```
+cd frontend && bun run build       # build
+firebase deploy --only hosting     # deploy web (manga-dl.web.app)
+```
+Backend deploys automatically via Render on git push.

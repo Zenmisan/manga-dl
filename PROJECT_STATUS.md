@@ -1,9 +1,9 @@
 # manga-dl — Project Status
 
-Last updated: 2026-06-13
+Last updated: 2026-06-15
 
 A tri-platform manga reader and downloader.  
-**Web:** PWA · **Desktop:** Tauri v2 · **Mobile:** Capacitor Android · **Backend:** FastAPI
+**Web:** PWA · **Desktop:** Tauri v2 · **Mobile:** Capacitor Android · **Backend:** FastAPI (infra-only — see Phase 10)
 
 ---
 
@@ -31,6 +31,18 @@ Volume keys (Kotlin plugin), back button handlers, KeepAwake, StatusBar ambiligh
 - **Backend**: POST /manga/migrate endpoint
 - **Settings**: Source Migration UI (2-step wizard)
 - **Library**: EPUB support (.epub → JSZip + OPF spine → images displayed as pages)
+
+### Phase 10 ✅ Extension-first architecture (2026-06-15)
+- **Removed** all Python scraper providers (MangaDex, AsuraScans, OmegaScans, MangaKatana) — backend is now infra-only (proxy + DB + downloads), no scraping.
+- Manga sources are JS extensions running in Web Workers (Tachiyomi-style), managed client-side via `ExtensionManager`.
+- New backend proxy endpoints so sandboxed extensions can bypass CORS: `/manga/proxy/html`, `/manga/proxy/json`, `/manga/image-proxy`.
+- Fixed AsuraScans (`__NEXT_DATA__` JSON parsing for chapter pages — site is Next.js, images are client-rendered, never in static HTML) and MangaKatana (`data-src`/`data-lazy-src` cover fallback) extensions.
+- Search "All" tab fans out across every loaded extension and merges results (previously called a now-deleted backend endpoint and silently did nothing).
+- `Subscribe` now requires the frontend to send manga metadata in the request body — backend has no provider to fetch it from anymore.
+- Community (non-built-in) Tachiyomi extensions disabled for install on web — they're Android APKs, not JS, can't run in a browser.
+- Fixed CORS-breaking trailing-slash redirect bug: `FastAPI(..., redirect_slashes=False)`.
+- Fixed Android Gradle build (`kotlin-android` plugin wasn't applied to `:app`, Kotlin Gradle plugin too old for `@capacitor/filesystem`'s stdlib version — bumped to 2.1.0).
+- Added in-app update checker (GitHub Releases API) surfaced in More page — Android opens APK URL for native install; Tauri in-place updater not yet wired (needs Rust recompile).
 
 ---
 

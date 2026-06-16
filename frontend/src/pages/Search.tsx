@@ -157,12 +157,17 @@ export default function SearchPage() {
     setLoading(true)
     setHasSearched(false)
     try {
-      const ext = selectedProvider ? ExtensionManager.getInstance().extensions.get(selectedProvider) : null
-      if (ext) {
-        const results = await ext.search(searchQuery, 1) as MangaResult[]
+      const manager = ExtensionManager.getInstance()
+      if (selectedProvider) {
+        const ext = manager.extensions.get(selectedProvider)
+        const results = ext ? await ext.search(searchQuery, 1) as MangaResult[] : []
         setSearchResults(results)
       } else {
-        setSearchResults([])
+        // "All" — search every loaded extension in parallel and merge
+        const allExts = Array.from(manager.extensions.values())
+        const settled = await Promise.allSettled(allExts.map(ext => ext.search(searchQuery, 1) as Promise<MangaResult[]>))
+        const merged = settled.flatMap(r => r.status === 'fulfilled' ? r.value : [])
+        setSearchResults(merged)
       }
       setHasSearched(true)
     } catch (err) {
@@ -172,7 +177,7 @@ export default function SearchPage() {
     }
   }
 
-  const fetchBrowse = useCallback(async (provider: string, page: number, endpoint: 'popular' | 'latest', _filters: Record<string, string> = {}) => {
+  const fetchBrowse = useCallback(async (provider: string, page: number, endpoint: 'popular' | 'latest') => {
     setBrowseLoading(true)
     try {
       const ext = ExtensionManager.getInstance().extensions.get(provider)
@@ -197,11 +202,11 @@ export default function SearchPage() {
     }
   }, [])
 
-  // Filters are extension-defined — clear on provider change
-  useEffect(() => {
+  const selectBrowseProvider = (id: string) => {
+    setBrowseProvider(id)
     setSourceFilters([])
     setActiveFilters({})
-  }, [browseProvider])
+  }
 
   useEffect(() => {
     if (tab === 'popular' || tab === 'latest') {
@@ -211,7 +216,7 @@ export default function SearchPage() {
       setBrowseResults([])
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setBrowseHasMore(true)
-      fetchBrowse(browseProvider, 1, tab, tab === 'popular' ? activeFilters : {})
+      fetchBrowse(browseProvider, 1, tab)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, browseProvider])
@@ -219,14 +224,14 @@ export default function SearchPage() {
   const loadMoreBrowse = () => {
     const nextPage = browsePage + 1
     setBrowsePage(nextPage)
-    fetchBrowse(browseProvider, nextPage, tab as 'popular' | 'latest', tab === 'popular' ? activeFilters : {})
+    fetchBrowse(browseProvider, nextPage, tab as 'popular' | 'latest')
   }
 
   const applyFilters = () => {
     setBrowsePage(1)
     setBrowseResults([])
     setBrowseHasMore(true)
-    fetchBrowse(browseProvider, 1, 'popular', activeFilters)
+    fetchBrowse(browseProvider, 1, 'popular')
     setShowFilterPanel(false)
   }
 
@@ -318,7 +323,7 @@ export default function SearchPage() {
               {PROVIDERS.map(p => (
                 <button
                   key={p.id}
-                  onClick={() => setBrowseProvider(p.id)}
+                  onClick={() => selectBrowseProvider(p.id)}
                   className={cn(
                     "px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-widest border transition-all",
                     browseProvider === p.id
