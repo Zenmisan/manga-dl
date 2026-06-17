@@ -30,6 +30,7 @@ import {
 import { markRead, markUnread, markAllRead, getReadChapters } from '../lib/readTracking'
 import { ExtensionManager } from '../lib/extensions'
 import { getMangaNote, setMangaNote, setMangaRating } from '../lib/mangaNotes'
+import { setMangaOverride, getMangaOverride } from '../lib/metaOverrides'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
 
@@ -101,9 +102,13 @@ export default function MangaDetail() {
   const saveMetaEdit = () => {
     if (!manga) return
     setManga({ ...manga, title: metaDraft.title || manga.title, cover_url: metaDraft.cover_url || manga.cover_url, description: metaDraft.description || manga.description })
-    const overrides = JSON.parse(localStorage.getItem('manga-dl-meta-overrides') || '{}')
-    overrides[`${provider}:${mangaId}`] = metaDraft
-    localStorage.setItem('manga-dl-meta-overrides', JSON.stringify(overrides))
+    if (provider && mangaId) {
+      setMangaOverride(provider, mangaId, {
+        title: metaDraft.title || undefined,
+        cover_url: metaDraft.cover_url || undefined,
+        description: metaDraft.description || undefined,
+      })
+    }
     setEditingMeta(false)
   }
 
@@ -269,6 +274,14 @@ export default function MangaDetail() {
         const ext = provider ? ExtensionManager.getInstance().extensions.get(provider) : null
         if (!ext) throw new Error(`No extension loaded for provider: ${provider}`)
         const mangaData = await ext.getMangaDetail(mangaId ?? '') as MangaDetail
+        
+        if (provider && mangaId) {
+          const override = getMangaOverride(provider, mangaId)
+          if (override.title) mangaData.title = override.title
+          if (override.cover_url) mangaData.cover_url = override.cover_url
+          if (override.description) mangaData.description = override.description
+        }
+
         setManga(mangaData)
         if (provider && mangaId) {
           setReadChapters(getReadChapters(provider, mangaId))

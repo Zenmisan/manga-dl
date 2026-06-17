@@ -40,3 +40,20 @@ ALTER TABLE manga_notes ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "users own manga_notes" ON manga_notes
   USING (auth.uid()::text = user_id)
   WITH CHECK (auth.uid()::text = user_id);
+
+-- 4. Manga metadata overrides
+CREATE TABLE IF NOT EXISTS manga_overrides (
+  user_id     VARCHAR NOT NULL,
+  provider    VARCHAR NOT NULL,
+  manga_id    VARCHAR NOT NULL,
+  title       VARCHAR,
+  cover_url   VARCHAR,
+  description TEXT,
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, provider, manga_id)
+);
+ALTER TABLE manga_overrides ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "users own manga_overrides" ON manga_overrides
+  USING (auth.uid()::text = user_id)
+  WITH CHECK (auth.uid()::text = user_id);
+

@@ -78,10 +78,7 @@ Enable RLS on all three new tables — see `docs/supabase/migrations.sql` for po
 
 ~~### Manga notes / rating are localStorage-only~~ **FIXED** — `mangaNotes.ts` syncs to `manga_notes` Supabase table
 
-### Manga metadata overrides are localStorage-only
-- **File:** `frontend/src/pages/MangaDetail.tsx` → `manga-dl-meta-overrides` key
-- **Issue:** Manual title/cover/description edits don't sync cross-device.
-- **Fix:** Store in `MangaRecord` columns or a separate `manga_overrides` table.
+~~### Manga metadata overrides are localStorage-only~~ **FIXED** — `metaOverrides.ts` syncs to `manga_overrides` Supabase table
 
 ### Auto-backup (web) triggers browser download prompt
 - **File:** `frontend/src/pages/Settings.tsx` → auto-backup useEffect
@@ -109,7 +106,7 @@ Enable RLS on all three new tables — see `docs/supabase/migrations.sql` for po
 - **Issue:** `activeCategory` resets to `null` on reload.
 - **Fix:** Persist in URL param (`?category=Reading`) or `sessionStorage`.
 
-~~### Heatmap uses download date, not read date~~ **MITIGATED** — relabeled to "Download Heatmap / Download Activity" to accurately describe what it shows. True fix requires `ReadingProgress.updated_at` aggregation endpoint.
+~~### Heatmap uses download date, not read date~~ **FIXED** — `/users/me/stats` endpoint now aggregates `ReadingProgress` data to show actual reading activity.
 
 ~~### Public profile shows UUID as display name~~ **MITIGATED** — own profile shows email username prefix; others show `Reader #XXXXXXXX`. Full fix requires `display_name` column in backend.
 

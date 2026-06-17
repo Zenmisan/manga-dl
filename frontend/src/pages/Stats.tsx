@@ -167,7 +167,7 @@ export default function StatsPage() {
         <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-3 bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent">
           Statistics
         </h1>
-        <p className="text-white/40 font-medium md:text-lg">Your download activity at a glance</p>
+        <p className="text-white/40 font-medium md:text-lg">Your reading activity at a glance</p>
       </header>
 
       {/* Summary Cards */}
@@ -224,7 +224,7 @@ export default function StatsPage() {
           <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
             <div className="flex items-center gap-3">
               <Flame className="w-5 h-5 text-emerald-500" />
-              <h2 className="font-bold">Download Heatmap — Last Year</h2>
+              <h2 className="font-bold">Reading Heatmap — Last Year</h2>
             </div>
             <div className="flex items-center gap-1.5 text-[10px] text-white/30 font-bold">
               <span>Less</span>

@@ -8,6 +8,8 @@ import api from './lib/api'
 import { syncReadTrackingFromCloud } from './lib/readTracking'
 import { syncCategoriesFromCloud } from './lib/categories'
 import { syncMangaNotesFromCloud } from './lib/mangaNotes'
+import { syncMetaOverridesFromCloud } from './lib/metaOverrides'
+import { ExtensionManager } from './lib/extensions'
 import LandingPage from './pages/Landing'
 import MorePage from './pages/More'
 import SplashScreen from './components/SplashScreen'
@@ -102,6 +104,8 @@ function App() {
     syncReadTrackingFromCloud().catch(() => {})
     syncCategoriesFromCloud().catch(() => {})
     syncMangaNotesFromCloud().catch(() => {})
+    syncMetaOverridesFromCloud().catch(() => {})
+    ExtensionManager.getInstance().init().catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -212,9 +216,10 @@ function App() {
     const run = async () => {
       if (await canSync()) api.post('/manga/sync').catch(() => {})
     }
-    run()
+    // Initial run with a slight delay to allow backend to finish starting
+    const timeout = setTimeout(run, 1500)
     const t = setInterval(run, 30 * 60 * 1000)
-    return () => clearInterval(t)
+    return () => { clearTimeout(timeout); clearInterval(t) }
   }, [syncWifiOnly, syncChargingOnly])
 
   const navItems = [

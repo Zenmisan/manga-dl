@@ -284,6 +284,143 @@ async def list_devices(
     ]
 
 
+# ── Manga Overrides ──────────────────────────────────────────────────────────
+
+class MangaOverrideUpsert(BaseModel):
+    provider: str
+    manga_id: str
+    title: str | None = None
+    cover_url: str | None = None
+    description: str | None = None
+
+@router.put("/manga-overrides")
+async def upsert_manga_override(
+    body: MangaOverrideUpsert,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(MangaOverride).where(
+            MangaOverride.user_id == user_id,
+            MangaOverride.provider == body.provider,
+            MangaOverride.manga_id == body.manga_id,
+        )
+    )
+    record = result.scalar_one_or_none()
+    if record:
+        record.title = body.title
+        record.cover_url = body.cover_url
+        record.description = body.description
+        record.updated_at = datetime.utcnow()
+    else:
+        record = MangaOverride(
+            user_id=user_id,
+            provider=body.provider,
+            manga_id=body.manga_id,
+            title=body.title,
+            cover_url=body.cover_url,
+            description=body.description,
+        )
+        db.add(record)
+    await db.commit()
+    return {"status": "ok"}
+
+@router.get("/manga-overrides")
+async def get_all_manga_overrides(
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get all overrides for the user (useful for initial sync)."""
+    result = await db.execute(
+        select(MangaOverride).where(MangaOverride.user_id == user_id)
+    )
+    records = result.scalars().all()
+    return [
+        {
+            "provider": r.provider,
+            "manga_id": r.manga_id,
+            "title": r.title,
+            "cover_url": r.cover_url,
+            "description": r.description,
+        }
+        for r in records
+    ]
+
+@router.get("/me/stats")
+async def get_my_reading_stats(
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Aggregate reading statistics based on ReadingProgress."""
+    total_chapters = (await db.execute(
+        select(func.count(ReadingProgress.chapter_id)).where(ReadingProgress.user_id == user_id)
+    )).scalar() or 0
+
+    total_manga = (await db.execute(
+        select(func.count(distinct(ReadingProgress.manga_id))).where(ReadingProgress.user_id == user_id)
+    )).scalar() or 0
+
+    total_pages = (await db.execute(
+        select(func.sum(ReadingProgress.last_page)).where(ReadingProgress.user_id == user_id)
+    )).scalar() or 0
+
+    # Reads per day — last 30 days
+    cutoff_30 = datetime.utcnow() - timedelta(days=30)
+    daily_rows = (await db.execute(
+        select(
+            func.date(ReadingProgress.updated_at).label("day"),
+            func.count(ReadingProgress.chapter_id).label("count"),
+        )
+        .where(ReadingProgress.user_id == user_id)
+        .where(ReadingProgress.updated_at >= cutoff_30)
+        .group_by(func.date(ReadingProgress.updated_at))
+        .order_by(func.date(ReadingProgress.updated_at))
+    )).all()
+    daily_reads = [{"day": str(r.day), "count": r.count} for r in daily_rows]
+
+    # Reads per day — last 365 days (for heatmap)
+    cutoff_365 = datetime.utcnow() - timedelta(days=365)
+    yearly_rows = (await db.execute(
+        select(
+            func.date(ReadingProgress.updated_at).label("day"),
+            func.count(ReadingProgress.chapter_id).label("count"),
+        )
+        .where(ReadingProgress.user_id == user_id)
+        .where(ReadingProgress.updated_at >= cutoff_365)
+        .group_by(func.date(ReadingProgress.updated_at))
+        .order_by(func.date(ReadingProgress.updated_at))
+    )).all()
+    yearly_reads = [{"day": str(r.day), "count": r.count} for r in yearly_rows]
+
+    # Provider breakdown
+    provider_rows = (await db.execute(
+        select(ReadingProgress.provider, func.count(ReadingProgress.chapter_id).label("count"))
+        .where(ReadingProgress.user_id == user_id)
+        .group_by(ReadingProgress.provider)
+        .order_by(func.count(ReadingProgress.chapter_id).desc())
+    )).all()
+    provider_breakdown = [{"provider": r.provider, "count": r.count} for r in provider_rows]
+
+    # Reading streak
+    active_days = {str(r.day) for r in yearly_rows}
+    streak = 0
+    check = datetime.utcnow().date()
+    while str(check) in active_days:
+        streak += 1
+        check = check - timedelta(days=1)
+
+    return {
+        "total_chapters": total_chapters,
+        "total_manga": total_manga,
+        "total_pages": total_pages,
+        "storage_bytes": 0, # Downloads track storage, reads don't
+        "daily_reads": daily_reads,
+        "yearly_reads": yearly_reads,
+        "provider_breakdown": provider_breakdown,
+        "streak_days": streak,
+    }
+
+
 # ── Public profile (no auth) ──────────────────────────────────────────────────
 
 @router.get("/profile/{user_id}")

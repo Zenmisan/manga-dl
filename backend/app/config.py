@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     # Supabase Storage Configuration
     SUPABASE_URL: str | None = None
     SUPABASE_SERVICE_KEY: str | None = None  # Required for backend bucket operations
+    SUPABASE_JWT_SECRET: str | None = None
     SUPABASE_BUCKET: str = "manga-library"
     MAX_STORAGE_MB: int = 900  # Threshold for Smart Eviction
 

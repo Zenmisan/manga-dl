@@ -47,7 +47,7 @@ async def proxy_html(url: str = Query(...)):
                 url,
                 headers={"Referer": referer, "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"},
                 timeout=20.0,
-                follow_redirects=True,
+                allow_redirects=True,
             )
             if resp.status_code != 200:
                 raise HTTPException(status_code=resp.status_code, detail="Upstream error")
@@ -71,7 +71,7 @@ async def proxy_json(url: str = Query(...)):
                 url,
                 headers={"Referer": referer, "Accept": "application/json"},
                 timeout=20.0,
-                follow_redirects=True,
+                allow_redirects=True,
             )
             if resp.status_code != 200:
                 raise HTTPException(status_code=resp.status_code, detail=f"Upstream error: {resp.status_code}")
@@ -100,7 +100,7 @@ async def proxy_image(url: str = Query(...)):
                     "Cache-Control": "no-cache",
                 },
                 timeout=30.0,
-                follow_redirects=True,
+                allow_redirects=True,
             )
             if resp.status_code != 200:
                 log.warning("Image proxy upstream %s for %s", resp.status_code, url)

@@ -46,14 +46,16 @@ export default function SystemSettings() {
     return () => listener.subscription.unsubscribe()
   }, [])
 
-  const saveSecurity = () => {
+  const saveSecurity = async () => {
     localStorage.setItem('manga-api-key', apiKey)
     if (backendUrl.trim()) {
       localStorage.setItem('manga-backend-url', backendUrl.trim())
     } else {
       localStorage.removeItem('manga-backend-url')
     }
-    alert('Security settings saved! Reload to apply changes.')
+    const { ExtensionManager } = await import('../../lib/extensions')
+    ExtensionManager.getInstance().reinit()
+    alert('Security settings saved! Extensions are reloading.')
   }
 
   const handleRunSync = async () => {

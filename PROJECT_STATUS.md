@@ -61,14 +61,23 @@ Volume keys (Kotlin plugin), back button handlers, KeepAwake, StatusBar ambiligh
 - **Improved UX**: Categorized settings make it easier to find specific configurations across all platforms.
 
 ---
+### Phase 14 ✅ Metadata Cloud Sync (2026-06-16)
+- **Supabase Integration**: Created a `manga_overrides` table to store user-specific metadata overrides (Title, Cover URL, Description).
+- **Backend API**: Added `PUT` and `GET` endpoints to `/users/manga-overrides` for synchronizing overrides.
+- **Frontend Sync**: Implemented `syncMetaOverridesFromCloud` to pull overrides into `localStorage` on login/app start, ensuring cross-device consistency.
+- **UI Application**: `MangaDetail` now automatically applies synced overrides when rendering manga data.
+
+### Phase 15 ✅ Read-Based Heatmap (2026-06-16)
+- **Backend Analytics**: Created a new `/users/me/stats` endpoint that aggregates historical data directly from the `ReadingProgress` table, ensuring only active, in-app reading sessions are counted.
+- **Frontend Refactor**: Updated `Stats.tsx` to prioritize reading metrics (reads per day/year) while seamlessly falling back to download metrics for offline/unauthenticated users.
+- **Improved Accuracy**: The heatmap and activity charts now accurately reflect true reading engagement rather than automated download queues.
+
+---
 
 ## What Remains 🔲
 
 | Feature | Priority |
 |---------|----------|
-| Settings Restructure (split monolith) | High |
-| Metadata Cloud Sync | Medium |
-| Read-based Heatmap | Medium |
 | Biometric / PIN lock (Android) | Medium |
 | WiFi-only / charging-only gates for sync/download | Low |
 | WebView fallback for Cloudflare sources | Medium |
@@ -82,6 +91,7 @@ Volume keys (Kotlin plugin), back button handlers, KeepAwake, StatusBar ambiligh
 | Background sync Android WorkManager | Low |
 | Badge count on app icon (requires FCM) | Low |
 | Tracker filter in library | Low |
+
 
 ---
 

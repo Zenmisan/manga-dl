@@ -443,15 +443,15 @@ var extension = {
     var doc = await _fetchDoc(_MK + pageStr + '?search=' + encodeURIComponent(query) + '&search_by=m_name');
     var results = [];
     var seen = {};
-    doc.querySelectorAll('.manga_list-sbs .item, .item').forEach(function(item) {
-      var a = item.querySelector('h3 a, .title a, a');
+    doc.querySelectorAll('#book_list .item, .manga_list-sbs .item, .item').forEach(function(item) {
+      var a = item.querySelector('h3.title a, .text h3 a, .title a, a');
       if (!a) return;
       var href = a.getAttribute('href') || '';
       if (!href.includes('/manga/')) return;
       var slug = href.replace(/\/$/, '').split('/').pop();
       if (!slug || seen[slug]) return;
       seen[slug] = true;
-      var img = item.querySelector('img');
+      var img = item.querySelector('.media .wrap_img img, img');
       results.push({
         id: slug,
         title: a.textContent.trim(),
@@ -506,13 +506,14 @@ var extension = {
 
   async getPages(chapterId) {
     var html = await _fetchHtml(_MK + '/manga/' + chapterId);
-    // MangaKatana stores images in a JS var array: var thzq=[...] or similar
     var best = [];
-    var re = /var\s+\w+\s*=\s*(\['[^']*'(?:,'[^']*')*\])\s*;/g;
+    var re = /var\s+\w+\s*=\s*(\['[^']*'(?:,'[^']*')*\]?)\s*;/g;
     var m;
     while ((m = re.exec(html)) !== null) {
       try {
-        var arr = JSON.parse(m[1].replace(/'/g, '"'));
+        var str = m[1].replace(/'/g, '"').replace(/,\s*\]/, ']');
+        if (!str.endsWith(']')) str += ']';
+        var arr = JSON.parse(str);
         if (Array.isArray(arr) && arr.length > best.length && typeof arr[0] === 'string' && arr[0].startsWith('http')) {
           best = arr;
         }
@@ -533,13 +534,13 @@ var extension = {
     var doc = await _fetchDoc(_MK + '/manga/page/' + (page || 1));
     var results = [];
     var seen = {};
-    doc.querySelectorAll('.item').forEach(function(item) {
-      var a = item.querySelector('h3 a, a');
+    doc.querySelectorAll('#book_list .item, .manga_list-sbs .item, .item').forEach(function(item) {
+      var a = item.querySelector('h3.title a, .text h3 a, .title a, a');
       if (!a || !a.getAttribute('href').includes('/manga/')) return;
       var slug = a.getAttribute('href').replace(/\/$/, '').split('/').pop();
       if (!slug || seen[slug]) return;
       seen[slug] = true;
-      var img = item.querySelector('img');
+      var img = item.querySelector('.media .wrap_img img, img');
       results.push({
         id: slug,
         title: a.textContent.trim(),
@@ -556,13 +557,13 @@ var extension = {
     var doc = await _fetchDoc(_MK + '/manga/page/' + (page || 1) + '?filter=latest');
     var results = [];
     var seen = {};
-    doc.querySelectorAll('.item').forEach(function(item) {
-      var a = item.querySelector('h3 a, a');
+    doc.querySelectorAll('#book_list .item, .manga_list-sbs .item, .item').forEach(function(item) {
+      var a = item.querySelector('h3.title a, .text h3 a, .title a, a');
       if (!a || !a.getAttribute('href').includes('/manga/')) return;
       var slug = a.getAttribute('href').replace(/\/$/, '').split('/').pop();
       if (!slug || seen[slug]) return;
       seen[slug] = true;
-      var img = item.querySelector('img');
+      var img = item.querySelector('.media .wrap_img img, img');
       results.push({
         id: slug,
         title: a.textContent.trim(),

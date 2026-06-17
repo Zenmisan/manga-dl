@@ -103,9 +103,37 @@ export class ExtensionManager {
   async init() {
     const { data } = await supabase.auth.getSession()
     this.userId = data.session?.user.id ?? 'guest'
-    await this.loadInstalled()
-    // Auto-install built-ins that aren't already loaded
-    await this.loadBuiltins()
+    
+    console.log('[Extensions] Initializing manager for user:', this.userId)
+
+    // Retry loop to handle backend startup race condition (especially in dev)
+    let retries = 5
+    while (retries > 0) {
+      try {
+        // Ping the extensions endpoint to ensure backend is up
+        await api.get('/sources/builtins')
+        await this.loadInstalled()
+        await this.loadBuiltins()
+        console.log('[Extensions] Ready. Loaded:', this.extensions.size, 'sources')
+        break // Success
+      } catch (err) {
+        retries--
+        if (retries === 0) {
+          console.error('[Extensions] Backend unreachable after multiple attempts', err)
+          break
+        }
+        await new Promise(r => setTimeout(r, 1000))
+      }
+    }
+  }
+
+  reinit() {
+    console.log('[Extensions] Re-initializing manager...')
+    this.builtinIds.clear()
+    this.extensions.clear()
+    for (const w of this.workers.values()) w.terminate()
+    this.workers.clear()
+    return this.init()
   }
 
   setUser(userId: string | null) {
@@ -159,7 +187,12 @@ export class ExtensionManager {
       const res = await api.get(`/sources/code/${pkgId}`)
       const jsCode: string = res.data.code
       const skipProxy: boolean = res.data.skip_proxy ?? SKIP_PROXY_PROVIDERS.has(pkgId)
-      const apiBaseURL: string = api.defaults.baseURL || ''
+      
+      let apiBaseURL: string = api.defaults.baseURL || ''
+      if (apiBaseURL.startsWith('/')) {
+        apiBaseURL = window.location.origin + apiBaseURL
+      }
+      
       const apiKey: string = localStorage.getItem('manga-api-key') || ''
 
       const oldWorker = this.workers.get(pkgId)

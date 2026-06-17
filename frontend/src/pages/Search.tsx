@@ -153,20 +153,46 @@ export default function SearchPage() {
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!searchQuery) return
+    const query = searchQuery.trim()
+    if (!query) return
     setLoading(true)
     setHasSearched(false)
     try {
       const manager = ExtensionManager.getInstance()
+      if (manager.extensions.size === 0) {
+        await manager.init()
+      }
+      
+      if (manager.extensions.size === 0) {
+        alert('No sources loaded. Please check your API Key in Settings.')
+        setLoading(false)
+        return
+      }
+
       if (selectedProvider) {
         const ext = manager.extensions.get(selectedProvider)
-        const results = ext ? await ext.search(searchQuery, 1) as MangaResult[] : []
+        const results = ext ? await ext.search(query, 1) as MangaResult[] : []
         setSearchResults(results)
       } else {
-        // "All" — search every loaded extension in parallel and merge
         const allExts = Array.from(manager.extensions.values())
-        const settled = await Promise.allSettled(allExts.map(ext => ext.search(searchQuery, 1) as Promise<MangaResult[]>))
+        const settled = await Promise.allSettled(allExts.map(ext => ext.search(query, 1) as Promise<MangaResult[]>))
+        
+        // Log failures to console for debugging
+        settled.forEach((r, i) => {
+          if (r.status === 'rejected') {
+            console.error(`[Search] ${allExts[i].name} failed:`, r.reason)
+          }
+        })
+
         const merged = settled.flatMap(r => r.status === 'fulfilled' ? r.value : [])
+        
+        if (merged.length === 0 && settled.some(r => r.status === 'rejected')) {
+          const firstError = settled.find(r => r.status === 'rejected') as PromiseRejectedResult
+          if (String(firstError?.reason).includes('403')) {
+            alert('Search failed (403 Forbidden). Is your API Key correct in Settings?')
+          }
+        }
+        
         setSearchResults(merged)
       }
       setHasSearched(true)
