@@ -114,6 +114,25 @@ function App() {
     return () => subscription.unsubscribe()
   }, [])
 
+  const handleSignOut = async () => {
+    try {
+      await supabase.auth.signOut()
+    } catch (e) {
+      console.error(e)
+    }
+    // Clear Supabase local storage keys
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key && key.startsWith('sb-')) {
+        localStorage.removeItem(key)
+        i--
+      }
+    }
+    setSession(null)
+    navigate('/login')
+    window.location.reload()
+  }
+
   // Hide native Capacitor splash screen after web app is ready
   useEffect(() => {
     if (!('Capacitor' in window)) return
@@ -363,19 +382,23 @@ function App() {
         {session ? (
           <div className={cn("pb-2", sidebarCollapsed ? "px-2" : "px-6")}>
             {sidebarCollapsed ? (
-              <div className="w-10 h-10 rounded-lg bg-red-600/15 border border-red-500/20 flex items-center justify-center text-xs font-black text-red-400 mx-auto" title={session.user.email}>
-                {session.user.email?.[0]?.toUpperCase() ?? '?'}
-              </div>
-            ) : (
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[.04] border border-white/5">
-                <div className="w-8 h-8 rounded-lg bg-red-600/15 border border-red-500/20 flex items-center justify-center text-xs font-black text-red-400 flex-shrink-0">
+              <Link to={`/profile/${session.user.id}`} className="block">
+                <div className="w-10 h-10 rounded-lg bg-red-600/15 border border-red-500/20 flex items-center justify-center text-xs font-black text-red-400 mx-auto cursor-pointer hover:bg-red-600/25 transition-all" title={session.user.email}>
                   {session.user.email?.[0]?.toUpperCase() ?? '?'}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-white/50 truncate">{session.user.email}</p>
-                </div>
+              </Link>
+            ) : (
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[.04] border border-white/5">
+                <Link to={`/profile/${session.user.id}`} className="flex items-center gap-3 flex-1 min-w-0 group cursor-pointer">
+                  <div className="w-8 h-8 rounded-lg bg-red-600/15 border border-red-500/20 flex items-center justify-center text-xs font-black text-red-400 flex-shrink-0 group-hover:bg-red-600/25 transition-all">
+                    {session.user.email?.[0]?.toUpperCase() ?? '?'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-white/50 group-hover:text-white transition-colors truncate">{session.user.email}</p>
+                  </div>
+                </Link>
                 <button
-                  onClick={() => supabase.auth.signOut()}
+                  onClick={handleSignOut}
                   className="text-[10px] font-black uppercase tracking-wider text-white/25 hover:text-red-400 transition-colors flex-shrink-0 px-2 py-1"
                 >
                   Out

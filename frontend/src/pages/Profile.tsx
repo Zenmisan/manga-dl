@@ -68,6 +68,24 @@ export default function ProfilePage() {
     }
   }
 
+  const handleSignOut = async () => {
+    try {
+      await supabase.auth.signOut()
+    } catch (e) {
+      console.error(e)
+    }
+    // Clear Supabase local storage keys
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key && key.startsWith('sb-')) {
+        localStorage.removeItem(key)
+        i--
+      }
+    }
+    navigate('/login')
+    window.location.reload()
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -123,13 +141,23 @@ export default function ProfilePage() {
             )}
           </div>
         </div>
-        <button
-          onClick={handleShare}
-          className="flex items-center gap-2 px-4 py-2.5 glass-panel border-white/5 hover:border-white/10 text-white/50 hover:text-white rounded-xl text-xs font-bold uppercase tracking-widest transition-all"
-        >
-          <Share2 className="w-4 h-4" />
-          {copied ? 'Copied!' : 'Share'}
-        </button>
+        <div className="flex gap-2">
+          {isOwnProfile && (
+            <button
+              onClick={handleSignOut}
+              className="flex items-center gap-2 px-4 py-2.5 bg-red-600/15 border border-red-500/20 text-red-400 hover:bg-red-600/25 rounded-xl text-xs font-bold uppercase tracking-widest transition-all"
+            >
+              Sign Out
+            </button>
+          )}
+          <button
+            onClick={handleShare}
+            className="flex items-center gap-2 px-4 py-2.5 glass-panel border-white/5 hover:border-white/10 text-white/50 hover:text-white rounded-xl text-xs font-bold uppercase tracking-widest transition-all"
+          >
+            <Share2 className="w-4 h-4" />
+            {copied ? 'Copied!' : 'Share'}
+          </button>
+        </div>
       </motion.div>
 
       {/* Stats grid */}
