@@ -33,6 +33,7 @@ import { getMangaNote, setMangaNote, setMangaRating } from '../lib/mangaNotes'
 import { setMangaOverride, getMangaOverride } from '../lib/metaOverrides'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
+import { supabase } from '../lib/supabase'
 
 interface Chapter {
   id: string
@@ -62,6 +63,9 @@ export default function MangaDetail() {
   const [downloading, setDownloading] = useState<string[]>([])
   const [showQueueLink, setShowQueueLink] = useState(false)
   const [bulkLoading, setBulkLoading] = useState(false)
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+
+  const isAdmin = userEmail === 'zenmisan@gmail.com'
   const [subscribed, setSubscribed] = useState(false)
   const [subscribing, setSubscribing] = useState(false)
   const [chapterSort, setChapterSort] = useState<'default' | 'newest' | 'oldest' | 'num-asc' | 'num-desc'>('default')
@@ -267,6 +271,18 @@ export default function MangaDetail() {
       }).catch(() => {})
     }).catch(() => {})
   }, [navigate])
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUserEmail(session?.user?.email || null)
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+      setUserEmail(session?.user?.email || null)
+    })
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [])
 
   useEffect(() => {
     const fetchManga = async () => {
@@ -834,26 +850,28 @@ export default function MangaDetail() {
                   {malSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <ListPlus className="w-4 h-4" />}
                 </button>
               )}
-              <button
-                onClick={handleSubscribe}
-                disabled={subscribing}
-                title={subscribed ? 'Unsubscribe from new chapters' : 'Subscribe to auto-download new chapters'}
-                className={cn(
-                  "p-2.5 rounded-xl transition-all border text-xs font-bold flex items-center gap-2 disabled:opacity-50",
-                  subscribed
-                    ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-400 hover:bg-red-500/20 hover:border-red-500/30 hover:text-red-400"
-                    : "bg-white/5 border-white/10 text-white/40 hover:bg-white/10 hover:text-white"
-                )}
-              >
-                {subscribing ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : subscribed ? (
-                  <BellOff className="w-4 h-4" />
-                ) : (
-                  <Bell className="w-4 h-4" />
-                )}
-              </button>
-              {subscribed && (
+              {isAdmin && (
+                <button
+                  onClick={handleSubscribe}
+                  disabled={subscribing}
+                  title={subscribed ? 'Unsubscribe from new chapters' : 'Subscribe to auto-download new chapters'}
+                  className={cn(
+                    "p-2.5 rounded-xl transition-all border text-xs font-bold flex items-center gap-2 disabled:opacity-50",
+                    subscribed
+                      ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-400 hover:bg-red-500/20 hover:border-red-500/30 hover:text-red-400"
+                      : "bg-white/5 border-white/10 text-white/40 hover:bg-white/10 hover:text-white"
+                  )}
+                >
+                  {subscribing ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : subscribed ? (
+                    <BellOff className="w-4 h-4" />
+                  ) : (
+                    <Bell className="w-4 h-4" />
+                  )}
+                </button>
+              )}
+              {isAdmin && subscribed && (
                 <button
                   onClick={toggleNotif}
                   title={notifEnabled ? 'Mute notifications for this manga' : 'Unmute notifications for this manga'}
@@ -867,23 +885,25 @@ export default function MangaDetail() {
                   {notifEnabled ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
                 </button>
               )}
-              <button
-                onClick={handleBulkDownload}
-                disabled={bulkLoading}
-                className="btn-secondary py-2 text-xs flex items-center gap-2 disabled:opacity-50"
-              >
-                {bulkLoading ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    Queuing...
-                  </>
-                ) : (
-                  <>
-                    <Download className="w-3.5 h-3.5" />
-                    Download All
-                  </>
-                )}
-              </button>
+              {isAdmin && (
+                <button
+                  onClick={handleBulkDownload}
+                  disabled={bulkLoading}
+                  className="btn-secondary py-2 text-xs flex items-center gap-2 disabled:opacity-50"
+                >
+                  {bulkLoading ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Queuing...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-3.5 h-3.5" />
+                      Download All
+                    </>
+                  )}
+                </button>
+              )}
             </div>
             </div>
 
@@ -964,11 +984,13 @@ export default function MangaDetail() {
                     className={cn("p-2.5 rounded-xl transition-all", isChRead ? "bg-emerald-500/20 text-emerald-400" : "bg-white/5 text-white/40 hover:text-emerald-400")}
                     title={isChRead ? "Mark unread" : "Mark read"}
                   >{isChRead ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
-                  <button onClick={() => { handleDownload(chapter.id); setSwipedChapterId(null) }}
-                    disabled={downloading.includes(chapter.id)}
-                    className="p-2.5 rounded-xl bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white transition-all"
-                    title="Download"
-                  >{downloading.includes(chapter.id) ? <CheckCircle2 className="w-4 h-4" /> : <Download className="w-4 h-4" />}</button>
+                  {isAdmin && (
+                    <button onClick={() => { handleDownload(chapter.id); setSwipedChapterId(null) }}
+                      disabled={downloading.includes(chapter.id)}
+                      className="p-2.5 rounded-xl bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white transition-all"
+                      title="Download"
+                    >{downloading.includes(chapter.id) ? <CheckCircle2 className="w-4 h-4" /> : <Download className="w-4 h-4" />}</button>
+                  )}
                 </div>
 
                 {/* Chapter row (slides left on swipe) */}
@@ -976,7 +998,7 @@ export default function MangaDetail() {
                   className={cn(
                     "group flex items-center justify-between p-4 glass-card hover:bg-white/5 transition-all border-white/5 relative z-10",
                     isChRead && "opacity-50 hover:opacity-100",
-                    isSwiped ? "-translate-x-[140px]" : "translate-x-0",
+                    isSwiped ? (isAdmin ? "-translate-x-[140px]" : "-translate-x-[90px]") : "translate-x-0",
                     "transition-transform duration-200"
                   )}
                   onPointerDown={(e) => { swipeStartX.current = e.clientX }}
@@ -1027,18 +1049,20 @@ export default function MangaDetail() {
                     >
                       <Play className="w-5 h-5" />
                     </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleDownload(chapter.id) }}
-                      disabled={downloading.includes(chapter.id)}
-                      className={cn(
-                        "p-3 rounded-xl transition-all border shadow-lg",
-                        downloading.includes(chapter.id)
-                          ? "bg-emerald-500/20 border-emerald-500/20 text-emerald-400 cursor-default"
-                          : "bg-white/5 border-white/10 text-white/40 hover:text-white hover:bg-red-600 hover:border-red-600 hover:shadow-red-600/20"
-                      )}
-                    >
-                      {downloading.includes(chapter.id) ? <CheckCircle2 className="w-5 h-5" /> : <Download className="w-5 h-5" />}
-                    </button>
+                    {isAdmin && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDownload(chapter.id) }}
+                        disabled={downloading.includes(chapter.id)}
+                        className={cn(
+                          "p-3 rounded-xl transition-all border shadow-lg",
+                          downloading.includes(chapter.id)
+                            ? "bg-emerald-500/20 border-emerald-500/20 text-emerald-400 cursor-default"
+                            : "bg-white/5 border-white/10 text-white/40 hover:text-white hover:bg-red-600 hover:border-red-600 hover:shadow-red-600/20"
+                        )}
+                      >
+                        {downloading.includes(chapter.id) ? <CheckCircle2 className="w-5 h-5" /> : <Download className="w-5 h-5" />}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

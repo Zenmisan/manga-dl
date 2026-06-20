@@ -8,7 +8,7 @@ import uuid
 import shutil
 from pathlib import Path
 from datetime import datetime, timedelta
-from fastapi import APIRouter, HTTPException, Response, Depends, UploadFile, File, Query
+from fastapi import APIRouter, HTTPException, Response, Depends, UploadFile, File, Query, Request
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,6 +18,7 @@ from app.config import get_settings
 from app.database import get_db
 from app.models.download import DownloadRecord
 from app.models.manga import MangaRecord
+from app.core.supabase_auth import get_current_user_email
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/library", tags=["library"])
@@ -41,10 +42,21 @@ def natural_sort_key(s):
     return [int(text) if text.isdigit() else text.lower() for text in re.split(r'(\d+)', str(s))]
 
 
+async def _assert_admin(request: Request):
+    """Raise 403 if the user is not zenmisan@gmail.com."""
+    email = await get_current_user_email(request)
+    if email != "zenmisan@gmail.com":
+        raise HTTPException(status_code=403, detail="Library access is restricted to administrator.")
+
+
 @router.get("", response_model=list[LibraryItem])
 @router.get("/", response_model=list[LibraryItem], include_in_schema=False)
-async def list_library(db: AsyncSession = Depends(get_db)):
+async def list_library(request: Request, db: AsyncSession = Depends(get_db)):
     """Fetch the library from the database. Show all series including in-progress downloads."""
+    email = await get_current_user_email(request)
+    if email != "zenmisan@gmail.com":
+        return []
+
     result = await db.execute(
         select(DownloadRecord)
         .order_by(DownloadRecord.created_at.desc())
@@ -126,8 +138,9 @@ async def _ensure_local_file(manga_title: str, filename: str) -> Path:
 
 
 @router.get("/file/{manga_title}/{filename}")
-async def download_file(manga_title: str, filename: str):
+async def download_file(manga_title: str, filename: str, request: Request):
     """Serve the raw CBZ file for downloading."""
+    await _assert_admin(request)
     file_path = await _ensure_local_file(manga_title, filename)
     return FileResponse(
         path=file_path,
@@ -137,8 +150,9 @@ async def download_file(manga_title: str, filename: str):
 
 
 @router.get("/read/{manga_title}/{filename}")
-async def get_cbz_manifest(manga_title: str, filename: str, db: AsyncSession = Depends(get_db)):
+async def get_cbz_manifest(manga_title: str, filename: str, request: Request, db: AsyncSession = Depends(get_db)):
     """List all image files inside a CBZ and return saved progress."""
+    await _assert_admin(request)
     file_path = await _ensure_local_file(manga_title, filename)
 
     try:
@@ -174,9 +188,11 @@ async def get_cbz_image(
     manga_title: str, 
     filename: str, 
     image_name: str,
+    request: Request,
     upscale: bool = Query(False)
 ):
     """Extract and serve a single image from a CBZ file, with optional upscaling."""
+    await _assert_admin(request)
     file_path = await _ensure_local_file(manga_title, filename)
 
     try:
@@ -208,8 +224,9 @@ async def get_cbz_image(
 
 
 @router.get("/pdf/{manga_title}/{filename}")
-async def convert_to_pdf(manga_title: str, filename: str):
+async def convert_to_pdf(manga_title: str, filename: str, request: Request):
     """Losslessly convert a CBZ to PDF on the fly and stream it."""
+    await _assert_admin(request)
     import img2pdf
     file_path = await _ensure_local_file(manga_title, filename)
     
@@ -254,8 +271,9 @@ class ProgressUpdate(BaseModel):
     page: int
 
 @router.post("/progress/{manga_title}/{filename}")
-async def update_progress(manga_title: str, filename: str, req: ProgressUpdate, db: AsyncSession = Depends(get_db)):
+async def update_progress(manga_title: str, filename: str, req: ProgressUpdate, request: Request, db: AsyncSession = Depends(get_db)):
     """Update reading progress for a specific chapter."""
+    await _assert_admin(request)
     result = await db.execute(
         select(DownloadRecord)
         .where(DownloadRecord.manga_title == manga_title)
@@ -271,8 +289,9 @@ async def update_progress(manga_title: str, filename: str, req: ProgressUpdate, 
 
 
 @router.post("/pin/{manga_title}/{filename}")
-async def toggle_pin(manga_title: str, filename: str, db: AsyncSession = Depends(get_db)):
+async def toggle_pin(manga_title: str, filename: str, request: Request, db: AsyncSession = Depends(get_db)):
     """Toggle the pinned status of a chapter to prevent auto-deletion."""
+    await _assert_admin(request)
     result = await db.execute(
         select(DownloadRecord)
         .where(DownloadRecord.manga_title == manga_title)
@@ -289,10 +308,12 @@ async def toggle_pin(manga_title: str, filename: str, db: AsyncSession = Depends
 
 @router.post("/upload")
 async def upload_manga(
+    request: Request,
     file: UploadFile = File(...), 
     db: AsyncSession = Depends(get_db)
 ):
     """Upload a local ZIP/CBZ file to the cloud library."""
+    await _assert_admin(request)
     ext = Path(file.filename).suffix.lower()
     if ext not in ('.zip', '.cbz'):
         raise HTTPException(status_code=400, detail=f"Invalid format: {ext}")
@@ -347,8 +368,9 @@ async def upload_manga(
 
 
 @router.get("/stats")
-async def get_library_stats(db: AsyncSession = Depends(get_db)):
+async def get_library_stats(request: Request, db: AsyncSession = Depends(get_db)):
     """Aggregate reading statistics from the download history."""
+    await _assert_admin(request)
     base = select(DownloadRecord).where(DownloadRecord.status == "done")
 
     total_chapters = (await db.execute(
@@ -425,8 +447,9 @@ async def get_library_stats(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/epub/{manga_title}/{filename}")
-async def convert_to_epub(manga_title: str, filename: str):
+async def convert_to_epub(manga_title: str, filename: str, request: Request):
     """Convert a CBZ archive to EPUB3 on the fly and stream it."""
+    await _assert_admin(request)
     file_path = await _ensure_local_file(manga_title, filename)
 
     def _generate_epub() -> io.BytesIO:

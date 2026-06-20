@@ -559,6 +559,307 @@ var extension = {
 };
 """
 
+_MADARA_TEMPLATE_JS = r"""
+var _BASE = '{BASE_URL}';
+
+async function _fetchDoc(url) {
+  var data = await apiFetch('/manga/proxy/html?url=' + encodeURIComponent(url));
+  return new DOMParser().parseFromString(data.html, 'text/html');
+}
+
+var extension = {
+  async search(query, page) {
+    var doc = await _fetchDoc(_BASE + '/?s=' + encodeURIComponent(query) + '&post_type=wp-manga');
+    var results = [];
+    var seen = {};
+    doc.querySelectorAll('.c-tabs-item__content, .manga-item, .page-item-detail, .c-blog-post').forEach(function(card) {
+      var a = card.querySelector('.post-title a, h3.h4 a, h3 a, h5 a, a[href*="/manga/"], a[href*="/series/"], a[href*="/webtoon/"], a[href*="/serie/"]');
+      if (!a) return;
+      var href = a.getAttribute('href') || '';
+      if (!href.includes('/manga/') && !href.includes('/series/') && !href.includes('/webtoon/') && !href.includes('/serie/')) return;
+      var slug = href.replace(/\/$/, '').split('/').pop();
+      if (!slug || seen[slug]) return;
+      seen[slug] = true;
+      var img = card.querySelector('img');
+      results.push({
+        id: slug,
+        title: a.textContent.trim(),
+        cover_url: img ? (img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-lazy-src')) : null,
+        provider: 'madara',
+        url: href,
+        status: null,
+      });
+    });
+    return results;
+  },
+
+  async getMangaDetail(mangaId) {
+    var paths = ['/manga/', '/series/', '/webtoon/', '/serie/'];
+    var doc = null;
+    var finalUrl = '';
+    for (var i = 0; i < paths.length; i++) {
+      try {
+        finalUrl = _BASE + paths[i] + mangaId;
+        doc = await _fetchDoc(finalUrl);
+        if (doc.querySelector('h1')) break;
+      } catch(e) {}
+    }
+    if (!doc) throw new Error('Manga details page not found');
+
+    var titleEl = doc.querySelector('.post-title h1, h1');
+    var title = titleEl ? titleEl.textContent.trim() : mangaId;
+    var img = doc.querySelector('.summary_image img');
+    var cover = img ? (img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-lazy-src')) : null;
+    var descEl = doc.querySelector('.description-summary, .summary-content, .manga-excerpt, .post-content_item p');
+    var desc = descEl ? descEl.textContent.trim() : null;
+
+    var genres = [];
+    doc.querySelectorAll('.genres-content a, a[href*="manga-genre"]').forEach(function(a) {
+      genres.push(a.textContent.trim());
+    });
+
+    var chapters = [];
+    var seen = {};
+    doc.querySelectorAll('.wp-manga-chapter a').forEach(function(a) {
+      var href = a.getAttribute('href') || '';
+      var slug = href.replace(/\/$/, '').split('/').pop();
+      var fullId = mangaId + '/chapter/' + slug;
+      if (seen[fullId]) return;
+      seen[fullId] = true;
+      var numMatch = slug.match(/([\d.]+)/);
+      var num = numMatch ? parseFloat(numMatch[1]) : 0;
+      chapters.push({
+        id: href.replace(_BASE, ''),
+        title: a.textContent.trim() || ('Chapter ' + num),
+        number: num,
+        published_at: null,
+      });
+    });
+    chapters.sort(function(a, b) { return b.number - a.number; });
+
+    return {
+      id: mangaId,
+      title: title,
+      cover_url: cover,
+      description: desc,
+      status: null,
+      genres: genres,
+      authors: [],
+      provider: 'madara',
+      url: finalUrl,
+      chapters: chapters,
+    };
+  },
+
+  async getPages(chapterId) {
+    var doc = await _fetchDoc(_BASE + chapterId);
+    var pages = [];
+    doc.querySelectorAll('.page-break img, img.wp-manga-chapter-img').forEach(function(img) {
+      var src = img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || img.getAttribute('data-cdn-src');
+      if (src) {
+         src = src.trim();
+         if (src.startsWith('//')) src = 'https:' + src;
+         pages.push(src);
+      }
+    });
+    return pages;
+  },
+
+  async getPopular(page) {
+    var doc = await _fetchDoc(_BASE + '/manga/page/' + (page || 1) + '/?m_orderby=views');
+    var results = [];
+    var seen = {};
+    doc.querySelectorAll('.c-tabs-item__content, .manga-item, .page-item-detail, .c-blog-post').forEach(function(card) {
+      var a = card.querySelector('.post-title a, h3.h4 a, h3 a, h5 a, a[href*="/manga/"], a[href*="/series/"], a[href*="/webtoon/"], a[href*="/serie/"]');
+      if (!a) return;
+      var href = a.getAttribute('href') || '';
+      var slug = href.replace(/\/$/, '').split('/').pop();
+      if (!slug || seen[slug]) return;
+      seen[slug] = true;
+      var img = card.querySelector('img');
+      results.push({
+        id: slug,
+        title: a.textContent.trim(),
+        cover_url: img ? (img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-lazy-src')) : null,
+        provider: 'madara',
+        url: href,
+        status: null,
+      });
+    });
+    return results;
+  },
+
+  async getLatest(page) {
+    var doc = await _fetchDoc(_BASE + '/manga/page/' + (page || 1) + '/?m_orderby=latest');
+    var results = [];
+    var seen = {};
+    doc.querySelectorAll('.c-tabs-item__content, .manga-item, .page-item-detail, .c-blog-post').forEach(function(card) {
+      var a = card.querySelector('.post-title a, h3.h4 a, h3 a, h5 a, a[href*="/manga/"], a[href*="/series/"], a[href*="/webtoon/"], a[href*="/serie/"]');
+      if (!a) return;
+      var href = a.getAttribute('href') || '';
+      var slug = href.replace(/\/$/, '').split('/').pop();
+      if (!slug || seen[slug]) return;
+      seen[slug] = true;
+      var img = card.querySelector('img');
+      results.push({
+        id: slug,
+        title: a.textContent.trim(),
+        cover_url: img ? (img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-lazy-src')) : null,
+        provider: 'madara',
+        url: href,
+        status: null,
+      });
+    });
+    return results;
+  },
+};
+"""
+
+_MANGATHEMESIA_TEMPLATE_JS = r"""
+var _BASE = '{BASE_URL}';
+
+async function _fetchDoc(url) {
+  var data = await apiFetch('/manga/proxy/html?url=' + encodeURIComponent(url));
+  return new DOMParser().parseFromString(data.html, 'text/html');
+}
+
+var extension = {
+  async search(query, page) {
+    var pageStr = (page || 1) > 1 ? ('/page/' + page) : '';
+    var doc = await _fetchDoc(_BASE + pageStr + '/?s=' + encodeURIComponent(query));
+    var results = [];
+    var seen = {};
+    doc.querySelectorAll('.utao .uta, .listupd .bs, .bsx, .bs').forEach(function(card) {
+      var a = card.querySelector('.tt a, h4 a, .title a, a');
+      if (!a) return;
+      var href = a.getAttribute('href') || '';
+      var slug = href.replace(/\/$/, '').split('/').pop();
+      if (!slug || seen[slug]) return;
+      seen[slug] = true;
+      var img = card.querySelector('img');
+      results.push({
+        id: slug,
+        title: a.textContent.trim(),
+        cover_url: img ? (img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-lazy-src')) : null,
+        provider: 'mangathemesia',
+        url: href,
+        status: null,
+      });
+    });
+    return results;
+  },
+
+  async getMangaDetail(mangaId) {
+    var doc = await _fetchDoc(_BASE + '/manga/' + mangaId);
+    var titleEl = doc.querySelector('h1.entry-title, h1');
+    var title = titleEl ? titleEl.textContent.trim() : mangaId;
+    var img = doc.querySelector('.thumb img, .info-image img');
+    var cover = img ? (img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-lazy-src')) : null;
+    var descEl = doc.querySelector('.entry-content, .synopsis, [itemprop="description"]');
+    var desc = descEl ? descEl.textContent.trim() : null;
+
+    var genres = [];
+    doc.querySelectorAll('.mgen a, a[href*="manga-genre"]').forEach(function(a) {
+      genres.push(a.textContent.trim());
+    });
+
+    var chapters = [];
+    var seen = {};
+    doc.querySelectorAll('.clcontent a, #chapterlist a, .eplister a').forEach(function(a) {
+      var href = a.getAttribute('href') || '';
+      var slug = href.replace(/\/$/, '').split('/').pop();
+      var fullId = mangaId + '/chapter/' + slug;
+      if (seen[fullId]) return;
+      seen[fullId] = true;
+      var numMatch = slug.match(/([\d.]+)/);
+      var num = numMatch ? parseFloat(numMatch[1]) : 0;
+      chapters.push({
+        id: href.replace(_BASE, ''),
+        title: a.textContent.trim() || ('Chapter ' + num),
+        number: num,
+        published_at: null,
+      });
+    });
+    chapters.sort(function(a, b) { return b.number - a.number; });
+
+    return {
+      id: mangaId,
+      title: title,
+      cover_url: cover,
+      description: desc,
+      status: null,
+      genres: genres,
+      authors: [],
+      provider: 'mangathemesia',
+      url: _BASE + '/manga/' + mangaId,
+      chapters: chapters,
+    };
+  },
+
+  async getPages(chapterId) {
+    var doc = await _fetchDoc(_BASE + chapterId);
+    var pages = [];
+    doc.querySelectorAll('#readerarea img').forEach(function(img) {
+      var src = img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || img.getAttribute('data-cdn-src');
+      if (src) {
+         src = src.trim();
+         if (src.startsWith('//')) src = 'https:' + src;
+         pages.push(src);
+      }
+    });
+    return pages;
+  },
+
+  async getPopular(page) {
+    var doc = await _fetchDoc(_BASE + '/manga/?page=' + (page || 1) + '&order=popular');
+    var results = [];
+    var seen = {};
+    doc.querySelectorAll('.utao .uta, .listupd .bs, .bsx, .bs').forEach(function(card) {
+      var a = card.querySelector('.tt a, h4 a, .title a, a');
+      if (!a) return;
+      var href = a.getAttribute('href') || '';
+      var slug = href.replace(/\/$/, '').split('/').pop();
+      if (!slug || seen[slug]) return;
+      seen[slug] = true;
+      var img = card.querySelector('img');
+      results.push({
+        id: slug,
+        title: a.textContent.trim(),
+        cover_url: img ? (img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-lazy-src')) : null,
+        provider: 'mangathemesia',
+        url: href,
+        status: null,
+      });
+    });
+    return results;
+  },
+
+  async getLatest(page) {
+    var doc = await _fetchDoc(_BASE + '/manga/?page=' + (page || 1) + '&order=update');
+    var results = [];
+    var seen = {};
+    doc.querySelectorAll('.utao .uta, .listupd .bs, .bsx, .bs').forEach(function(card) {
+      var a = card.querySelector('.tt a, h4 a, .title a, a');
+      if (!a) return;
+      var href = a.getAttribute('href') || '';
+      var slug = href.replace(/\/$/, '').split('/').pop();
+      if (!slug || seen[slug]) return;
+      seen[slug] = true;
+      var img = card.querySelector('img');
+      results.push({
+        id: slug,
+        title: a.textContent.trim(),
+        cover_url: img ? (img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-lazy-src')) : null,
+        provider: 'mangathemesia',
+        url: href,
+        status: null,
+      });
+    });
+    return results;
+  },
+};
+"""
+
 # Map provider ID → { code, name, lang, version, icon }
 BUILT_IN_EXTENSIONS: dict[str, dict] = {
     "mangadex": {
@@ -674,7 +975,66 @@ async def get_extension_code(pkg_id: str):
             "skip_proxy": meta["skip_proxy"],
         }
 
-    # Community extension — attempt Keiyoushi (JS may not exist, will 404)
+    # Check local Keiyoushi theme mapping
+    import json
+    import os
+    import re
+
+    home_url = None
+    index_json_path = "/home/zenmi/Projects/extensions/index.json"
+    if os.path.exists(index_json_path):
+        try:
+            with open(index_json_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                for ext in data.get("extensions", []):
+                    if ext.get("packageName") == pkg_id:
+                        sources = ext.get("sources", [])
+                        if sources:
+                            home_url = sources[0].get("homeUrl")
+                            break
+        except Exception as e:
+            log.warning("Failed to parse local extensions index.json: %s", e)
+
+    theme = None
+    parts = pkg_id.split(".")
+    if len(parts) >= 6:
+        lang = parts[4]
+        name = parts[5]
+        src_dir = f"/home/zenmi/Projects/extensions-source/src/{lang}/{name}"
+        if not os.path.exists(src_dir):
+            src_dir = f"/home/zenmi/Projects/extensions-source/src/all/{name}"
+
+        if os.path.exists(src_dir):
+            for root, dirs, files in os.walk(src_dir):
+                for f in files:
+                    if f.endswith(".kt"):
+                        path = os.path.join(root, f)
+                        try:
+                            with open(path, "r", encoding="utf-8") as file:
+                                content = file.read()
+                                if re.search(r":\s*Madara\b", content):
+                                    theme = "Madara"
+                                    break
+                                elif re.search(r":\s*MangaThemesia\b", content):
+                                    theme = "MangaThemesia"
+                                    break
+                        except Exception:
+                            pass
+                if theme:
+                    break
+
+    if home_url and theme:
+        base_url = home_url.rstrip("/")
+        if theme == "Madara":
+            code = _MADARA_TEMPLATE_JS.replace("{BASE_URL}", base_url)
+            log.info("Dynamically generated Madara code for package: %s, URL: %s", pkg_id, base_url)
+            return {"code": code, "skip_proxy": False}
+        elif theme == "MangaThemesia":
+            code = _MANGATHEMESIA_TEMPLATE_JS.replace("{BASE_URL}", base_url)
+            log.info("Dynamically generated MangaThemesia code for package: %s, URL: %s", pkg_id, base_url)
+            return {"code": code, "skip_proxy": False}
+
+    # Community extension fallback — attempt Keiyoushi online
     try:
         ext_url = f"https://raw.githubusercontent.com/keiyoushi/extensions/repo/sources/{pkg_id}/index.js"
         response = requests.get(ext_url, impersonate="chrome110", timeout=10)

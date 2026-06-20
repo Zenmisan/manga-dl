@@ -33,6 +33,7 @@ import JSZip from 'jszip'
 import { saveLocalManga, getAllLocalManga, deleteLocalManga, loadLocalMangaIntoSession } from '../lib/localLibrary'
 import { getReadCount } from '../lib/readTracking'
 import { getMangaCategoryList, getCategories } from '../lib/categories'
+import { supabase } from '../lib/supabase'
 
 interface LibraryItem {
   title: string
@@ -70,6 +71,9 @@ export default function Dashboard() {
   // map of manga title → last read { provider, mangaId, chapterId, mangaTitle, chapterTitle }
   const [lastReadMap, setLastReadMap] = useState<Record<string, { provider: string; mangaId: string; chapterId: string; mangaTitle: string; chapterTitle: string }>>({})
   const [isDragOver, setIsDragOver] = useState(false)
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+
+  const isAdmin = userEmail === 'zenmisan@gmail.com'
 
   const fetchHistory = async () => {
     try {
@@ -176,6 +180,14 @@ export default function Dashboard() {
       })
     }).catch(() => {})
 
+    // Fetch user session to determine admin status
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUserEmail(session?.user?.email || null)
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+      setUserEmail(session?.user?.email || null)
+    })
+
     // Auto-refresh every 5s while any download is active
     const interval = setInterval(() => {
       setItems(prev => {
@@ -184,7 +196,10 @@ export default function Dashboard() {
         return prev
       })
     }, 5000)
-    return () => clearInterval(interval)
+    return () => {
+      clearInterval(interval)
+      subscription.unsubscribe()
+    }
   }, [])
 
   const handleScanFolder = async () => {
@@ -452,12 +467,14 @@ export default function Dashboard() {
                   >
                     <FileText className="w-5 h-5" />
                   </button>
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); handleDownloadFile(selectedManga.title, file); }}
-                    className="p-3 bg-white/5 border border-white/5 rounded-xl text-white/40 hover:text-white"
-                  >
-                    <Download className="w-5 h-5" />
-                  </button>
+                  {isAdmin && (
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handleDownloadFile(selectedManga.title, file); }}
+                      className="p-3 bg-white/5 border border-white/5 rounded-xl text-white/40 hover:text-white"
+                    >
+                      <Download className="w-5 h-5" />
+                    </button>
+                  )}
                   <button
                     onClick={async () => {
                       if (selectedManga.isLocal && selectedManga.localId) {
@@ -560,7 +577,7 @@ export default function Dashboard() {
                   <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
                   <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:inline">Refresh</span>
                 </button>
-                {isDesktop && (
+                {isAdmin && isDesktop && (
                   <button
                     onClick={handleScanFolder}
                     disabled={uploading}
@@ -574,14 +591,16 @@ export default function Dashboard() {
                     <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:inline">Scan Folder</span>
                   </button>
                 )}
-                <label className={cn(
-                  "p-2.5 rounded-xl transition-all cursor-pointer flex items-center gap-2 px-4",
-                  uploading ? "opacity-50 pointer-events-none" : "hover:bg-white/5 text-white/40 hover:text-white"
-                )}>
-                  <input type="file" className="hidden" accept=".zip,.cbz,.epub" onChange={handleUpload} />
-                  {uploading ? <RefreshCw className="w-4 h-4 animate-spin text-red-500" /> : <Upload className="w-4 h-4" />}
-                  <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:inline">Upload</span>
-                </label>
+                {isAdmin && (
+                  <label className={cn(
+                    "p-2.5 rounded-xl transition-all cursor-pointer flex items-center gap-2 px-4",
+                    uploading ? "opacity-50 pointer-events-none" : "hover:bg-white/5 text-white/40 hover:text-white"
+                  )}>
+                    <input type="file" className="hidden" accept=".zip,.cbz,.epub" onChange={handleUpload} />
+                    {uploading ? <RefreshCw className="w-4 h-4 animate-spin text-red-500" /> : <Upload className="w-4 h-4" />}
+                    <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:inline">Upload</span>
+                  </label>
+                )}
                 <div className="w-px h-4 bg-white/10 my-auto mx-1" />
                 <button
                   onClick={() => setShowSortPanel(p => !p)}
@@ -604,13 +623,15 @@ export default function Dashboard() {
                   <List className="w-5 h-5" />
                 </button>
                 <div className="w-px h-4 bg-white/10 my-auto mx-1" />
-                <button
-                  onClick={() => { setSelectMode(p => !p); setSelectedItems(new Set()) }}
-                  title="Select multiple"
-                  className={cn("p-2.5 rounded-xl transition-all", selectMode ? "bg-blue-500/20 text-blue-400" : "text-white/40 hover:text-white/60")}
-                >
-                  <CheckSquare className="w-5 h-5" />
-                </button>
+                 {isAdmin && (
+                  <button
+                    onClick={() => { setSelectMode(p => !p); setSelectedItems(new Set()) }}
+                    title="Select multiple"
+                    className={cn("p-2.5 rounded-xl transition-all", selectMode ? "bg-blue-500/20 text-blue-400" : "text-white/40 hover:text-white/60")}
+                  >
+                    <CheckSquare className="w-5 h-5" />
+                  </button>
+                )}
               </div>
             </header>
 
@@ -754,18 +775,22 @@ export default function Dashboard() {
                 </div>
                 <h2 className="text-2xl font-bold mb-3">No manga found</h2>
                 <p className="text-white/40 max-w-sm mb-10 text-sm">
-                  Search for something new or upload your local archives.
+                  {isAdmin 
+                    ? "Search for something new or upload your local archives."
+                    : "Search for something new to read online."}
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4">
                   <button onClick={() => navigate('/search')} className="btn-primary flex items-center justify-center gap-2">
                     <Sparkles className="w-4 h-4" />
                     Browse Catalog
                   </button>
-                  <label className="btn-secondary flex items-center justify-center gap-2 cursor-pointer">
-                    <input type="file" className="hidden" accept=".zip,.cbz,.epub" onChange={handleUpload} />
-                    <Upload className="w-4 h-4" />
-                    Upload File
-                  </label>
+                  {isAdmin && (
+                    <label className="btn-secondary flex items-center justify-center gap-2 cursor-pointer">
+                      <input type="file" className="hidden" accept=".zip,.cbz,.epub" onChange={handleUpload} />
+                      <Upload className="w-4 h-4" />
+                      Upload File
+                    </label>
+                  )}
                 </div>
               </motion.div>
             ) : (

@@ -270,15 +270,15 @@ const handleUninstall = (id: string) => {
                           }} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-bold text-sm truncate">{s.name}</h3>
-                            <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 bg-red-600/15 border border-red-500/20 rounded text-red-400">built-in</span>
-                            {s.nsfw && <span title="NSFW"><ShieldAlert className="w-3 h-3 text-red-500" /></span>}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="font-bold text-sm truncate max-w-[120px] sm:max-w-none">{s.name}</h3>
+                            <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 bg-red-600/15 border border-red-500/20 rounded text-red-400 shrink-0">built-in</span>
+                            {s.nsfw && <span title="NSFW" className="shrink-0"><ShieldAlert className="w-3 h-3 text-red-500" /></span>}
                           </div>
                           <div className="flex items-center gap-2 mt-1">
-                            <span className="text-[9px] font-black uppercase tracking-widest text-white/20 bg-white/5 px-1.5 py-0.5 rounded">{s.lang}</span>
-                            <span className="text-[9px] font-medium text-white/20">v{s.version}</span>
-                            {isDisabled && <span className="text-[9px] font-black uppercase tracking-widest text-white/20">deactivated</span>}
+                            <span className="text-[9px] font-black uppercase tracking-widest text-white/20 bg-white/5 px-1.5 py-0.5 rounded shrink-0">{s.lang}</span>
+                            <span className="text-[9px] font-medium text-white/20 shrink-0">v{s.version}</span>
+                            {isDisabled && <span className="text-[9px] font-black uppercase tracking-widest text-white/20 shrink-0">deactivated</span>}
                           </div>
                         </div>
                         <button

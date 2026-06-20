@@ -29,6 +29,7 @@ import { cn } from '../lib/utils'
 import { useAppStore } from '../lib/store'
 import { markRead, getReadChapters } from '../lib/readTracking'
 import { ExtensionManager } from '../lib/extensions'
+import { ReaderPageImage } from '../components/ReaderPageImage'
 
 const fac = new FastAverageColor()
 
@@ -828,7 +829,7 @@ export default function Reader() {
                 transition={{ duration: 0.18 }}
                 className="h-full w-full flex items-center justify-center p-4"
               >
-                <img
+                <ReaderPageImage
                   src={getImageUrl(pages[currentPage - 1])}
                   alt={`Page ${currentPage}`}
                   className={cn(
@@ -857,7 +858,7 @@ export default function Reader() {
                 viewport={{ once: true, margin: "400px" }}
                 className="relative w-full"
               >
-                <img
+                <ReaderPageImage
                   src={getImageUrl(page)}
                   alt={`Page ${idx + 1}`}
                   className={cropBordersWebtoon ? "w-full object-cover" : "w-full h-auto"}
@@ -893,7 +894,7 @@ export default function Reader() {
                 transition={{ duration: 0.15 }}
                 className={cn("h-full w-full flex items-center justify-center p-4", showSpread && "gap-1")}
               >
-                <img
+                <ReaderPageImage
                   src={getImageUrl(pages[currentPage - 1])}
                   alt={`Page ${currentPage}`}
                   className={cn(
@@ -909,7 +910,7 @@ export default function Reader() {
                   style={cssFilter ? { filter: cssFilter } : undefined}
                 />
                 {showSpread && spreadPage2Idx < pages.length && (
-                  <img
+                  <ReaderPageImage
                     src={getImageUrl(pages[spreadPage2Idx])}
                     alt={`Page ${spreadPage2Idx + 1}`}
                     className="shadow-2xl rounded-sm object-contain max-h-[90dvh] max-w-[50%]"

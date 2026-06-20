@@ -259,6 +259,11 @@ function App() {
     )
   }
 
+  const isNative = '__TAURI_INTERNALS__' in window || 'Capacitor' in window
+  if (location.pathname === '/' && isNative) {
+    return <Navigate to="/r" replace />
+  }
+
   const noShell = ['/', '/login', '/register', '/terms', '/onboarding'].includes(location.pathname)
 
   if (noShell) {

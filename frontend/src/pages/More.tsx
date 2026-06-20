@@ -54,6 +54,13 @@ export default function MorePage() {
     await openUpdateUrl(updateInfo)
   }
 
+  const isAdmin = email === 'zenmisan@gmail.com'
+  const filteredRows = ROWS.filter(row => {
+    if (row.path === '/downloads' && !isAdmin) return false
+    if (row.path === '/settings/library' && !isAdmin) return false
+    return true
+  })
+
   return (
     <div className="p-6 md:p-12 max-w-xl mx-auto min-h-full">
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
@@ -126,7 +133,7 @@ export default function MorePage() {
         <section>
           <p className="text-[10px] font-black uppercase tracking-[.2em] text-white/25 mb-3 px-1">Navigation</p>
           <div className="space-y-1">
-            {ROWS.map((row, i) => (
+            {filteredRows.map((row, i) => (
               <motion.button
                 key={row.label}
                 initial={{ opacity: 0, x: -8 }}

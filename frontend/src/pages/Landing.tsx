@@ -67,7 +67,7 @@ const PLATFORMS = [
     badge: 'Native APK',
     desc: 'Volume key page-turn, biometric lock, and background chapter syncing.',
     cta: 'Download APK',
-    href: 'https://github.com/zenmisan/manga-dl/releases',
+    href: 'https://gyivwfweldwvzccbpgoz.supabase.co/storage/v1/object/public/manga-library/releases/MangaOS.apk',
     internal: false,
   },
 ]
@@ -82,7 +82,7 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#050505] text-[#fafafa]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+    <div className="min-h-screen bg-[#050505] text-[#fafafa]" style={{ fontFamily: "'Inter', sans-serif" }}>
 
       {/* ── HERO ────────────────────────────────────────────── */}
       <section className="relative min-h-[100dvh] flex flex-col overflow-hidden">
@@ -135,8 +135,8 @@ export default function LandingPage() {
               transition={{ duration: 0.75, delay: 0.2, ease: [0.21, 1.02, 0.73, 1] }}
             >
               <h1
-                className="text-[clamp(4.5rem,16vw,12rem)] leading-none font-black uppercase tracking-tighter"
-                style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+                className="text-[clamp(4.5rem,16vw,12rem)] leading-none font-normal uppercase tracking-wider"
+                style={{ fontFamily: "'Anton', sans-serif" }}
               >
                 Read
               </h1>
@@ -149,8 +149,8 @@ export default function LandingPage() {
               transition={{ duration: 0.75, delay: 0.3, ease: [0.21, 1.02, 0.73, 1] }}
             >
               <h1
-                className="text-[clamp(4.5rem,16vw,12rem)] leading-none font-black uppercase tracking-tighter text-red-500"
-                style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+                className="text-[clamp(4.5rem,16vw,12rem)] leading-none font-normal uppercase tracking-wider text-red-500"
+                style={{ fontFamily: "'Anton', sans-serif" }}
               >
                 Everything.
               </h1>
@@ -216,8 +216,8 @@ export default function LandingPage() {
             ].map(({ val, label }) => (
               <div key={label}>
                 <div
-                  className="text-[clamp(2.5rem,6vw,4rem)] leading-none font-black text-red-500 mb-1.5"
-                  style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+                  className="text-[clamp(2.5rem,6vw,4rem)] leading-none font-normal text-red-500 mb-1.5"
+                  style={{ fontFamily: "'Anton', sans-serif" }}
                 >
                   {val}
                 </div>
@@ -233,8 +233,8 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto">
           <FadeUp className="text-center mb-16">
             <h2
-              className="text-[clamp(2.5rem,7vw,5rem)] font-black uppercase tracking-tighter mb-3"
-              style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+              className="text-[clamp(2.5rem,7vw,5rem)] font-normal uppercase tracking-wide mb-3"
+              style={{ fontFamily: "'Anton', sans-serif" }}
             >
               Built Different
             </h2>
@@ -264,8 +264,8 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto">
           <FadeUp className="text-center mb-16">
             <h2
-              className="text-[clamp(2.5rem,7vw,5rem)] font-black uppercase tracking-tighter mb-3"
-              style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+              className="text-[clamp(2.5rem,7vw,5rem)] font-normal uppercase tracking-wide mb-3"
+              style={{ fontFamily: "'Anton', sans-serif" }}
             >
               How It Works
             </h2>
@@ -278,8 +278,8 @@ export default function LandingPage() {
                 <div className="flex flex-col gap-5">
                   <div className="flex items-center gap-4">
                     <div
-                      className="w-14 h-14 rounded-2xl bg-red-600 flex items-center justify-center font-black text-2xl shadow-xl shadow-red-600/25 flex-shrink-0"
-                      style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+                      className="w-14 h-14 rounded-2xl bg-red-600 flex items-center justify-center font-normal text-2xl shadow-xl shadow-red-600/25 flex-shrink-0"
+                      style={{ fontFamily: "'Anton', sans-serif" }}
                     >
                       {s.n}
                     </div>
@@ -301,8 +301,8 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto">
           <FadeUp className="text-center mb-16">
             <h2
-              className="text-[clamp(2.5rem,7vw,5rem)] font-black uppercase tracking-tighter mb-3"
-              style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+              className="text-[clamp(2.5rem,7vw,5rem)] font-normal uppercase tracking-wide mb-3"
+              style={{ fontFamily: "'Anton', sans-serif" }}
             >
               Every Platform
             </h2>
@@ -355,8 +355,8 @@ export default function LandingPage() {
               <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 80% 60% at 50% 0%, rgba(220,38,38,.12) 0%, transparent 70%)' }} />
               <div className="relative">
                 <h2
-                  className="text-[clamp(2rem,6vw,3.5rem)] font-black uppercase tracking-tighter leading-none mb-3"
-                  style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+                  className="text-[clamp(2rem,6vw,3.5rem)] font-normal uppercase tracking-wide leading-none mb-3"
+                  style={{ fontFamily: "'Anton', sans-serif" }}
                 >
                   Start your library<br />
                   <span className="text-red-500">in 30 seconds.</span>

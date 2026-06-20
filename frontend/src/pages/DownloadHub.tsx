@@ -4,7 +4,7 @@ import { Download, Monitor, Apple, Smartphone, Laptop } from 'lucide-react'
 
 type OS = 'windows' | 'mac' | 'linux' | 'android' | 'ios' | 'unknown'
 
-const GITHUB_RELEASES_URL = "https://github.com/zenmisan/manga-dl/releases/latest"
+const SUPABASE_RELEASES_URL = "https://gyivwfweldwvzccbpgoz.supabase.co/storage/v1/object/public/manga-library/releases"
 
 export default function DownloadHub() {
   const [detectedOS, setDetectedOS] = useState<OS>('unknown')
@@ -25,11 +25,11 @@ export default function DownloadHub() {
 
   const getPrimaryDownload = () => {
     switch (detectedOS) {
-      case 'windows': return { label: 'Download for Windows', icon: Monitor, url: `${GITHUB_RELEASES_URL}/download/MangaOS.msi` }
-      case 'mac': return { label: 'Download for macOS', icon: Apple, url: `${GITHUB_RELEASES_URL}/download/MangaOS.dmg` }
-      case 'linux': return { label: 'Download for Linux', icon: Laptop, url: `${GITHUB_RELEASES_URL}/download/MangaOS.AppImage` }
-      case 'android': return { label: 'Download for Android', icon: Smartphone, url: `${GITHUB_RELEASES_URL}/download/MangaOS.apk` }
-      default: return { label: 'Go to Releases', icon: Download, url: GITHUB_RELEASES_URL }
+      case 'windows': return { label: 'Download for Windows', icon: Monitor, url: `${SUPABASE_RELEASES_URL}/MangaOS.msi` }
+      case 'mac': return { label: 'Download for macOS', icon: Apple, url: `${SUPABASE_RELEASES_URL}/MangaOS.dmg` }
+      case 'linux': return { label: 'Download for Linux', icon: Laptop, url: `${SUPABASE_RELEASES_URL}/MangaOS.AppImage` }
+      case 'android': return { label: 'Download for Android', icon: Smartphone, url: `${SUPABASE_RELEASES_URL}/MangaOS.apk` }
+      default: return { label: 'Download APK', icon: Download, url: `${SUPABASE_RELEASES_URL}/MangaOS.apk` }
     }
   }
 
@@ -74,16 +74,16 @@ export default function DownloadHub() {
           <div className="mt-16 pt-8 border-t border-white/10">
             <h3 className="text-xs font-bold uppercase tracking-widest text-white/30 mb-6">Other Platforms</h3>
             <div className="flex flex-wrap justify-center gap-4">
-              <a href={`${GITHUB_RELEASES_URL}/download/MangaOS.msi`} className="px-4 py-2 glass-panel text-sm font-bold text-white/60 hover:text-white flex items-center gap-2">
+              <a href={`${SUPABASE_RELEASES_URL}/MangaOS.msi`} className="px-4 py-2 glass-panel text-sm font-bold text-white/60 hover:text-white flex items-center gap-2">
                 <Monitor className="w-4 h-4" /> Windows
               </a>
-              <a href={`${GITHUB_RELEASES_URL}/download/MangaOS.dmg`} className="px-4 py-2 glass-panel text-sm font-bold text-white/60 hover:text-white flex items-center gap-2">
+              <a href={`${SUPABASE_RELEASES_URL}/MangaOS.dmg`} className="px-4 py-2 glass-panel text-sm font-bold text-white/60 hover:text-white flex items-center gap-2">
                 <Apple className="w-4 h-4" /> Mac
               </a>
-              <a href={`${GITHUB_RELEASES_URL}/download/MangaOS.AppImage`} className="px-4 py-2 glass-panel text-sm font-bold text-white/60 hover:text-white flex items-center gap-2">
+              <a href={`${SUPABASE_RELEASES_URL}/MangaOS.AppImage`} className="px-4 py-2 glass-panel text-sm font-bold text-white/60 hover:text-white flex items-center gap-2">
                 <Laptop className="w-4 h-4" /> Linux
               </a>
-              <a href={`${GITHUB_RELEASES_URL}/download/MangaOS.apk`} className="px-4 py-2 glass-panel text-sm font-bold text-white/60 hover:text-white flex items-center gap-2">
+              <a href={`${SUPABASE_RELEASES_URL}/MangaOS.apk`} className="px-4 py-2 glass-panel text-sm font-bold text-white/60 hover:text-white flex items-center gap-2">
                 <Smartphone className="w-4 h-4" /> Android
               </a>
             </div>

@@ -16,23 +16,99 @@ log = logging.getLogger(__name__)
 
 
 async def download_image(client: AsyncSession, url: str, dest: Path, filename: str):
-    """Download a single image to dest/filename."""
+    """Download a single image to dest/filename, descrambling it if metadata is present in the hash fragment."""
+    import urllib.parse
+    import json
+
     dest.mkdir(parents=True, exist_ok=True)
     out = dest / filename
     if out.exists():
         return
 
+    # Parse and strip any '#' hash fragments from the URL.
+    parts = url.split("#", 1)
+    clean_url = parts[0]
+    fragment = parts[1] if len(parts) > 1 else ""
+
+    descramble_data = None
+    if fragment:
+        try:
+            decoded_fragment = urllib.parse.unquote(fragment)
+            if decoded_fragment.startswith("{"):
+                data = json.loads(decoded_fragment)
+                if (isinstance(data.get("tiles"), list) and 
+                    isinstance(data.get("tileCols"), (int, float)) and 
+                    isinstance(data.get("tileRows"), (int, float))):
+                    descramble_data = {
+                        "tiles": [int(x) for x in data["tiles"]],
+                        "tileCols": int(data["tileCols"]),
+                        "tileRows": int(data["tileRows"]),
+                    }
+        except Exception as e:
+            log.warning("Failed to parse descramble fragment: %s", e)
+
     try:
-        resp = await client.get(url, timeout=30.0)
+        resp = await client.get(clean_url, timeout=30.0)
         # curl_cffi uses status_code
         if resp.status_code != 200:
-            log.warning("Failed to download %s: Status %s", url, resp.status_code)
+            log.warning("Failed to download %s: Status %s", clean_url, resp.status_code)
             return
 
-        out.write_bytes(resp.content)
+        content = resp.content
+
+        # Reconstruct image if descramble metadata is present
+        if descramble_data:
+            try:
+                img = Image.open(BytesIO(content))
+                width, height = img.size
+
+                cols = descramble_data["tileCols"]
+                rows = descramble_data["tileRows"]
+                tiles = descramble_data["tiles"]
+
+                tile_w = width // cols
+                tile_h = height // rows
+
+                new_width = tile_w * cols
+                new_height = tile_h * rows
+
+                descrambled_img = Image.new(img.mode, (new_width, new_height))
+
+                for w, j in enumerate(tiles):
+                    src_col = w % cols
+                    src_row = w // cols
+                    dst_col = j % cols
+                    dst_row = j // cols
+
+                    box = (
+                        src_col * tile_w,
+                        src_row * tile_h,
+                        (src_col + 1) * tile_w,
+                        (src_row + 1) * tile_h
+                    )
+                    tile = img.crop(box)
+
+                    dst_box = (
+                        dst_col * tile_w,
+                        dst_row * tile_h,
+                        (dst_col + 1) * tile_w,
+                        (dst_row + 1) * tile_h
+                    )
+                    descrambled_img.paste(tile, dst_box)
+
+                fmt = img.format or "JPEG"
+                out_buf = BytesIO()
+                descrambled_img.save(out_buf, format=fmt)
+                content = out_buf.getvalue()
+                log.info("Successfully descrambled downloaded image %s", filename)
+            except Exception as e:
+                log.error("Failed to descramble image %s: %s", filename, e)
+
+        out.write_bytes(content)
     except Exception as exc:
         log.warning("Failed to download %s: %s", url, exc)
         raise
+
 
 
 def _safe_filename(s: str) -> str:
@@ -131,7 +207,8 @@ async def download_chapter_to_cbz(
         timeout=60.0,
     ) as client:
         for i, url in enumerate(page_urls, start=1):
-            ext = "." + url.split("?")[0].split(".")[-1].lower()
+            url_no_fragment = url.split("#")[0]
+            ext = "." + url_no_fragment.split("?")[0].split(".")[-1].lower()
             if ext not in (".jpg", ".jpeg", ".png", ".webp", ".gif"):
                 ext = ".jpg"
             filename = f"{i:04d}{ext}"

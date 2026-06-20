@@ -28,76 +28,22 @@ Last updated: 2026-06-14
 
 ---
 
-## PHASE C — Landing Page + Auth Routing (NEXT UP)
+## PHASE C — Landing Page + Auth Routing (DONE ✅)
 
-### C1. Route Restructure
-- [ ] Change `/` route → `Landing.tsx` (new page)
-- [ ] Add `/r` route → `Dashboard` (the app)
-- [ ] Update sidebar nav: Library path `'/'` → `'/r'`
-- [ ] Update sidebar logo link `'/'` → `'/r'`
-- [ ] `Login.tsx`: change `navigate('/')` → `navigate('/r')` after success
+- [x] C1. Route Restructure (LandingPage at `/`, Dashboard at `/r`)
+- [x] C2. Auth State Wiring (Supabase session in `App.tsx`, user profile in Sidebar)
+- [x] C3. Landing Page (`Landing.tsx` with Hero, Features, Platforms)
+- [x] C4. SEO (`index.html` tags, `robots.txt`, `sitemap.xml`)
 
-### C2. Auth State Wiring
-- [ ] `App.tsx`: add `supabase.auth.getSession()` on mount + `onAuthStateChange` listener
-- [ ] Store session in React state (not Zustand — ephemeral)
-- [ ] Pass session down via context or prop
-- [ ] Sidebar: show user avatar (initials circle) + email when logged in
-- [ ] Sidebar: show red "Sign In" button when logged out
-- [ ] Add "Sign Out" action in sidebar when logged in
+## PHASE D — Android UI Restructure (DONE ✅)
 
-### C3. Landing Page (`frontend/src/pages/Landing.tsx`)
-Sections in order:
+- [x] D1. Bottom Nav (Library, Updates, Search, Browse, More)
+- [x] D2. More Page (`More.tsx` with Incognito, History, Stats, Settings)
+- [x] D3. Library Improvements (Unread badges, 2-column, Categories, Batch select)
+- [x] D4. MangaDetail Improvements (Hero cover, FAB, Read indicators)
+- [x] D5. Browse Page Restructure (Sources/Extensions/Migrate tabs)
+- [x] D6. Settings sub-pages (General, Reader, Library, Trackers, System)
 
-**Hero** (100dvh, full screen)
-- Background: `#050505` + radial red glow at center top + CSS grain texture overlay
-- Display font: `Bebas Neue` (via Google Fonts) for headline
-- Headline: **"Read Everything. Own Everything."**
-- Subhead: "50+ sources. Offline reading. AniList sync. Free, forever."
-- CTA 1: "Start Reading" → `/r` (red filled pill button)
-- CTA 2: "Sign In" → `/login` (ghost outline button)
-- Framer Motion: staggered word-by-word reveal, spring easing
-- Faint manga panel grid lines in background (CSS, low opacity)
-
-**Stats Strip** (narrow band)
-- `50+` Sources · `3` Platforms · `∞` Chapters · `0$` Cost
-- Large numbers in red, thin uppercase labels
-
-**Features Grid** (6 cards, 2-col mobile / 3-col desktop)
-- Offline Reading (CBZ/EPUB download)
-- 50+ Sources (MangaDex, MangaKatana, Komga, Suwayomi...)
-- Cross-Device Sync (read state, categories, notes via Supabase)
-- Tracker Integration (AniList, MAL, Kitsu, MU, Shikimori, Bangumi)
-- 3 Platforms (Web PWA + Desktop Tauri + Android APK)
-- No Ads, No DRM, No Limits
-- Each card: glass panel, icon, title, short description, subtle red border on hover
-- Framer Motion: scroll-triggered reveal, stagger
-
-**How It Works** (3 steps)
-1. Search → 50+ sources simultaneously
-2. Read or Download → stream online or save CBZ offline
-3. Track → syncs with AniList/MAL automatically
-
-**Platform Section** (3 cards)
-- Web PWA → "Open in Browser" → `/r`
-- Desktop → "Download for macOS/Windows/Linux" → `/download`
-- Android → "Download APK" → GitHub releases link
-- Each card: platform icon, name, badge, CTA link
-
-**Final CTA** (dark card with red glow border)
-- "Start your library in 30 seconds."
-- Email input pre-filling → `/register?email=...`
-- Microcopy: "No credit card. No ads."
-
-**Footer**
-- Logo · Library `/r` · Sign In `/login` · Help `/help` · GitHub link
-- Copyright line
-
-### C4. SEO (in `frontend/index.html`)
-- `<title>` manga-dl — Read & Download Manga from 50+ Sources, Free
-- `<meta name="description">` Manga reader for web, desktop, and Android...
-- Open Graph tags (og:title, og:description, og:image)
-- Schema JSON-LD: SoftwareApplication
-- `frontend/public/robots.txt`
 - `frontend/public/sitemap.xml`
 
 ---
@@ -167,20 +113,20 @@ Add Tachiyomi-style empty states to:
 
 ### E1. Sidebar Enhancement
 Current sidebar has all nav items. Add:
-- User avatar / Sign In section at very bottom (above Help)
-- Active indicator: left border accent (red) not just icon color
-- Collapsible sidebar (icon-only mode) for smaller windows
+- [x] User avatar / Sign In section at very bottom (above Help)
+- [ ] Active indicator: left border accent (red) not just icon color
+- [x] Collapsible sidebar (icon-only mode) for smaller windows
 
 ### E2. Desktop-specific Layout
-- Library: support 4-6 column grid (already have gridColumns)
-- MangaDetail: two-column layout on wide screens (cover+info left, chapters right)
-- Reader: keyboard shortcut overlay on first open
-- Settings: two-panel layout (category list left, content right) like macOS System Preferences
+- [x] Library: support 4-6 column grid (already have gridColumns)
+- [ ] MangaDetail: two-column layout on wide screens (cover+info left, chapters right)
+- [ ] Reader: keyboard shortcut overlay on first open
+- [x] Settings: two-panel layout (category list left, content right) like macOS System Preferences
 
 ### E3. Window Chrome
-- Custom titlebar (Tauri) with drag region
-- Traffic light buttons (close/min/max) or standard Windows chrome
-- Menu bar: File, Library, View, Help
+- [ ] Custom titlebar (Tauri) with drag region
+- [ ] Traffic light buttons (close/min/max) or standard Windows chrome
+- [ ] Menu bar: File, Library, View, Help
 
 ---
 
@@ -204,9 +150,9 @@ Already planned above.
 
 ## PHASE G — Known Remaining Code Issues
 
-- [ ] Manga metadata overrides (`manga-dl-meta-overrides`) still localStorage only
+- [x] Manga metadata overrides (`manga-dl-meta-overrides`) still localStorage only (DONE — syncs to manga_overrides Supabase table)
 - [ ] Source migration doesn't rename downloaded files on disk
-- [ ] Heatmap counts downloads not reads
+- [x] Heatmap counts downloads not reads (DONE — endpoint aggregates from ReadingProgress table)
 - [ ] Search shows source headers even with 0 results
 - [ ] Search filter state resets on tab switch
 - [ ] Public profile shows UUID (no display_name system)
@@ -231,6 +177,16 @@ Already planned above.
 
 ---
 
+## PHASE I — Multi-Device Native Access Control & Direct Delivery (DONE ✅)
+
+- [x] Configure native wrappers to bypass landing page on Tauri and Capacitor
+- [x] Restrict download/library feature access strictly to `zenmisan@gmail.com`
+- [x] Enable direct downloads from Supabase Storage instead of redirecting to GitHub
+- [x] Correct tablet width grid layout card overlaps in Sources.tsx
+- [x] Set display font to Anton and text font to Inter globally
+
+---
+
 ## Implementation Order (recommended)
 
 1. **Phase C** — Landing page + auth routing (highest user-facing impact)
@@ -239,3 +195,4 @@ Already planned above.
 4. **Phase E** — Desktop layout improvements
 5. **Phase F** — SEO/marketing meta
 6. **Phase G** — Fix remaining code issues (low priority, mostly polish)
+7. **Phase I** — Multi-Device Native Access Control & Direct Delivery (completed)

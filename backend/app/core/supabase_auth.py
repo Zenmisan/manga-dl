@@ -34,3 +34,24 @@ async def get_current_user(request: Request) -> str:
     except Exception as e:
         log.warning("JWT validation failed: %s", e)
         raise HTTPException(status_code=401, detail="Invalid token.")
+
+
+async def get_current_user_email(request: Request) -> str | None:
+    """Extract and verify Supabase JWT, returning user's email if present."""
+    settings = get_settings()
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        return None
+
+    token = auth[len("Bearer "):]
+
+    try:
+        if not settings.SUPABASE_JWT_SECRET:
+            payload = pyjwt.decode(token, options={"verify_signature": False})
+        else:
+            payload = pyjwt.decode(token, settings.SUPABASE_JWT_SECRET, algorithms=["HS256"], audience="authenticated")
+        return payload.get("email")
+    except Exception as e:
+        log.warning("JWT email extraction failed: %s", e)
+        return None
+

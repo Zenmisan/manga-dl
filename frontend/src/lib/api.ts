@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { supabase } from './supabase'
 
 const isTauri = !!(window as unknown as Record<string, unknown>).__TAURI_INTERNALS__
 const isCapacitor = !!(window as unknown as Record<string, { isNativePlatform?: () => boolean }>).Capacitor?.isNativePlatform?.()
@@ -25,10 +26,21 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
-api.interceptors.request.use((config) => {
+api.interceptors.request.use(async (config) => {
   const apiKey = localStorage.getItem('manga-api-key')
   if (apiKey) config.headers['X-API-Key'] = apiKey
+
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.access_token) {
+      config.headers['Authorization'] = `Bearer ${session.access_token}`
+    }
+  } catch {
+    // Ignore if session can't be fetched
+  }
+
   return config
 })
 
 export default api
+
