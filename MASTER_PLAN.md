@@ -113,20 +113,20 @@ Add Tachiyomi-style empty states to:
 
 ### E1. Sidebar Enhancement
 Current sidebar has all nav items. Add:
-- User avatar / Sign In section at very bottom (above Help)
-- Active indicator: left border accent (red) not just icon color
-- Collapsible sidebar (icon-only mode) for smaller windows
+- [x] User avatar / Sign In section at very bottom (above Help)
+- [ ] Active indicator: left border accent (red) not just icon color
+- [x] Collapsible sidebar (icon-only mode) for smaller windows
 
 ### E2. Desktop-specific Layout
-- Library: support 4-6 column grid (already have gridColumns)
-- MangaDetail: two-column layout on wide screens (cover+info left, chapters right)
-- Reader: keyboard shortcut overlay on first open
-- Settings: two-panel layout (category list left, content right) like macOS System Preferences
+- [x] Library: support 4-6 column grid (already have gridColumns)
+- [ ] MangaDetail: two-column layout on wide screens (cover+info left, chapters right)
+- [ ] Reader: keyboard shortcut overlay on first open
+- [x] Settings: two-panel layout (category list left, content right) like macOS System Preferences
 
 ### E3. Window Chrome
-- Custom titlebar (Tauri) with drag region
-- Traffic light buttons (close/min/max) or standard Windows chrome
-- Menu bar: File, Library, View, Help
+- [ ] Custom titlebar (Tauri) with drag region
+- [ ] Traffic light buttons (close/min/max) or standard Windows chrome
+- [ ] Menu bar: File, Library, View, Help
 
 ---
 
@@ -150,9 +150,9 @@ Already planned above.
 
 ## PHASE G — Known Remaining Code Issues
 
-- [ ] Manga metadata overrides (`manga-dl-meta-overrides`) still localStorage only
+- [x] Manga metadata overrides (`manga-dl-meta-overrides`) still localStorage only (DONE — syncs to manga_overrides Supabase table)
 - [ ] Source migration doesn't rename downloaded files on disk
-- [ ] Heatmap counts downloads not reads
+- [x] Heatmap counts downloads not reads (DONE — endpoint aggregates from ReadingProgress table)
 - [ ] Search shows source headers even with 0 results
 - [ ] Search filter state resets on tab switch
 - [ ] Public profile shows UUID (no display_name system)

@@ -36,7 +36,7 @@ Volume keys (Kotlin plugin), back button handlers, KeepAwake, StatusBar ambiligh
 - **Removed** all Python scraper providers (MangaDex, AsuraScans, OmegaScans, MangaKatana) — backend is now infra-only (proxy + DB + downloads), no scraping.
 - Manga sources are JS extensions running in Web Workers (Tachiyomi-style), managed client-side via `ExtensionManager`.
 - New backend proxy endpoints so sandboxed extensions can bypass CORS: `/manga/proxy/html`, `/manga/proxy/json`, `/manga/image-proxy`.
-- Fixed AsuraScans (`__NEXT_DATA__` JSON parsing for chapter pages — site is Next.js, images are client-rendered, never in static HTML) and MangaKatana (`data-src`/`data-lazy-src` cover fallback) extensions.
+- Modernized Asura Scans extension for its Astro migration (scraping pages directly from static HTML images) and fixed MangaKatana extension to support trailing commas in JS image arrays.
 - Search "All" tab fans out across every loaded extension and merges results (previously called a now-deleted backend endpoint and silently did nothing).
 - `Subscribe` now requires the frontend to send manga metadata in the request body — backend has no provider to fetch it from anymore.
 - Community (non-built-in) Tachiyomi extensions disabled for install on web — they're Android APKs, not JS, can't run in a browser.
@@ -72,14 +72,16 @@ Volume keys (Kotlin plugin), back button handlers, KeepAwake, StatusBar ambiligh
 - **Frontend Refactor**: Updated `Stats.tsx` to prioritize reading metrics (reads per day/year) while seamlessly falling back to download metrics for offline/unauthenticated users.
 - **Improved Accuracy**: The heatmap and activity charts now accurately reflect true reading engagement rather than automated download queues.
 
+### Phase 16 ✅ Security & Sync Gates (2026-06-17)
+- **Biometric App Lock (Android)**: Integrated `@aparajita/capacitor-biometric-auth` in `App.tsx` and custom toggles in General settings.
+- **WiFi & Charging Sync Gates**: Added sync guards using `@capacitor/network` and the Battery Status API, configurable in System settings.
+
 ---
 
 ## What Remains 🔲
 
 | Feature | Priority |
 |---------|----------|
-| Biometric / PIN lock (Android) | Medium |
-| WiFi-only / charging-only gates for sync/download | Low |
 | WebView fallback for Cloudflare sources | Medium |
 | RAR/CBR archive support | Low |
 | Local folder scan (bulk import from directory) | Low |
