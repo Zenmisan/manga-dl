@@ -77,11 +77,12 @@ Volume keys (Kotlin plugin), back button handlers, KeepAwake, StatusBar ambiligh
 - **WiFi & Charging Sync Gates**: Added sync guards using `@capacitor/network` and the Battery Status API, configurable in System settings.
 
 ### Phase 17 ✅ Multi-Device Native Access Control & Direct Delivery (2026-06-20)
-- **Native App Bypassing**: Configured desktop (Tauri) and mobile (Capacitor) wrappers to bypass the marketing landing page and route directly to `/r` (library), speeding up time-to-content.
+- **Auth-Aware Landing Page & Redirection**: Configured the marketing landing page (`/`) to show only when the user is logged out on all devices (including Tauri/Capacitor). Logged-in users are automatically routed to the library dashboard (`/r`) with a smooth `loadingSession` state checking process to prevent flashes. Logging out cleans user session states and redirects the user back to the landing page.
 - **Typography Upgrade**: Replaced display fonts on the landing page and globally with **Anton** (for hero titles, numbers, and headers) + **Inter** (for UI metadata, text, and descriptions) to create a premium, clean design.
 - **Tablet Width Layout Fix**: Resolved card/tag overlapping on `Sources.tsx` for tablet viewports (843px - 1213px) using dynamic flexbox column wrapping.
 - **Access Control Restriction**: Restricted backend `/library` write APIs, file uploads, categories, and download buttons strictly to `zenmisan@gmail.com`.
 - **Direct Supabase Downloads**: Redirected app releases links on the landing page and download hub to serve directly from Supabase Storage instead of redirecting users to GitHub.
+- **Onboarding Flow Refactor**: Shifted first-run onboarding to trigger dynamically upon entering reader mode for the first time, preserving the setup state on the local device across different account sign-ins.
 - **Strategic Analyses Report**: Authored comprehensive analytical reports (SWOT, Gap, User/UX, Feature, Heuristic, Cost-Benefit, Risk, and SCAMPER).
 
 ---

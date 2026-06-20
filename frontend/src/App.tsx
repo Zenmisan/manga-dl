@@ -91,6 +91,7 @@ function App() {
   const { theme, amoledBlack, syncWifiOnly, syncChargingOnly, appLockEnabled } = useAppStore()
   const [locked, setLocked] = React.useState(false)
   const [session, setSession] = React.useState<Session | null>(null)
+  const [loadingSession, setLoadingSession] = React.useState(true)
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(() => localStorage.getItem('sidebar-collapsed') === 'true')
   const [showSplash, setShowSplash] = React.useState(() => {
     if (typeof sessionStorage === 'undefined') return false
@@ -109,10 +110,28 @@ function App() {
   }, [])
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => setSession(session))
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+      setLoadingSession(false)
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
+      setSession(s)
+      setLoadingSession(false)
+      if (event === 'SIGNED_OUT') {
+        // Clear Supabase local storage keys
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i)
+          if (key && key.startsWith('sb-')) {
+            localStorage.removeItem(key)
+            i--
+          }
+        }
+        navigate('/')
+        window.location.reload()
+      }
+    })
     return () => subscription.unsubscribe()
-  }, [])
+  }, [navigate])
 
   const handleSignOut = async () => {
     try {
@@ -120,17 +139,6 @@ function App() {
     } catch (e) {
       console.error(e)
     }
-    // Clear Supabase local storage keys
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i)
-      if (key && key.startsWith('sb-')) {
-        localStorage.removeItem(key)
-        i--
-      }
-    }
-    setSession(null)
-    navigate('/login')
-    window.location.reload()
   }
 
   // Hide native Capacitor splash screen after web app is ready
@@ -278,8 +286,11 @@ function App() {
     )
   }
 
-  const isNative = '__TAURI_INTERNALS__' in window || 'Capacitor' in window
-  if (location.pathname === '/' && isNative) {
+  if (loadingSession) {
+    return <div className="min-h-screen bg-[#050505]" />
+  }
+
+  if (location.pathname === '/' && session) {
     return <Navigate to="/r" replace />
   }
 

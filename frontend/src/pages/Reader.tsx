@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { loadLocalMangaIntoSession } from '../lib/localLibrary'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import api from '../lib/api'
 import { supabase } from '../lib/supabase'
 import { Capacitor } from '@capacitor/core'
@@ -46,6 +46,14 @@ function extractHex(rgba: string): string {
 export default function Reader() {
   const { mangaTitle, filename } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
+
+  useEffect(() => {
+    if (!localStorage.getItem('onboarded')) {
+      navigate(`/onboarding?redirect=${encodeURIComponent(location.pathname + location.search)}`, { replace: true })
+    }
+  }, [navigate, location])
+
   const { readingMode, setReadingMode, upscaling, setUpscaling, readerFilters, setReaderFilters, resetReaderFilters, imageScale, setImageScale, incognitoMode, skipReadChapters, setSkipReadChapters, cropBorders, dualPageSpread, tapZoneLayout, hapticFeedback, webtoonSidePadding, cropBordersWebtoon } = useAppStore()
 
   const [pages, setPages] = useState<string[]>([])

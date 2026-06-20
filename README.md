@@ -18,9 +18,10 @@ A self-hostable, tri-platform manga reader. Web app, native desktop (Windows/mac
 - **Backup** — JSON export/import, Tachiyomi .tachibk + JSON import, cloud backup (Supabase), auto-backup schedule
 - **Source migration** — move a manga from one source to another, preserving library entry
 - **Cloud sync** — optional Supabase backend for reading progress, library, and backup across devices. Write actions, categories, and downloads are gated strictly to `zenmisan@gmail.com` to optimize backend resource load.
+- **Onboarding** — triggers dynamically on first-time reader open, preserving API/backend setup state on the local device across different account logins.
 - **Tri-platform**:
   - **Web** — PWA (offline-capable), auto-sync subscribed manga every 30 min.
-  - **Desktop (Tauri v2)** — background chapter sync, OS notifications, auto-launch, update checker, drag-drop import, custom download path, Discord Rich Presence. Bypasses marketing page on native launch; builds served via Supabase Storage.
+  - **Desktop (Tauri v2)** — background chapter sync, OS notifications, auto-launch, update checker, drag-drop import, custom download path, Discord Rich Presence. Bypasses marketing page for logged-in sessions or native shells; builds served via Supabase Storage.
   - **Android (Capacitor)** — hardware volume keys, back button, screen keep-on, haptics, status bar ambilight, save to device, download notifications. Direct APK download from Supabase Storage.
 - **Glassmorphic UI** — Tailwind + Framer Motion, dynamic ambilight colour theming from cover art
 

@@ -179,11 +179,13 @@ Already planned above.
 
 ## PHASE I — Multi-Device Native Access Control & Direct Delivery (DONE ✅)
 
-- [x] Configure native wrappers to bypass landing page on Tauri and Capacitor
+- [x] Configure native wrappers and active sessions to bypass landing page on root path
 - [x] Restrict download/library feature access strictly to `zenmisan@gmail.com`
 - [x] Enable direct downloads from Supabase Storage instead of redirecting to GitHub
 - [x] Correct tablet width grid layout card overlaps in Sources.tsx
 - [x] Set display font to Anton and text font to Inter globally
+- [x] Refactor first-time onboarding to trigger only upon reader open (persisted on local device across user accounts)
+- [x] Redirect signed-out users back to the landing page instead of `/login`
 
 ---
 

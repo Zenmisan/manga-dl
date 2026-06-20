@@ -18,7 +18,14 @@ export default function OnboardingPage() {
       localStorage.setItem('manga-backend-url', backendUrl.trim())
     }
     localStorage.setItem('onboarded', '1')
-    navigate('/', { replace: true })
+    
+    const params = new URLSearchParams(window.location.search)
+    const redirectTo = params.get('redirect')
+    if (redirectTo) {
+      navigate(redirectTo, { replace: true })
+    } else {
+      navigate('/', { replace: true })
+    }
   }
 
   const stepIdx = STEPS.indexOf(step)

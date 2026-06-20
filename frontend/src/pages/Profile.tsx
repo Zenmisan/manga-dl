@@ -74,16 +74,6 @@ export default function ProfilePage() {
     } catch (e) {
       console.error(e)
     }
-    // Clear Supabase local storage keys
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i)
-      if (key && key.startsWith('sb-')) {
-        localStorage.removeItem(key)
-        i--
-      }
-    }
-    navigate('/login')
-    window.location.reload()
   }
 
   if (loading) {

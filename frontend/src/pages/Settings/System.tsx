@@ -256,8 +256,11 @@ export default function SystemSettings() {
                 </button>
                 <button
                   onClick={async () => {
-                    await supabase.auth.signOut()
-                    setSupabaseUser(null)
+                    try {
+                      await supabase.auth.signOut()
+                    } catch (e) {
+                      console.error(e)
+                    }
                   }}
                   className="flex items-center justify-center gap-2 px-5 py-2.5 bg-white/5 hover:bg-red-500/20 hover:border-red-500/30 rounded-xl transition-all border border-white/5 text-white/60 hover:text-red-400 font-bold text-xs uppercase tracking-widest"
                 >
