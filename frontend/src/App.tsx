@@ -290,7 +290,11 @@ function App() {
     return <div className="min-h-screen bg-[#050505]" />
   }
 
-  if (location.pathname === '/' && session) {
+  const isTauri = !!(window as unknown as Record<string, unknown>).__TAURI_INTERNALS__
+  const isCapacitor = !!(window as unknown as Record<string, { isNativePlatform?: () => boolean }>).Capacitor?.isNativePlatform?.()
+  const isNative = isTauri || isCapacitor
+
+  if (location.pathname === '/' && (isNative || session)) {
     return <Navigate to="/r" replace />
   }
 

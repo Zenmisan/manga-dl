@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query, Depends
+from fastapi import APIRouter, HTTPException, Query, Depends, Request
 from fastapi.responses import StreamingResponse
 from curl_cffi.requests import AsyncSession as CurlSession
 import logging
@@ -12,8 +12,16 @@ from sqlalchemy import select
 
 from app.database import get_db
 from app.models.manga import MangaRecord
+from app.core.supabase_auth import get_current_user_email
 
 router = APIRouter(prefix="/manga", tags=["manga"])
+
+async def _assert_admin(request: Request):
+    """Raise 403 if the user is not zenmisan@gmail.com."""
+    email = await get_current_user_email(request)
+    if email != "zenmisan@gmail.com":
+        raise HTTPException(status_code=403, detail="Library access is restricted to administrator.")
+
 
 
 class SubscribeMeta(BaseModel):
@@ -156,16 +164,21 @@ async def get_manga_updates(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/sync")
-async def trigger_sync():
+async def trigger_sync(request: Request):
     """Manually trigger one sync cycle for all subscribed manga."""
+    await _assert_admin(request)
     from app.core.tasks import _sync_once
     asyncio.create_task(_sync_once())
     return {"status": "sync started"}
 
 
 @router.get("/subscription/{provider_id}/{manga_id:path}")
-async def get_subscription_status(provider_id: str, manga_id: str, db: AsyncSession = Depends(get_db)):
+async def get_subscription_status(provider_id: str, manga_id: str, request: Request, db: AsyncSession = Depends(get_db)):
     """Get subscription status for a manga."""
+    email = await get_current_user_email(request)
+    if email != "zenmisan@gmail.com":
+        return {"subscribed": False}
+
     record_id = f"{provider_id}:{manga_id}"
     result = await db.execute(select(MangaRecord).where(MangaRecord.id == record_id))
     record = result.scalar_one_or_none()
@@ -173,8 +186,9 @@ async def get_subscription_status(provider_id: str, manga_id: str, db: AsyncSess
 
 
 @router.post("/subscribe/{provider_id}/{manga_id:path}")
-async def toggle_subscribe(provider_id: str, manga_id: str, meta: SubscribeMeta = SubscribeMeta(), db: AsyncSession = Depends(get_db)):
+async def toggle_subscribe(provider_id: str, manga_id: str, request: Request, meta: SubscribeMeta = SubscribeMeta(), db: AsyncSession = Depends(get_db)):
     """Toggle subscription for a manga. Creates a record using provided metadata if it doesn't exist."""
+    await _assert_admin(request)
     record_id = f"{provider_id}:{manga_id}"
     result = await db.execute(select(MangaRecord).where(MangaRecord.id == record_id))
     record = result.scalar_one_or_none()
@@ -208,8 +222,9 @@ async def toggle_subscribe(provider_id: str, manga_id: str, meta: SubscribeMeta 
 
 
 @router.post("/migrate")
-async def migrate_manga_source(req: MigrationRequest, db: AsyncSession = Depends(get_db)):
+async def migrate_manga_source(req: MigrationRequest, request: Request, db: AsyncSession = Depends(get_db)):
     """Migrate manga from one source to another, preserving downloads and subscription."""
+    await _assert_admin(request)
     old_id = f"{req.old_provider}:{req.old_manga_id}"
     result = await db.execute(select(MangaRecord).where(MangaRecord.id == old_id))
     record = result.scalar_one_or_none()
@@ -228,3 +243,4 @@ async def migrate_manga_source(req: MigrationRequest, db: AsyncSession = Depends
 
     await db.commit()
     return {"status": "migrated", "new_id": new_id}
+

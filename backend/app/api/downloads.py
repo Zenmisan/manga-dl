@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, Depends
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, Depends, Request
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -9,8 +9,16 @@ from app.core.queue import download_queue, register_ws_listener, unregister_ws_l
 from app.database import get_db, AsyncSessionLocal
 from app.models.download import DownloadRecord
 from sqlalchemy import delete
+from app.core.supabase_auth import get_current_user_email
 
 router = APIRouter(prefix="/downloads", tags=["downloads"])
+
+async def _assert_admin(request: Request):
+    """Raise 403 if the user is not zenmisan@gmail.com."""
+    email = await get_current_user_email(request)
+    if email != "zenmisan@gmail.com":
+        raise HTTPException(status_code=403, detail="Library access is restricted to administrator.")
+
 
 
 class DownloadRequest(BaseModel):
@@ -20,8 +28,9 @@ class DownloadRequest(BaseModel):
 
 
 @router.post("/queue")
-async def queue_download(req: DownloadRequest):
+async def queue_download(req: DownloadRequest, request: Request):
     """Queue a chapter for download. Fetches page URLs then enqueues."""
+    await _assert_admin(request)
     provider = get_provider(req.provider_id)
     if not provider:
         raise HTTPException(status_code=404, detail=f"Provider '{req.provider_id}' not found")
@@ -61,28 +70,32 @@ async def queue_download(req: DownloadRequest):
 
 
 @router.post("/pause")
-async def pause_downloads():
+async def pause_downloads(request: Request):
     """Pause all queued downloads. In-progress downloads finish first."""
+    await _assert_admin(request)
     download_queue.pause()
     return {"paused": True}
 
 
 @router.post("/resume")
-async def resume_downloads():
+async def resume_downloads(request: Request):
     """Resume the download queue."""
+    await _assert_admin(request)
     download_queue.resume()
     return {"paused": False}
 
 
 @router.get("/queue-status")
-async def queue_status():
+async def queue_status(request: Request):
     """Get current queue pause state."""
+    await _assert_admin(request)
     return {"paused": download_queue.is_paused}
 
 
 @router.post("/cancel/{download_id}")
-async def cancel_download(download_id: str):
+async def cancel_download(download_id: str, request: Request):
     """Cancel a queued or in-progress download."""
+    await _assert_admin(request)
     cancelled = await download_queue.cancel(download_id, AsyncSessionLocal)
     if not cancelled:
         raise HTTPException(status_code=404, detail="Download not found in active queue")
@@ -90,12 +103,12 @@ async def cancel_download(download_id: str):
 
 
 @router.post("/retry/{download_id}")
-async def retry_download(download_id: str, db: AsyncSession = Depends(get_db)):
+async def retry_download(download_id: str, request: Request, db: AsyncSession = Depends(get_db)):
     """Re-queue a failed download using its stored metadata."""
-    result = await db.execute(
+    await _assert_admin(request)
+    record = (await db.execute(
         select(DownloadRecord).where(DownloadRecord.id == download_id)
-    )
-    record = result.scalar_one_or_none()
+    )).scalar_one_or_none()
     if not record:
         raise HTTPException(status_code=404, detail="Download record not found")
 
@@ -125,8 +138,9 @@ async def retry_download(download_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.delete("/history")
-async def clear_history(db: AsyncSession = Depends(get_db)):
+async def clear_history(request: Request, db: AsyncSession = Depends(get_db)):
     """Delete all completed/failed download records."""
+    await _assert_admin(request)
     await db.execute(
         delete(DownloadRecord).where(DownloadRecord.status.in_(["done", "failed"]))
     )
@@ -135,14 +149,16 @@ async def clear_history(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/active")
-async def list_active_downloads():
+async def list_active_downloads(request: Request):
     """List all currently active/queued downloads."""
+    await _assert_admin(request)
     return download_queue.list_active()
 
 
 @router.get("/history")
-async def download_history(db: AsyncSession = Depends(get_db)):
+async def download_history(request: Request, db: AsyncSession = Depends(get_db)):
     """List completed download history from DB."""
+    await _assert_admin(request)
     result = await db.execute(
         select(DownloadRecord).order_by(DownloadRecord.created_at.desc()).limit(100)
     )
@@ -161,6 +177,7 @@ async def download_history(db: AsyncSession = Depends(get_db)):
         }
         for r in records
     ]
+
 
 
 @router.websocket("/ws")

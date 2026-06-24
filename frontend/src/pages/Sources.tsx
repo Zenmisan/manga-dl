@@ -291,7 +291,7 @@ const handleUninstall = (id: string) => {
                           )}
                         >
                           {isDisabled ? <Power className="w-3.5 h-3.5" /> : <PowerOff className="w-3.5 h-3.5" />}
-                          {isDisabled ? 'Activate' : 'Deactivate'}
+                          <span className="hidden xl:inline">{isDisabled ? 'Activate' : 'Deactivate'}</span>
                         </button>
                       </motion.div>
                     )

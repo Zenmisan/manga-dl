@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
 import { Capacitor } from '@capacitor/core'
 import { fetchCbzAsBase64, saveToDeviceStorage, getCbzUrl } from '../lib/nativeDownload'
+import { supabase } from '../lib/supabase'
+
 
 interface DownloadItem {
   id: string
@@ -40,8 +42,26 @@ export default function DownloadsPage() {
   const [paused, setPaused] = useState(false)
   const [retrying, setRetrying] = useState<Set<string>>(new Set())
   const [savingToDevice, setSavingToDevice] = useState<Set<string>>(new Set())
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [loadingSession, setLoadingSession] = useState(true)
+  
+  const isAdmin = userEmail === 'zenmisan@gmail.com'
 
   useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUserEmail(session?.user?.email || null)
+      setLoadingSession(false)
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+      setUserEmail(session?.user?.email || null)
+      setLoadingSession(false)
+    })
+    return () => subscription.unsubscribe()
+  }, [])
+
+  useEffect(() => {
+    if (loadingSession || !isAdmin) return
+
     const fetchData = async () => {
       try {
         const [activeRes, historyRes] = await Promise.all([
@@ -122,7 +142,29 @@ export default function DownloadsPage() {
     }
 
     return () => ws.close()
-  }, [])
+  }, [loadingSession, isAdmin])
+
+  if (loadingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#09090b]">
+        <div className="w-10 h-10 border-4 border-red-500/20 border-t-red-500 rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-[#09090b]">
+        <div className="w-16 h-16 rounded-2xl bg-red-600/10 border border-red-500/20 flex items-center justify-center mb-6">
+          <XCircle className="w-8 h-8 text-red-500" />
+        </div>
+        <h1 className="text-2xl font-bold mb-2">Access Denied</h1>
+        <p className="text-white/40 max-w-sm text-sm">
+          Download queue and history management is restricted to the administrator account.
+        </p>
+      </div>
+    )
+  }
 
   return (
     <div className="p-6 md:p-12 max-w-7xl mx-auto min-h-full">
