@@ -19,73 +19,9 @@ export interface MangaExtension {
 // Providers whose image CDN is CORS-enabled — no backend proxy needed for images
 export const SKIP_PROXY_PROVIDERS = new Set(['mangadex'])
 
-interface WorkerRequest {
-  id: string
-  method: 'search' | 'getMangaDetail' | 'getPages' | 'getPopular' | 'getLatest'
-  args: unknown[]
-}
-
-interface WorkerResponse {
-  id: string
-  result?: unknown
-  error?: string
-}
-
-function createExtensionWorker(jsCode: string, apiBaseURL: string, apiKey: string): Worker {
-  const workerSrc = `
-    const API_BASE = ${JSON.stringify(apiBaseURL)};
-    const API_KEY = ${JSON.stringify(apiKey)};
-
-    const apiFetch = async (path, opts = {}) => {
-      const url = API_BASE + path + (path.includes('?') ? '&' : '?') + 'api_key=' + API_KEY;
-      const res = await fetch(url, opts);
-      if (!res.ok) throw new Error('API error: ' + res.status);
-      return res.json();
-    };
-
-    let ext = null;
-    try {
-      ${jsCode}
-      if (typeof extension !== 'undefined') ext = extension;
-    } catch (e) {
-      console.error('[Extension] Load error:', e);
-    }
-
-    self.onmessage = async (event) => {
-      const { id, method, args } = event.data;
-      try {
-        if (!ext || typeof ext[method] !== 'function') {
-          throw new Error('Method not found: ' + method);
-        }
-        const result = await ext[method](...args);
-        self.postMessage({ id, result });
-      } catch (err) {
-        self.postMessage({ id, error: err.message || String(err) });
-      }
-    };
-  `
-  const blob = new Blob([workerSrc], { type: 'application/javascript' })
-  return new Worker(URL.createObjectURL(blob))
-}
-
-function workerCall(worker: Worker, method: WorkerRequest['method'], args: unknown[]): Promise<unknown> {
-  return new Promise((resolve, reject) => {
-    const id = Math.random().toString(36).slice(2)
-    const handler = (event: MessageEvent<WorkerResponse>) => {
-      if (event.data.id !== id) return
-      worker.removeEventListener('message', handler)
-      if (event.data.error) reject(new Error(event.data.error))
-      else resolve(event.data.result)
-    }
-    worker.addEventListener('message', handler)
-    worker.postMessage({ id, method, args } satisfies WorkerRequest)
-  })
-}
-
 export class ExtensionManager {
   private static instance: ExtensionManager
   public extensions: Map<string, MangaExtension> = new Map()
-  private workers: Map<string, Worker> = new Map()
   private userId = 'guest'
   private builtinIds = new Set<string>()
 
@@ -131,16 +67,12 @@ export class ExtensionManager {
     console.log('[Extensions] Re-initializing manager...')
     this.builtinIds.clear()
     this.extensions.clear()
-    for (const w of this.workers.values()) w.terminate()
-    this.workers.clear()
     return this.init()
   }
 
   setUser(userId: string | null) {
     const newId = userId ?? 'guest'
     if (newId === this.userId) return
-    for (const w of this.workers.values()) w.terminate()
-    this.workers.clear()
     this.extensions.clear()
     this.userId = newId
     this.loadInstalled().then(() => this.loadBuiltins())
@@ -195,11 +127,20 @@ export class ExtensionManager {
       
       const apiKey: string = localStorage.getItem('manga-api-key') || ''
 
-      const oldWorker = this.workers.get(pkgId)
-      if (oldWorker) oldWorker.terminate()
+      const apiFetch = async (path: string, opts = {}) => {
+        const url = apiBaseURL + path + (path.includes('?') ? '&' : '?') + 'api_key=' + apiKey
+        const res = await fetch(url, opts)
+        if (!res.ok) throw new Error('API error: ' + res.status)
+        return res.json()
+      }
 
-      const worker = createExtensionWorker(jsCode, apiBaseURL, apiKey)
-      this.workers.set(pkgId, worker)
+      // Evaluate extension code on the main thread so that it has full access to Web APIs like DOMParser
+      const runner = new Function('apiFetch', `
+        ${jsCode}
+        if (typeof extension !== 'undefined') return extension;
+        throw new Error('Extension object not found');
+      `)
+      const extInstance = runner(apiFetch)
 
       const extension: MangaExtension = {
         id: pkgId,
@@ -208,11 +149,11 @@ export class ExtensionManager {
         version,
         builtin: this.builtinIds.has(pkgId),
         skipProxy,
-        search: (query, page) => workerCall(worker, 'search', [query, page]) as Promise<unknown[]>,
-        getMangaDetail: (id) => workerCall(worker, 'getMangaDetail', [id]),
-        getPages: (id) => workerCall(worker, 'getPages', [id]) as Promise<string[]>,
-        getPopular: (page) => workerCall(worker, 'getPopular', [page]) as Promise<unknown[]>,
-        getLatest: (page) => workerCall(worker, 'getLatest', [page]) as Promise<unknown[]>,
+        search: (query, page) => extInstance.search(query, page),
+        getMangaDetail: (id) => extInstance.getMangaDetail(id),
+        getPages: (id) => extInstance.getPages(id),
+        getPopular: extInstance.getPopular ? (page) => extInstance.getPopular(page) : undefined,
+        getLatest: extInstance.getLatest ? (page) => extInstance.getLatest(page) : undefined,
       }
 
       this.extensions.set(pkgId, extension)
@@ -235,8 +176,6 @@ export class ExtensionManager {
   uninstall(pkgId: string) {
     // Don't allow uninstalling built-ins
     if (this.builtinIds.has(pkgId)) return
-    this.workers.get(pkgId)?.terminate()
-    this.workers.delete(pkgId)
     this.extensions.delete(pkgId)
     const installed = JSON.parse(localStorage.getItem(this.storageKey) || '[]')
     localStorage.setItem(this.storageKey, JSON.stringify(
