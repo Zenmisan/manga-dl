@@ -1,7 +1,7 @@
 import { Capacitor } from '@capacitor/core'
 
 const GITHUB_REPO = 'zenmisan/manga-dl'
-const CURRENT_VERSION = '1.0.0'
+const CURRENT_VERSION = __APP_VERSION__
 
 export interface ReleaseInfo {
   version: string
@@ -55,6 +55,20 @@ export function isWeb(): boolean {
 }
 
 export async function openUpdateUrl(release: ReleaseInfo): Promise<void> {
+  if (isTauri()) {
+    try {
+      const { check } = await import('@tauri-apps/plugin-updater')
+      const { relaunch } = await import('@tauri-apps/plugin-process')
+      const update = await check()
+      if (update?.available) {
+        await update.downloadAndInstall()
+        await relaunch()
+      }
+      return
+    } catch {
+      // fall through to browser open
+    }
+  }
   const url = isAndroid() && release.apkUrl ? release.apkUrl : release.htmlUrl
   window.open(url, '_blank', 'noopener')
 }

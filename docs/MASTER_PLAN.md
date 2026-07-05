@@ -114,18 +114,18 @@ Add Tachiyomi-style empty states to:
 ### E1. Sidebar Enhancement
 Current sidebar has all nav items. Add:
 - [x] User avatar / Sign In section at very bottom (above Help)
-- [ ] Active indicator: left border accent (red) not just icon color
+- [x] Active indicator: left border accent (red) not just icon color
 - [x] Collapsible sidebar (icon-only mode) for smaller windows
 
 ### E2. Desktop-specific Layout
 - [x] Library: support 4-6 column grid (already have gridColumns)
-- [ ] MangaDetail: two-column layout on wide screens (cover+info left, chapters right)
-- [ ] Reader: keyboard shortcut overlay on first open
+- [x] MangaDetail: two-column layout on wide screens (cover+info left, chapters right)
+- [x] Reader: keyboard shortcut overlay on first open
 - [x] Settings: two-panel layout (category list left, content right) like macOS System Preferences
 
 ### E3. Window Chrome
-- [ ] Custom titlebar (Tauri) with drag region
-- [ ] Traffic light buttons (close/min/max) or standard Windows chrome
+- [x] Custom titlebar (Tauri) with drag region
+- [x] Traffic light buttons (close/min/max) or standard Windows chrome
 - [ ] Menu bar: File, Library, View, Help
 
 ---

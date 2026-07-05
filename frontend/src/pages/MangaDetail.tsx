@@ -545,13 +545,16 @@ export default function MangaDetail() {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 md:px-12 -mt-20 md:-mt-32 relative z-10">
-        <div className="flex flex-col md:flex-row gap-8 md:gap-12">
-          {/* Cover Art */}
-          <motion.div 
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="w-48 md:w-64 shrink-0 mx-auto md:mx-0"
-          >
+        <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
+          {/* Left Column: Cover & Details */}
+          <div className="w-full lg:w-[360px] xl:w-[400px] shrink-0 lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto no-scrollbar">
+            <div className="flex flex-col md:flex-row lg:flex-col gap-8 md:gap-12">
+              {/* Cover Art */}
+              <motion.div 
+                initial={{ opacity: 0, y: 40 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="w-48 md:w-64 shrink-0 mx-auto md:mx-0 lg:mx-auto"
+              >
             <div 
               className="aspect-[3/4.5] glass-panel p-2 shadow-2xl transition-shadow duration-1000"
               style={{ boxShadow: `0 25px 50px -12px ${themeColor}` }}
@@ -823,13 +826,16 @@ export default function MangaDetail() {
             </motion.div>
           )}
         </AnimatePresence>
+      </div>
 
+      {/* Right Column: Chapters */}
+      <div className="flex-1 lg:mt-0">
         {/* Chapters Section */}
         <motion.div 
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="mt-16"
+          className="mt-8 lg:mt-0"
         >
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
@@ -1071,6 +1077,8 @@ export default function MangaDetail() {
           </div>
         </motion.div>
       </div>
+    </div>
+  </div>
 
       {/* Tracker Sync Modal */}
       <AnimatePresence>

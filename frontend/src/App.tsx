@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useCallback } from 'react'
 import { useAppStore } from './lib/store'
 import { Library, ExternalLink, Globe, BarChart2, HelpCircle, Clock, Bell, LogIn, MoreHorizontal, Search } from 'lucide-react'
 import { Routes, Route, Link, useLocation, useNavigate, Navigate } from 'react-router-dom'
@@ -13,6 +13,7 @@ import { ExtensionManager } from './lib/extensions'
 import LandingPage from './pages/Landing'
 import MorePage from './pages/More'
 import SplashScreen from './components/SplashScreen'
+import { Titlebar } from './components/Titlebar'
 import { supabase } from './lib/supabase'
 import type { Session } from '@supabase/supabase-js'
 
@@ -302,45 +303,60 @@ function App() {
 
   if (noShell) {
     return (
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={location.pathname}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-        >
-          <Routes location={location}>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/terms" element={<TermsPage />} />
-            <Route path="/onboarding" element={<OnboardingPage />} />
-          </Routes>
-        </motion.div>
-      </AnimatePresence>
+      <div className="flex flex-col min-h-screen bg-[#050505] overflow-hidden">
+        {isTauri && <Titlebar />}
+        <div className="flex-1 overflow-auto">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Routes location={location}>
+                <Route path="/" element={<LandingPage />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<RegisterPage />} />
+                <Route path="/terms" element={<TermsPage />} />
+                <Route path="/onboarding" element={<OnboardingPage />} />
+              </Routes>
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      </div>
     )
   }
 
+  const handleSplashDone = useCallback(() => setShowSplash(false), [])
+
   if (showSplash) {
-    return <SplashScreen onDone={() => setShowSplash(false)} />
+    return <SplashScreen onDone={handleSplashDone} />
   }
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-[#09090b] text-[#fafafa] selection:bg-red-500/30">
-      {/* Desktop Sidebar */}
-      <aside className={cn("hidden md:flex flex-col sticky top-0 h-screen border-r border-white/5 bg-black/20 backdrop-blur-2xl transition-all duration-200", sidebarCollapsed ? "w-16" : "w-72")}>
+    <div className="flex flex-col min-h-screen bg-[#09090b] text-[#fafafa] selection:bg-red-500/30">
+      {isTauri && <Titlebar />}
+      <div className="flex flex-col md:flex-row flex-grow min-h-0">
+        {/* Desktop Sidebar */}
+        <aside className={cn(
+          "hidden md:flex flex-col sticky border-r border-white/5 bg-black/20 backdrop-blur-2xl transition-all duration-200",
+          isTauri ? "top-8 h-[calc(100vh-2rem)]" : "top-0 h-screen",
+          sidebarCollapsed ? "w-16" : "w-72"
+        )}>
         <div className={cn("flex items-center", sidebarCollapsed ? "p-3 justify-center" : "p-8")}>
           {sidebarCollapsed ? (
             <button
               onClick={() => { setSidebarCollapsed(false); localStorage.setItem('sidebar-collapsed', 'false') }}
-              className="w-10 h-10 bg-red-600 rounded-xl flex items-center justify-center font-bold text-xl shadow-lg shadow-red-600/20 hover:rotate-6 transition-transform"
+              className="w-10 h-10 flex items-center justify-center hover:rotate-6 transition-transform"
               title="Expand sidebar"
-            >M</button>
+            >
+              <img src="/Manga-dl1.png" alt="manga-dl logo" className="w-8 h-8 object-contain" />
+            </button>
           ) : (
             <div className="flex items-center justify-between w-full">
               <Link to="/r" className="flex items-center gap-3 group">
-                <div className="w-10 h-10 bg-red-600 rounded-xl flex items-center justify-center font-bold text-xl shadow-lg shadow-red-600/20 group-hover:rotate-6 transition-transform">M</div>
+                <img src="/Manga-dl1.png" alt="manga-dl logo" className="w-10 h-10 object-contain group-hover:rotate-6 transition-transform duration-300" />
                 <span className="font-bold text-xl tracking-tight">manga-dl</span>
               </Link>
               <button
@@ -364,6 +380,9 @@ function App() {
                 title={sidebarCollapsed ? item.label : undefined}
                 className={cn("nav-link flex-row", isActive && "active", sidebarCollapsed && "justify-center px-0")}
               >
+                {isActive && (
+                  <span className="absolute left-0 top-2.5 bottom-2.5 w-1 bg-red-600 rounded-r-md" />
+                )}
                 <item.icon className={cn("w-5 h-5", isActive ? "text-red-500" : "opacity-70")} />
                 {!sidebarCollapsed && <span className="font-semibold text-sm">{item.label}</span>}
                 {isActive && (
@@ -387,6 +406,9 @@ function App() {
                 title={sidebarCollapsed ? item.label : undefined}
                 className={cn("nav-link flex-row", isActive && "active", sidebarCollapsed && "justify-center px-0")}
               >
+                {isActive && (
+                  <span className="absolute left-0 top-2.5 bottom-2.5 w-1 bg-red-600 rounded-r-md" />
+                )}
                 <item.icon className={cn("w-5 h-5", isActive ? "text-red-500" : "opacity-70")} />
                 {!sidebarCollapsed && <span className="font-semibold text-sm">{item.label}</span>}
               </Link>
@@ -517,6 +539,7 @@ function App() {
         </div>
       </nav>
     </div>
+  </div>
   )
 }
 

@@ -75,11 +75,22 @@ const handleUninstall = (id: string) => {
     setUninstalling(prev => prev.filter(i => i !== id))
   }
 
-  const handleToggleDisable = (id: string) => {
+  const handleToggleDisable = async (id: string) => {
     const meta = getInstalledMeta()
-    const updated = meta.map(m => m.id === id ? { ...m, disabled: !m.disabled } : m)
+    const item = meta.find(m => m.id === id)
+    if (!item) return
+    const nextDisabled = !item.disabled
+    const updated = meta.map(m => m.id === id ? { ...m, disabled: nextDisabled } : m)
     saveInstalledMeta(updated)
     setInstalledMeta(updated)
+
+    // Instantly update active ExtensionManager map
+    const manager = ExtensionManager.getInstance()
+    if (nextDisabled) {
+      manager.extensions.delete(id)
+    } else {
+      await manager.install(item.id, item.name, item.lang, item.version, true)
+    }
   }
 
   const handleCheckUpdates = async () => {
@@ -107,6 +118,18 @@ const handleUninstall = (id: string) => {
     if (success) {
       setInstalledMeta(getInstalledMeta())
       setUpdates(prev => prev.filter(id => id !== s.id))
+    }
+    setInstalling(prev => prev.filter(i => i !== s.id))
+  }
+
+  const handleInstall = async (s: Source) => {
+    const manager = ExtensionManager.getInstance()
+    setInstalling(prev => [...prev, s.id])
+    const success = await manager.install(s.id, s.name, s.lang, s.version)
+    if (success) {
+      setInstalledMeta(getInstalledMeta())
+    } else {
+      alert(`Failed to install extension: ${s.name}`)
     }
     setInstalling(prev => prev.filter(i => i !== s.id))
   }
@@ -377,7 +400,7 @@ const handleUninstall = (id: string) => {
           {available.length > 0 && (
             <div>
               <h2 className="text-xs font-black uppercase tracking-widest text-white/30 mb-1">Available ({available.length})</h2>
-              <p className="text-[10px] text-white/20 mb-4">Community extensions are Android-only (Kotlin APKs) — not installable on web.</p>
+              <p className="text-[10px] text-white/20 mb-4">Install community extensions to add more manga and webtoon sources.</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <AnimatePresence>
                   {available.map((s, idx) => (
@@ -404,11 +427,21 @@ const handleUninstall = (id: string) => {
                         </div>
                       </div>
                       <button
-                        title="Community Tachiyomi extensions are Android-only and cannot run on web"
-                        disabled
-                        className="p-2.5 rounded-xl border shrink-0 bg-white/[0.03] border-white/5 text-white/15 cursor-not-allowed"
+                        onClick={() => handleInstall(s)}
+                        disabled={installing.includes(s.id)}
+                        title="Install Extension"
+                        className={cn(
+                          "p-2.5 rounded-xl border shrink-0 transition-all",
+                          installing.includes(s.id)
+                            ? "bg-red-500/10 border-red-500/20 text-red-400"
+                            : "bg-white/5 border-white/5 text-white/40 hover:text-white hover:border-white/10"
+                        )}
                       >
-                        <Download className="w-5 h-5" />
+                        {installing.includes(s.id) ? (
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : (
+                          <Download className="w-5 h-5" />
+                        )}
                       </button>
                     </motion.div>
                   ))}

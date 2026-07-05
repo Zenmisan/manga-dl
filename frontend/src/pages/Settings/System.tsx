@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Database, Shield, HardDrive, RefreshCw, Loader2, CheckCircle2, DownloadCloud, UploadCloud, BookOpen, Cloud, Save, Key, User, LogOut, UserPlus, Trash2 } from 'lucide-react'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
-import api from '../../lib/api'
+import api, { resolveBaseURL } from '../../lib/api'
 import { supabase } from '../../lib/supabase'
 import { useAppStore } from '../../lib/store'
 
@@ -46,16 +46,41 @@ export default function SystemSettings() {
     return () => listener.subscription.unsubscribe()
   }, [])
 
+  const [testingConnection, setTestingConnection] = useState(false)
+  const [connectionError, setConnectionError] = useState<string | null>(null)
+
   const saveSecurity = async () => {
-    localStorage.setItem('manga-api-key', apiKey)
-    if (backendUrl.trim()) {
-      localStorage.setItem('manga-backend-url', backendUrl.trim())
-    } else {
-      localStorage.removeItem('manga-backend-url')
+    setTestingConnection(true)
+    setConnectionError(null)
+    try {
+      const urlToTest = backendUrl.trim()
+        ? backendUrl.trim().replace(/\/$/, '') + '/api'
+        : resolveBaseURL()
+
+      const res = await fetch(`${urlToTest}/sources/builtins?api_key=${apiKey || 'mgdl-creator'}`)
+      if (res.ok) {
+        localStorage.setItem('manga-api-key', apiKey)
+        if (backendUrl.trim()) {
+          localStorage.setItem('manga-backend-url', backendUrl.trim())
+        } else {
+          localStorage.removeItem('manga-backend-url')
+        }
+        api.defaults.baseURL = resolveBaseURL()
+        const { ExtensionManager } = await import('../../lib/extensions')
+        ExtensionManager.getInstance().reinit()
+        alert('Security settings saved! Extensions are reloading.')
+      } else {
+        if (res.status === 403) {
+          setConnectionError('Forbidden (403): Invalid API Key.')
+        } else {
+          setConnectionError(`Server returned status: ${res.status}. Check API Key.`)
+        }
+      }
+    } catch (err) {
+      setConnectionError('Could not reach backend. Verify URL and make sure the server is running.')
+    } finally {
+      setTestingConnection(false)
     }
-    const { ExtensionManager } = await import('../../lib/extensions')
-    ExtensionManager.getInstance().reinit()
-    alert('Security settings saved! Extensions are reloading.')
   }
 
   const handleRunSync = async () => {
@@ -325,10 +350,24 @@ export default function SystemSettings() {
                 placeholder="Enter your X-API-Key..."
                 className="flex-1 bg-black/40 border border-white/5 rounded-xl px-5 py-3 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-all text-white placeholder:text-white/10"
               />
-              <button onClick={saveSecurity} className="btn-primary flex items-center justify-center gap-2">
-                <Save className="w-4 h-4" /> Save
+              <button
+                onClick={saveSecurity}
+                disabled={testingConnection}
+                className="btn-primary flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed min-w-[100px]"
+              >
+                {testingConnection ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                Save
               </button>
             </div>
+            {connectionError && (
+              <p className="text-xs font-semibold text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-2.5 mt-2">
+                {connectionError}
+              </p>
+            )}
           </div>
         </div>
       </section>

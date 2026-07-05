@@ -98,9 +98,7 @@ export default function LandingPage() {
         {/* Nav */}
         <nav className="relative z-10 flex items-center justify-between px-6 py-6 md:px-12">
           <Link to="/" className="flex items-center gap-2.5 group">
-            <div className="w-9 h-9 bg-red-600 rounded-xl flex items-center justify-center font-black text-lg shadow-lg shadow-red-600/30 group-hover:rotate-6 transition-transform duration-300">
-              M
-            </div>
+            <img src="/Manga-dl1.png" alt="manga-dl logo" className="w-9 h-9 object-contain group-hover:rotate-6 transition-transform duration-300" />
             <span className="font-black text-lg tracking-tight hidden sm:block">manga-dl</span>
           </Link>
           <div className="flex items-center gap-2">
@@ -135,7 +133,7 @@ export default function LandingPage() {
               transition={{ duration: 0.75, delay: 0.2, ease: [0.21, 1.02, 0.73, 1] }}
             >
               <h1
-                className="text-[clamp(4.5rem,16vw,12rem)] leading-none font-normal uppercase tracking-wider"
+                className="text-[clamp(2.75rem,15vw,12rem)] leading-none font-normal uppercase tracking-wider"
                 style={{ fontFamily: "'Anton', sans-serif" }}
               >
                 Read
@@ -149,7 +147,7 @@ export default function LandingPage() {
               transition={{ duration: 0.75, delay: 0.3, ease: [0.21, 1.02, 0.73, 1] }}
             >
               <h1
-                className="text-[clamp(4.5rem,16vw,12rem)] leading-none font-normal uppercase tracking-wider text-red-500"
+                className="text-[clamp(2.75rem,15vw,12rem)] leading-none font-normal uppercase tracking-wider text-red-500"
                 style={{ fontFamily: "'Anton', sans-serif" }}
               >
                 Everything.
@@ -216,7 +214,7 @@ export default function LandingPage() {
             ].map(({ val, label }) => (
               <div key={label}>
                 <div
-                  className="text-[clamp(2.5rem,6vw,4rem)] leading-none font-normal text-red-500 mb-1.5"
+                  className="text-[clamp(2rem,6vw,4rem)] leading-none font-normal text-red-500 mb-1.5"
                   style={{ fontFamily: "'Anton', sans-serif" }}
                 >
                   {val}
@@ -233,7 +231,7 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto">
           <FadeUp className="text-center mb-16">
             <h2
-              className="text-[clamp(2.5rem,7vw,5rem)] font-normal uppercase tracking-wide mb-3"
+              className="text-[clamp(2rem,7vw,5rem)] font-normal uppercase tracking-wide mb-3"
               style={{ fontFamily: "'Anton', sans-serif" }}
             >
               Built Different
@@ -264,7 +262,7 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto">
           <FadeUp className="text-center mb-16">
             <h2
-              className="text-[clamp(2.5rem,7vw,5rem)] font-normal uppercase tracking-wide mb-3"
+              className="text-[clamp(2rem,7vw,5rem)] font-normal uppercase tracking-wide mb-3"
               style={{ fontFamily: "'Anton', sans-serif" }}
             >
               How It Works
@@ -301,7 +299,7 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto">
           <FadeUp className="text-center mb-16">
             <h2
-              className="text-[clamp(2.5rem,7vw,5rem)] font-normal uppercase tracking-wide mb-3"
+              className="text-[clamp(2rem,7vw,5rem)] font-normal uppercase tracking-wide mb-3"
               style={{ fontFamily: "'Anton', sans-serif" }}
             >
               Every Platform
@@ -355,7 +353,7 @@ export default function LandingPage() {
               <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 80% 60% at 50% 0%, rgba(220,38,38,.12) 0%, transparent 70%)' }} />
               <div className="relative">
                 <h2
-                  className="text-[clamp(2rem,6vw,3.5rem)] font-normal uppercase tracking-wide leading-none mb-3"
+                  className="text-[clamp(1.75rem,6vw,3.5rem)] font-normal uppercase tracking-wide leading-none mb-3"
                   style={{ fontFamily: "'Anton', sans-serif" }}
                 >
                   Start your library<br />
@@ -393,7 +391,7 @@ export default function LandingPage() {
       <footer className="border-t border-white/[.05] py-10 px-6">
         <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-red-600 rounded-lg flex items-center justify-center font-black text-sm">M</div>
+            <img src="/Manga-dl1.png" alt="manga-dl logo" className="w-7 h-7 object-contain" />
             <span className="font-black text-sm tracking-tight">manga-dl</span>
           </Link>
           <div className="flex items-center gap-5 text-sm text-white/28">

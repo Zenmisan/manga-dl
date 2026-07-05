@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Book, Server, Key, ChevronRight, Check, Sparkles } from 'lucide-react'
+import { Book, Server, Key, ChevronRight, Check, Sparkles, Loader2 } from 'lucide-react'
+import api, { resolveBaseURL } from '../lib/api'
 
 const STEPS = ['welcome', 'backend', 'done'] as const
 type Step = typeof STEPS[number]
@@ -11,12 +12,42 @@ export default function OnboardingPage() {
   const [step, setStep] = useState<Step>('welcome')
   const [apiKey, setApiKey] = useState(localStorage.getItem('manga-api-key') || 'mgdl-creator')
   const [backendUrl, setBackendUrl] = useState(localStorage.getItem('manga-backend-url') || '')
+  const [testingConnection, setTestingConnection] = useState(false)
+  const [connectionError, setConnectionError] = useState<string | null>(null)
+
+  const handleConnect = async () => {
+    setTestingConnection(true)
+    setConnectionError(null)
+    try {
+      const urlToTest = backendUrl.trim()
+        ? backendUrl.trim().replace(/\/$/, '') + '/api'
+        : resolveBaseURL()
+
+      const res = await fetch(`${urlToTest}/sources/builtins?api_key=${apiKey || 'mgdl-creator'}`)
+      if (res.ok) {
+        localStorage.setItem('manga-api-key', apiKey || 'mgdl-creator')
+        if (backendUrl.trim()) {
+          localStorage.setItem('manga-backend-url', backendUrl.trim())
+        } else {
+          localStorage.removeItem('manga-backend-url')
+        }
+        api.defaults.baseURL = resolveBaseURL()
+        setStep('done')
+      } else {
+        if (res.status === 403) {
+          setConnectionError('Forbidden (403): Invalid API Key.')
+        } else {
+          setConnectionError(`Server returned status: ${res.status}. Check API Key.`)
+        }
+      }
+    } catch (err) {
+      setConnectionError('Could not reach backend. Verify URL and make sure the server is running.')
+    } finally {
+      setTestingConnection(false)
+    }
+  }
 
   const finish = () => {
-    localStorage.setItem('manga-api-key', apiKey || 'mgdl-creator')
-    if (backendUrl.trim()) {
-      localStorage.setItem('manga-backend-url', backendUrl.trim())
-    }
     localStorage.setItem('onboarded', '1')
     
     const params = new URLSearchParams(window.location.search)
@@ -44,14 +75,14 @@ export default function OnboardingPage() {
           <motion.div key="welcome" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -24 }}
             className="max-w-md w-full text-center"
           >
-            <div className="w-20 h-20 bg-red-600 rounded-3xl flex items-center justify-center font-bold text-4xl shadow-2xl shadow-red-600/30 mx-auto mb-8">
-              M
+            <div className="w-20 h-20 mx-auto mb-8 flex items-center justify-center">
+              <img src="/Manga-dl1.png" alt="manga-dl logo" className="w-full h-full object-contain drop-shadow-[0_0_15px_rgba(220,38,38,0.3)]" />
             </div>
             <h1 className="text-4xl font-extrabold tracking-tight mb-4">Welcome to manga-dl</h1>
             <p className="text-white/50 mb-10 leading-relaxed">
               Your cloud-connected manga reader. Search, download, and read across 500+ sources — on web, desktop, and mobile.
             </p>
-            <div className="grid grid-cols-3 gap-4 mb-10">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 mb-10">
               {[
                 { icon: Book, label: 'Library', desc: 'Cloud + local' },
                 { icon: Sparkles, label: 'AI Upscale', desc: 'Sharper pages' },
@@ -112,14 +143,36 @@ export default function OnboardingPage() {
               </div>
             </div>
 
+            {connectionError && (
+              <p className="mt-4 text-xs font-semibold text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-2.5">
+                {connectionError}
+              </p>
+            )}
+
             <div className="flex gap-3 mt-8">
-              <button onClick={() => setStep('welcome')}
-                className="flex-1 py-3 bg-white/5 border border-white/10 rounded-xl font-bold text-sm text-white/40 hover:text-white transition-all"
-              >Back</button>
-              <button onClick={() => setStep('done')}
-                className="flex-1 btn-primary flex items-center justify-center gap-2 py-3 font-bold"
+              <button
+                onClick={() => setStep('welcome')}
+                disabled={testingConnection}
+                className="flex-1 py-3 bg-white/5 border border-white/10 rounded-xl font-bold text-sm text-white/40 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Continue <ChevronRight className="w-4 h-4" />
+                Back
+              </button>
+              <button
+                onClick={handleConnect}
+                disabled={testingConnection}
+                className="flex-1 btn-primary flex items-center justify-center gap-2 py-3 font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {testingConnection ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Connecting...
+                  </>
+                ) : (
+                  <>
+                    Continue
+                    <ChevronRight className="w-4 h-4" />
+                  </>
+                )}
               </button>
             </div>
           </motion.div>

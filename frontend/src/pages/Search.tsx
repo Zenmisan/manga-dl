@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../lib/api'
+import { supabase } from '../lib/supabase'
 import { ExtensionManager } from '../lib/extensions'
 import { Search as SearchIcon, Globe, Loader2, ChevronRight, BookOpen, Layers, Star, BookMarked, Check, TrendingUp, Clock, SlidersHorizontal, ChevronDown } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -25,13 +26,14 @@ const PROVIDERS = [
   { id: 'omegascans', name: 'Omega Scans' },
 ]
 
-function MangaCard({ r, idx, onSubscribe, subscribed, subscribing, navigate }: {
+function MangaCard({ r, idx, onSubscribe, subscribed, subscribing, navigate, isAdmin }: {
   r: MangaResult
   idx: number
   onSubscribe: (e: React.MouseEvent, provider: string, id: string) => void
   subscribed: string[]
   subscribing: string[]
   navigate: ReturnType<typeof useNavigate>
+  isAdmin: boolean
 }) {
   const key = `${r.provider}:${r.id}`
   const isSubscribed = subscribed.includes(key)
@@ -89,20 +91,22 @@ function MangaCard({ r, idx, onSubscribe, subscribed, subscribing, navigate }: {
           </div>
         </div>
         <div className="flex items-center justify-between mt-4 gap-2">
-          <button
-            onClick={(e) => onSubscribe(e, r.provider, r.id)}
-            disabled={isSubscribed || isSubscribing}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all",
-              isSubscribed
-                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                : "bg-white/5 border-white/10 text-white/40 hover:text-white hover:border-white/20"
-            )}
-          >
-            {isSubscribing ? <Loader2 className="w-3 h-3 animate-spin" /> : isSubscribed ? <Check className="w-3 h-3" /> : <BookMarked className="w-3 h-3" />}
-            {isSubscribed ? 'In Library' : 'Add'}
-          </button>
-          <div className="p-2 bg-white/5 rounded-xl text-white/20 group-hover:text-white group-hover:bg-red-600 group-hover:shadow-lg transition-all duration-300">
+          {isAdmin && (
+            <button
+              onClick={(e) => onSubscribe(e, r.provider, r.id)}
+              disabled={isSubscribed || isSubscribing}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all",
+                isSubscribed
+                  ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                  : "bg-white/5 border-white/10 text-white/40 hover:text-white hover:border-white/20"
+              )}
+            >
+              {isSubscribing ? <Loader2 className="w-3 h-3 animate-spin" /> : isSubscribed ? <Check className="w-3 h-3" /> : <BookMarked className="w-3 h-3" />}
+              {isSubscribed ? 'In Library' : 'Add'}
+            </button>
+          )}
+          <div className="p-2 bg-white/5 rounded-xl text-white/20 group-hover:text-white group-hover:bg-red-600 group-hover:shadow-lg transition-all duration-300 ml-auto">
             <ChevronRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
           </div>
         </div>
@@ -117,24 +121,71 @@ export default function SearchPage() {
     searchQuery, setSearchQuery,
     searchResults, setSearchResults,
     selectedProvider, setSelectedProvider,
-    hasSearched, setHasSearched
+    hasSearched, setHasSearched,
+    searchTab: tab, setSearchTab: setTab,
+    browseProvider, setBrowseProvider,
+    browseResults, setBrowseResults,
+    browsePage, setBrowsePage,
+    browseHasMore, setBrowseHasMore,
+    lastFetchKey, setLastFetchKey
   } = useAppStore()
 
-  const [tab, setTab] = useState<'search' | 'popular' | 'latest'>('search')
   const [loading, setLoading] = useState(false)
+  const [browseLoading, setBrowseLoading] = useState(false)
   const [subscribing, setSubscribing] = useState<string[]>([])
   const [subscribed, setSubscribed] = useState<string[]>([])
-  const [browseProvider, setBrowseProvider] = useState('mangadex')
-  const [browseResults, setBrowseResults] = useState<MangaResult[]>([])
-  const [browsePage, setBrowsePage] = useState(1)
-  const [browseLoading, setBrowseLoading] = useState(false)
-  const [browseHasMore, setBrowseHasMore] = useState(true)
+  const [extCount, setExtCount] = useState(0)
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUserEmail(session?.user?.email || null)
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserEmail(session?.user?.email || null)
+    })
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [])
+
+  const isAdmin = userEmail === 'zenmisan@gmail.com'
 
   // Dynamic source filters
   interface FilterDef { id: string; label: string; type: string; options: { value: string; label: string }[]; default: string }
   const [sourceFilters, setSourceFilters] = useState<FilterDef[]>([])
   const [activeFilters, setActiveFilters] = useState<Record<string, string>>({})
   const [showFilterPanel, setShowFilterPanel] = useState(false)
+
+  // Track active extensions size
+  useEffect(() => {
+    const manager = ExtensionManager.getInstance()
+    if (manager.extensions.size === 0) {
+      manager.init().then(() => {
+        setExtCount(manager.extensions.size)
+      })
+    } else {
+      setExtCount(manager.extensions.size)
+    }
+  }, [])
+
+  // Filter providers dynamically based on loaded extensions
+  const activeProviders = useMemo(() => {
+    const manager = ExtensionManager.getInstance()
+    return PROVIDERS.filter(p => manager.extensions.has(p.id))
+  }, [extCount])
+
+  // Sanitise provider selections if they become inactive
+  useEffect(() => {
+    if (activeProviders.length > 0) {
+      if (selectedProvider && !activeProviders.some(p => p.id === selectedProvider)) {
+        setSelectedProvider(null)
+      }
+      if (browseProvider && !activeProviders.some(p => p.id === browseProvider)) {
+        setBrowseProvider(activeProviders[0]?.id || 'mangadex')
+      }
+    }
+  }, [activeProviders, selectedProvider, browseProvider, setSelectedProvider, setBrowseProvider])
 
   const handleSubscribe = async (e: React.MouseEvent, provider: string, mangaId: string) => {
     e.stopPropagation()
@@ -151,9 +202,7 @@ export default function SearchPage() {
     }
   }
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const query = searchQuery.trim()
+  const performSearch = useCallback(async (query: string) => {
     if (!query) return
     setLoading(true)
     setHasSearched(false)
@@ -162,7 +211,7 @@ export default function SearchPage() {
       if (manager.extensions.size === 0) {
         await manager.init()
       }
-      
+
       if (manager.extensions.size === 0) {
         alert('No sources loaded. Please check your API Key in Settings.')
         setLoading(false)
@@ -176,7 +225,7 @@ export default function SearchPage() {
       } else {
         const allExts = Array.from(manager.extensions.values())
         const settled = await Promise.allSettled(allExts.map(ext => ext.search(query, 1) as Promise<MangaResult[]>))
-        
+
         // Log failures to console for debugging
         settled.forEach((r, i) => {
           if (r.status === 'rejected') {
@@ -185,14 +234,14 @@ export default function SearchPage() {
         })
 
         const merged = settled.flatMap(r => r.status === 'fulfilled' ? r.value : [])
-        
+
         if (merged.length === 0 && settled.some(r => r.status === 'rejected')) {
           const firstError = settled.find(r => r.status === 'rejected') as PromiseRejectedResult
           if (String(firstError?.reason).includes('403')) {
             alert('Search failed (403 Forbidden). Is your API Key correct in Settings?')
           }
         }
-        
+
         setSearchResults(merged)
       }
       setHasSearched(true)
@@ -201,7 +250,20 @@ export default function SearchPage() {
     } finally {
       setLoading(false)
     }
+  }, [selectedProvider, setSearchResults, setHasSearched])
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    performSearch(searchQuery.trim())
   }
+
+  // Trigger search automatically when selectedProvider changes and tab is search
+  useEffect(() => {
+    if (searchQuery.trim() && tab === 'search') {
+      performSearch(searchQuery.trim())
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProvider])
 
   const fetchBrowse = useCallback(async (provider: string, page: number, endpoint: 'popular' | 'latest') => {
     setBrowseLoading(true)
@@ -218,7 +280,7 @@ export default function SearchPage() {
       } else {
         data = []
       }
-      setBrowseResults(prev => page === 1 ? data : [...prev, ...data])
+      setBrowseResults(page === 1 ? data : [...browseResults, ...data])
       setBrowseHasMore(data.length === 20)
     } catch (err) {
       console.error(err)
@@ -226,7 +288,7 @@ export default function SearchPage() {
     } finally {
       setBrowseLoading(false)
     }
-  }, [])
+  }, [browseResults, setBrowseResults, setBrowseHasMore])
 
   const selectBrowseProvider = (id: string) => {
     setBrowseProvider(id)
@@ -236,16 +298,20 @@ export default function SearchPage() {
 
   useEffect(() => {
     if (tab === 'popular' || tab === 'latest') {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setBrowsePage(1)
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setBrowseResults([])
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setBrowseHasMore(true)
-      fetchBrowse(browseProvider, 1, tab)
+      const fetchKey = `${tab}:${browseProvider}`
+      if (lastFetchKey !== fetchKey || browseResults.length === 0) {
+        setLastFetchKey(fetchKey)
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setBrowsePage(1)
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setBrowseResults([])
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setBrowseHasMore(true)
+        fetchBrowse(browseProvider, 1, tab)
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, browseProvider])
+  }, [tab, browseProvider, lastFetchKey, browseResults.length])
 
   const loadMoreBrowse = () => {
     const nextPage = browsePage + 1
@@ -325,7 +391,7 @@ export default function SearchPage() {
                 <Layers className="w-3 h-3" />
                 All
               </button>
-              {PROVIDERS.map(p => (
+              {activeProviders.map(p => (
                 <button
                   key={p.id}
                   onClick={() => setSelectedProvider(p.id)}
@@ -346,7 +412,7 @@ export default function SearchPage() {
         {(tab === 'popular' || tab === 'latest') && (
           <div className="space-y-3">
             <div className="flex flex-wrap gap-2.5 items-center">
-              {PROVIDERS.map(p => (
+              {activeProviders.map(p => (
                 <button
                   key={p.id}
                   onClick={() => selectBrowseProvider(p.id)}
@@ -453,7 +519,7 @@ export default function SearchPage() {
                 <AnimatePresence mode="popLayout">
                   {searchResults.map((r, idx) => (
                     <MangaCard key={r.id + r.provider} r={r} idx={idx}
-                      onSubscribe={handleSubscribe} subscribed={subscribed} subscribing={subscribing} navigate={navigate}
+                      onSubscribe={handleSubscribe} subscribed={subscribed} subscribing={subscribing} navigate={navigate} isAdmin={isAdmin}
                     />
                   ))}
                 </AnimatePresence>
@@ -466,7 +532,9 @@ export default function SearchPage() {
                     ;(acc[r.provider] ??= []).push(r)
                     return acc
                   }, {})
-                ).map(([provider, results]) => (
+                )
+                  .filter(([_, results]) => results.length > 0)
+                  .map(([provider, results]) => (
                   <div key={provider}>
                     <div className="flex items-center gap-3 mb-4">
                       <span className="text-xs font-black uppercase tracking-[0.25em] text-white/40 px-3 py-1 bg-white/5 rounded-full border border-white/5">
@@ -479,7 +547,7 @@ export default function SearchPage() {
                       <AnimatePresence mode="popLayout">
                         {results.map((r, idx) => (
                           <MangaCard key={r.id + r.provider} r={r} idx={idx}
-                            onSubscribe={handleSubscribe} subscribed={subscribed} subscribing={subscribing} navigate={navigate}
+                            onSubscribe={handleSubscribe} subscribed={subscribed} subscribing={subscribing} navigate={navigate} isAdmin={isAdmin}
                           />
                         ))}
                       </AnimatePresence>
@@ -521,7 +589,7 @@ export default function SearchPage() {
                 <AnimatePresence mode="popLayout">
                   {browseResults.map((r, idx) => (
                     <MangaCard key={r.id + r.provider} r={r} idx={idx}
-                      onSubscribe={handleSubscribe} subscribed={subscribed} subscribing={subscribing} navigate={navigate}
+                      onSubscribe={handleSubscribe} subscribed={subscribed} subscribing={subscribing} navigate={navigate} isAdmin={isAdmin}
                     />
                   ))}
                 </AnimatePresence>

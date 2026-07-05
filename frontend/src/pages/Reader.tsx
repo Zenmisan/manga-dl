@@ -22,6 +22,7 @@ import {
   RotateCcw,
   Maximize2,
   Share2,
+  Keyboard,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FastAverageColor } from 'fast-average-color'
@@ -68,6 +69,10 @@ export default function Reader() {
   const [ambilightColor, setAmbilightColor] = useState<string>('rgba(0,0,0,0)')
   const [ambilightEnabled, setAmbilightEnabled] = useState(true)
   const [isLandscape, setIsLandscape] = useState(window.innerWidth > window.innerHeight)
+  const [showShortcutOverlay, setShowShortcutOverlay] = useState(() => {
+    if (typeof localStorage === 'undefined') return false
+    return localStorage.getItem('manga-reader-shortcut-shown') !== 'true'
+  })
   const malAutoSyncedRef = useRef(false)
   const progressSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const onlinePartsRef = useRef<{ provider: string; mangaId: string; chapterId: string; mangaTitle?: string; chapterTitle?: string } | null>(null)
@@ -167,6 +172,8 @@ export default function Reader() {
   }, [ambilightEnabled])
 
   useEffect(() => {
+    setCurrentPage(1)
+    window.scrollTo(0, 0)
     const fetchManifest = async () => {
       // --- Handle Online Streaming ---
       if (mangaTitle === 'online' && filename) {
@@ -986,6 +993,83 @@ export default function Reader() {
           <span className="hidden md:inline">Click to toggle UI</span>
         </div>
       </footer>
+
+      {/* Keyboard Shortcut/Reading Controls Overlay */}
+      <AnimatePresence>
+        {showShortcutOverlay && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-55 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="relative w-full max-w-md bg-[#0d0d11]/90 border border-white/10 rounded-3xl p-6 shadow-2xl flex flex-col items-center text-center overflow-hidden"
+            >
+              {/* Background Glow */}
+              <div className="absolute -top-12 -left-12 w-32 h-32 bg-red-600/10 rounded-full blur-2xl -z-10" />
+              <div className="absolute -bottom-12 -right-12 w-32 h-32 bg-red-600/10 rounded-full blur-2xl -z-10" />
+
+              <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 rounded-2xl mb-4">
+                <Keyboard className="w-6 h-6" />
+              </div>
+
+              <h3 
+                className="text-xl font-black uppercase tracking-wider text-white mb-2"
+                style={{ fontFamily: "'Anton', sans-serif" }}
+              >
+                Reading Controls
+              </h3>
+              <p className="text-xs text-white/40 mb-6 font-sans">
+                Quick guide for navigating the reader on desktop & mobile devices.
+              </p>
+
+              <div className="w-full space-y-3 mb-8 font-sans">
+                {/* Shortcut Items */}
+                <div className="flex items-center justify-between p-3.5 bg-white/5 border border-white/5 rounded-2xl">
+                  <span className="text-xs font-semibold text-white/60">Next Page</span>
+                  <div className="flex gap-1">
+                    <kbd className="px-2 py-1 bg-white/10 border border-white/10 rounded-lg text-[10px] font-mono font-bold shadow-md">→</kbd>
+                    <kbd className="px-2 py-1 bg-white/10 border border-white/10 rounded-lg text-[10px] font-mono font-bold shadow-md">↓</kbd>
+                    <kbd className="px-2.5 py-1 bg-white/10 border border-white/10 rounded-lg text-[10px] font-mono font-bold shadow-md">Space</kbd>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-3.5 bg-white/5 border border-white/5 rounded-2xl">
+                  <span className="text-xs font-semibold text-white/60">Previous Page</span>
+                  <div className="flex gap-1">
+                    <kbd className="px-2 py-1 bg-white/10 border border-white/10 rounded-lg text-[10px] font-mono font-bold shadow-md">←</kbd>
+                    <kbd className="px-2 py-1 bg-white/10 border border-white/10 rounded-lg text-[10px] font-mono font-bold shadow-md">↑</kbd>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-3.5 bg-white/5 border border-white/5 rounded-2xl">
+                  <span className="text-xs font-semibold text-white/60">Exit Reader</span>
+                  <kbd className="px-2 py-1 bg-white/10 border border-white/10 rounded-lg text-[10px] font-mono font-bold shadow-md">Esc</kbd>
+                </div>
+
+                <div className="flex items-center justify-between p-3.5 bg-white/5 border border-white/5 rounded-2xl">
+                  <span className="text-xs font-semibold text-white/60">Toggle Controls UI</span>
+                  <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Tap Center / Click</span>
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  localStorage.setItem('manga-reader-shortcut-shown', 'true')
+                  setShowShortcutOverlay(false)
+                }}
+                className="w-full py-3 bg-red-600 hover:bg-red-500 active:scale-[0.98] text-white font-bold rounded-2xl transition-all shadow-lg shadow-red-600/20 font-sans"
+              >
+                Let's Read
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

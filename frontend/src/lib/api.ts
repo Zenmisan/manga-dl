@@ -5,7 +5,7 @@ const isTauri = !!(window as unknown as Record<string, unknown>).__TAURI_INTERNA
 const isCapacitor = !!(window as unknown as Record<string, { isNativePlatform?: () => boolean }>).Capacitor?.isNativePlatform?.()
 const isProd = import.meta.env.PROD
 
-function resolveBaseURL(): string {
+export function resolveBaseURL(): string {
   // Allow explicit override from settings (works across all platforms)
   const custom = localStorage.getItem('manga-backend-url')
   if (custom) return custom.replace(/\/$/, '') + '/api'
@@ -17,8 +17,8 @@ function resolveBaseURL(): string {
   // User can override via Settings if self-hosting
   if (isCapacitor) return 'https://manga-dl.onrender.com/api'
 
-  // Web: prod uses deployed backend, dev uses Vite proxy
-  return isProd ? 'https://manga-dl.onrender.com/api' : '/api'
+  // Web: prod uses current origin, dev uses Vite proxy
+  return isProd ? window.location.origin + '/api' : '/api'
 }
 
 const api = axios.create({

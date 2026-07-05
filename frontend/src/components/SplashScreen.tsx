@@ -50,13 +50,8 @@ export default function SplashScreen({ onDone }: Props) {
             transition={{ duration: 0.5, ease: [0.21, 1.02, 0.73, 1] }}
             className="relative"
           >
-            <div className="w-24 h-24 bg-red-600 rounded-3xl flex items-center justify-center shadow-2xl shadow-red-600/40">
-              <span
-                className="text-5xl font-black text-white leading-none select-none"
-                style={{ fontFamily: "'Bebas Neue', sans-serif" }}
-              >
-                M
-              </span>
+            <div className="w-24 h-24 flex items-center justify-center">
+              <img src="/Manga-dl1.png" alt="manga-dl logo" className="w-full h-full object-contain drop-shadow-[0_0_20px_rgba(220,38,38,0.4)]" />
             </div>
             {/* Pulse ring */}
             <motion.div

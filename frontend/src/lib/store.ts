@@ -29,10 +29,22 @@ interface AppState {
   searchResults: MangaResult[]
   selectedProvider: string | null
   hasSearched: boolean
+  searchTab: 'search' | 'popular' | 'latest'
+  browseProvider: string
+  browseResults: MangaResult[]
+  browsePage: number
+  browseHasMore: boolean
+  lastFetchKey: string
   setSearchQuery: (query: string) => void
   setSearchResults: (results: MangaResult[]) => void
   setSelectedProvider: (provider: string | null) => void
   setHasSearched: (val: boolean) => void
+  setSearchTab: (tab: 'search' | 'popular' | 'latest') => void
+  setBrowseProvider: (provider: string) => void
+  setBrowseResults: (results: MangaResult[]) => void
+  setBrowsePage: (page: number) => void
+  setBrowseHasMore: (val: boolean) => void
+  setLastFetchKey: (key: string) => void
 
   // Reader Preferences
   readingMode: 'webtoon' | 'manga' | 'manga-rtl' | 'vertical-pager'
@@ -109,10 +121,22 @@ export const useAppStore = create<AppState>()(
       searchResults: [],
       selectedProvider: null,
       hasSearched: false,
+      searchTab: 'search',
+      browseProvider: 'mangadex',
+      browseResults: [],
+      browsePage: 1,
+      browseHasMore: true,
+      lastFetchKey: '',
       setSearchQuery: (query) => set({ searchQuery: query }),
       setSearchResults: (results) => set({ searchResults: results }),
       setSelectedProvider: (provider) => set({ selectedProvider: provider }),
       setHasSearched: (val) => set({ hasSearched: val }),
+      setSearchTab: (tab) => set({ searchTab: tab }),
+      setBrowseProvider: (provider) => set({ browseProvider: provider }),
+      setBrowseResults: (results) => set({ browseResults: results }),
+      setBrowsePage: (page) => set({ browsePage: page }),
+      setBrowseHasMore: (val) => set({ browseHasMore: val }),
+      setLastFetchKey: (key) => set({ lastFetchKey: key }),
 
       readingMode: 'webtoon',
       upscaling: false,

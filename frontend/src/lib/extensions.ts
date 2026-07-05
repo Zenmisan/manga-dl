@@ -83,11 +83,19 @@ export class ExtensionManager {
     try {
       const res = await api.get('/sources/builtins')
       const builtins: Array<{ id: string; name: string; lang: string; version: string; skip_proxy: boolean }> = res.data
-      const installed = JSON.parse(localStorage.getItem(this.storageKey) || '[]') as Array<{ id: string }>
+      const installed = JSON.parse(localStorage.getItem(this.storageKey) || '[]') as Array<{ id: string; disabled?: boolean }>
       const installedIds = new Set(installed.map(e => e.id))
 
       for (const b of builtins) {
         this.builtinIds.add(b.id)
+
+        // Check if user disabled this built-in extension
+        const isOptOut = installed.find(e => e.id === b.id)?.disabled
+        if (isOptOut) {
+          this.extensions.delete(b.id)
+          continue
+        }
+
         if (!this.extensions.has(b.id)) {
           // Not yet active — install silently
           await this.install(b.id, b.name, b.lang, b.version, true)
@@ -184,8 +192,12 @@ export class ExtensionManager {
   }
 
   async loadInstalled() {
-    const installed = JSON.parse(localStorage.getItem(this.storageKey) || '[]')
+    const installed = JSON.parse(localStorage.getItem(this.storageKey) || '[]') as Array<{ id: string; name: string; lang: string; version: string; disabled?: boolean }>
     for (const ext of installed) {
+      if (ext.disabled) {
+        this.extensions.delete(ext.id)
+        continue
+      }
       if (!this.extensions.has(ext.id)) {
         await this.install(ext.id, ext.name, ext.lang, ext.version, true)
       }

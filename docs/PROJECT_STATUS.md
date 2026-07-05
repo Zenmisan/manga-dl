@@ -85,6 +85,12 @@ Volume keys (Kotlin plugin), back button handlers, KeepAwake, StatusBar ambiligh
 - **Onboarding Flow Refactor**: Shifted first-run onboarding to trigger dynamically upon entering reader mode for the first time, preserving the setup state on the local device across different account sign-ins.
 - **Strategic Analyses Report**: Authored comprehensive analytical reports (SWOT, Gap, User/UX, Feature, Heuristic, Cost-Benefit, Risk, and SCAMPER).
 
+### Phase 18 ✅ Desktop UI & Tauri Chrome (2026-07-05)
+- **Sidebar Active Indicator**: Rendered a premium red vertical accent bar on the left edge of the active navigation links, enhancing visual cue clarity on desktop views.
+- **Two-Column MangaDetail Layout**: Refactored the manga detail page layout on wide screens to present cover art and details on a sticky left panel, allowing user to scroll the chapters list on the right panel. Maintains single-column responsiveness on mobile and tablet screens.
+- **Reader Keyboard Shortcuts Overlay**: Added a beautiful glassmorphic modal overlay detailing keyboard control mappings (left/right/down arrows, Space, Esc) that appears on the user's first visit to the reader view, with preference state stored in local storage.
+- **Tauri Custom Titlebar**: Integrated custom window titlebar chrome for native desktop builds with a drag region and interactive minimize/maximize/close macOS-style traffic light buttons, powered by dynamic imports of Tauri's APIs.
+
 ---
 
 ## What Remains 🔲
