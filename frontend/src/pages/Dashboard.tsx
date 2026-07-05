@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../lib/api'
 import {
@@ -60,6 +60,7 @@ export default function Dashboard() {
   const [isDesktop, setIsDesktop] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [backendDown, setBackendDown] = useState(false)
+  const backendDownRef = useRef(false)
   const [sort, setSort] = useState<'default' | 'title-asc' | 'title-desc' | 'downloaded' | 'last-read' | 'unread-count'>('default')
   const [filter, setFilter] = useState<'all' | 'subscribed' | 'downloading' | 'failed' | 'unread' | 'downloaded-only' | 'started' | 'completed'>('all')
   const [selectMode, setSelectMode] = useState(false)
@@ -99,9 +100,17 @@ export default function Dashboard() {
     if (showSpinner) setRefreshing(true)
     try {
       const res = await api.get('/library')
+      backendDownRef.current = false
       setBackendDown(false)
-      setItems(res.data)
+      setItems((res.data as LibraryItem[]).map(item => ({
+        ...item,
+        title: item.title ?? '',
+        files: item.files ?? [],
+        chapters_downloading: item.chapters_downloading ?? 0,
+        chapters_failed: item.chapters_failed ?? 0,
+      })))
     } catch {
+      backendDownRef.current = true
       setBackendDown(true)
     }
     finally {
@@ -188,13 +197,14 @@ export default function Dashboard() {
       setUserEmail(session?.user?.email || null)
     })
 
-    // Auto-refresh every 5s while any download is active
+    // Auto-refresh every 5s while any download is active, or retry if backend is down
     const interval = setInterval(() => {
       setItems(prev => {
         const hasActive = prev.some(i => i.chapters_downloading > 0)
         if (hasActive) fetchLibrary()
         return prev
       })
+      if (backendDownRef.current) fetchLibrary()
     }, 5000)
     return () => {
       clearInterval(interval)
@@ -388,15 +398,15 @@ export default function Dashboard() {
       return total > 0 && read >= total
     })
     if (activeCategory) {
-      result = result.filter(i => getMangaCategoryList(i.title).includes(activeCategory))
+      result = result.filter(i => i.title && getMangaCategoryList(i.title).includes(activeCategory))
     }
-    if (sort === 'title-asc') result.sort((a, b) => a.title.localeCompare(b.title))
-    else if (sort === 'title-desc') result.sort((a, b) => b.title.localeCompare(a.title))
+    if (sort === 'title-asc') result.sort((a, b) => (a.title ?? '').localeCompare(b.title ?? ''))
+    else if (sort === 'title-desc') result.sort((a, b) => (b.title ?? '').localeCompare(a.title ?? ''))
     else if (sort === 'downloaded') result.sort((a, b) => b.files.length - a.files.length)
     else if (sort === 'last-read') {
       result.sort((a, b) => {
-        const aHas = !!lastReadMap[a.title.toLowerCase().trim()]
-        const bHas = !!lastReadMap[b.title.toLowerCase().trim()]
+        const aHas = !!lastReadMap[a.title?.toLowerCase().trim() ?? '']
+        const bHas = !!lastReadMap[b.title?.toLowerCase().trim() ?? '']
         if (aHas && !bHas) return -1
         if (!aHas && bHas) return 1
         return 0
@@ -530,19 +540,31 @@ export default function Dashboard() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            {backendDown && (
-              <div className="mb-6 flex items-start gap-3 px-5 py-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-300">
-                <WifiOff className="w-5 h-5 shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-bold text-sm">Backend unreachable</p>
-                  {(window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ ? (
-                    <p className="text-xs text-amber-300/70 mt-0.5">Desktop app requires Python 3.10+ in PATH. Install Python, then restart the app. Or set a custom backend URL in Settings.</p>
-                  ) : (
-                    <p className="text-xs text-amber-300/70 mt-0.5">Server may be starting up (cold start takes ~30s). Check Settings → API Key and Backend URL, then tap Refresh.</p>
-                  )}
-                </div>
-              </div>
-            )}
+            <AnimatePresence>
+              {backendDown && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.3 }}
+                  className="mb-6 flex items-start gap-3 px-5 py-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-300"
+                  onAnimationComplete={() => {
+                    setTimeout(() => setBackendDown(false), 30000)
+                  }}
+                >
+                  <WifiOff className="w-5 h-5 shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="font-bold text-sm">Backend unreachable</p>
+                    {(window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ ? (
+                      <p className="text-xs text-amber-300/70 mt-0.5">Desktop app requires Python 3.10+ in PATH. Install Python, then restart the app. Or set a custom backend URL in Settings.</p>
+                    ) : (
+                      <p className="text-xs text-amber-300/70 mt-0.5">Server may be starting up (cold start ~30s). Retrying automatically…</p>
+                    )}
+                  </div>
+                  <button onClick={() => setBackendDown(false)} className="text-amber-300/40 hover:text-amber-300 transition-colors shrink-0 text-lg leading-none">×</button>
+                </motion.div>
+              )}
+            </AnimatePresence>
             {/* Category tabs */}
             <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar pb-1">
               <button onClick={() => setActiveCategory(null)}
@@ -701,7 +723,7 @@ export default function Dashboard() {
                         setSelectMode(false); setSelectedItems(new Set())
                         e.target.value = ''
                       }}
-                      className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-white/60 text-xs font-bold"
+                      className="select-styled text-xs"
                     >
                       <option value="">Move to Category…</option>
                       {categories.map(c => <option key={c} value={c}>{c}</option>)}
@@ -799,7 +821,7 @@ export default function Dashboard() {
                 style={view === 'grid' ? { gridTemplateColumns: `repeat(${gridColumns}, minmax(0, 1fr))` } : undefined}
               >
                 {displayedItems.map((item, idx) => {
-                  const lastRead = lastReadMap[item.title.toLowerCase().trim()]
+                  const lastRead = lastReadMap[item.title?.toLowerCase().trim() ?? '']
                   return (
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}

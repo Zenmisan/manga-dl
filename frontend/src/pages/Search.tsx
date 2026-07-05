@@ -459,7 +459,7 @@ export default function SearchPage() {
                           <select
                             value={activeFilters[f.id] ?? f.default}
                             onChange={e => setActiveFilters(prev => ({ ...prev, [f.id]: e.target.value }))}
-                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-red-500/20 appearance-none cursor-pointer"
+                            className="select-styled w-full"
                           >
                             {f.options.map(o => (
                               <option key={o.value} value={o.value} className="bg-neutral-900">{o.label}</option>

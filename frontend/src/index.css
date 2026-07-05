@@ -112,3 +112,37 @@ html.amoled .glass-panel,
 html.amoled .glass-card {
   background-color: rgba(255,255,255,0.02);
 }
+
+/* Custom select styling */
+select.select-styled {
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 0.75rem;
+  color: rgba(255, 255, 255, 0.70);
+  padding: 0.5rem 2.5rem 0.5rem 0.875rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.4)' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+select.select-styled:hover {
+  border-color: rgba(255, 255, 255, 0.20);
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+select.select-styled:focus {
+  outline: none;
+  border-color: rgba(239, 68, 68, 0.40);
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+select.select-styled option {
+  background-color: #18181b;
+  color: rgba(255, 255, 255, 0.85);
+}

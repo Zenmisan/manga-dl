@@ -40,12 +40,13 @@ function getMangaCategories(): Record<string, string[]> {
 }
 
 export function getMangaCategoryList(mangaTitle: string): string[] {
+  if (!mangaTitle) return []
   return getMangaCategories()[mangaTitle.toLowerCase().trim()] || []
 }
 
 export function setMangaCategory(mangaTitle: string, category: string, assigned: boolean) {
   const all = getMangaCategories()
-  const key = mangaTitle.toLowerCase().trim()
+  const key = (mangaTitle ?? '').toLowerCase().trim()
   const current = new Set(all[key] || [])
   if (assigned) current.add(category); else current.delete(category)
   all[key] = [...current]

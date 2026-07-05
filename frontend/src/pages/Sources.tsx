@@ -234,7 +234,7 @@ const handleUninstall = (id: string) => {
               <select
                 value={filterLang}
                 onChange={(e) => setFilterLang(e.target.value)}
-                className="glass-panel py-4 pl-10 pr-10 appearance-none focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-all text-sm font-bold uppercase tracking-widest bg-transparent cursor-pointer"
+                className="select-styled w-full pl-10 text-sm font-bold uppercase tracking-widest"
               >
                 <option value="all">All Languages</option>
                 {Array.from(new Set(sources.map(s => s.lang))).sort().map(lang => (
