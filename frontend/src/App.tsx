@@ -100,6 +100,7 @@ function App() {
     sessionStorage.setItem('splash-shown', '1')
     return true
   })
+  const handleSplashDone = useCallback(() => setShowSplash(false), [])
 
   // Sync cloud data on app start
   useEffect(() => {
@@ -327,8 +328,6 @@ function App() {
       </div>
     )
   }
-
-  const handleSplashDone = useCallback(() => setShowSplash(false), [])
 
   if (showSplash) {
     return <SplashScreen onDone={handleSplashDone} />
