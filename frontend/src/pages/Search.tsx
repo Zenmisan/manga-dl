@@ -336,7 +336,7 @@ export default function SearchPage() {
         <p className="text-white/40 font-medium md:text-lg mb-8">Search across multiple sources to find your next read.</p>
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-8 border-b border-white/5 pb-4">
+        <div className="flex gap-2 mb-8 border-b border-white/5 pb-4 overflow-x-auto no-scrollbar">
           {[
             { id: 'search', label: 'Search', icon: SearchIcon },
             { id: 'popular', label: 'Popular', icon: TrendingUp },
@@ -346,7 +346,7 @@ export default function SearchPage() {
               key={t.id}
               onClick={() => setTab(t.id as typeof tab)}
               className={cn(
-                "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold uppercase tracking-widest border transition-all",
+                "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold uppercase tracking-widest border transition-all shrink-0",
                 tab === t.id
                   ? "bg-white/10 border-white/20 text-white shadow-lg"
                   : "border-transparent text-white/40 hover:text-white/60 hover:bg-white/5"

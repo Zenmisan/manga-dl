@@ -17,8 +17,8 @@ export function resolveBaseURL(): string {
   // User can override via Settings if self-hosting
   if (isCapacitor) return 'https://manga-dl.onrender.com/api'
 
-  // Web: prod uses current origin, dev uses Vite proxy
-  return isProd ? window.location.origin + '/api' : '/api'
+  // Web: prod hits Render backend directly, dev uses Vite proxy
+  return isProd ? 'https://manga-dl.onrender.com/api' : '/api'
 }
 
 const api = axios.create({

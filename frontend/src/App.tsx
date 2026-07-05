@@ -267,7 +267,7 @@ function App() {
 
   if (locked) {
     return (
-      <div className="fixed inset-0 bg-black flex flex-col items-center justify-center gap-6 z-[9999]">
+      <div className="fixed inset-0 bg-black flex flex-col items-center justify-center gap-6 z-9999">
         <div className="w-20 h-20 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center">
           <svg className="w-10 h-10 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
         </div>
@@ -298,6 +298,12 @@ function App() {
 
   if (location.pathname === '/' && (isNative || session)) {
     return <Navigate to="/r" replace />
+  }
+
+  // First-time visitors to app routes get onboarding
+  const appRoute = !['/', '/login', '/register', '/terms', '/onboarding'].includes(location.pathname)
+  if (appRoute && !localStorage.getItem('onboarded') && !isNative) {
+    return <Navigate to={`/onboarding?redirect=${encodeURIComponent(location.pathname)}`} replace />
   }
 
   const noShell = ['/', '/login', '/register', '/terms', '/onboarding'].includes(location.pathname)
@@ -336,7 +342,7 @@ function App() {
   return (
     <div className="flex flex-col min-h-screen bg-[#09090b] text-[#fafafa] selection:bg-red-500/30">
       {isTauri && <Titlebar />}
-      <div className="flex flex-col md:flex-row flex-grow min-h-0">
+      <div className="flex flex-col md:flex-row grow min-h-0">
         {/* Desktop Sidebar */}
         <aside className={cn(
           "hidden md:flex flex-col sticky border-r border-white/5 bg-black/20 backdrop-blur-2xl transition-all duration-200",
@@ -424,9 +430,9 @@ function App() {
                 </div>
               </Link>
             ) : (
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[.04] border border-white/5">
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-white/04 border border-white/5">
                 <Link to={`/profile/${session.user.id}`} className="flex items-center gap-3 flex-1 min-w-0 group cursor-pointer">
-                  <div className="w-8 h-8 rounded-lg bg-red-600/15 border border-red-500/20 flex items-center justify-center text-xs font-black text-red-400 flex-shrink-0 group-hover:bg-red-600/25 transition-all">
+                  <div className="w-8 h-8 rounded-lg bg-red-600/15 border border-red-500/20 flex items-center justify-center text-xs font-black text-red-400 shrink-0 group-hover:bg-red-600/25 transition-all">
                     {session.user.email?.[0]?.toUpperCase() ?? '?'}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -435,7 +441,7 @@ function App() {
                 </Link>
                 <button
                   onClick={handleSignOut}
-                  className="text-[10px] font-black uppercase tracking-wider text-white/25 hover:text-red-400 transition-colors flex-shrink-0 px-2 py-1"
+                  className="text-[10px] font-black uppercase tracking-wider text-white/25 hover:text-red-400 transition-colors shrink-0 px-2 py-1"
                 >
                   Out
                 </button>
@@ -520,7 +526,7 @@ function App() {
       </main>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 px-4 pb-6 pt-2 bg-gradient-to-t from-black via-black/90 to-transparent backdrop-blur-md border-t border-white/5">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 px-4 pb-6 pt-2 bg-linear-to-t from-black via-black/90 to-transparent backdrop-blur-md border-t border-white/5">
         <div className="flex items-center justify-around glass-panel p-1.5 max-w-lg mx-auto">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path
