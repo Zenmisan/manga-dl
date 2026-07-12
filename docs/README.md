@@ -233,3 +233,4 @@ All markdown documentation and analysis files are stored in the [docs/](docs/) f
 - [Project Status](docs/PROJECT_STATUS.md) (current release checklist)
 - [Features Specification](docs/FEATURES.md)
 - [Known Issues & Limitations](docs/KNOWN_ISSUES.md)
+- [Suwayomi Analysis](docs/suwayomi_analysis.md) (architecture comparison and desktop native opportunities)

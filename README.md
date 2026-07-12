@@ -71,7 +71,17 @@ Native users can scrape on-device; the backend handles sync only.
 - Rust toolchain (desktop builds only)
 - JDK 17 + Android Studio (Android builds only)
 
-### Backend
+#### Quick Windows Setup (One-Command)
+
+If you are on Windows, you can set up the entire project (root packages, frontend packages, backend virtual environment, and path redirection) in a single command:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\setup.ps1
+```
+
+#### Manual Setup (Linux / macOS)
+
+**1. Backend Setup**
 
 ```bash
 cd backend
