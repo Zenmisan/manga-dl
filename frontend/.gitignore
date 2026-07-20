@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+
+# miscllaneous
+*Suwayomi-Server-master.zip

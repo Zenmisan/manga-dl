@@ -23,6 +23,7 @@ import {
   Maximize2,
   Share2,
   Keyboard,
+  AlertCircle,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FastAverageColor } from 'fast-average-color'
@@ -59,6 +60,7 @@ export default function Reader() {
 
   const [pages, setPages] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState<string | null>(null)
   const [showControls, setShowControls] = useState(true)
   const [showFilterPanel, setShowFilterPanel] = useState(false)
   const [volumeKeyMode, setVolumeKeyMode] = useState<'navigation' | 'brightness'>('navigation')
@@ -243,6 +245,7 @@ export default function Reader() {
           }
         } catch (err) {
           console.error('Online read failed:', err)
+          setFetchError((err as { message?: string }).message || 'Failed to load chapter pages from source extension.')
         } finally {
           setLoading(false)
         }
@@ -265,6 +268,7 @@ export default function Reader() {
           return
         }
         // No session and not in IndexedDB — show error
+        setFetchError('Local session expired or archive file was not found in storage.')
         setLoading(false)
         return
       }
@@ -294,6 +298,7 @@ export default function Reader() {
         }
       } catch (err) {
         console.error(err)
+        setFetchError((err as { message?: string }).message || 'Failed to fetch chapter from backend library server.')
       } finally {
         setLoading(false)
       }
@@ -554,6 +559,41 @@ export default function Reader() {
       <div className="flex flex-col items-center justify-center min-h-screen bg-black text-white">
         <Loader2 className="w-12 h-12 text-red-500 animate-spin mb-4" />
         <p className="text-white/40 font-bold uppercase tracking-widest text-xs animate-pulse">Opening Archive...</p>
+      </div>
+    )
+  }
+
+  if (pages.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[#050505] text-white p-6 relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 70% 50% at 50% 50%, rgba(220,38,38,.15) 0%, transparent 70%)' }} />
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="max-w-md w-full glass-panel p-8 text-center border-red-500/20 relative z-10"
+        >
+          <div className="w-16 h-16 bg-red-500/10 rounded-2xl border border-red-500/20 flex items-center justify-center mx-auto mb-6">
+            <AlertCircle className="w-8 h-8 text-red-500" />
+          </div>
+          <h2 className="text-xl font-black tracking-tight mb-2">Unable to Load Chapter</h2>
+          <p className="text-white/40 text-sm mb-8 leading-relaxed">
+            {fetchError || 'No image pages were found in this chapter or the provider request failed.'}
+          </p>
+          <div className="flex gap-3">
+            <button
+              onClick={() => navigate(-1)}
+              className="flex-1 btn-secondary text-xs uppercase tracking-widest font-bold py-3"
+            >
+              Go Back
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              className="flex-1 btn-primary text-xs uppercase tracking-widest font-bold py-3"
+            >
+              Retry
+            </button>
+          </div>
+        </motion.div>
       </div>
     )
   }

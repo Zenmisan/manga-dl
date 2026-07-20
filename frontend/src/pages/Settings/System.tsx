@@ -52,32 +52,41 @@ export default function SystemSettings() {
   const saveSecurity = async () => {
     setTestingConnection(true)
     setConnectionError(null)
-    try {
-      const urlToTest = backendUrl.trim()
-        ? backendUrl.trim().replace(/\/$/, '') + '/api'
-        : resolveBaseURL()
 
-      const res = await fetch(`${urlToTest}/sources/builtins?api_key=${apiKey || 'mgdl-creator'}`)
+    // Persist immediately — don't gate saving on connection success
+    localStorage.setItem('manga-api-key', apiKey)
+    if (backendUrl.trim()) {
+      localStorage.setItem('manga-backend-url', backendUrl.trim())
+    } else {
+      localStorage.removeItem('manga-backend-url')
+    }
+    api.defaults.baseURL = resolveBaseURL()
+
+    // Test connection separately — warn if it fails but settings are already saved
+    try {
+      const urlToTest = resolveBaseURL()
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 10000)
+      const res = await fetch(`${urlToTest}/sources/builtins?api_key=${apiKey || 'mgdl-creator'}`, {
+        signal: controller.signal,
+      })
+      clearTimeout(timeout)
       if (res.ok) {
-        localStorage.setItem('manga-api-key', apiKey)
-        if (backendUrl.trim()) {
-          localStorage.setItem('manga-backend-url', backendUrl.trim())
-        } else {
-          localStorage.removeItem('manga-backend-url')
-        }
-        api.defaults.baseURL = resolveBaseURL()
         const { ExtensionManager } = await import('../../lib/extensions')
         ExtensionManager.getInstance().reinit()
-        alert('Security settings saved! Extensions are reloading.')
+        alert('Settings saved. Backend connected!')
+      } else if (res.status === 403) {
+        setConnectionError('Saved, but API key rejected (403). Check your key.')
       } else {
-        if (res.status === 403) {
-          setConnectionError('Forbidden (403): Invalid API Key.')
-        } else {
-          setConnectionError(`Server returned status: ${res.status}. Check API Key.`)
-        }
+        setConnectionError(`Saved, but backend returned ${res.status}. Check the URL.`)
       }
     } catch (err) {
-      setConnectionError('Could not reach backend. Verify URL and make sure the server is running.')
+      const isTimeout = err instanceof Error && err.name === 'AbortError'
+      setConnectionError(
+        isTimeout
+          ? 'Settings saved. Backend is slow to respond (cold start). It will retry automatically.'
+          : 'Settings saved, but backend is unreachable. Check the URL and try again.'
+      )
     } finally {
       setTestingConnection(false)
     }
@@ -330,7 +339,7 @@ export default function SystemSettings() {
               Backend URL
             </label>
             <input
-              type="url"
+              type="text"
               value={backendUrl}
               onChange={(e) => setBackendUrl(e.target.value)}
               placeholder="https://your-server.example.com"

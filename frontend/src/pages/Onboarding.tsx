@@ -18,30 +18,39 @@ export default function OnboardingPage() {
   const handleConnect = async () => {
     setTestingConnection(true)
     setConnectionError(null)
-    try {
-      const urlToTest = backendUrl.trim()
-        ? backendUrl.trim().replace(/\/$/, '') + '/api'
-        : resolveBaseURL()
 
-      const res = await fetch(`${urlToTest}/sources/builtins?api_key=${apiKey || 'mgdl-creator'}`)
+    // Save immediately so a cold-start timeout doesn't block setup
+    localStorage.setItem('manga-api-key', apiKey || 'mgdl-creator')
+    if (backendUrl.trim()) {
+      localStorage.setItem('manga-backend-url', backendUrl.trim())
+    } else {
+      localStorage.removeItem('manga-backend-url')
+    }
+    api.defaults.baseURL = resolveBaseURL()
+
+    try {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 10000)
+      const res = await fetch(`${resolveBaseURL()}/sources/builtins?api_key=${apiKey || 'mgdl-creator'}`, {
+        signal: controller.signal,
+      })
+      clearTimeout(timeout)
       if (res.ok) {
-        localStorage.setItem('manga-api-key', apiKey || 'mgdl-creator')
-        if (backendUrl.trim()) {
-          localStorage.setItem('manga-backend-url', backendUrl.trim())
-        } else {
-          localStorage.removeItem('manga-backend-url')
-        }
-        api.defaults.baseURL = resolveBaseURL()
         setStep('done')
+      } else if (res.status === 403) {
+        setConnectionError('API key rejected (403). Check your key — settings saved.')
       } else {
-        if (res.status === 403) {
-          setConnectionError('Forbidden (403): Invalid API Key.')
-        } else {
-          setConnectionError(`Server returned status: ${res.status}. Check API Key.`)
-        }
+        setConnectionError(`Backend returned ${res.status}. Check the URL — settings saved.`)
       }
     } catch (err) {
-      setConnectionError('Could not reach backend. Verify URL and make sure the server is running.')
+      const isTimeout = err instanceof Error && err.name === 'AbortError'
+      // Still advance — Render cold starts can take up to 60s
+      if (isTimeout) {
+        setStep('done')
+      } else {
+        setConnectionError('Backend unreachable. Settings saved — it may still be starting up.')
+        setStep('done')
+      }
     } finally {
       setTestingConnection(false)
     }
@@ -133,7 +142,7 @@ export default function OnboardingPage() {
                   <Server className="w-3.5 h-3.5" /> Custom Backend URL <span className="text-white/20 normal-case font-normal">(optional)</span>
                 </label>
                 <input
-                  type="url"
+                  type="text"
                   value={backendUrl}
                   onChange={e => setBackendUrl(e.target.value)}
                   placeholder="https://your-server.example.com"

@@ -38,6 +38,9 @@ logs/
 .agents/*
 .kiro/*
 
+# Archive artifact
+Suwayomi-Server-master.zip
+
 # Folders
 UI/
 
