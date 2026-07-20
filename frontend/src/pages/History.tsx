@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Clock, Play, Trash2, ChevronLeft, Loader2, EyeOff, Calendar } from 'lucide-react'
 import { useAppStore } from '../lib/store'
 import { cn } from '../lib/utils'
+import { buildSmartReadUrl } from '../lib/smartUrl'
 
 interface HistoryEntry {
   provider: string
@@ -94,9 +95,8 @@ export default function HistoryPage() {
   }
 
   const resumeChapter = (entry: HistoryEntry) => {
-    const raw = `${entry.provider}|${entry.manga_id}|${entry.chapter_id}|${entry.manga_title}|${entry.chapter_title}`
-    const param = btoa(unescape(encodeURIComponent(raw)))
-    navigate(`/read/online/${param}`)
+    const targetUrl = buildSmartReadUrl(entry.provider, entry.manga_id, entry.chapter_id, entry.manga_title, entry.chapter_title)
+    navigate(targetUrl)
   }
 
   if (incognitoMode) {

@@ -4,6 +4,7 @@ import api from '../lib/api'
 import { motion } from 'framer-motion'
 import { Bell, Play, Download, Loader2, RefreshCw, ChevronLeft } from 'lucide-react'
 import { cn } from '../lib/utils'
+import { buildSmartReadUrl } from '../lib/smartUrl'
 
 interface UpdateEntry {
   manga_title: string
@@ -66,9 +67,8 @@ export default function UpdatesPage() {
   }
 
   const handleReadOnline = (entry: UpdateEntry) => {
-    const raw = `${entry.provider}|${entry.manga_id}|${entry.chapter_id}|${entry.manga_title}|${entry.chapter_title}`
-    const param = btoa(unescape(encodeURIComponent(raw)))
-    navigate(`/read/online/${param}`)
+    const targetUrl = buildSmartReadUrl(entry.provider, entry.manga_id, entry.chapter_id, entry.manga_title, entry.chapter_title)
+    navigate(targetUrl)
   }
 
   // Group by manga title

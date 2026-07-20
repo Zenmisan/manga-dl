@@ -28,6 +28,7 @@ import {
   Pencil,
 } from 'lucide-react'
 import { markRead, markUnread, markAllRead, getReadChapters } from '../lib/readTracking'
+import { buildSmartReadUrl } from '../lib/smartUrl'
 import { ExtensionManager } from '../lib/extensions'
 import { getMangaNote, setMangaNote, setMangaRating } from '../lib/mangaNotes'
 import { setMangaOverride, getMangaOverride } from '../lib/metaOverrides'
@@ -1046,9 +1047,8 @@ export default function MangaDetail() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
-                        const raw = `${provider}|${manga.id}|${chapter.id}|${manga.title}|${chapter.title}`
-                        const param = btoa(unescape(encodeURIComponent(raw)))
-                        navigate(`/read/online/${param}`)
+                        const targetUrl = buildSmartReadUrl(provider || '', manga.id, chapter.id, manga.title, chapter.title)
+                        navigate(targetUrl)
                       }}
                       className="p-3 rounded-xl transition-all border bg-violet-500/10 border-violet-500/20 text-violet-400 hover:bg-violet-500 hover:text-white hover:border-violet-500 shadow-lg"
                       title="Read Online"
@@ -1211,9 +1211,8 @@ export default function MangaDetail() {
           transition={{ delay: 0.4, type: 'spring', stiffness: 200 }}
           onClick={() => {
             const ch = resumeTarget.chapter
-            const raw = `${provider}|${manga!.id}|${ch.id}|${manga!.title}|${ch.title}`
-            const param = btoa(unescape(encodeURIComponent(raw)))
-            navigate(`/read/online/${param}`)
+            const targetUrl = buildSmartReadUrl(provider || '', manga!.id, ch.id, manga!.title, ch.title)
+            navigate(targetUrl)
           }}
           className="fixed bottom-28 right-5 md:bottom-8 md:right-8 z-40 flex items-center gap-2.5 px-5 py-3.5 rounded-2xl bg-red-600 hover:bg-red-500 text-white font-black text-sm shadow-xl shadow-red-600/30 hover:-translate-y-0.5 transition-all"
           style={{ boxShadow: '0 8px 30px rgba(220,38,38,.4)' }}

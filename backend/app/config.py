@@ -21,6 +21,8 @@ class Settings(BaseSettings):
         "https://manga-dl.firebaseapp.com",
         "tauri://localhost",
         "http://tauri.localhost",
+        "https://localhost",
+        "capacitor://localhost",
     ]
     API_KEY: str | None = None
     

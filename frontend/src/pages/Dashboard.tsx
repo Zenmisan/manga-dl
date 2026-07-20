@@ -34,6 +34,7 @@ import { saveLocalManga, getAllLocalManga, deleteLocalManga, loadLocalMangaIntoS
 import { getReadCount } from '../lib/readTracking'
 import { getMangaCategoryList, getCategories } from '../lib/categories'
 import { supabase } from '../lib/supabase'
+import { buildSmartReadUrl } from '../lib/smartUrl'
 
 interface LibraryItem {
   title: string
@@ -902,9 +903,8 @@ export default function Dashboard() {
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation()
-                                    const raw = `${lastRead.provider}|${lastRead.mangaId}|${lastRead.chapterId}|${lastRead.mangaTitle}|${lastRead.chapterTitle}`
-                                    const param = btoa(unescape(encodeURIComponent(raw)))
-                                    navigate(`/read/online/${param}`)
+                                    const targetUrl = buildSmartReadUrl(lastRead.provider, lastRead.mangaId, lastRead.chapterId, lastRead.mangaTitle, lastRead.chapterTitle)
+                                    navigate(targetUrl)
                                   }}
                                   className="mt-1 flex items-center gap-1.5 px-2 py-1 bg-red-600/80 hover:bg-red-500 rounded-lg text-[9px] font-black uppercase tracking-widest text-white transition-all w-fit"
                                 >
@@ -976,8 +976,8 @@ export default function Dashboard() {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation()
-                                const param = encodeURIComponent(`${lastRead.provider}|${lastRead.mangaId}|${lastRead.chapterId}|${lastRead.mangaTitle}|${lastRead.chapterTitle}`)
-                                navigate(`/read/online/${param}`)
+                                const targetUrl = buildSmartReadUrl(lastRead.provider, lastRead.mangaId, lastRead.chapterId, lastRead.mangaTitle, lastRead.chapterTitle)
+                                navigate(targetUrl)
                               }}
                               className="mt-2 flex items-center gap-1.5 px-3 py-1 bg-red-600/20 hover:bg-red-600/40 border border-red-500/30 rounded-lg text-[9px] font-black uppercase tracking-widest text-red-400 transition-all"
                             >
