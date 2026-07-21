@@ -19,10 +19,10 @@ interface Props {
   mangaTitle: string | undefined
   filename: string | undefined
   localTitle: string | null
-  readingMode: string
-  setReadingMode: (mode: string) => void
-  imageScale: string
-  setImageScale: (scale: string) => void
+  readingMode: 'webtoon' | 'manga' | 'manga-rtl' | 'vertical-pager'
+  setReadingMode: (mode: 'webtoon' | 'manga' | 'manga-rtl' | 'vertical-pager') => void
+  imageScale: 'fit-screen' | 'fit-width' | 'fit-height' | 'original'
+  setImageScale: (scale: 'fit-screen' | 'fit-width' | 'fit-height' | 'original') => void
   upscaling: boolean
   setUpscaling: (v: boolean) => void
   ambilightEnabled: boolean
