@@ -62,7 +62,7 @@ export default function MorePage() {
   })
 
   return (
-    <div className="p-6 md:p-12 max-w-xl mx-auto min-h-full">
+    <div className="p-4 sm:p-6 md:p-12 max-w-xl mx-auto min-h-full">
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
         <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-10 bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent uppercase">
           More

@@ -85,7 +85,7 @@ export default function HelpPage() {
   const navigate = useNavigate()
 
   return (
-    <div className="p-6 md:p-12 max-w-4xl mx-auto min-h-full pb-32">
+    <div className="p-4 sm:p-6 md:p-12 max-w-4xl mx-auto min-h-full pb-32">
       <header className="mb-12">
         <button
           onClick={() => navigate(-1)}

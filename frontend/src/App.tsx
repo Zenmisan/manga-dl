@@ -526,18 +526,18 @@ function App() {
       </main>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 px-4 pb-6 pt-2 bg-linear-to-t from-black via-black/90 to-transparent backdrop-blur-md border-t border-white/5">
-        <div className="flex items-center justify-around glass-panel p-1.5 max-w-lg mx-auto">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 px-2 sm:px-4 pb-4 sm:pb-6 pt-2 bg-linear-to-t from-black via-black/90 to-transparent backdrop-blur-md border-t border-white/5">
+        <div className="flex items-center justify-around glass-panel p-1 max-w-lg mx-auto">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path
             return (
               <Link
                 key={item.path}
                 to={item.path}
-                className={cn("nav-link flex-1 py-3", isActive && "active")}
+                className={cn("nav-link flex-1 py-2 sm:py-3", isActive && "active")}
               >
-                <item.icon className={cn("w-5 h-5", isActive ? "text-red-500" : "opacity-70")} />
-                <span className="text-[10px] font-bold uppercase tracking-tighter">{item.label}</span>
+                <item.icon className={cn("w-4 h-4 sm:w-5 sm:h-5", isActive ? "text-red-500" : "opacity-70")} />
+                <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-tighter truncate max-w-full">{item.label}</span>
               </Link>
             )
           })}

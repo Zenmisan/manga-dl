@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import api from '../lib/api'
 import { supabase } from '../lib/supabase'
+import { useHistory, QK } from '../lib/queries'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Clock, Play, Trash2, ChevronLeft, Loader2, EyeOff, Calendar } from 'lucide-react'
 import { useAppStore } from '../lib/store'
@@ -42,9 +44,8 @@ function startOf(filter: DateFilter): number {
 
 export default function HistoryPage() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const { incognitoMode } = useAppStore()
-  const [history, setHistory] = useState<HistoryEntry[]>([])
-  const [loading, setLoading] = useState(true)
   const [authed, setAuthed] = useState(false)
   const [clearing, setClearing] = useState(false)
   const [clearingMangaId, setClearingMangaId] = useState<string | null>(null)
@@ -53,17 +54,12 @@ export default function HistoryPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) {
-        setAuthed(true)
-        api.get('/users/history')
-          .then(res => setHistory(res.data))
-          .catch(() => {})
-          .finally(() => setLoading(false))
-      } else {
-        setLoading(false)
-      }
+      setAuthed(!!data.session)
     })
   }, [])
+
+  const { data: rawHistory = [], isLoading: loading } = useHistory(authed)
+  const history = rawHistory as HistoryEntry[]
 
   const filtered = useMemo(() => {
     const cutoff = startOf(dateFilter)
@@ -80,7 +76,7 @@ export default function HistoryPage() {
     setClearing(true)
     try {
       await api.delete('/users/history')
-      setHistory([])
+      queryClient.setQueryData(QK.history, [])
     } catch { /* non-fatal */ }
     setClearing(false)
   }
@@ -89,7 +85,9 @@ export default function HistoryPage() {
     setClearingMangaId(mangaId)
     try {
       await api.delete(`/users/history/${encodeURIComponent(provider)}/${encodeURIComponent(mangaId)}`)
-      setHistory(prev => prev.filter(e => !(e.provider === provider && e.manga_id === mangaId)))
+      queryClient.setQueryData(QK.history, (prev: HistoryEntry[]) =>
+        (prev ?? []).filter(e => !(e.provider === provider && e.manga_id === mangaId))
+      )
     } catch { /* non-fatal */ }
     setClearingMangaId(null)
   }
@@ -117,7 +115,7 @@ export default function HistoryPage() {
   ]
 
   return (
-    <div className="p-6 md:p-12 max-w-4xl mx-auto min-h-full">
+    <div className="p-4 sm:p-6 md:p-12 max-w-4xl mx-auto min-h-full">
       <header className="mb-8">
         <button
           onClick={() => navigate(-1)}

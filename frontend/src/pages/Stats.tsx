@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import api from '../lib/api'
+import { useState } from 'react'
+import { useLibraryStats } from '../lib/queries'
 import { BarChart2, Book, Download, Layers, HardDrive, Flame, Loader2, Target, CheckCircle2, Edit3, Clock, TrendingUp, BookOpen } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { getCategories } from '../lib/categories'
@@ -98,18 +98,11 @@ const PROVIDER_COLORS: Record<string, string> = {
 }
 
 export default function StatsPage() {
-  const [stats, setStats] = useState<StatsData | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { data: rawStats, isLoading: loading } = useLibraryStats()
+  const stats = rawStats as StatsData | undefined
   const [goals, setGoals] = useState<ReadingGoals>(() => getGoals())
   const [editGoals, setEditGoals] = useState(false)
   const [goalDraft, setGoalDraft] = useState<ReadingGoals>(() => getGoals())
-
-  useEffect(() => {
-    api.get('/library/stats')
-      .then(res => setStats(res.data))
-      .catch(console.error)
-      .finally(() => setLoading(false))
-  }, [])
 
   if (loading) {
     return (
@@ -162,7 +155,7 @@ export default function StatsPage() {
     .sort((a, b) => b.count - a.count)
 
   return (
-    <div className="p-6 md:p-12 max-w-5xl mx-auto min-h-full">
+    <div className="p-4 sm:p-6 md:p-12 max-w-5xl mx-auto min-h-full">
       <header className="mb-12">
         <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-3 bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent">
           Statistics

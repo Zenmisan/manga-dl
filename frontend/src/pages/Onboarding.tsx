@@ -71,9 +71,9 @@ export default function OnboardingPage() {
   const stepIdx = STEPS.indexOf(step)
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-white flex flex-col items-center justify-center p-6">
+    <div className="min-h-screen bg-[#09090b] text-white flex flex-col items-center justify-center p-4 sm:p-6">
       {/* Progress dots */}
-      <div className="flex gap-2 mb-12">
+      <div className="flex gap-2 mb-8 sm:mb-12">
         {STEPS.map((s, i) => (
           <div key={s} className={`h-1.5 rounded-full transition-all duration-300 ${i <= stepIdx ? 'w-8 bg-red-500' : 'w-4 bg-white/10'}`} />
         ))}
@@ -84,11 +84,11 @@ export default function OnboardingPage() {
           <motion.div key="welcome" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -24 }}
             className="max-w-md w-full text-center"
           >
-            <div className="w-20 h-20 mx-auto mb-8 flex items-center justify-center">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-6 sm:mb-8 flex items-center justify-center">
               <img src="/Manga-dl1.png" alt="manga-dl logo" className="w-full h-full object-contain drop-shadow-[0_0_15px_rgba(220,38,38,0.3)]" />
             </div>
-            <h1 className="text-4xl font-extrabold tracking-tight mb-4">Welcome to manga-dl</h1>
-            <p className="text-white/50 mb-10 leading-relaxed">
+            <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight mb-3 sm:mb-4">Welcome to manga-dl</h1>
+            <p className="text-white/50 mb-8 sm:mb-10 text-xs sm:text-sm leading-relaxed">
               Your cloud-connected manga reader. Search, download, and read across 500+ sources — on web, desktop, and mobile.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 mb-10">

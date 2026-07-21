@@ -167,7 +167,7 @@ export default function DownloadsPage() {
   }
 
   return (
-    <div className="p-6 md:p-12 max-w-7xl mx-auto min-h-full">
+    <div className="p-4 sm:p-6 md:p-12 max-w-7xl mx-auto min-h-full">
       <header className="mb-12">
         <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-3 bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent">
           Queue

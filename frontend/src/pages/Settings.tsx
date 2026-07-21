@@ -56,7 +56,7 @@ export default function SettingsLayout() {
 
       {/* Settings Content */}
       <main className="flex-1 min-w-0 h-full overflow-y-auto">
-        <div className="p-6 md:p-12 lg:p-16 max-w-4xl">
+        <div className="p-4 sm:p-6 md:p-12 lg:p-16 max-w-4xl">
           <header className="mb-10 md:hidden">
             <div className="flex items-center gap-3 mb-2">
               <currentTab.icon className="w-5 h-5 text-red-500" />

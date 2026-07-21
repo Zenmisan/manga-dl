@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import api from '../lib/api'
+import { useBuiltinSources, useMarketSources } from '../lib/queries'
 import { Download, CheckCircle2, Search, Filter, ShieldAlert, Loader2, Trash2, RefreshCw, PowerOff, Power, Zap } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
@@ -35,8 +35,11 @@ function saveInstalledMeta(list: InstalledMeta[]) {
 }
 
 export default function SourcesPage() {
-  const [sources, setSources] = useState<Source[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: rawSources = [], isLoading: loading } = useMarketSources()
+  const sources = rawSources as Source[]
+  const { data: builtinsRaw = [] } = useBuiltinSources()
+  const builtinIdSet = useMemo(() => new Set((builtinsRaw as Array<{ id: string }>).map(b => b.id)), [builtinsRaw])
+
   const [search, setSearch] = useState('')
   const [filterLang, setFilterLang] = useState('all')
   const [installing, setInstalling] = useState<string[]>([])
@@ -44,25 +47,13 @@ export default function SourcesPage() {
   const [uninstalling, setUninstalling] = useState<string[]>([])
   const [checkingUpdates, setCheckingUpdates] = useState(false)
   const [updates, setUpdates] = useState<string[]>([])
-  const [builtinIdSet, setBuiltinIdSet] = useState<Set<string>>(new Set())
 
   const installedIds = useMemo(() => installedMeta.map(m => m.id), [installedMeta])
   const disabledIds = useMemo(() => installedMeta.filter(m => m.disabled).map(m => m.id), [installedMeta])
 
   useEffect(() => {
-    const manager = ExtensionManager.getInstance()
-    manager.init().then(() => {
+    ExtensionManager.getInstance().init().then(() => {
       setInstalledMeta(getInstalledMeta())
-    })
-    api.get('/sources/builtins').then(res => {
-      setBuiltinIdSet(new Set((res.data as Array<{ id: string }>).map(b => b.id)))
-    }).catch(() => {})
-    api.get('/sources/market').then(res => {
-      setSources(res.data)
-      setLoading(false)
-    }).catch(err => {
-      console.error(err)
-      setLoading(false)
     })
   }, [])
 
@@ -96,8 +87,7 @@ const handleUninstall = (id: string) => {
   const handleCheckUpdates = async () => {
     setCheckingUpdates(true)
     try {
-      const res = await api.get('/sources/market')
-      const market: Source[] = res.data
+      const market = sources as Source[]
       const needsUpdate: string[] = []
       for (const inst of installedMeta) {
         const remote = market.find(s => s.id === inst.id)
@@ -148,7 +138,7 @@ const handleUninstall = (id: string) => {
   const activeInstalled = installedMeta.filter(m => !m.disabled)
 
   return (
-    <div className="p-6 md:p-12 max-w-7xl mx-auto min-h-full">
+    <div className="p-4 sm:p-6 md:p-12 max-w-7xl mx-auto min-h-full">
       <header className="mb-8">
         <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-4 bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent">
           Browse

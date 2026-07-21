@@ -328,7 +328,7 @@ export default function SearchPage() {
   }
 
   return (
-    <div className="p-6 md:p-12 max-w-7xl mx-auto min-h-full">
+    <div className="p-4 sm:p-6 md:p-12 max-w-7xl mx-auto min-h-full">
       <header className="mb-10">
         <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-4 bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent">
           Discover Manga
@@ -360,20 +360,21 @@ export default function SearchPage() {
 
         {tab === 'search' && (
           <>
-            <form onSubmit={handleSearch} className="relative group max-w-2xl mb-8">
-              <div className="absolute inset-0 bg-red-500/10 blur-2xl rounded-3xl opacity-0 group-focus-within:opacity-100 transition-opacity pointer-events-none" />
-              <SearchIcon className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-white/20 group-focus-within:text-red-500 transition-colors z-10" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by title, author, or genre..."
-                className="w-full glass-panel py-4 md:py-5 pl-14 pr-32 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-all text-base md:text-lg placeholder:text-white/20 relative z-0"
-              />
+            <form onSubmit={handleSearch} className="relative group max-w-2xl mb-8 flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <SearchIcon className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-white/20 group-focus-within:text-red-500 transition-colors z-10" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search by title, author, or genre..."
+                  className="w-full glass-panel py-3.5 sm:py-4 md:py-5 pl-11 sm:pl-14 pr-4 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-all text-sm sm:text-base md:text-lg placeholder:text-white/20 relative z-0"
+                />
+              </div>
               <button
                 type="submit"
                 disabled={loading}
-                className="absolute right-2 top-1/2 -translate-y-1/2 btn-primary py-2 px-5 md:px-7 h-[calc(100%-1rem)] flex items-center gap-2 z-10 text-sm md:text-base"
+                className="btn-primary py-3 px-6 flex items-center justify-center gap-2 shrink-0 text-sm md:text-base font-bold"
               >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Search'}
               </button>

@@ -102,7 +102,7 @@ export default function ProfilePage() {
     : `Reader #${shortId}`
 
   return (
-    <div className="p-6 md:p-12 max-w-3xl mx-auto min-h-full">
+    <div className="p-4 sm:p-6 md:p-12 max-w-3xl mx-auto min-h-full">
       {/* Back */}
       <button
         onClick={() => navigate(-1)}

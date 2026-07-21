@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../lib/api'
+import { useMangaUpdates } from '../lib/queries'
 import { motion } from 'framer-motion'
 import { Bell, Play, Download, Loader2, RefreshCw, ChevronLeft } from 'lucide-react'
 import { cn } from '../lib/utils'
@@ -32,23 +33,9 @@ function timeAgo(iso: string | null): string {
 
 export default function UpdatesPage() {
   const navigate = useNavigate()
-  const [updates, setUpdates] = useState<UpdateEntry[]>([])
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
+  const { data: rawUpdates = [], isLoading: loading, isFetching: refreshing, refetch } = useMangaUpdates()
+  const updates = rawUpdates as UpdateEntry[]
   const [downloading, setDownloading] = useState<Set<string>>(new Set())
-
-  const load = async (spinner = false) => {
-    if (spinner) setRefreshing(true)
-    try {
-      const res = await api.get('/manga/updates')
-      setUpdates(res.data)
-    } catch { /* non-fatal */ }
-    setLoading(false)
-    if (spinner) setRefreshing(false)
-  }
-
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { load() }, [])
 
   const handleDownload = async (entry: UpdateEntry) => {
     const key = `${entry.provider}-${entry.chapter_id}`
@@ -79,7 +66,7 @@ export default function UpdatesPage() {
   }, {})
 
   return (
-    <div className="p-6 md:p-12 max-w-5xl mx-auto min-h-full">
+    <div className="p-4 sm:p-6 md:p-12 max-w-5xl mx-auto min-h-full">
       <header className="mb-10">
         <button
           onClick={() => navigate(-1)}
@@ -96,7 +83,7 @@ export default function UpdatesPage() {
             <p className="text-white/40 font-medium">Latest chapters from your library</p>
           </div>
           <button
-            onClick={() => load(true)}
+            onClick={() => refetch()}
             disabled={refreshing}
             className="p-2.5 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all text-white/40 hover:text-white"
             title="Refresh"

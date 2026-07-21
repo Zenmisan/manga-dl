@@ -65,22 +65,22 @@ export function ReaderHeader({
           initial={{ y: -100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: -100, opacity: 0 }}
-          className="fixed top-0 left-0 right-0 z-50 p-4 md:p-6"
+          className="fixed top-0 left-0 right-0 z-50 p-2 sm:p-4 md:p-6"
         >
-          <div className="max-w-5xl mx-auto glass-panel p-4 flex items-center justify-between shadow-2xl border-white/5">
-            <div className="flex items-center gap-4 min-w-0">
-              <button onClick={onBack} className="p-2.5 hover:bg-white/10 rounded-xl transition-all text-white/60 hover:text-white shrink-0">
-                <ChevronLeft className="w-6 h-6" />
+          <div className="max-w-5xl mx-auto glass-panel p-2.5 sm:p-4 flex items-center justify-between shadow-2xl border-white/5 gap-2">
+            <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
+              <button onClick={onBack} className="p-2 sm:p-2.5 hover:bg-white/10 rounded-xl transition-all text-white/60 hover:text-white shrink-0">
+                <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
               <div className="min-w-0">
-                <h1 className="font-bold text-sm md:text-base truncate">{mangaTitle === 'local' ? localTitle : mangaTitle}</h1>
-                <p className="text-[10px] md:text-xs font-bold text-white/30 uppercase tracking-tight truncate">
+                <h1 className="font-bold text-xs sm:text-sm md:text-base truncate">{mangaTitle === 'local' ? localTitle : mangaTitle}</h1>
+                <p className="text-[9px] sm:text-[10px] md:text-xs font-bold text-white/30 uppercase tracking-tight truncate">
                   {mangaTitle === 'local' ? 'Local Preview' : filename?.replace('.cbz', '')}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            <div className="flex items-center gap-1 sm:gap-2 shrink-0 max-w-[60%] sm:max-w-none overflow-x-auto no-scrollbar">
               <button
                 onClick={(e) => { e.stopPropagation(); setAmbilightEnabled(!ambilightEnabled) }}
                 className={cn(
