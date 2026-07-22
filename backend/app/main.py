@@ -66,6 +66,11 @@ async def root():
         "docs": "/docs"
     }
 
+
+@app.get("/health")
+async def health_check():
+    return {"status": "ok", "service": "manga-dl"}
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_settings.CORS_ORIGINS,
