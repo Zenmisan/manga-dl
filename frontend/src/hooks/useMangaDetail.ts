@@ -1,12 +1,14 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '../lib/api'
 import { FastAverageColor } from 'fast-average-color'
-import { markRead, markUnread, markAllRead, getReadChapters } from '../lib/readTracking'
+import { getReadChapters } from '../lib/readTracking'
 import { ExtensionManager } from '../lib/extensions'
 import { getMangaNote } from '../lib/mangaNotes'
 import { setMangaOverride, getMangaOverride } from '../lib/metaOverrides'
 import { supabase } from '../lib/supabase'
+import { useMangaTracker } from './useMangaTracker'
+import { useMangaChaptersFilter } from './useMangaChaptersFilter'
 
 export interface Chapter {
   id: string
@@ -43,13 +45,6 @@ export function useMangaDetail() {
   const isAdmin = userEmail === 'zenmisan@gmail.com'
   const [subscribed, setSubscribed] = useState(false)
   const [subscribing, setSubscribing] = useState(false)
-  const [chapterSort, setChapterSort] = useState<'default' | 'newest' | 'oldest' | 'num-asc' | 'num-desc'>('default')
-  const [chapterSearch, setChapterSearch] = useState('')
-  const [readFilter, setReadFilter] = useState<'all' | 'unread' | 'read'>('all')
-  const [scanlatorFilter, setScanlatorFilter] = useState<string>('all')
-  const [bookmarks, setBookmarks] = useState<Set<string>>(new Set(
-    JSON.parse(localStorage.getItem('manga-dl-bookmarks') || '{}')[`${provider}:${mangaId}`] || []
-  ))
   const [readChapters, setReadChapters] = useState<Set<string>>(new Set())
   const [malSyncing, setMalSyncing] = useState(false)
   const [userNote, setUserNote] = useState('')
@@ -91,106 +86,11 @@ export function useMangaDetail() {
     setEditingMeta(false)
   }
 
-  // Tracker linking
-  const TRACKER_LINKS_KEY = 'manga-dl-tracker-links'
-  const trackerKey = `${provider}:${mangaId}`
-  const getTrackerLinks = () => {
-    try { return JSON.parse(localStorage.getItem(TRACKER_LINKS_KEY) || '{}') } catch { return {} }
-  }
-  const [trackerLinks, setTrackerLinksState] = useState<Record<string, { id: number; title: string; score?: number; status?: string; progress?: number }>>(() => getTrackerLinks()[trackerKey] || {})
-  const [showTrackerModal, setShowTrackerModal] = useState<'anilist' | 'mal' | 'mangaupdates' | 'shikimori' | 'bangumi' | null>(null)
-  const [trackerSearch, setTrackerSearch] = useState('')
-  const [trackerResults, setTrackerResults] = useState<{ id: number; title: string; cover?: string; year?: number; score?: number; status?: string; progress?: number }[]>([])
-  const [trackerSearching, setTrackerSearching] = useState(false)
-  const [showSyncModal, setShowSyncModal] = useState<'anilist' | 'mal' | 'mangaupdates' | 'shikimori' | 'bangumi' | null>(null)
-  const [syncStatus, setSyncStatus] = useState('CURRENT')
-  const [syncScore, setSyncScore] = useState(0)
-  const [syncProgress, setSyncProgress] = useState(0)
-  const [syncStartDate, setSyncStartDate] = useState('')
-  const [syncEndDate, setSyncEndDate] = useState('')
-  const [syncing, setSyncing] = useState(false)
+  // Tracker linking sub-hook
+  const tracker = useMangaTracker(provider, mangaId)
 
-  const openSyncModal = (tracker: typeof showSyncModal) => {
-    const link = trackerLinks[tracker!]
-    setSyncStatus(link?.status || 'CURRENT')
-    setSyncScore(link?.score || 0)
-    setSyncProgress(link?.progress || 0)
-    setSyncStartDate('')
-    setSyncEndDate('')
-    setShowSyncModal(tracker)
-  }
-
-  const handleTrackerSync = async () => {
-    if (!showSyncModal) return
-    const link = trackerLinks[showSyncModal]
-    if (!link) return
-    setSyncing(true)
-    try {
-      if (showSyncModal === 'anilist') {
-        const token = localStorage.getItem('anilist-token')
-        if (!token) { alert('Log in to AniList first'); setSyncing(false); return }
-        await api.post('/auth/anilist/track', {
-          access_token: token,
-          media_id: link.id,
-          status: syncStatus,
-          score: syncScore,
-          progress: syncProgress,
-          start_date: syncStartDate || undefined,
-          finish_date: syncEndDate || undefined,
-        })
-      } else if (showSyncModal === 'mal') {
-        const token = localStorage.getItem('mal-token')
-        if (!token) { alert('Log in to MAL first'); setSyncing(false); return }
-        await api.post('/auth/mal/track', {
-          access_token: token,
-          manga_id: link.id,
-          status: syncStatus.toLowerCase().replace('current', 'reading'),
-          chapters_read: syncProgress,
-          score: syncScore,
-          start_date: syncStartDate || undefined,
-          finish_date: syncEndDate || undefined,
-        })
-      }
-      saveTrackerLink(showSyncModal, { ...link, status: syncStatus, score: syncScore, progress: syncProgress })
-      setShowSyncModal(null)
-    } catch {
-      alert('Sync failed. Check your login or try again.')
-    }
-    setSyncing(false)
-  }
-
-  const saveTrackerLink = (tracker: string, entry: { id: number; title: string; score?: number; status?: string; progress?: number }) => {
-    const all = getTrackerLinks()
-    all[trackerKey] = { ...(all[trackerKey] || {}), [tracker]: entry }
-    localStorage.setItem(TRACKER_LINKS_KEY, JSON.stringify(all))
-    setTrackerLinksState(all[trackerKey])
-  }
-
-  const removeTrackerLink = (tracker: string) => {
-    const all = getTrackerLinks()
-    if (all[trackerKey]) { delete all[trackerKey][tracker]; if (Object.keys(all[trackerKey]).length === 0) delete all[trackerKey] }
-    localStorage.setItem(TRACKER_LINKS_KEY, JSON.stringify(all))
-    setTrackerLinksState(all[trackerKey] || {})
-  }
-
-  const searchTracker = async (query: string, tracker: string | null) => {
-    if (!query.trim() || !tracker) return
-    setTrackerSearching(true)
-    try {
-      if (tracker === 'anilist') {
-        const res = await api.get(`/auth/anilist/search?q=${encodeURIComponent(query)}`)
-        setTrackerResults(res.data)
-      } else if (tracker === 'mal') {
-        const token = localStorage.getItem('mal-token')
-        if (!token) { alert('Log in to MyAnimeList first in Settings'); setTrackerSearching(false); return }
-        const res = await api.get(`/auth/mal/search?q=${encodeURIComponent(query)}&access_token=${token}`)
-        setTrackerResults(res.data)
-      }
-    } catch {
-      setTrackerResults([])
-    }
-    setTrackerSearching(false)
-  }
+  // Chapter filtering & sorting sub-hook
+  const chapterFilter = useMangaChaptersFilter(provider, mangaId, manga, readChapters, setReadChapters)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -339,37 +239,6 @@ export function useMangaDetail() {
     }
   }
 
-  const toggleBookmark = (chId: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-    const next = new Set(bookmarks)
-    if (next.has(chId)) next.delete(chId)
-    else next.add(chId)
-    setBookmarks(next)
-    const key = `${provider}:${mangaId}`
-    const all = JSON.parse(localStorage.getItem('manga-dl-bookmarks') || '{}')
-    all[key] = Array.from(next)
-    localStorage.setItem('manga-dl-bookmarks', JSON.stringify(all))
-  }
-
-  const toggleReadStatus = (chId: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (!provider || !mangaId) return
-    if (readChapters.has(chId)) {
-      markUnread(provider, mangaId, chId)
-      setReadChapters(prev => { const n = new Set(prev); n.delete(chId); return n })
-    } else {
-      markRead(provider, mangaId, chId)
-      setReadChapters(prev => new Set(prev).add(chId))
-    }
-  }
-
-  const handleMarkAllRead = () => {
-    if (!provider || !mangaId || !manga) return
-    const allIds = manga.chapters.map(c => c.id)
-    markAllRead(provider, mangaId, allIds)
-    setReadChapters(new Set(allIds))
-  }
-
   const handleMALSync = async () => {
     if (!manga || !malToken) return
     setMalSyncing(true)
@@ -393,63 +262,21 @@ export function useMangaDetail() {
     setMalSyncing(false)
   }
 
-  const scanlators = useMemo(() => {
-    if (!manga) return []
-    const set = new Set<string>()
-    for (const c of manga.chapters) {
-      const match = c.title?.match(/\[(.*?)\]|\((.*?)\)/)
-      if (match) set.add(match[1] || match[2])
-    }
-    return Array.from(set)
-  }, [manga])
-
-  const displayedChapters = useMemo(() => {
-    if (!manga) return []
-    let list = [...manga.chapters]
-    if (chapterSearch.trim()) {
-      const q = chapterSearch.toLowerCase()
-      list = list.filter(c => c.title.toLowerCase().includes(q) || String(c.number).includes(q))
-    }
-    if (scanlatorFilter !== 'all') {
-      list = list.filter(c => c.title.includes(`[${scanlatorFilter}]`) || c.title.includes(`(${scanlatorFilter})`))
-    }
-    if (readFilter === 'unread') list = list.filter(c => !readChapters.has(c.id))
-    if (readFilter === 'read') list = list.filter(c => readChapters.has(c.id))
-    switch (chapterSort) {
-      case 'newest': list.sort((a, b) => (b.published_at || '').localeCompare(a.published_at || '')); break
-      case 'oldest': list.sort((a, b) => (a.published_at || '').localeCompare(b.published_at || '')); break
-      case 'num-asc': list.sort((a, b) => a.number - b.number); break
-      case 'num-desc': list.sort((a, b) => b.number - a.number); break
-    }
-    return list
-  }, [manga, chapterSort, chapterSearch, readFilter, scanlatorFilter, readChapters])
-
-  const resumeTarget = useMemo(() => {
-    if (!manga || manga.chapters.length === 0) return null
-    const sorted = [...manga.chapters].sort((a, b) => a.number - b.number)
-    const firstUnread = sorted.find(c => !readChapters.has(c.id))
-    if (firstUnread) {
-      return { chapter: firstUnread, label: `Resume Ch. ${firstUnread.number}` }
-    }
-    const last = sorted[sorted.length - 1]
-    return { chapter: last, label: `Re-read Ch. ${last.number}` }
-  }, [manga, readChapters])
-
   return {
     provider, mangaId, navigate, manga, loading, downloading, showQueueLink,
     bulkLoading, isAdmin, subscribed, subscribing, handleSubscribe,
-    handleDownload, handleBulkDownload, chapterSort, setChapterSort,
-    chapterSearch, setChapterSearch, readFilter, setReadFilter,
-    scanlatorFilter, setScanlatorFilter, bookmarks, toggleBookmark,
-    readChapters, toggleReadStatus, handleMarkAllRead, malSyncing, handleMALSync,
+    handleDownload, handleBulkDownload, chapterSort: chapterFilter.chapterSort, setChapterSort: chapterFilter.setChapterSort,
+    chapterSearch: chapterFilter.chapterSearch, setChapterSearch: chapterFilter.setChapterSearch, readFilter: chapterFilter.readFilter, setReadFilter: chapterFilter.setReadFilter,
+    scanlatorFilter: chapterFilter.scanlatorFilter, setScanlatorFilter: chapterFilter.setScanlatorFilter, bookmarks: chapterFilter.bookmarks, toggleBookmark: chapterFilter.toggleBookmark,
+    readChapters, toggleReadStatus: chapterFilter.toggleReadStatus, handleMarkAllRead: chapterFilter.handleMarkAllRead, malSyncing, handleMALSync,
     userNote, setUserNote, userRating, setUserRating, noteEditing, setNoteEditing,
     noteDraft, setNoteDraft, malToken, themeColor, swipedChapterId, setSwipedChapterId,
     swipeStartX, imgRef, notifEnabled, toggleNotif, editingMeta, setEditingMeta,
-    metaDraft, setMetaDraft, openMetaEdit, saveMetaEdit, trackerLinks, showTrackerModal,
-    setShowTrackerModal, trackerSearch, setTrackerSearch, trackerResults, setTrackerResults, trackerSearching,
-    searchTracker, showSyncModal, setShowSyncModal, syncStatus, setSyncStatus,
-    syncScore, setSyncScore, syncProgress, setSyncProgress, syncStartDate, setSyncStartDate,
-    syncEndDate, setSyncEndDate, syncing, openSyncModal, handleTrackerSync,
-    saveTrackerLink, removeTrackerLink, scanlators, displayedChapters, resumeTarget,
+    metaDraft, setMetaDraft, openMetaEdit, saveMetaEdit, trackerLinks: tracker.trackerLinks, showTrackerModal: tracker.showTrackerModal,
+    setShowTrackerModal: tracker.setShowTrackerModal, trackerSearch: tracker.trackerSearch, setTrackerSearch: tracker.setTrackerSearch, trackerResults: tracker.trackerResults, setTrackerResults: tracker.setTrackerResults, trackerSearching: tracker.trackerSearching,
+    searchTracker: tracker.searchTracker, showSyncModal: tracker.showSyncModal, setShowSyncModal: tracker.setShowSyncModal, syncStatus: tracker.syncStatus, setSyncStatus: tracker.setSyncStatus,
+    syncScore: tracker.syncScore, setSyncScore: tracker.setSyncScore, syncProgress: tracker.syncProgress, setSyncProgress: tracker.setSyncProgress, syncStartDate: tracker.syncStartDate, setSyncStartDate: tracker.setSyncStartDate,
+    syncEndDate: tracker.syncEndDate, setSyncEndDate: tracker.setSyncEndDate, syncing: tracker.syncing, openSyncModal: tracker.openSyncModal, handleTrackerSync: tracker.handleTrackerSync,
+    saveTrackerLink: tracker.saveTrackerLink, removeTrackerLink: tracker.removeTrackerLink, scanlators: chapterFilter.scanlators, displayedChapters: chapterFilter.displayedChapters, resumeTarget: chapterFilter.resumeTarget,
   }
 }

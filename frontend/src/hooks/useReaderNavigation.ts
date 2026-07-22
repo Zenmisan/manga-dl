@@ -5,6 +5,7 @@ import { Haptics, ImpactStyle } from '@capacitor/haptics'
 import { getReadChapters } from '../lib/readTracking'
 import { buildSmartReadUrl } from '../lib/smartUrl'
 import type { OnlineParts } from './useReaderData'
+import { useReaderKeybindings } from './useReaderKeybindings'
 
 interface ReaderFilters {
   brightness: number
@@ -94,47 +95,11 @@ export function useReaderNavigation({
 
   const nextUnreadChapterId = getNextUnreadChapterId()
 
-  // Volume keys (native Android, pager mode only)
-  useEffect(() => {
-    if (!Capacitor.isNativePlatform() || readingMode === 'webtoon') return
-    import('../lib/volumeKeys').then(({ VolumeKeys }) => {
-      VolumeKeys.enable()
-      const upSub = VolumeKeys.addListener('volumeUp', () => prevPage())
-      const downSub = VolumeKeys.addListener('volumeDown', () => nextPage())
-      return () => {
-        VolumeKeys.disable()
-        upSub.then(h => h.remove())
-        downSub.then(h => h.remove())
-      }
-    }).catch(() => {})
-  }, [readingMode])
-
-  // Keyboard navigation
-  useEffect(() => {
-    const handle = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-        if (readingMode !== 'webtoon') setCurrentPage(p => Math.min(p + 1, pages.length))
-      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-        if (readingMode !== 'webtoon') setCurrentPage(p => Math.max(p - 1, 1))
-      } else if (e.key === 'VolumeDown') {
-        e.preventDefault()
-        if (volumeKeyMode === 'navigation') {
-          if (readingMode !== 'webtoon') setCurrentPage(p => Math.min(p + 1, pages.length))
-        } else {
-          setReaderFilters({ brightness: Math.max(0.3, readerFilters.brightness - 0.1) })
-        }
-      } else if (e.key === 'VolumeUp') {
-        e.preventDefault()
-        if (volumeKeyMode === 'navigation') {
-          if (readingMode !== 'webtoon') setCurrentPage(p => Math.max(p - 1, 1))
-        } else {
-          setReaderFilters({ brightness: Math.min(2, readerFilters.brightness + 0.1) })
-        }
-      }
-    }
-    window.addEventListener('keydown', handle)
-    return () => window.removeEventListener('keydown', handle)
-  }, [readingMode, pages.length, volumeKeyMode, readerFilters.brightness, setCurrentPage, setReaderFilters])
+  // Keybindings sub-hook
+  useReaderKeybindings({
+    readingMode, volumeKeyMode, readerFilters, setReaderFilters,
+    pagesLength: pages.length, setCurrentPage, prevPage, nextPage,
+  })
 
   return {
     nextPage, prevPage,
