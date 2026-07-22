@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
@@ -91,5 +92,20 @@ app.include_router(backup.router, prefix="/api")
 
 # Serve built frontend in production
 _frontend_dist = Path(__file__).parent.parent.parent / "frontend" / "dist"
+
+@app.get("/sitemap.xml", include_in_schema=False)
+async def get_sitemap():
+    sitemap_path = _frontend_dist / "sitemap.xml"
+    if sitemap_path.exists():
+        return FileResponse(sitemap_path, media_type="application/xml")
+    raise HTTPException(status_code=404, detail="sitemap.xml not found")
+
+@app.get("/robots.txt", include_in_schema=False)
+async def get_robots():
+    robots_path = _frontend_dist / "robots.txt"
+    if robots_path.exists():
+        return FileResponse(robots_path, media_type="text/plain")
+    raise HTTPException(status_code=404, detail="robots.txt not found")
+
 if _frontend_dist.exists():
     app.mount("/", StaticFiles(directory=str(_frontend_dist), html=True), name="frontend")

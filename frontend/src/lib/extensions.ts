@@ -123,6 +123,7 @@ export class ExtensionManager {
   }
 
   async install(pkgId: string, name: string, lang: string, version: string, silent = false): Promise<boolean> {
+    if (!pkgId || pkgId === 'undefined') return false
     try {
       const res = await api.get(`/sources/code/${pkgId}`)
       const jsCode: string = res.data.code
@@ -187,12 +188,16 @@ export class ExtensionManager {
     this.extensions.delete(pkgId)
     const installed = JSON.parse(localStorage.getItem(this.storageKey) || '[]')
     localStorage.setItem(this.storageKey, JSON.stringify(
-      installed.filter((e: { id: string }) => e.id !== pkgId)
+      installed.filter((e: { id: string }) => e && e.id && e.id !== pkgId && e.id !== 'undefined')
     ))
   }
 
   async loadInstalled() {
-    const installed = JSON.parse(localStorage.getItem(this.storageKey) || '[]') as Array<{ id: string; name: string; lang: string; version: string; disabled?: boolean }>
+    const rawInstalled = JSON.parse(localStorage.getItem(this.storageKey) || '[]') as Array<{ id: string; name: string; lang: string; version: string; disabled?: boolean }>
+    const installed = rawInstalled.filter(e => e && e.id && e.id !== 'undefined')
+    if (installed.length !== rawInstalled.length) {
+      localStorage.setItem(this.storageKey, JSON.stringify(installed))
+    }
     for (const ext of installed) {
       if (ext.disabled) {
         this.extensions.delete(ext.id)
