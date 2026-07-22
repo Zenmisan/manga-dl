@@ -36,7 +36,15 @@ export class ExtensionManager {
     return `extensions-${this.userId}`
   }
 
+  private initPromise: Promise<void> | null = null
+
   async init() {
+    if (this.initPromise) return this.initPromise
+    this.initPromise = this._doInit()
+    return this.initPromise
+  }
+
+  private async _doInit() {
     const { data } = await supabase.auth.getSession()
     this.userId = data.session?.user.id ?? 'guest'
     
@@ -63,8 +71,15 @@ export class ExtensionManager {
     }
   }
 
+  async getExtension(pkgId: string): Promise<MangaExtension | undefined> {
+    if (this.extensions.has(pkgId)) return this.extensions.get(pkgId)
+    await this.init()
+    return this.extensions.get(pkgId)
+  }
+
   reinit() {
     console.log('[Extensions] Re-initializing manager...')
+    this.initPromise = null
     this.builtinIds.clear()
     this.extensions.clear()
     return this.init()

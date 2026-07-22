@@ -160,7 +160,7 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
         const base = api.defaults.baseURL || ''
         const apiKey = localStorage.getItem('manga-api-key') || ''
         try {
-          const ext = ExtensionManager.getInstance().extensions.get(onlineProvider)
+          const ext = await ExtensionManager.getInstance().getExtension(onlineProvider)
           if (!ext) throw new Error(`No extension loaded for provider: ${onlineProvider}`)
           const rawPages = await ext.getPages(onlineChapterId)
           const skipProxy = (ext as unknown as { skipProxy?: boolean })?.skipProxy ?? false
@@ -181,7 +181,7 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
           }
 
           try {
-            const extForChapters = ExtensionManager.getInstance().extensions.get(onlineProvider)
+            const extForChapters = await ExtensionManager.getInstance().getExtension(onlineProvider)
             const detail = extForChapters
               ? await extForChapters.getMangaDetail(onlineMangaId) as { chapters?: { id: string; number: number }[] }
               : null

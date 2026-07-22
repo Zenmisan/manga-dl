@@ -1,6 +1,7 @@
 import type React from 'react'
+import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { User, Tag, Clock, Info, Pencil } from 'lucide-react'
+import { User, Tag, Clock, Info, Pencil, BookOpen } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import api from '../../lib/api'
 import type { MangaDetail } from '../../hooks/useMangaDetail'
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export function MangaInfoCard({ manga, themeColor, imgRef, onOpenMetaEdit }: Props) {
+  const [imgError, setImgError] = useState(false)
   const proxyUrl = manga.cover_url
     ? `${api.defaults.baseURL || ''}/manga/image-proxy?url=${encodeURIComponent(manga.cover_url)}&api_key=${localStorage.getItem('manga-api-key') || ''}`
     : ''
@@ -29,12 +31,19 @@ export function MangaInfoCard({ manga, themeColor, imgRef, onOpenMetaEdit }: Pro
           className="aspect-[3/4.5] glass-panel p-2 shadow-2xl transition-shadow duration-1000"
           style={{ boxShadow: `0 25px 50px -12px ${themeColor}` }}
         >
-          <img
-            ref={imgRef}
-            src={proxyUrl}
-            alt={manga.title}
-            className="w-full h-full object-cover rounded-xl"
-          />
+          {proxyUrl && !imgError ? (
+            <img
+              ref={imgRef}
+              src={proxyUrl}
+              alt={manga.title}
+              className="w-full h-full object-cover rounded-xl"
+              onError={() => setImgError(true)}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-white/5 rounded-xl">
+              <BookOpen className="w-12 h-12 text-white/20" />
+            </div>
+          )}
         </div>
       </motion.div>
 

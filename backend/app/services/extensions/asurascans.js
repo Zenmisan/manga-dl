@@ -8,23 +8,29 @@ async function _fetchDoc(url) {
 function _asParseCards(doc) {
   var results = [];
   var seen = {};
-  doc.querySelectorAll(".series-card").forEach(function(card) {
-    var a = card.querySelector("a[href*='/comics/']");
-    if (!a) return;
+  doc.querySelectorAll("a[href*='/comics/']").forEach(function(a) {
     var href = a.getAttribute('href') || '';
+    if (href.includes('/chapter/')) return;
     var slug = href.split('/comics/').pop().replace(/\/$/, '');
     if (!slug || seen[slug]) return;
     seen[slug] = true;
-    var img = card.querySelector('img');
-    var titleEl = card.querySelector('h3');
-    var statusSpan = card.querySelector("span[class*='bg-[#913FE2]/20']");
+
+    var card = a.closest('.series-card, .grid > div, div[class*="grid"] > div, .card, div') || a;
+    var img = card.querySelector('img[src*="covers"], img[src*="asura-images"], img');
+    var titleEl = card.querySelector('h3, .title, span.font-bold') || a;
+    var rawTitle = titleEl ? titleEl.textContent.trim() : '';
+    var title = (rawTitle && !rawTitle.match(/^[\d.]+$/)) ? rawTitle : slug.replace(/-[a-f0-9]{8}$/, '').replace(/-/g, ' ');
+    if (title) {
+      title = title.split(' ').map(function(w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(' ');
+    }
+
     results.push({
       id: slug,
-      title: (titleEl && titleEl.textContent.trim()) || slug,
-      cover_url: img ? img.getAttribute('src') : null,
+      title: title,
+      cover_url: img ? (img.getAttribute('src') || img.getAttribute('data-src')) : null,
       provider: 'asurascans',
       url: _AS + '/comics/' + slug,
-      status: statusSpan ? statusSpan.textContent.trim() : null,
+      status: null,
     });
   });
   return results;
@@ -34,7 +40,7 @@ function _asParseChapters(doc, mangaId) {
   var chapters = [];
   var seen = {};
   doc.querySelectorAll("a[href*='/chapter/']").forEach(function(a) {
-    if (!a.classList.contains('group')) return;
+    if (!a.classList.contains('group') && !a.getAttribute('href').includes('/chapter/')) return;
     var href = a.getAttribute('href') || '';
     var chSlug = href.split('/chapter/').pop().replace(/\/$/, '');
     var fullId = mangaId + '/chapter/' + chSlug;
@@ -74,7 +80,7 @@ function _asParseChapters(doc, mangaId) {
 
 var extension = {
   async search(query, page) {
-    var doc = await _fetchDoc(_AS + '/browse?page=' + (page || 1) + '&search=' + encodeURIComponent(query));
+    var doc = await _fetchDoc(_AS + '/comics?page=' + (page || 1) + '&search=' + encodeURIComponent(query));
     return _asParseCards(doc);
   },
 
@@ -158,12 +164,12 @@ var extension = {
   },
 
   async getPopular(page) {
-    var doc = await _fetchDoc(_AS + '/browse?page=' + (page || 1) + '&sort=rating');
+    var doc = await _fetchDoc(_AS + '/series-ranking');
     return _asParseCards(doc);
   },
 
   async getLatest(page) {
-    var doc = await _fetchDoc(_AS + '/browse?page=' + (page || 1) + '&sort=update');
+    var doc = await _fetchDoc(_AS + '/comics?page=' + (page || 1));
     return _asParseCards(doc);
   },
 };

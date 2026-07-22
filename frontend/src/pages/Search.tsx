@@ -35,6 +35,7 @@ function MangaCard({ r, idx, onSubscribe, subscribed, subscribing, navigate, isA
   navigate: ReturnType<typeof useNavigate>
   isAdmin: boolean
 }) {
+  const [coverError, setCoverError] = useState(false)
   const key = `${r.provider}:${r.id}`
   const isSubscribed = subscribed.includes(key)
   const isSubscribing = subscribing.includes(key)
@@ -50,12 +51,13 @@ function MangaCard({ r, idx, onSubscribe, subscribed, subscribing, navigate, isA
       className="group flex gap-5 glass-card p-4 hover:bg-white/[0.08] hover:border-red-500/30 cursor-pointer relative overflow-hidden"
     >
       <div className="w-24 h-32 md:w-28 md:h-36 glass-panel overflow-hidden shrink-0 relative shadow-xl">
-        {r.cover_url ? (
+        {r.cover_url && !coverError ? (
           <img
             src={`${api.defaults.baseURL || ''}/manga/image-proxy?url=${encodeURIComponent(r.cover_url)}&api_key=${localStorage.getItem('manga-api-key') || ''}`}
             alt={r.title}
             loading="lazy"
             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
+            onError={() => setCoverError(true)}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-white/10 bg-white/[0.02]">

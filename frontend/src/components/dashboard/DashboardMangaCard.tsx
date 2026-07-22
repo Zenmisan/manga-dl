@@ -1,4 +1,5 @@
 import type React from 'react'
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   Book, Pin, PinOff, Trash2, BookOpen, HardDrive, WifiOff, CheckSquare, Square,
@@ -26,6 +27,7 @@ export function DashboardMangaCard({
   item, idx, view, selectMode, isSelected, isPinned, lastRead, navigate,
   onToggleSelect, onTogglePin, onDelete,
 }: Props) {
+  const [coverError, setCoverError] = useState(false)
   const isCloudOnly = !item.isLocal && item.files.length === 0
 
   const handleClick = (e: React.MouseEvent) => {
@@ -42,8 +44,6 @@ export function DashboardMangaCard({
 
   const coverSrc = item.cover_url
     ? `${api.defaults.baseURL || ''}/manga/image-proxy?url=${encodeURIComponent(item.cover_url)}&api_key=${localStorage.getItem('manga-api-key') || ''}`
-    : item.files.length > 0 && item.provider && item.provider_manga_id
-    ? `${api.defaults.baseURL || ''}/manga/cover/${item.provider}/${encodeURIComponent(item.provider_manga_id)}?api_key=${localStorage.getItem('manga-api-key') || ''}`
     : null
 
   if (view === 'list') {
@@ -65,8 +65,8 @@ export function DashboardMangaCard({
             </button>
           )}
           <div className="w-12 h-16 rounded-xl bg-white/5 overflow-hidden shrink-0 flex items-center justify-center border border-white/10 relative">
-            {coverSrc ? (
-              <img src={coverSrc} alt={item.title} className="w-full h-full object-cover" />
+            {coverSrc && !coverError ? (
+              <img src={coverSrc} alt={item.title} className="w-full h-full object-cover" onError={() => setCoverError(true)} />
             ) : (
               <Book className="w-5 h-5 text-white/20" />
             )}
@@ -144,8 +144,8 @@ export function DashboardMangaCard({
       )}
     >
       <div className="aspect-[3/4] bg-white/5 rounded-xl mb-4 overflow-hidden relative flex items-center justify-center border border-white/10 group-hover:border-white/20 transition-all">
-        {coverSrc ? (
-          <img src={coverSrc} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+        {coverSrc && !coverError ? (
+          <img src={coverSrc} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={() => setCoverError(true)} />
         ) : (
           <Book className="w-10 h-10 text-white/10 group-hover:scale-110 transition-transform" />
         )}

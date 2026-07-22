@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+Allow: /r
+Allow: /search
+Allow: /sources
+Allow: /updates
+Allow: /download
+Allow: /manga/
+Allow: /read/
+Disallow: /settings/
+Disallow: /onboarding
+
+Sitemap: https://manga-dl.web.app/sitemap.xml

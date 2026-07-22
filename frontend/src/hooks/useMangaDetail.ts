@@ -124,9 +124,9 @@ export function useMangaDetail() {
         setManga(data)
         setLoading(false)
       })
-      .catch(() => {
+      .catch(async () => {
         const mgr = ExtensionManager.getInstance()
-        const ext = provider ? mgr.extensions.get(provider) : undefined
+        const ext = provider ? await mgr.getExtension(provider) : undefined
         if (ext) {
           (ext.getMangaDetail(mangaId!) as Promise<{ id: string; title: string; cover_url: string | null; description: string | null; status: string | null; genres?: string[]; authors?: string[]; url?: string; chapters?: Array<{ id: string; name?: string; chapter_number?: number }> }>)
             .then((details) => {
