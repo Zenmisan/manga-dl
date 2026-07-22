@@ -93,10 +93,13 @@ export default function Reader() {
   ].filter(Boolean).join(' ')
 
   if (loading) {
+    const isOnline = mangaTitle !== 'local' && (mangaTitle === 'online' || filename?.includes(':') || Boolean(location.search))
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-black text-white">
         <Loader2 className="w-12 h-12 text-red-500 animate-spin mb-4" />
-        <p className="text-white/40 font-bold uppercase tracking-widest text-xs animate-pulse">Opening Archive...</p>
+        <p className="text-white/40 font-bold uppercase tracking-widest text-xs animate-pulse">
+          {isOnline ? 'Loading Chapter...' : 'Opening Archive...'}
+        </p>
       </div>
     )
   }

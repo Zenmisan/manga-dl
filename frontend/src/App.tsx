@@ -187,34 +187,51 @@ function App() {
   }, [amoledBlack])
 
   // Biometric app lock (Android native only)
+  const isAuthenticatingRef = useRef(false)
+  const isUnlockedRef = useRef(false)
+
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (!appLockEnabled) { setLocked(false); return }
+    if (!appLockEnabled) { setLocked(false); isUnlockedRef.current = true; return }
     if (!('Capacitor' in window)) return
 
     const tryAuth = async () => {
+      if (isAuthenticatingRef.current || isUnlockedRef.current) return
+      isAuthenticatingRef.current = true
       try {
         const { BiometricAuth } = await import('@aparajita/capacitor-biometric-auth')
         const { isAvailable } = await BiometricAuth.checkBiometry()
-        if (!isAvailable) return
+        if (!isAvailable) {
+          isUnlockedRef.current = true
+          setLocked(false)
+          return
+        }
         setLocked(true)
         await BiometricAuth.authenticate({ reason: 'Unlock manga-dl', cancelTitle: 'Cancel' })
+        isUnlockedRef.current = true
         setLocked(false)
       } catch {
         // Auth failed or cancelled — keep locked
+        isUnlockedRef.current = false
+      } finally {
+        isAuthenticatingRef.current = false
       }
     }
 
     tryAuth()
 
-    const onResume = () => tryAuth()
+    const onPause = () => {
+      isUnlockedRef.current = false
+    }
+
+    let removePauseListener: (() => void) | undefined
     import('@capacitor/app').then(({ App }) => {
-      App.addListener('resume', onResume)
+      const sub = App.addListener('pause', onPause)
+      removePauseListener = () => { sub.then(h => h.remove()) }
     }).catch(() => {})
 
-    const onVisible = () => { if (document.visibilityState === 'visible') tryAuth() }
-    document.addEventListener('visibilitychange', onVisible)
-    return () => document.removeEventListener('visibilitychange', onVisible)
+    return () => {
+      if (removePauseListener) removePauseListener()
+    }
   }, [appLockEnabled])
 
   // Auto-sync subscribed manga on web/Android (Tauri handles it via background Rust task)
@@ -484,7 +501,7 @@ function App() {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 relative pb-24 md:pb-0">
+      <main className={`flex-1 relative ${location.pathname.startsWith('/read/') ? '' : 'pb-24 md:pb-0'}`}>
         <AnimatePresence mode="sync">
           <motion.div
             key={location.pathname}
@@ -526,7 +543,8 @@ function App() {
       </main>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 px-2 sm:px-4 pb-4 sm:pb-6 pt-2 bg-linear-to-t from-black via-black/90 to-transparent backdrop-blur-md border-t border-white/5">
+      {!location.pathname.startsWith('/read/') && (
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 px-2 sm:px-4 pb-4 sm:pb-6 pt-2 bg-linear-to-t from-black via-black/90 to-transparent backdrop-blur-md border-t border-white/5">
         <div className="flex items-center justify-around glass-panel p-1 max-w-lg mx-auto">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path
@@ -543,6 +561,7 @@ function App() {
           })}
         </div>
       </nav>
+      )}
     </div>
   </div>
   )

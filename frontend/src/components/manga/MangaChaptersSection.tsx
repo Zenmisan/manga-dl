@@ -187,10 +187,10 @@ export function MangaChaptersSection({
             {/* Mark all read */}
             <button
               onClick={handleMarkAllRead}
-              className="ml-auto text-[10px] font-black uppercase tracking-widest text-white/30 hover:text-white/60 transition-colors flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-white/5"
+              className="sm:ml-auto text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white/70 transition-colors flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 shrink-0"
               title="Mark all chapters as read"
             >
-              <CheckCircle2 className="w-3 h-3" /> Mark All Read
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> <span className="whitespace-nowrap">Mark All Read</span>
             </button>
           </div>
         </div>

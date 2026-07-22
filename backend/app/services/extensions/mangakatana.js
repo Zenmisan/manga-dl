@@ -39,19 +39,20 @@ var extension = {
 
   async getMangaDetail(mangaId) {
     var doc = await _fetchDoc(_MK + '/manga/' + mangaId);
-    var title = (doc.querySelector('h1.heading') || {textContent:mangaId}).textContent.trim();
-    var coverEl = doc.querySelector('.cover img');
+    var titleEl = doc.querySelector('h1.heading, .info .heading, .heading, h1, .info h1');
+    var title = titleEl ? titleEl.textContent.trim() : mangaId.replace(/\.\d+$/, '').replace(/-/g, ' ');
+    var coverEl = doc.querySelector('.cover img, .media .wrap_img img');
     var cover = coverEl ? (coverEl.getAttribute('src') || coverEl.getAttribute('data-src') || coverEl.getAttribute('data-lazy-src')) : null;
     var desc = null;
-    var descEl = doc.querySelector('.summary p') || doc.querySelector('.summary');
+    var descEl = doc.querySelector('.summary p, .summary, .description');
     if (descEl) desc = descEl.textContent.trim();
     var genres = [];
-    doc.querySelectorAll('.genres a').forEach(function(a) { genres.push(a.textContent.trim()); });
+    doc.querySelectorAll('.genres a, .genre a').forEach(function(a) { genres.push(a.textContent.trim()); });
     var authors = [];
-    doc.querySelectorAll('.author a').forEach(function(a) { authors.push(a.textContent.trim()); });
+    doc.querySelectorAll('.author a, .authors a').forEach(function(a) { authors.push(a.textContent.trim()); });
 
     var chapters = [];
-    doc.querySelectorAll('.chapters tr').forEach(function(row) {
+    doc.querySelectorAll('.chapters tr, .chapter_list tr').forEach(function(row) {
       var a = row.querySelector('a');
       if (!a) return;
       var href = a.getAttribute('href') || '';
@@ -96,7 +97,7 @@ var extension = {
 
     var doc = new DOMParser().parseFromString(html, 'text/html');
     var pages = [];
-    doc.querySelectorAll('.wrap_warpper img[data-src], #img_list img').forEach(function(img) {
+    doc.querySelectorAll('.wrap_warpper img[data-src], #img_list img, .rd-content img').forEach(function(img) {
       var src = img.getAttribute('data-src') || img.getAttribute('src');
       if (src) pages.push(src);
     });
@@ -104,22 +105,25 @@ var extension = {
   },
 
   async getPopular(page) {
-    var doc = await _fetchDoc(_MK + '/manga/page/' + (page || 1));
+    var p = page || 1;
+    var url = p > 1 ? (_MK + '/manga/page/' + p) : (_MK + '/manga');
+    var doc = await _fetchDoc(url);
     var results = [];
     var seen = {};
     doc.querySelectorAll('#book_list .item, .manga_list-sbs .item, .item').forEach(function(item) {
-      var a = item.querySelector('h3.title a, .text h3 a, .title a, a');
+      var a = item.querySelector('h3.title a, .text h3 a, .title a, a[href*="/manga/"]');
       if (!a || !a.getAttribute('href').includes('/manga/')) return;
-      var slug = a.getAttribute('href').replace(/\/$/, '').split('/').pop();
+      var href = a.getAttribute('href') || '';
+      var slug = href.replace(/\/$/, '').split('/').pop();
       if (!slug || seen[slug]) return;
       seen[slug] = true;
       var img = item.querySelector('.media .wrap_img img, img');
       results.push({
         id: slug,
-        title: a.textContent.trim(),
+        title: a.textContent.trim() || slug.replace(/\.\d+$/, '').replace(/-/g, ' '),
         cover_url: img ? (img.getAttribute('src') || img.getAttribute('data-src')) : null,
         provider: 'mangakatana',
-        url: a.getAttribute('href'),
+        url: href,
         status: null,
       });
     });
@@ -127,22 +131,25 @@ var extension = {
   },
 
   async getLatest(page) {
-    var doc = await _fetchDoc(_MK + '/manga/page/' + (page || 1) + '?filter=latest');
+    var p = page || 1;
+    var url = p > 1 ? (_MK + '/latest/page/' + p) : (_MK + '/latest');
+    var doc = await _fetchDoc(url);
     var results = [];
     var seen = {};
     doc.querySelectorAll('#book_list .item, .manga_list-sbs .item, .item').forEach(function(item) {
-      var a = item.querySelector('h3.title a, .text h3 a, .title a, a');
+      var a = item.querySelector('h3.title a, .text h3 a, .title a, a[href*="/manga/"]');
       if (!a || !a.getAttribute('href').includes('/manga/')) return;
-      var slug = a.getAttribute('href').replace(/\/$/, '').split('/').pop();
+      var href = a.getAttribute('href') || '';
+      var slug = href.replace(/\/$/, '').split('/').pop();
       if (!slug || seen[slug]) return;
       seen[slug] = true;
       var img = item.querySelector('.media .wrap_img img, img');
       results.push({
         id: slug,
-        title: a.textContent.trim(),
+        title: a.textContent.trim() || slug.replace(/\.\d+$/, '').replace(/-/g, ' '),
         cover_url: img ? (img.getAttribute('src') || img.getAttribute('data-src')) : null,
         provider: 'mangakatana',
-        url: a.getAttribute('href'),
+        url: href,
         status: null,
       });
     });

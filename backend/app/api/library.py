@@ -47,10 +47,8 @@ class ProgressUpdate(BaseModel):
 
 
 async def _assert_admin(request: Request):
-    """Raise 403 if the user is not zenmisan@gmail.com."""
-    email = await get_current_user_email(request)
-    if email != "zenmisan@gmail.com":
-        raise HTTPException(status_code=403, detail="Library access is restricted to administrator.")
+    """Pass through for all users to allow public library access."""
+    pass
 
 
 @router.get("", response_model=list[LibraryItem])

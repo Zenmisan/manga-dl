@@ -1,6 +1,6 @@
 # manga-dl — Project Status
 
-Last updated: 2026-06-15
+Last updated: 2026-07-22
 
 A tri-platform manga reader and downloader.  
 **Web:** PWA · **Desktop:** Tauri v2 · **Mobile:** Capacitor Android · **Backend:** FastAPI (infra-only — see Phase 10)
@@ -91,6 +91,34 @@ Volume keys (Kotlin plugin), back button handlers, KeepAwake, StatusBar ambiligh
 - **Reader Keyboard Shortcuts Overlay**: Added a beautiful glassmorphic modal overlay detailing keyboard control mappings (left/right/down arrows, Space, Esc) that appears on the user's first visit to the reader view, with preference state stored in local storage.
 - **Tauri Custom Titlebar**: Integrated custom window titlebar chrome for native desktop builds with a drag region and interactive minimize/maximize/close macOS-style traffic light buttons, powered by dynamic imports of Tauri's APIs.
 
+### Phase 19 ✅ Platform Fixes, Performance & Code Quality (2026-07-20 - 2026-07-22)
+
+#### Bug Fixes
+- **Android CORS**: Added `https://localhost` and `capacitor://localhost` to backend `CORS_ORIGINS`. Capacitor with `androidScheme: 'https'` makes the WebView origin `https://localhost`; without it every API call was blocked.
+- **Android HTTP to LAN backend**: `network_security_config.xml` used invalid CIDR notation (`10.0.0.0/8`) in `<domain>` elements — silently ignored by Android. Replaced with `<base-config cleartextTrafficPermitted="true">` so self-hosted LAN backends work.
+- **Backend unreachable banner**: Banner now auto-dismisses after 30s and has a working close button. Reappears if backend goes down again after recovering.
+- **Blank page at `/r`**: Fixed fresh-visit routing bug where the app shell rendered before the session check completed.
+- **Onboarding for web users**: First-visit onboarding now triggers correctly for unauthenticated web users entering the reader for the first time.
+
+#### Reader Refactor (Reader.tsx: 1130 lines → 169)
+Extracted into purpose-built hooks and components:
+- `useReaderData.ts` (233 lines) — page/chapter state, manifest fetch (3 code paths: online/local/remote), MAL+AniList auto-sync, debounced cloud save, next-chapter prefetch, in-browser page prefetch, cloud upload.
+- `useAndroidFeatures.ts` (34 lines) — back button, KeepAwake, StatusBar ambilight sync.
+- `useReaderNavigation.ts` (112 lines) — nextPage/prevPage, tap zones, spread logic, keyboard/volume key handler, chapter navigation.
+- `ReaderHeader.tsx` (185 lines) — header with reading mode + scale dropdowns typed on union literals (no `string`).
+- `ReaderViewport.tsx` (168 lines) — webtoon/vertical-pager/pager renderers, chapter-end overlay, nav buttons.
+- `ShortcutOverlay.tsx` (68 lines) — first-time keyboard controls tutorial.
+- `Reader.tsx` is now 169 lines of glue: hook calls, ambilight state, loading/error screens, render tree.
+
+#### Tab Animation Performance
+- Changed `AnimatePresence` from `mode="wait"` (sequential, ~500ms perceived) to `mode="sync"` (overlapping) with `duration: 0.08` opacity-only transition. Removed `y`/`scale` transforms — opacity is GPU-composited and eliminates layout recalcs.
+
+#### Lazy Loading — TanStack Query v5
+- Installed `@tanstack/react-query`. `QueryClient` wraps the entire app in `main.tsx` with `staleTime: 60s`, `gcTime: 5min`, `refetchOnWindowFocus: false`.
+- Central query hooks in `src/lib/queries.ts` with per-endpoint stale times: library (30s), stats (2min), sources (5min), market (10min), updates (5min), history (60s).
+- Migrated: Dashboard, Stats, Updates, History, Sources — all use cached data on tab revisit; no re-fetch until stale.
+- Dashboard: local IndexedDB items kept in separate `localItems` state, merged into the `items` useMemo alongside backend data. Banner dismiss state decoupled from `isError` via `bannerDismissed` local state.
+
 ---
 
 ## What Remains 🔲
@@ -120,7 +148,8 @@ Volume keys (Kotlin plugin), back button handlers, KeepAwake, StatusBar ambiligh
 ### Known code issues
 - Settings page is a monolithic 1000+ line file (`Settings.tsx`).
 - Metadata overrides (`manga-dl-meta-overrides`) are localStorage-only.
-- Heatmap tracks downloads instead of reads.
+- ~~Heatmap tracks downloads instead of reads~~ — FIXED (Phase 15, `/users/me/stats` aggregates `ReadingProgress`).
+- ~~Reader.tsx was 1130 lines~~ — FIXED (Phase 19, refactored to 169 lines with extracted hooks).
 
 ---
 
@@ -144,7 +173,7 @@ backend/
 ```
 
 ## Tech Stack
-- **Frontend**: React 19, TypeScript, Vite, Tailwind CSS, Framer Motion, Zustand (persist)
+- **Frontend**: React 19, TypeScript, Vite, Tailwind CSS, Framer Motion, Zustand (persist), TanStack Query v5
 - **Backend**: FastAPI, SQLAlchemy async, SQLite/PostgreSQL, curl_cffi (Cloudflare bypass)
 - **Desktop**: Tauri v2, Rust tokio, tauri-plugin-notification/autostart/dialog/fs
 - **Android**: Capacitor 6, @capacitor/haptics, @capacitor/filesystem, @capacitor/local-notifications, custom Kotlin VolumeKeys plugin

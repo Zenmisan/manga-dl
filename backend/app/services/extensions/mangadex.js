@@ -77,10 +77,22 @@ var extension = {
 
     var chapters = allItems.map(function(item) {
       var a = item.attributes || {};
+      var num = parseFloat(a.chapter) || 0;
+      var titleText = '';
+      if (a.chapter !== null && a.chapter !== undefined && a.chapter !== '') {
+        titleText = 'Chapter ' + a.chapter;
+        if (a.title) {
+          titleText += ': ' + a.title;
+        }
+      } else if (a.title) {
+        titleText = a.title;
+      } else {
+        titleText = 'Chapter ' + (num || 1);
+      }
       return {
         id: item.id,
-        title: a.title || ('Chapter ' + (a.chapter || '')),
-        number: parseFloat(a.chapter) || 0,
+        title: titleText,
+        number: num,
         published_at: a.publishAt || null,
       };
     });

@@ -1,6 +1,6 @@
 # Known Issues & Limitations
 
-Last updated: 2026-06-14
+Last updated: 2026-07-22
 
 ---
 
@@ -57,6 +57,16 @@ Enable RLS on all three new tables — see `docs/supabase/migrations.sql` for po
 ---
 
 ## 🟠 Functional Bugs
+
+~~### Android: every API call blocked (CORS)~~ **FIXED** — Added `https://localhost` and `capacitor://localhost` to `CORS_ORIGINS` in `backend/app/config.py`. Capacitor with `androidScheme: 'https'` sets WebView origin to `https://localhost`.
+
+~~### Android: HTTP to LAN backend blocked~~ **FIXED** — `android/app/src/main/res/xml/network_security_config.xml` used invalid CIDR notation in `<domain>` elements (silently no-op). Replaced with `<base-config cleartextTrafficPermitted="true">`.
+
+~~### Backend unreachable banner never dismisses~~ **FIXED** — Banner now auto-dismisses after 30s (via `setBannerDismissed(true)` on animation complete) and has a working close button. Resets when backend recovers.
+
+~~### Blank page at `/r` on first visit~~ **FIXED** — Routing race condition resolved; session check completes before rendering the app shell.
+
+~~### Onboarding skipped for fresh web users~~ **FIXED** — First-visit onboarding now triggers correctly for unauthenticated users entering reader mode.
 
 ~~### `manga-dl-bookmarks` key uses wrong compound key~~ **FIXED** — `MangaDetail.tsx:71`
 

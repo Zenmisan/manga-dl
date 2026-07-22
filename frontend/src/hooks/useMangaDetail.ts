@@ -141,7 +141,12 @@ export function useMangaDetail() {
                 authors: details.authors || [],
                 provider: provider!,
                 url: details.url || '',
-                chapters: chList.map((c: { id: string; name?: string; chapter_number?: number }) => ({ id: c.id, title: c.name || c.id, number: c.chapter_number || 0, published_at: null })),
+                chapters: chList.map((c: { id: string; name?: string; title?: string; chapter_number?: number }) => ({
+                  id: c.id,
+                  title: c.title || c.name || (c.chapter_number ? `Chapter ${c.chapter_number}` : 'Chapter 1'),
+                  number: c.chapter_number || 0,
+                  published_at: null
+                })),
               }
               const override = getMangaOverride(provider!, mangaId!)
               setManga(override ? { ...combined, title: override.title || combined.title, cover_url: override.cover_url || combined.cover_url, description: override.description || combined.description } : combined)

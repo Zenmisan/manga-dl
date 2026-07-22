@@ -53,7 +53,7 @@ Native users can scrape on-device; the backend handles sync only.
 
 | Layer    | Tech |
 |----------|------|
-| Frontend | React 19, Vite, TypeScript, Tailwind v4, Framer Motion, Zustand |
+| Frontend | React 19, Vite, TypeScript, Tailwind v4, Framer Motion, Zustand, TanStack Query v5 |
 | Backend  | FastAPI, SQLAlchemy 2, aiosqlite, curl_cffi, Pillow |
 | Desktop  | Tauri v2 (Rust) |
 | Mobile   | Capacitor v8, Android |
@@ -104,7 +104,7 @@ Runs at `http://localhost:8000`. Interactive docs at `/docs`.
 | `LIBRARY_PATH` | `~/manga-library` | Where downloaded CBZ files are stored |
 | `CACHE_PATH` | `~/.manga-dl-cache` | Temp image cache |
 | `API_KEY` | _(none)_ | Lock API behind a secret key |
-| `CORS_ORIGINS` | `http://localhost:5173` | Comma-separated or JSON array of origins |
+| `CORS_ORIGINS` | `http://localhost:5173` | Comma-separated or JSON array of origins. Include `https://localhost` and `capacitor://localhost` for Capacitor Android, `tauri://localhost` for Tauri desktop. |
 | `SUPABASE_URL` | _(none)_ | Supabase project URL |
 | `SUPABASE_SERVICE_KEY` | _(none)_ | Supabase service role key |
 | `MAX_STORAGE_MB` | `900` | Storage cap before smart eviction |
