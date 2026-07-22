@@ -14,7 +14,7 @@ log = logging.getLogger(__name__)
 async def _sync_manga(db: AsyncSession, manga: MangaRecord):
     provider = get_provider(manga.provider)
     if not provider:
-        log.warning(f"Provider {manga.provider} not found for sync.")
+        log.debug(f"Provider {manga.provider} sync handled via client extension.")
         return
 
     try:

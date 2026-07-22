@@ -40,7 +40,11 @@ var extension = {
   async getMangaDetail(mangaId) {
     var doc = await _fetchDoc(_MK + '/manga/' + mangaId);
     var titleEl = doc.querySelector('h1.heading, .info .heading, .heading, h1, .info h1');
-    var title = titleEl ? titleEl.textContent.trim() : mangaId.replace(/\.\d+$/, '').replace(/-/g, ' ');
+    var rawTitle = titleEl ? titleEl.textContent.trim() : '';
+    var title = rawTitle || mangaId.replace(/\.\d+$/, '').replace(/-/g, ' ');
+    if (title) {
+      title = title.split(' ').map(function(w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(' ');
+    }
     var coverEl = doc.querySelector('.cover img, .media .wrap_img img');
     var cover = coverEl ? (coverEl.getAttribute('src') || coverEl.getAttribute('data-src') || coverEl.getAttribute('data-lazy-src')) : null;
     var desc = null;
@@ -118,9 +122,10 @@ var extension = {
       if (!slug || seen[slug]) return;
       seen[slug] = true;
       var img = item.querySelector('.media .wrap_img img, img');
+      var itemTitle = a.textContent.trim() || slug.replace(/\.\d+$/, '').replace(/-/g, ' ');
       results.push({
         id: slug,
-        title: a.textContent.trim() || slug.replace(/\.\d+$/, '').replace(/-/g, ' '),
+        title: itemTitle,
         cover_url: img ? (img.getAttribute('src') || img.getAttribute('data-src')) : null,
         provider: 'mangakatana',
         url: href,
@@ -144,9 +149,10 @@ var extension = {
       if (!slug || seen[slug]) return;
       seen[slug] = true;
       var img = item.querySelector('.media .wrap_img img, img');
+      var itemTitle = a.textContent.trim() || slug.replace(/\.\d+$/, '').replace(/-/g, ' ');
       results.push({
         id: slug,
-        title: a.textContent.trim() || slug.replace(/\.\d+$/, '').replace(/-/g, ' '),
+        title: itemTitle,
         cover_url: img ? (img.getAttribute('src') || img.getAttribute('data-src')) : null,
         provider: 'mangakatana',
         url: href,
