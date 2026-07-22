@@ -106,17 +106,22 @@ export default function StatsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-10 h-10 text-red-500 animate-spin" />
+      <div className="min-h-full flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--accent)' }} />
       </div>
     )
   }
 
   if (!stats) {
     return (
-      <div className="p-12 text-center text-white/40">
-        <BarChart2 className="w-12 h-12 mx-auto mb-4 opacity-20" />
-        <p className="font-bold uppercase tracking-widest text-xs">Could not load stats</p>
+      <div className="min-h-full flex flex-col">
+        <header className="sticky-header border-b px-4 md:px-6 py-3" style={{ borderColor: 'var(--border)' }}>
+          <h1 className="page-title" style={{ fontSize: 'clamp(1.25rem,3vw,1.75rem)' }}>Statistics</h1>
+        </header>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '64px 24px', gap: 16 }}>
+          <BarChart2 style={{ width: 28, height: 28, color: 'var(--muted3)' }} />
+          <p style={{ fontSize: 13, color: 'var(--muted2)' }}>Could not load stats</p>
+        </div>
       </div>
     )
   }
@@ -125,24 +130,18 @@ export default function StatsPage() {
   const maxDaily = Math.max(...daily.map(d => d.count), 1)
   const heatmapCols = buildHeatmapGrid(stats.yearly_downloads ?? [])
 
-  // Reading time estimate (avg 45s/page)
   const totalReadSecs = stats.total_pages * 45
   const readHours = Math.floor(totalReadSecs / 3600)
   const readMins = Math.floor((totalReadSecs % 3600) / 60)
   const readTimeStr = readHours > 0 ? `${readHours}h ${readMins}m` : `${readMins}m`
 
-  // Reading pace: chapters in last 7 days
   // eslint-disable-next-line react-hooks/purity
   const now = Date.now()
   const last7 = (stats.daily_downloads || [])
-    .filter(d => {
-      const diff = (now - new Date(d.day).getTime()) / 86_400_000
-      return diff <= 7
-    })
+    .filter(d => { const diff = (now - new Date(d.day).getTime()) / 86_400_000; return diff <= 7 })
     .reduce((s, d) => s + d.count, 0)
   const chapPerWeek = last7
 
-  // Per-category breakdown from localStorage
   const allCategories = getCategories()
   const mangaCatMap: Record<string, string[]> = JSON.parse(localStorage.getItem('manga-dl-manga-categories') || '{}')
   const catCounts: Record<string, number> = {}
@@ -154,37 +153,36 @@ export default function StatsPage() {
     .filter(c => c.count > 0)
     .sort((a, b) => b.count - a.count)
 
+  const CARD_STYLE = { padding: '20px 22px', borderRadius: 20, border: '1px solid var(--border)', background: 'var(--surface)', marginBottom: 12 }
+
   return (
-    <div className="p-4 sm:p-6 md:p-12 max-w-5xl mx-auto min-h-full">
-      <header className="mb-12">
-        <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-3 bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent">
-          Statistics
-        </h1>
-        <p className="text-white/40 font-medium md:text-lg">Your reading activity at a glance</p>
+    <div className="min-h-full flex flex-col">
+      <header className="sticky-header border-b px-4 md:px-6 py-3" style={{ borderColor: 'var(--border)' }}>
+        <h1 className="page-title" style={{ fontSize: 'clamp(1.25rem,3vw,1.75rem)' }}>Statistics</h1>
+        <p style={{ fontSize: 11, color: 'var(--muted2)', fontWeight: 600, marginTop: 1 }}>Your reading habits, at a glance</p>
       </header>
 
+      <div className="px-4 md:px-6 pt-4 pb-28 flex-1" style={{ maxWidth: 720 }}>
+
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-10">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px,1fr))', gap: 10, marginBottom: 16 }}>
         {[
-          { icon: Book, label: 'Manga', value: formatNum(stats.total_manga), color: 'text-blue-400', bg: 'bg-blue-500/10' },
-          { icon: Download, label: 'Chapters', value: formatNum(stats.total_chapters), color: 'text-red-400', bg: 'bg-red-500/10' },
-          { icon: Layers, label: 'Pages', value: formatNum(stats.total_pages), color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-          { icon: HardDrive, label: 'Storage', value: formatBytes(stats.storage_bytes), color: 'text-violet-400', bg: 'bg-violet-500/10' },
-          { icon: Clock, label: 'Read Time', value: readTimeStr, color: 'text-amber-400', bg: 'bg-amber-500/10' },
-          { icon: TrendingUp, label: 'This Week', value: `${chapPerWeek} ch`, color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
+          { label: 'Manga', value: formatNum(stats.total_manga) },
+          { label: 'Chapters', value: formatNum(stats.total_chapters) },
+          { label: 'Pages', value: formatNum(stats.total_pages) },
+          { label: 'Storage', value: formatBytes(stats.storage_bytes) },
+          { label: 'Read Time', value: readTimeStr },
+          { label: 'This Week', value: `${chapPerWeek} ch` },
         ].map((card, i) => (
           <motion.div
             key={card.label}
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.05 }}
-            className="glass-panel p-5 border-white/5"
+            style={{ padding: '18px 18px', borderRadius: 16, border: '1px solid var(--border)', background: 'var(--surface)' }}
           >
-            <div className={`w-9 h-9 ${card.bg} rounded-xl flex items-center justify-center mb-4`}>
-              <card.icon className={`w-4 h-4 ${card.color}`} />
-            </div>
-            <div className={`text-2xl md:text-3xl font-black font-mono ${card.color} mb-1`}>{card.value}</div>
-            <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">{card.label}</div>
+            <div style={{ fontSize: 26, fontWeight: 900, fontFamily: 'Anton, sans-serif', color: '#ef4444', letterSpacing: '-0.01em', lineHeight: 1 }}>{card.value}</div>
+            <div style={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)', marginTop: 6 }}>{card.label}</div>
           </motion.div>
         ))}
       </div>
