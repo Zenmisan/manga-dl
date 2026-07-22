@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useLibraryStats } from '../lib/queries'
-import { BarChart2, Book, Download, Layers, HardDrive, Flame, Loader2, Target, CheckCircle2, Edit3, Clock, TrendingUp, BookOpen } from 'lucide-react'
+import { BarChart2, Flame, Loader2, CheckCircle2, Edit3 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { getCategories } from '../lib/categories'
 
@@ -190,50 +190,74 @@ export default function StatsPage() {
       {/* Streak */}
       {stats.streak_days > 0 && (
         <motion.div
-          initial={{ opacity: 0, x: -20 }}
+          initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
-          className="flex items-center gap-4 glass-panel p-5 border-orange-500/20 bg-orange-500/5 mb-10"
+          style={{ display: 'flex', alignItems: 'center', gap: 14, ...CARD_STYLE, borderColor: 'rgba(251,146,60,0.25)', background: 'rgba(251,146,60,0.06)' }}
         >
-          <div className="w-12 h-12 bg-orange-500/20 rounded-2xl flex items-center justify-center shrink-0">
-            <Flame className="w-6 h-6 text-orange-400" />
+          <div style={{ width: 44, height: 44, borderRadius: 14, background: 'rgba(251,146,60,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Flame style={{ width: 22, height: 22, color: 'rgb(251,146,60)' }} />
           </div>
           <div>
-            <div className="text-2xl font-black text-orange-400">{stats.streak_days} day streak</div>
-            <p className="text-xs text-white/30 font-medium">Keep it going — download a chapter today</p>
+            <div style={{ fontSize: 18, fontWeight: 900, color: 'rgb(251,146,60)' }}>{stats.streak_days} day streak</div>
+            <p style={{ fontSize: 12, color: 'var(--muted3)', marginTop: 2 }}>Keep it going — download a chapter today</p>
           </div>
         </motion.div>
       )}
 
+      {/* Activity Chart */}
+      <motion.section
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        style={CARD_STYLE}
+      >
+        <div style={{ fontSize: 12, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)', marginBottom: 16 }}>Activity — Last 30 Days</div>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 140 }}>
+          {daily.map((d) => (
+            <div
+              key={d.day}
+              style={{ flex: 1, display: 'flex', alignItems: 'flex-end' }}
+              title={`${d.label}: ${d.count}`}
+            >
+              <div
+                style={{
+                  width: '100%',
+                  borderRadius: '3px 3px 0 0',
+                  background: 'var(--surface-hover)',
+                  height: `${Math.max((d.count / maxDaily) * 100, d.count > 0 ? 5 : 0)}%`,
+                  transition: 'background 0.15s',
+                  minHeight: d.count > 0 ? 5 : 0,
+                }}
+                className="hover:[background:#dc2626]"
+              />
+            </div>
+          ))}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 10, color: 'var(--muted3)' }}>
+          <span>{daily[0]?.label}</span>
+          <span>{daily[14]?.label}</span>
+          <span>{daily[29]?.label}</span>
+        </div>
+      </motion.section>
+
       {/* Reading Heatmap */}
       {heatmapCols.length > 0 && (
         <motion.section
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="glass-panel border-white/5 overflow-hidden mb-8"
+          style={CARD_STYLE}
         >
-          <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
-            <div className="flex items-center gap-3">
-              <Flame className="w-5 h-5 text-emerald-500" />
-              <h2 className="font-bold">Reading Heatmap — Last Year</h2>
-            </div>
-            <div className="flex items-center gap-1.5 text-[10px] text-white/30 font-bold">
-              <span>Less</span>
-              {['bg-white/5','bg-emerald-900/60','bg-emerald-700/70','bg-emerald-500/80','bg-emerald-400'].map((c, i) => (
-                <span key={i} className={`w-3 h-3 rounded-sm ${c}`} />
-              ))}
-              <span>More</span>
-            </div>
-          </div>
-          <div className="p-4 overflow-x-auto">
-            <div className="flex gap-[3px] min-w-max">
+          <div style={{ fontSize: 12, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)', marginBottom: 12 }}>Heatmap — Last Year</div>
+          <div style={{ overflowX: 'auto' }}>
+            <div style={{ display: 'flex', gap: 3, minWidth: 'max-content' }}>
               {heatmapCols.map((col, ci) => (
-                <div key={ci} className="flex flex-col gap-[3px]">
+                <div key={ci} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                   {col.map((cell) => (
                     <div
                       key={cell.day}
-                      className={`w-3 h-3 rounded-sm transition-all duration-150 hover:scale-125 ${heatColor(cell.count)}`}
-                      title={`${cell.label}: ${cell.count} chapter${cell.count !== 1 ? 's' : ''}`}
+                      className={`w-3 h-3 rounded-sm ${heatColor(cell.count)}`}
+                      title={`${cell.label}: ${cell.count}`}
                     />
                   ))}
                 </div>
@@ -243,235 +267,161 @@ export default function StatsPage() {
         </motion.section>
       )}
 
-      {/* Activity Chart */}
-      <motion.section
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="glass-panel border-white/5 overflow-hidden mb-8"
-      >
-        <div className="p-6 border-b border-white/5 flex items-center gap-3 bg-white/[0.02]">
-          <BarChart2 className="w-5 h-5 text-red-500" />
-          <h2 className="font-bold">Activity — Last 30 Days</h2>
-        </div>
-        <div className="p-6">
-          <div className="flex items-end gap-1 h-32">
-            {daily.map((d) => (
-              <div
-                key={d.day}
-                className="flex-1 group relative flex items-end"
-                title={`${d.label}: ${d.count} chapter${d.count !== 1 ? 's' : ''}`}
-              >
-                <div
-                  className="w-full rounded-t-sm transition-all duration-300 bg-red-500/60 hover:bg-red-500"
-                  style={{ height: `${Math.max((d.count / maxDaily) * 100, d.count > 0 ? 4 : 0)}%` }}
-                />
-              </div>
-            ))}
-          </div>
-          <div className="flex justify-between mt-2 text-[9px] text-white/20 font-mono">
-            <span>{daily[0]?.label}</span>
-            <span>{daily[14]?.label}</span>
-            <span>{daily[29]?.label}</span>
-          </div>
-        </div>
-      </motion.section>
-
       {/* Reading Goals */}
       <motion.section
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.25 }}
-        className="glass-panel border-white/5 overflow-hidden mb-8"
+        transition={{ delay: 0.2 }}
+        style={CARD_STYLE}
       >
-        <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
-          <div className="flex items-center gap-3">
-            <Target className="w-5 h-5 text-violet-400" />
-            <h2 className="font-bold">Reading Goals</h2>
-          </div>
-          <button
-            onClick={() => setEditGoals(e => !e)}
-            className="p-2 rounded-lg hover:bg-white/10 transition-colors text-white/40 hover:text-white"
-          >
-            <Edit3 className="w-4 h-4" />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div style={{ fontSize: 12, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)' }}>Reading Goals</div>
+          <button onClick={() => setEditGoals(e => !e)} className="icon-btn" style={{ width: 30, height: 30, borderRadius: 8 }}>
+            <Edit3 className="w-3.5 h-3.5" />
           </button>
         </div>
-        <div className="p-6 space-y-6">
-          {editGoals ? (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-white/40">Monthly Chapter Goal</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={goalDraft.monthlyChapters}
-                  onChange={(e) => setGoalDraft(g => ({ ...g, monthlyChapters: parseInt(e.target.value) || 0 }))}
-                  className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-violet-500/20 text-white text-sm"
-                  placeholder="e.g. 100"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-white/40">Yearly Manga Goal</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={goalDraft.yearlyManga}
-                  onChange={(e) => setGoalDraft(g => ({ ...g, yearlyManga: parseInt(e.target.value) || 0 }))}
-                  className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-violet-500/20 text-white text-sm"
-                  placeholder="e.g. 20"
-                />
-              </div>
-              <button
-                onClick={() => { saveGoals(goalDraft); setGoals(goalDraft); setEditGoals(false) }}
-                className="px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center gap-2"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                Save Goals
-              </button>
+        {editGoals ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted2)', display: 'block', marginBottom: 6 }}>Monthly Chapter Goal</label>
+              <input
+                type="number" min="0" value={goalDraft.monthlyChapters}
+                onChange={(e) => setGoalDraft(g => ({ ...g, monthlyChapters: parseInt(e.target.value) || 0 }))}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg)', fontSize: 13, color: 'var(--fg)', outline: 'none' }}
+                placeholder="e.g. 100"
+              />
             </div>
-          ) : (
-            <>
-              {goals.monthlyChapters > 0 && stats && (() => {
-                const now = new Date()
-                const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-                const thisMonthCount = (stats.daily_downloads || [])
-                  .filter(d => d.day.startsWith(thisMonth))
-                  .reduce((s, d) => s + d.count, 0)
-                const pct = Math.min(Math.round((thisMonthCount / goals.monthlyChapters) * 100), 100)
-                return (
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-bold text-white/70">Monthly chapters</span>
-                      <span className="text-xs font-mono text-white/40">{thisMonthCount} / {goals.monthlyChapters}</span>
-                    </div>
-                    <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full bg-violet-500 transition-all duration-700" style={{ width: `${pct}%` }} />
-                    </div>
-                    <div className="text-[10px] font-bold text-white/30 mt-1">{pct}% complete this month</div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted2)', display: 'block', marginBottom: 6 }}>Yearly Manga Goal</label>
+              <input
+                type="number" min="0" value={goalDraft.yearlyManga}
+                onChange={(e) => setGoalDraft(g => ({ ...g, yearlyManga: parseInt(e.target.value) || 0 }))}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg)', fontSize: 13, color: 'var(--fg)', outline: 'none' }}
+                placeholder="e.g. 20"
+              />
+            </div>
+            <button
+              onClick={() => { saveGoals(goalDraft); setGoals(goalDraft); setEditGoals(false) }}
+              className="btn-primary"
+              style={{ display: 'flex', alignItems: 'center', gap: 6, width: 'fit-content', fontSize: 12 }}
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              Save Goals
+            </button>
+          </div>
+        ) : (
+          <>
+            {goals.monthlyChapters > 0 && (() => {
+              const d = new Date()
+              const thisMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+              const count = (stats.daily_downloads || []).filter(x => x.day.startsWith(thisMonth)).reduce((s, x) => s + x.count, 0)
+              const pct = Math.min(Math.round((count / goals.monthlyChapters) * 100), 100)
+              return (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 12, color: 'var(--fg)' }}>
+                    <span>Monthly chapters</span><span style={{ color: 'var(--muted3)' }}>{count} / {goals.monthlyChapters}</span>
                   </div>
-                )
-              })()}
-              {goals.yearlyManga > 0 && stats && (() => {
-                const pct = Math.min(Math.round((stats.total_manga / goals.yearlyManga) * 100), 100)
-                return (
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-bold text-white/70">Yearly manga</span>
-                      <span className="text-xs font-mono text-white/40">{stats.total_manga} / {goals.yearlyManga}</span>
-                    </div>
-                    <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full bg-pink-500 transition-all duration-700" style={{ width: `${pct}%` }} />
-                    </div>
-                    <div className="text-[10px] font-bold text-white/30 mt-1">{pct}% of goal reached</div>
+                  <div style={{ height: 6, background: 'var(--surface-hover)', borderRadius: 4, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', background: '#dc2626', borderRadius: 4, width: `${pct}%`, transition: 'width 0.7s' }} />
                   </div>
-                )
-              })()}
-              {goals.monthlyChapters === 0 && goals.yearlyManga === 0 && (
-                <div className="text-center py-6 text-white/20">
-                  <Target className="w-8 h-8 mx-auto mb-3 opacity-30" />
-                  <p className="text-xs font-bold uppercase tracking-widest">No goals set — click the edit icon to add some</p>
                 </div>
-              )}
-            </>
-          )}
-        </div>
+              )
+            })()}
+            {goals.yearlyManga > 0 && (() => {
+              const pct = Math.min(Math.round((stats.total_manga / goals.yearlyManga) * 100), 100)
+              return (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 12, color: 'var(--fg)' }}>
+                    <span>Yearly manga</span><span style={{ color: 'var(--muted3)' }}>{stats.total_manga} / {goals.yearlyManga}</span>
+                  </div>
+                  <div style={{ height: 6, background: 'var(--surface-hover)', borderRadius: 4, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', background: '#8b5cf6', borderRadius: 4, width: `${pct}%`, transition: 'width 0.7s' }} />
+                  </div>
+                </div>
+              )
+            })()}
+            {goals.monthlyChapters === 0 && goals.yearlyManga === 0 && (
+              <p style={{ fontSize: 12, color: 'var(--muted3)', textAlign: 'center', padding: '12px 0' }}>No goals set — tap the edit icon to add some</p>
+            )}
+          </>
+        )}
       </motion.section>
 
       {/* Provider Breakdown */}
       {stats.provider_breakdown.length > 0 && (
         <motion.section
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="glass-panel border-white/5 overflow-hidden mb-8"
+          transition={{ delay: 0.25 }}
+          style={CARD_STYLE}
         >
-          <div className="p-6 border-b border-white/5 bg-white/[0.02]">
-            <h2 className="font-bold">Sources</h2>
-          </div>
-          <div className="p-6 space-y-4">
-            {(() => {
-              const total = stats.provider_breakdown.reduce((s, p) => s + p.count, 0)
-              return stats.provider_breakdown.map((p) => (
-                <div key={p.provider}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs font-bold uppercase tracking-widest text-white/60">{p.provider}</span>
-                    <span className="text-xs font-mono text-white/40">{p.count} ({Math.round((p.count / total) * 100)}%)</span>
-                  </div>
-                  <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-700"
-                      style={{
-                        width: `${(p.count / total) * 100}%`,
-                        backgroundColor: PROVIDER_COLORS[p.provider] ?? '#6b7280',
-                      }}
-                    />
-                  </div>
+          <div style={{ fontSize: 12, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)', marginBottom: 14 }}>By Source</div>
+          {(() => {
+            const total = stats.provider_breakdown.reduce((s, p) => s + p.count, 0)
+            return stats.provider_breakdown.map((p) => (
+              <div key={p.provider} style={{ marginBottom: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, fontSize: 12 }}>
+                  <span style={{ color: 'var(--fg)', fontWeight: 700 }}>{p.provider}</span>
+                  <span style={{ color: 'var(--muted3)' }}>{p.count} ({Math.round((p.count / total) * 100)}%)</span>
                 </div>
-              ))
-            })()}
-          </div>
+                <div style={{ height: 6, background: 'var(--surface-hover)', borderRadius: 4, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', borderRadius: 4, background: PROVIDER_COLORS[p.provider] ?? '#6b7280', width: `${(p.count / total) * 100}%`, transition: 'width 0.7s' }} />
+                </div>
+              </div>
+            ))
+          })()}
         </motion.section>
       )}
 
       {/* Per-Category Breakdown */}
       {categoryStats.length > 0 && (
         <motion.section
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35 }}
-          className="glass-panel border-white/5 overflow-hidden mb-8"
+          transition={{ delay: 0.3 }}
+          style={CARD_STYLE}
         >
-          <div className="p-6 border-b border-white/5 flex items-center gap-3 bg-white/[0.02]">
-            <BookOpen className="w-5 h-5 text-pink-400" />
-            <h2 className="font-bold">By Category</h2>
-          </div>
-          <div className="p-6 space-y-4">
-            {(() => {
-              const total = categoryStats.reduce((s, c) => s + c.count, 0) || 1
-              return categoryStats.map(c => (
-                <div key={c.name}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs font-bold text-white/60">{c.name}</span>
-                    <span className="text-xs font-mono text-white/40">{c.count} ({Math.round((c.count / total) * 100)}%)</span>
-                  </div>
-                  <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                    <div className="h-full rounded-full bg-pink-500/70 transition-all duration-700" style={{ width: `${(c.count / total) * 100}%` }} />
-                  </div>
+          <div style={{ fontSize: 12, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)', marginBottom: 14 }}>By Category</div>
+          {(() => {
+            const total = categoryStats.reduce((s, c) => s + c.count, 0) || 1
+            return categoryStats.map(c => (
+              <div key={c.name} style={{ marginBottom: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, fontSize: 12 }}>
+                  <span style={{ color: 'var(--fg)', fontWeight: 700 }}>{c.name}</span>
+                  <span style={{ color: 'var(--muted3)' }}>{c.count} ({Math.round((c.count / total) * 100)}%)</span>
                 </div>
-              ))
-            })()}
-          </div>
+                <div style={{ height: 6, background: 'var(--surface-hover)', borderRadius: 4, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', borderRadius: 4, background: '#ec4899', width: `${(c.count / total) * 100}%`, transition: 'width 0.7s' }} />
+                </div>
+              </div>
+            ))
+          })()}
         </motion.section>
       )}
 
       {/* Reading Pace */}
       <motion.section
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-        className="glass-panel border-white/5 overflow-hidden"
+        transition={{ delay: 0.35 }}
+        style={CARD_STYLE}
       >
-        <div className="p-6 border-b border-white/5 flex items-center gap-3 bg-white/[0.02]">
-          <TrendingUp className="w-5 h-5 text-cyan-400" />
-          <h2 className="font-bold">Reading Pace</h2>
-        </div>
-        <div className="p-6 grid grid-cols-2 md:grid-cols-3 gap-6">
-          <div className="text-center">
-            <div className="text-3xl font-black text-cyan-400 font-mono">{chapPerWeek}</div>
-            <div className="text-[10px] font-black uppercase tracking-widest text-white/30 mt-1">Ch / Week</div>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl font-black text-amber-400 font-mono">{readTimeStr}</div>
-            <div className="text-[10px] font-black uppercase tracking-widest text-white/30 mt-1">Est. Read Time</div>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl font-black text-emerald-400 font-mono">
-              {stats.total_chapters > 0 ? Math.round(stats.total_pages / stats.total_chapters) : 0}
+        <div style={{ fontSize: 12, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)', marginBottom: 16 }}>Reading Pace</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, textAlign: 'center' }}>
+          {[
+            { val: chapPerWeek, label: 'Ch / Week' },
+            { val: readTimeStr, label: 'Est. Read Time' },
+            { val: stats.total_chapters > 0 ? Math.round(stats.total_pages / stats.total_chapters) : 0, label: 'Avg Pages/Ch' },
+          ].map(item => (
+            <div key={item.label}>
+              <div style={{ fontSize: 24, fontWeight: 900, fontFamily: 'Anton, sans-serif', color: '#ef4444', lineHeight: 1 }}>{item.val}</div>
+              <div style={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted3)', marginTop: 6 }}>{item.label}</div>
             </div>
-            <div className="text-[10px] font-black uppercase tracking-widest text-white/30 mt-1">Avg Pages/Ch</div>
-          </div>
+          ))}
         </div>
       </motion.section>
+
+      </div>
     </div>
   )
 }
