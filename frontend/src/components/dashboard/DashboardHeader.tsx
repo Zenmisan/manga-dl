@@ -1,7 +1,7 @@
 import type React from 'react'
 import {
   RefreshCw, HardDrive, Upload, SlidersHorizontal, CheckSquare,
-  Square, LayoutGrid, List,
+  Square, LayoutGrid, Grid3X3, List,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
@@ -22,86 +22,100 @@ interface Props {
   setSelectedItems: React.Dispatch<React.SetStateAction<Set<string>>>;
   view: 'grid' | 'list';
   setView: (v: 'grid' | 'list') => void;
+  density: 'large' | 'compact';
+  setDensity: (d: 'large' | 'compact') => void;
+  totalCount: number;
 }
 
 export function DashboardHeader({
   refreshing, refetchLibrary, isAdmin, isDesktop, uploading, handleScanFolder,
   handleUpload, showSortPanel, setShowSortPanel, sort, filter, selectMode,
-  setSelectMode, setSelectedItems, view, setView,
+  setSelectMode, setSelectedItems, view, setView, density, setDensity, totalCount,
 }: Props) {
+  const hasActiveFilters = sort !== 'default' || filter !== 'all'
+
   return (
-    <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8 sm:mb-12">
+    <header
+      className="sticky-header border-b px-4 md:px-6 py-3 flex items-center justify-between gap-3"
+      style={{ borderColor: 'var(--border)' }}
+    >
       <div>
-        <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-3 bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent uppercase">
-          Library
-        </h1>
-        <p className="text-white/40 font-medium text-sm md:text-lg">Your personal cloud collection</p>
+        <h1 className="page-title" style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)' }}>Library</h1>
+        <p style={{ fontSize: 11, color: 'var(--muted2)', fontWeight: 600, marginTop: 1 }}>
+          {totalCount} {totalCount === 1 ? 'series' : 'series'}
+        </p>
       </div>
 
-      <div className="flex bg-white/5 border border-white/5 rounded-2xl p-1.5 backdrop-blur-sm max-w-full overflow-x-auto no-scrollbar">
+      <div className="flex items-center gap-1.5">
         <button
           onClick={() => refetchLibrary()}
           disabled={refreshing}
-          className="p-2.5 rounded-xl transition-all cursor-pointer flex items-center gap-2 px-4 hover:bg-white/5 text-white/40 hover:text-white"
+          className="icon-btn"
           title="Refresh library"
         >
-          <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
-          <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:inline">Refresh</span>
+          <RefreshCw className={cn('w-4 h-4', refreshing && 'animate-spin')} />
         </button>
+
         {isAdmin && isDesktop && (
           <button
             onClick={handleScanFolder}
             disabled={uploading}
-            className={cn(
-              "p-2.5 rounded-xl transition-all cursor-pointer flex items-center gap-2 px-4",
-              uploading ? "opacity-50 pointer-events-none" : "hover:bg-white/5 text-emerald-400 hover:text-emerald-300"
-            )}
-            title="Scan Local Manga Directory"
+            className={cn('icon-btn', uploading && 'opacity-50 pointer-events-none')}
+            style={{ color: 'rgb(52 211 153)' }}
+            title="Scan local manga directory"
           >
-            {uploading ? <RefreshCw className="w-4 h-4 animate-spin text-emerald-500" /> : <HardDrive className="w-4 h-4" />}
-            <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:inline">Scan Folder</span>
+            {uploading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <HardDrive className="w-4 h-4" />}
           </button>
         )}
+
         {isAdmin && (
-          <label className={cn(
-            "p-2.5 rounded-xl transition-all cursor-pointer flex items-center gap-2 px-4",
-            uploading ? "opacity-50 pointer-events-none" : "hover:bg-white/5 text-white/40 hover:text-white"
-          )}>
+          <label
+            className={cn('icon-btn cursor-pointer', uploading && 'opacity-50 pointer-events-none')}
+            title="Upload manga file"
+          >
             <input type="file" className="hidden" accept=".zip,.cbz,.epub" onChange={handleUpload} />
-            {uploading ? <RefreshCw className="w-4 h-4 animate-spin text-red-500" /> : <Upload className="w-4 h-4" />}
-            <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:inline">Upload</span>
+            {uploading ? <RefreshCw className="w-4 h-4 animate-spin" style={{ color: 'var(--accent)' }} /> : <Upload className="w-4 h-4" />}
           </label>
         )}
-        <div className="w-px h-4 bg-white/10 my-auto mx-1" />
+
+        <div style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 2px' }} />
+
         <button
           onClick={() => setShowSortPanel(p => !p)}
-          className={cn("p-2.5 rounded-xl transition-all flex items-center gap-2", showSortPanel || sort !== 'default' || filter !== 'all' ? "bg-white/10 text-white" : "text-white/40 hover:text-white/60")}
+          className="icon-btn"
+          style={showSortPanel || hasActiveFilters ? { background: 'var(--accent-muted)', color: 'var(--accent)', borderColor: 'var(--accent)' } : {}}
           title="Sort & Filter"
         >
-          <SlidersHorizontal className="w-5 h-5" />
+          <SlidersHorizontal className="w-4 h-4" />
         </button>
-        <div className="w-px h-4 bg-white/10 my-auto mx-1" />
+
         <button
           onClick={() => { setSelectMode(p => !p); setSelectedItems(new Set()) }}
-          className={cn("p-2.5 rounded-xl transition-all flex items-center gap-2", selectMode ? "bg-red-500/20 text-red-400" : "text-white/40 hover:text-white/60")}
-          title="Select Mode"
+          className="icon-btn"
+          style={selectMode ? { background: 'var(--accent-muted)', color: 'var(--accent)', borderColor: 'var(--accent)' } : {}}
+          title="Select mode"
         >
-          {selectMode ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5" />}
+          {selectMode ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
         </button>
-        <div className="w-px h-4 bg-white/10 my-auto mx-1" />
+
+        <div style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 2px' }} />
+
+        {view === 'grid' && (
+          <button
+            onClick={() => setDensity(density === 'large' ? 'compact' : 'large')}
+            className="icon-btn"
+            title={density === 'large' ? 'Switch to compact' : 'Switch to large'}
+          >
+            {density === 'large' ? <Grid3X3 className="w-4 h-4" /> : <LayoutGrid className="w-4 h-4" />}
+          </button>
+        )}
+
         <button
-          onClick={() => setView('grid')}
-          className={cn("p-2.5 rounded-xl transition-all", view === 'grid' ? "bg-white/10 text-white" : "text-white/40 hover:text-white/60")}
-          title="Grid view"
+          onClick={() => setView(view === 'grid' ? 'list' : 'grid')}
+          className="icon-btn"
+          title={view === 'grid' ? 'List view' : 'Grid view'}
         >
-          <LayoutGrid className="w-5 h-5" />
-        </button>
-        <button
-          onClick={() => setView('list')}
-          className={cn("p-2.5 rounded-xl transition-all", view === 'list' ? "bg-white/10 text-white" : "text-white/40 hover:text-white/60")}
-          title="List view"
-        >
-          <List className="w-5 h-5" />
+          {view === 'grid' ? <List className="w-4 h-4" /> : <LayoutGrid className="w-4 h-4" />}
         </button>
       </div>
     </header>

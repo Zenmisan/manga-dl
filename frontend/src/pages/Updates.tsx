@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import api from '../lib/api'
 import { useMangaUpdates } from '../lib/queries'
 import { motion } from 'framer-motion'
-import { Bell, Play, Download, Loader2, RefreshCw, ChevronLeft } from 'lucide-react'
+import { Bell, Play, Download, Loader2, RefreshCw } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { buildSmartReadUrl } from '../lib/smartUrl'
 
@@ -66,128 +66,102 @@ export default function UpdatesPage() {
   }, {})
 
   return (
-    <div className="p-4 sm:p-6 md:p-12 max-w-5xl mx-auto min-h-full">
-      <header className="mb-10">
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-white/40 hover:text-white transition-colors mb-6 text-sm font-bold"
-        >
-          <ChevronLeft className="w-4 h-4" />
-          Back
-        </button>
-        <div className="flex items-end justify-between gap-4">
-          <div>
-            <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-2 bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent">
-              Updates
-            </h1>
-            <p className="text-white/40 font-medium">Latest chapters from your library</p>
-          </div>
-          <button
-            onClick={() => refetch()}
-            disabled={refreshing}
-            className="p-2.5 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all text-white/40 hover:text-white"
-            title="Refresh"
-          >
-            <RefreshCw className={cn('w-4 h-4', refreshing && 'animate-spin')} />
-          </button>
+    <div className="min-h-full flex flex-col">
+      <header className="sticky-header border-b px-4 md:px-6 py-3 flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
+        <div>
+          <h1 className="page-title" style={{ fontSize: 'clamp(1.25rem,3vw,1.75rem)' }}>Updates</h1>
+          <p style={{ fontSize: 11, color: 'var(--muted2)', fontWeight: 600, marginTop: 1 }}>
+            {updates.length > 0 ? `${updates.length} new chapters` : 'Latest from your library'}
+          </p>
         </div>
+        <button
+          onClick={() => refetch()}
+          disabled={refreshing}
+          className="icon-btn"
+          title="Refresh"
+        >
+          <RefreshCw className={cn('w-4 h-4', refreshing && 'animate-spin')} />
+        </button>
       </header>
 
-      {loading ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="w-8 h-8 text-red-500 animate-spin" />
-        </div>
-      ) : updates.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
-          <Bell className="w-12 h-12 text-white/10" />
-          <p className="text-white/30 font-bold uppercase tracking-widest text-xs">No updates yet</p>
-          <p className="text-white/20 text-sm">Subscribe to manga to see new chapters here</p>
-          <button onClick={() => navigate('/search')} className="btn-primary mt-2">
-            Find Manga
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-8">
-          {Object.entries(grouped).map(([title, chapters], gi) => (
-            <motion.section
-              key={title}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: gi * 0.04 }}
-            >
-              <button
-                onClick={() => {
-                  const ch = chapters[0]
-                  navigate(`/manga/${ch.provider}/${ch.manga_id}`)
-                }}
-                className="flex items-center gap-3 mb-4 group"
+      <div className="px-4 md:px-6 pt-4 pb-28 flex-1 max-w-2xl">
+        {loading ? (
+          <div className="flex justify-center py-20">
+            <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--accent)' }} />
+          </div>
+        ) : updates.length === 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '64px 24px', gap: 16 }}>
+            <div style={{ width: 64, height: 64, borderRadius: 20, background: 'var(--surface)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Bell style={{ width: 28, height: 28, color: 'var(--muted3)' }} />
+            </div>
+            <p style={{ fontSize: 15, fontWeight: 800, color: 'var(--fg)' }}>No updates yet</p>
+            <p style={{ fontSize: 13, color: 'var(--muted2)' }}>Subscribe to manga to see new chapters here</p>
+            <button onClick={() => navigate('/search')} className="btn-primary" style={{ marginTop: 8 }}>Find Manga</button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+            {Object.entries(grouped).map(([title, chapters], gi) => (
+              <motion.section
+                key={title}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: gi * 0.04 }}
               >
-                {chapters[0].cover_url ? (
-                  <img
-                    src={`${api.defaults.baseURL || ''}/manga/image-proxy?url=${encodeURIComponent(chapters[0].cover_url)}&api_key=${localStorage.getItem('manga-api-key') || ''}`}
-                    alt={title}
-                    className="w-10 h-14 object-cover rounded-lg shrink-0 border border-white/5"
-                  />
-                ) : (
-                  <div className="w-10 h-14 bg-white/5 rounded-lg border border-white/5 shrink-0" />
-                )}
-                <div className="text-left">
-                  <h2 className="font-bold text-white/90 group-hover:text-red-400 transition-colors text-sm md:text-base">
-                    {title}
-                  </h2>
-                  <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">
-                    {chapters.length} chapter{chapters.length !== 1 ? 's' : ''}
-                  </span>
-                </div>
-              </button>
+                <button
+                  onClick={() => { const ch = chapters[0]; navigate(`/manga/${ch.provider}/${ch.manga_id}`) }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10, background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left', width: '100%' }}
+                >
+                  {chapters[0].cover_url ? (
+                    <img
+                      src={`${api.defaults.baseURL || ''}/manga/image-proxy?url=${encodeURIComponent(chapters[0].cover_url)}&api_key=${localStorage.getItem('manga-api-key') || ''}`}
+                      alt={title}
+                      style={{ width: 44, height: 62, objectFit: 'cover', borderRadius: 8, flexShrink: 0, border: '1px solid var(--border)' }}
+                    />
+                  ) : (
+                    <div style={{ width: 44, height: 62, borderRadius: 8, flexShrink: 0, background: 'var(--surface)', border: '1px solid var(--border)' }} />
+                  )}
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--fg)' }}>{title}</div>
+                    <div style={{ fontSize: 11, color: 'var(--muted3)', marginTop: 2 }}>{chapters.length} chapter{chapters.length !== 1 ? 's' : ''}</div>
+                  </div>
+                </button>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 ml-0 md:ml-14">
-                {chapters.map((ch) => {
-                  const key = `${ch.provider}-${ch.chapter_id}`
-                  return (
-                    <div
-                      key={ch.chapter_id}
-                      className="group flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 transition-all"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-white/80 text-sm truncate group-hover:text-white transition-colors">
-                          {ch.chapter_title}
-                        </p>
-                        {ch.published_at && (
-                          <p className="text-[10px] text-white/20 font-medium mt-0.5">
-                            {timeAgo(ch.published_at)}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex gap-1.5 shrink-0">
-                        <button
-                          onClick={() => handleReadOnline(ch)}
-                          title="Read online"
-                          className="p-2 rounded-lg bg-violet-500/10 border border-violet-500/20 text-violet-400 hover:bg-violet-500 hover:text-white transition-all"
-                        >
-                          <Play className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDownload(ch)}
-                          title="Download"
-                          className={cn(
-                            'p-2 rounded-lg border transition-all',
-                            downloading.has(key)
-                              ? 'bg-emerald-500/20 border-emerald-500/20 text-emerald-400'
-                              : 'bg-white/5 border-white/10 text-white/40 hover:bg-red-600 hover:border-red-600 hover:text-white'
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {chapters.map((ch) => {
+                    const key = `${ch.provider}-${ch.chapter_id}`
+                    return (
+                      <div
+                        key={ch.chapter_id}
+                        style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 12, background: 'var(--surface)', border: '1px solid var(--border)' }}
+                      >
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ch.chapter_title}</div>
+                          {ch.published_at && (
+                            <div style={{ fontSize: 11, color: 'var(--muted3)', marginTop: 2 }}>{timeAgo(ch.published_at)}</div>
                           )}
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                        </button>
+                        </div>
+                        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                          <button onClick={() => handleReadOnline(ch)} title="Read online" className="icon-btn" style={{ width: 34, height: 34, borderRadius: 10, color: 'var(--accent)' }}>
+                            <Play className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDownload(ch)}
+                            title="Download"
+                            className="icon-btn"
+                            style={downloading.has(key) ? { width: 34, height: 34, borderRadius: 10, color: 'rgb(74,222,128)', borderColor: 'rgba(74,222,128,0.3)' } : { width: 34, height: 34, borderRadius: 10 }}
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </motion.section>
-          ))}
-        </div>
-      )}
+                    )
+                  })}
+                </div>
+              </motion.section>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

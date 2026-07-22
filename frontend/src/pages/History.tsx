@@ -5,7 +5,7 @@ import api from '../lib/api'
 import { supabase } from '../lib/supabase'
 import { useHistory, QK } from '../lib/queries'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Clock, Play, Trash2, ChevronLeft, Loader2, EyeOff, Calendar } from 'lucide-react'
+import { Clock, Play, Trash2, Loader2, EyeOff } from 'lucide-react'
 import { useAppStore } from '../lib/store'
 import { cn } from '../lib/utils'
 import { buildSmartReadUrl } from '../lib/smartUrl'
@@ -97,16 +97,6 @@ export default function HistoryPage() {
     navigate(targetUrl)
   }
 
-  if (incognitoMode) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-full p-12 text-center gap-4">
-        <EyeOff className="w-12 h-12 text-white/10" />
-        <h2 className="text-xl font-bold text-white/40">Incognito mode is on</h2>
-        <p className="text-white/20 text-sm">History is not recorded while incognito.</p>
-      </div>
-    )
-  }
-
   const DATE_TABS: { label: string; value: DateFilter }[] = [
     { label: 'All', value: 'all' },
     { label: 'Today', value: 'today' },
@@ -114,147 +104,157 @@ export default function HistoryPage() {
     { label: 'This Month', value: 'month' },
   ]
 
-  return (
-    <div className="p-4 sm:p-6 md:p-12 max-w-4xl mx-auto min-h-full">
-      <header className="mb-8">
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-white/40 hover:text-white transition-colors mb-6 text-sm font-bold"
-        >
-          <ChevronLeft className="w-4 h-4" />
-          Back
-        </button>
-        <div className="flex items-end justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-2 bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent">
-              History
-            </h1>
-            <p className="text-white/40 font-medium">Your reading activity across devices</p>
-          </div>
-          {history.length > 0 && (
-            <button
-              onClick={handleClearAll}
-              disabled={clearing}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/5 hover:bg-red-500/20 hover:border-red-500/20 hover:text-red-400 text-white/40 transition-all text-xs font-bold uppercase tracking-wider shrink-0"
-            >
-              {clearing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-              Clear All
-            </button>
-          )}
-        </div>
+  const COVER_GRADIENTS = [
+    'linear-gradient(135deg, #1e3a5f, #2d6a9f)',
+    'linear-gradient(135deg, #3d1a1a, #8b2c2c)',
+    'linear-gradient(135deg, #1a3d2b, #2d6b4a)',
+    'linear-gradient(135deg, #2d1a4d, #5b3a8a)',
+    'linear-gradient(135deg, #3d2e1a, #8b6b2c)',
+  ]
 
+  if (incognitoMode) {
+    return (
+      <div className="min-h-full flex flex-col">
+        <header className="sticky-header border-b px-4 md:px-6 py-3" style={{ borderColor: 'var(--border)' }}>
+          <h1 className="page-title" style={{ fontSize: 'clamp(1.25rem,3vw,1.75rem)' }}>History</h1>
+          <p style={{ fontSize: 11, color: 'var(--muted2)', fontWeight: 600, marginTop: 1 }}>Your reading activity</p>
+        </header>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '64px 24px', gap: 16 }}>
+          <div style={{ width: 64, height: 64, borderRadius: 20, background: 'var(--surface)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <EyeOff style={{ width: 28, height: 28, color: 'var(--muted3)' }} />
+          </div>
+          <p style={{ fontSize: 15, fontWeight: 800, color: 'var(--fg)' }}>Incognito mode is on</p>
+          <p style={{ fontSize: 13, color: 'var(--muted2)' }}>History is not recorded while incognito.</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-full flex flex-col">
+      <header className="sticky-header border-b px-4 md:px-6 py-3 flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
+        <div>
+          <h1 className="page-title" style={{ fontSize: 'clamp(1.25rem,3vw,1.75rem)' }}>History</h1>
+          <p style={{ fontSize: 11, color: 'var(--muted2)', fontWeight: 600, marginTop: 1 }}>Your reading activity</p>
+        </div>
+        {history.length > 0 && (
+          <button
+            onClick={handleClearAll}
+            disabled={clearing}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'none', fontSize: 12, fontWeight: 700, color: '#dc2626', cursor: 'pointer' }}
+          >
+            {clearing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+            Clear
+          </button>
+        )}
+      </header>
+
+      <div className="px-4 md:px-6 pt-4 pb-28 flex-1" style={{ maxWidth: 720 }}>
         {authed && history.length > 0 && (
-          <div className="space-y-3">
-            {/* Search */}
+          <div style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
             <input
               type="search"
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search history..."
-              className="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-red-500/20"
+              style={{ width: '100%', padding: '11px 14px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--surface)', fontSize: 13, color: 'var(--fg)', outline: 'none' }}
             />
-            {/* Date filter tabs */}
-            <div className="flex items-center gap-1 bg-white/5 rounded-xl p-1 w-fit">
-              <Calendar className="w-3.5 h-3.5 text-white/30 ml-2 mr-1" />
+            <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2 }}>
               {DATE_TABS.map(tab => (
                 <button
                   key={tab.value}
                   onClick={() => setDateFilter(tab.value)}
-                  className={cn(
-                    'px-3 py-1.5 rounded-lg text-xs font-bold transition-all',
-                    dateFilter === tab.value ? 'bg-red-600 text-white' : 'text-white/40 hover:text-white'
-                  )}
+                  className={cn('filter-pill', dateFilter === tab.value && 'active')}
                 >
                   {tab.label}
                 </button>
               ))}
             </div>
-            <p className="text-[11px] text-white/20 font-medium">
-              {filtered.length} entr{filtered.length !== 1 ? 'ies' : 'y'}
-              {dateFilter !== 'all' && ` in ${DATE_TABS.find(t => t.value === dateFilter)?.label.toLowerCase()}`}
-            </p>
           </div>
         )}
-      </header>
 
-      {loading ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="w-8 h-8 text-red-500 animate-spin" />
-        </div>
-      ) : !authed ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
-          <Clock className="w-12 h-12 text-white/10" />
-          <p className="text-white/40 font-bold">Sign in to see your reading history</p>
-          <button onClick={() => navigate('/login')} className="btn-primary mt-2">
-            Sign In
-          </button>
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
-          <Clock className="w-12 h-12 text-white/10" />
-          <p className="text-white/30 font-bold uppercase tracking-widest text-xs">
-            {history.length === 0 ? 'No reading history yet' : 'No entries match this filter'}
-          </p>
-          <p className="text-white/20 text-sm">
-            {history.length === 0 ? 'Chapters you read online will appear here' : 'Try a different date range'}
-          </p>
-        </div>
-      ) : (
-        <AnimatePresence>
-          <div className="space-y-2">
-            {filtered.map((entry, i) => (
-              <motion.div
-                key={`${entry.provider}-${entry.manga_id}-${entry.chapter_id}`}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.02 }}
-                className="group flex items-center gap-4 p-4 rounded-2xl bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 transition-all"
-              >
-                <div className="w-10 h-10 shrink-0 rounded-xl bg-red-500/10 border border-red-500/10 flex items-center justify-center">
-                  <Clock className="w-4 h-4 text-red-400" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p
-                    className="font-bold text-white/90 truncate text-sm group-hover:text-red-400 transition-colors cursor-pointer"
-                    onClick={() => navigate(`/manga/${entry.provider}/${encodeURIComponent(entry.manga_id)}`)}
-                  >
-                    {entry.manga_title}
-                  </p>
-                  <p className="text-[11px] text-white/30 font-medium truncate">
-                    {entry.chapter_title}
-                    {entry.last_page > 1 && (
-                      <span className="ml-2 text-white/20">· page {entry.last_page}</span>
-                    )}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  <span className="text-[10px] font-bold text-white/20 uppercase tracking-widest hidden sm:block">
-                    {entry.updated_at ? timeAgo(entry.updated_at) : ''}
-                  </span>
-                  <button
-                    onClick={() => resumeChapter(entry)}
-                    title="Resume reading"
-                    className="p-2 rounded-lg bg-violet-500/10 border border-violet-500/20 text-violet-400 hover:bg-violet-500 hover:text-white transition-all opacity-0 group-hover:opacity-100"
-                  >
-                    <Play className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => handleClearManga(entry.provider, entry.manga_id)}
-                    title="Remove this manga from history"
-                    disabled={clearingMangaId === entry.manga_id}
-                    className="p-2 rounded-lg bg-white/5 border border-white/5 text-white/20 hover:bg-red-500/20 hover:border-red-500/20 hover:text-red-400 transition-all opacity-0 group-hover:opacity-100"
-                  >
-                    {clearingMangaId === entry.manga_id
-                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      : <Trash2 className="w-3.5 h-3.5" />
-                    }
-                  </button>
-                </div>
-              </motion.div>
-            ))}
+        {loading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '80px 0' }}>
+            <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--accent)' }} />
           </div>
-        </AnimatePresence>
-      )}
+        ) : !authed ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '64px 24px', gap: 16 }}>
+            <div style={{ width: 64, height: 64, borderRadius: 20, background: 'var(--surface)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Clock style={{ width: 28, height: 28, color: 'var(--muted3)' }} />
+            </div>
+            <p style={{ fontSize: 15, fontWeight: 800, color: 'var(--fg)' }}>Sign in to see history</p>
+            <button onClick={() => navigate('/login')} className="btn-primary" style={{ marginTop: 8 }}>Sign In</button>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '64px 24px', gap: 16 }}>
+            <div style={{ width: 64, height: 64, borderRadius: 20, background: 'var(--surface)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Clock style={{ width: 28, height: 28, color: 'var(--muted3)' }} />
+            </div>
+            <p style={{ fontSize: 15, fontWeight: 800, color: 'var(--fg)' }}>{history.length === 0 ? 'No reading history yet' : 'No entries match'}</p>
+            <p style={{ fontSize: 13, color: 'var(--muted2)' }}>{history.length === 0 ? 'Chapters you read online will appear here' : 'Try a different date range'}</p>
+          </div>
+        ) : (
+          <AnimatePresence>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {filtered.map((entry, i) => {
+                const gradIdx = Math.abs(entry.manga_title.charCodeAt(0) + entry.manga_title.charCodeAt(1 % entry.manga_title.length)) % COVER_GRADIENTS.length
+                return (
+                  <motion.div
+                    key={`${entry.provider}-${entry.manga_id}-${entry.chapter_id}`}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.02 }}
+                    className="group"
+                    style={{ display: 'flex', gap: 14, padding: '12px 14px', borderRadius: 14, cursor: 'pointer' }}
+                  >
+                    {/* Cover placeholder */}
+                    <div style={{ width: 44, height: 62, borderRadius: 8, flexShrink: 0, background: COVER_GRADIENTS[gradIdx], overflow: 'hidden' }} />
+
+                    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 3 }}>
+                      <div
+                        style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                        onClick={() => navigate(`/manga/${entry.provider}/${encodeURIComponent(entry.manga_id)}`)}
+                      >
+                        {entry.manga_title}
+                      </div>
+                      <div style={{ fontSize: 11.5, color: 'var(--muted2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {entry.chapter_title}
+                        {entry.last_page > 1 && <span style={{ color: 'var(--muted3)', marginLeft: 6 }}>· p.{entry.last_page}</span>}
+                      </div>
+                      {entry.last_page > 1 && (
+                        <div style={{ width: '100%', maxWidth: 160, height: 4, borderRadius: 4, background: 'var(--surface-hover)', marginTop: 4 }}>
+                          <div style={{ height: '100%', borderRadius: 4, background: '#dc2626', width: `${Math.min(100, (entry.last_page / 20) * 100)}%` }} />
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'space-between', flexShrink: 0, gap: 6 }}>
+                      <span style={{ fontSize: 11, color: 'var(--muted3)' }}>{entry.updated_at ? timeAgo(entry.updated_at) : ''}</span>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <button onClick={() => resumeChapter(entry)} title="Resume" className="icon-btn" style={{ width: 30, height: 30, borderRadius: 8, color: 'var(--accent)' }}>
+                          <Play className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => handleClearManga(entry.provider, entry.manga_id)}
+                          title="Remove"
+                          disabled={clearingMangaId === entry.manga_id}
+                          className="icon-btn"
+                          style={{ width: 30, height: 30, borderRadius: 8 }}
+                        >
+                          {clearingMangaId === entry.manga_id
+                            ? <Loader2 className="w-3 h-3 animate-spin" />
+                            : <Trash2 className="w-3 h-3" />
+                          }
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )
+              })}
+            </div>
+          </AnimatePresence>
+        )}
+      </div>
     </div>
   )
 }
