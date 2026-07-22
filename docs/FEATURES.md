@@ -6,7 +6,7 @@ A tri-platform manga reader and downloader.
 **Mobile:** Capacitor Android APK  
 **Backend:** FastAPI + SQLite (local) / Supabase PostgreSQL (prod) on Render
 
-Last updated: 2026-06-13
+Last updated: 2026-07-22
 
 ---
 
@@ -57,6 +57,25 @@ Last updated: 2026-06-13
 - Stream chapter pages without downloading
 - Image proxy via curl_cffi with Chrome impersonation + correct Referer
 - Cloud reading progress sync (saves page, resumes on next open) — requires login
+- Smart URLs & Clean Paths (`/read/:title-slug-:extCode/:chapterSlug`)
+- Public Library Access: Unlocked for all authenticated users (read, stream, convert PDF/EPUB)
+
+### SEO & Search Engine Optimization
+- XML Sitemap (`public/sitemap.xml`) covering all core application routes
+- Crawler directives (`public/robots.txt`) allowing Google Search indexing
+- Dynamic route cataloging for snapshot generation
+
+### Mobile & Native Enhancements (Android Capacitor)
+- Biometric App Lock session guard preventing infinite re-prompt loops
+- Native volume key navigation (`VolumeKeys` plugin)
+- Automatic bottom navbar hiding inside reader routes (`/read/...`)
+
+### Performance / Lazy Loading
+- TanStack Query v5 wraps all API calls with stale-while-revalidate caching
+- Tab revisits show cached data instantly — no re-fetch until stale (library 30s, stats 2min, sources 5min, market 10min, updates 5min, history 60s)
+- `refetchOnWindowFocus: false` — no spurious fetches on browser focus
+- Local IndexedDB manga items merged into library cache alongside backend data
+- Tab transitions: opacity-only, `mode="sync"`, 80ms — GPU-composited, no layout recalc
 
 ### History
 - Full history page with manga title, chapter, page

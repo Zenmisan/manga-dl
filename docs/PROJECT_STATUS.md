@@ -119,6 +119,42 @@ Extracted into purpose-built hooks and components:
 - Migrated: Dashboard, Stats, Updates, History, Sources — all use cached data on tab revisit; no re-fetch until stale.
 - Dashboard: local IndexedDB items kept in separate `localItems` state, merged into the `items` useMemo alongside backend data. Banner dismiss state decoupled from `isError` via `bannerDismissed` local state.
 
+### Phase 20 ✅ Architecture Modularization & Platform Audit Fixes (2026-07-21 - 2026-07-22)
+
+#### Conductor Tracks & Ralph's Method Workflow
+- Integrated Ralph's Method track lifecycle (`.agents/tracks/`) for feature developments, bug fixes, and architectural refactors.
+
+#### Backend Services Layer (`backend/app/services/`)
+- **`archive_converter.py`**: Extracted CBZ page listing, image extraction with upscaling, and stream conversion to PDF/EPUB.
+- **`library_service.py`**: Extracted database library queries, stats, and disk caching.
+- **`js_extensions.py`**: Extracted extension script loader and metadata definitions.
+- **`proxy_service.py`**: Extracted CORS-bypassing proxy routines (`proxy_html`, `proxy_json`, `proxy_image`).
+- **`manga_service.py`**: Extracted subscribed manga update streams, subscription toggles, and source migrations.
+- **`device_service.py`**: Extracted device fingerprinting, registration limits (3 devices max), and 30-day forfeiture locking.
+- **`user_service.py`**: Extracted user reading progress, history, stats, and public profile data.
+- **FastAPI Routers**: Refactored `library.py`, `sources.py`, `manga.py`, and `users.py` down to concise, readable routers.
+
+#### Standalone JS Extension Templates (`backend/app/services/extensions/`)
+- Extracted raw JavaScript code strings into standalone `.js` template files:
+  - `mangadex.js`: Fixed chapter title fallback formatting (`Chapter X: Title` instead of raw UUIDs like `995aba31...`).
+  - `mangakatana.js`: Fixed title selector matching and repaired Popular (`/manga`) & Latest (`/latest`) scrapers.
+  - `asurascans.js`: Modernized AST and scraper fallbacks for popular and latest lists.
+  - `omegascans.js`: Fixed API query ordering parameters for popular and latest series.
+  - `madara.template.js` & `mangathemesia.template.js`: Dynamic template generators for community scanlator sites.
+
+#### Frontend Hooks Composition
+- **`useMangaDetail.ts`**: Refactored from 456 lines down to ~220 lines by extracting sub-hooks:
+  - `useMangaTracker.ts`: AniList / MAL search and progress/score synchronization.
+  - `useMangaChaptersFilter.ts`: Chapter search, sort modes, read filters, and scanlator filters.
+- **`useReaderNavigation.ts`**: Refactored from 149 lines down to ~100 lines by extracting:
+  - `useReaderKeybindings.ts`: Volume keys (Capacitor) and physical keyboard shortcuts (`Arrow`, `Escape`).
+
+#### Platform Audit & UX Fixes
+- **Public Library Access**: Removed hardcoded admin restriction in `library.py` so all authenticated public users can manage and read their downloaded manga library.
+- **Android Biometric Lock Fix**: Added session unlock guard (`isUnlockedRef`) in `App.tsx` preventing infinite re-prompt loops on app focus/resume.
+- **SEO & Google Search Indexing**: Added `public/sitemap.xml` and `public/robots.txt` for search engine indexing and route inventory capture.
+- **Reader Mobile Layout**: Hidden main app bottom navbar during reader routes (`/read/...`), fixed "Mark All Read" button overlap on mobile viewports, and updated online streaming loading indicators.
+
 ---
 
 ## What Remains 🔲
@@ -146,10 +182,10 @@ Extracted into purpose-built hooks and components:
 1. **Supabase SQL migrations** — run the `reading_progress` table creation (see FEATURES.md)
 
 ### Known code issues
-- Settings page is a monolithic 1000+ line file (`Settings.tsx`).
-- Metadata overrides (`manga-dl-meta-overrides`) are localStorage-only.
+- ~~Settings page is a monolithic 1000+ line file (`Settings.tsx`)~~ — FIXED (Phase 13, refactored into sub-pages).
 - ~~Heatmap tracks downloads instead of reads~~ — FIXED (Phase 15, `/users/me/stats` aggregates `ReadingProgress`).
 - ~~Reader.tsx was 1130 lines~~ — FIXED (Phase 19, refactored to 169 lines with extracted hooks).
+- ~~backend routers were 1000+ lines~~ — FIXED (Phase 20, extracted business logic into `app/services/`).
 
 ---
 
@@ -157,19 +193,21 @@ Extracted into purpose-built hooks and components:
 
 ```
 frontend/
+  public/           Static assets, sitemap.xml, robots.txt
   src/
     pages/          React page components
+    hooks/          Custom hooks (useDashboardData, useMangaDetail, useMangaTracker, useReaderNavigation, etc.)
     lib/            Zustand store, API client, local utilities
-    components/     Shared UI components
+    components/     Shared & domain-specific UI components
   src-tauri/        Rust Tauri shell (desktop)
   android/          Capacitor Android project
 
 backend/
   app/
-    api/            FastAPI route handlers
+    api/            FastAPI lightweight route handlers
+    services/       Business logic services (library_service, manga_service, device_service, etc.)
+    services/extensions/ Standalone .js extension scripts (mangadex, mangakatana, asurascans, etc.)
     models/         SQLAlchemy ORM models
-    providers/      Manga source adapters
-    core/           Tasks, downloader, tachibk parser
 ```
 
 ## Tech Stack

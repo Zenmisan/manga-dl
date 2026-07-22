@@ -76,7 +76,15 @@ Enable RLS on all three new tables — see `docs/supabase/migrations.sql` for po
 
 ~~### Sources.tsx JSX nesting error (tab restructure)~~ **FIXED** — extensions tab `<div>` and conditional were unclosed; fixed closing structure
 
-~~### ComicInfo.xml doesn't escape special characters~~ **FIXED** — `xml.sax.saxutils.escape()` applied in `downloader.py`
+~~### MangaDex: chapter titles returning raw UUIDs~~ **FIXED** — Updated `mangadex.js` and `useMangaDetail.ts` fallback logic to format `Chapter X: Title` or `Chapter X` instead of raw UUIDs.
+
+~~### MangaKatana: blank title and broken Popular/Latest lists~~ **FIXED** — Updated title selector matching and repaired `/manga` (popular) & `/latest` (latest) scrapers in `mangakatana.js`.
+
+~~### Android: Biometric App Lock infinite re-prompt loop~~ **FIXED** — Added session unlock guard (`isUnlockedRef`) in `App.tsx` preventing re-triggering prompt on window focus/resume.
+
+~~### Public Library: 403 Forbidden for non-admin users~~ **FIXED** — Opened `library.py` endpoints so all authenticated public users can manage and read their downloaded manga.
+
+~~### Reader: Mobile navbar overlap & missing ESC exit shortcut~~ **FIXED** — Hidden app bottom navbar during `/read/` routes, added `ESC` shortcut in `useReaderKeybindings.ts`, and fixed "Mark All Read" button overlap on mobile viewports.
 
 ---
 

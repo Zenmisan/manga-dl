@@ -17,7 +17,7 @@ Built as a modern open-source alternative to Tachiyomi with a glassmorphic UI an
 - **Stats:** Reading time, pace, per-category breakdown, 52-week heatmap, reading goals.
 - **Backup:** JSON export and import, Tachiyomi `.tachibk` and JSON import, cloud backup via Supabase, auto-backup schedule.
 - **Source migration:** Move a manga from one source to another while preserving the library entry.
-- **Cloud sync:** Optional Supabase backend for reading progress, library, and backups across devices. Write actions are admin-gated to reduce load on the public instance.
+- **Cloud sync:** Optional Supabase backend for reading progress, library, and backups across devices. Public access enabled for reading, streaming, downloading, and converting library files.
 - **Onboarding:** Triggers on first visit to any app route. Guides the user through API key and backend URL setup, persisting config in localStorage across logins.
 - **Glassmorphic UI:** Tailwind v4, Framer Motion, dynamic ambilight colour theming from cover art.
 
