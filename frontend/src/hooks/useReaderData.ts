@@ -40,7 +40,10 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
   const chapterListRef = useRef<{ id: string; number?: number }[]>([])
 
   const getImageUrlForChapter = useCallback((targetFilename: string, pageName: string) => {
-    if (mangaTitle === 'local' || mangaTitle === 'online') return pageName
+    if (!pageName) return ''
+    if (mangaTitle === 'local' || mangaTitle === 'online' || pageName.startsWith('http://') || pageName.startsWith('https://') || pageName.startsWith('blob:') || pageName.startsWith('data:')) {
+      return pageName
+    }
     const base = api.defaults.baseURL || ''
     const apiKey = localStorage.getItem('manga-api-key') || ''
     const url = `${base}/library/image/${encodeURIComponent(mangaTitle || '')}/${encodeURIComponent(targetFilename)}/${encodeURIComponent(pageName)}?api_key=${apiKey}`

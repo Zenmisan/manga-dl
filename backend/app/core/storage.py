@@ -37,7 +37,7 @@ async def ensure_bucket_exists():
             # Create a public bucket so frontend can theoretically stream directly if needed
             client.storage.create_bucket(settings.SUPABASE_BUCKET, options={"public": True})
     except Exception as e:
-        log.error(f"Error checking/creating bucket: {e}")
+        log.warning(f"Supabase storage bucket check skipped (connection unavailable): {e}")
 
 async def upload_file(local_path: Path, remote_path: str) -> str:
     """Upload a file to Supabase storage and return its public URL."""

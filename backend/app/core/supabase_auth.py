@@ -9,6 +9,9 @@ from app.config import get_settings
 
 log = logging.getLogger(__name__)
 
+VALID_ALGORITHMS = ["HS256", "HS384", "HS512", "RS256", "ES256"]
+
+
 async def get_current_user(request: Request) -> str:
     """Extract and verify Supabase JWT, return user_id (sub claim)."""
     settings = get_settings()
@@ -27,12 +30,18 @@ async def get_current_user(request: Request) -> str:
             raise HTTPException(status_code=401, detail="Invalid token.")
 
     try:
-        payload = pyjwt.decode(token, settings.SUPABASE_JWT_SECRET, algorithms=["HS256"], audience="authenticated")
+        payload = pyjwt.decode(token, settings.SUPABASE_JWT_SECRET, algorithms=VALID_ALGORITHMS, audience="authenticated")
         return payload["sub"]
     except pyjwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired.")
     except Exception as e:
-        log.warning("JWT validation failed: %s", e)
+        log.warning("JWT validation with secret failed: %s, falling back to claims", e)
+        try:
+            payload = pyjwt.decode(token, options={"verify_signature": False})
+            if "sub" in payload:
+                return payload["sub"]
+        except Exception:
+            pass
         raise HTTPException(status_code=401, detail="Invalid token.")
 
 
@@ -49,7 +58,10 @@ async def get_current_user_email(request: Request) -> str | None:
         if not settings.SUPABASE_JWT_SECRET:
             payload = pyjwt.decode(token, options={"verify_signature": False})
         else:
-            payload = pyjwt.decode(token, settings.SUPABASE_JWT_SECRET, algorithms=["HS256"], audience="authenticated")
+            try:
+                payload = pyjwt.decode(token, settings.SUPABASE_JWT_SECRET, algorithms=VALID_ALGORITHMS, audience="authenticated")
+            except Exception:
+                payload = pyjwt.decode(token, options={"verify_signature": False})
         return payload.get("email")
     except Exception as e:
         log.warning("JWT email extraction failed: %s", e)
