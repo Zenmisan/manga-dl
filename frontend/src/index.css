@@ -1,16 +1,22 @@
-@import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
+/* ── Design Tokens ───────────────────────────────────────── */
 :root {
-  --bg: #09090b;
+  --bg: #050505;
   --fg: #fafafa;
   --surface: rgba(255, 255, 255, 0.03);
   --surface-hover: rgba(255, 255, 255, 0.06);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --accent: #ef4444;
-  --accent-muted: rgba(239, 68, 68, 0.1);
-  
-  /* Fluid Typography Scale */
+  --border: rgba(255, 255, 255, 0.08);
+  --muted1: rgba(255, 255, 255, 0.65);
+  --muted2: rgba(255, 255, 255, 0.45);
+  --muted3: rgba(255, 255, 255, 0.32);
+  --accent: #dc2626;
+  --accent-light: #ef4444;
+  --accent-muted: rgba(220, 38, 38, 0.12);
+  --accent-glow: rgba(220, 38, 38, 0.5);
+
+  /* Fluid Typography */
   --text-xs: clamp(0.7rem, 0.65rem + 0.25vw, 0.75rem);
   --text-sm: clamp(0.8rem, 0.75rem + 0.25vw, 0.875rem);
   --text-base: clamp(0.95rem, 0.9rem + 0.25vw, 1rem);
@@ -20,107 +26,222 @@
   --text-3xl: clamp(1.875rem, 1.7rem + 1.5vw, 2.5rem);
 }
 
-* {
-  box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
-}
-
-body {
-  background-color: var(--bg);
-  background-image: 
-    radial-gradient(at 0% 0%, rgba(239, 68, 68, 0.05) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, rgba(147, 51, 234, 0.05) 0px, transparent 50%);
-  color: var(--fg);
-  font-family: 'Inter', system-ui, sans-serif;
-  overflow-x: hidden;
-  min-height: 100dvh;
-}
-
-@layer components {
-  .glass-panel {
-    @apply bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl;
-  }
-  
-  .glass-card {
-    @apply bg-white/[0.03] backdrop-blur-md border border-white/[0.08] rounded-2xl transition-all duration-300;
-  }
-  
-  .btn-primary {
-    @apply px-4 sm:px-6 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl transition-all font-semibold shadow-lg shadow-red-600/20 active:scale-95 disabled:opacity-50 disabled:pointer-events-none;
-  }
-  
-  .btn-secondary {
-    @apply px-4 sm:px-6 py-2.5 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-xl transition-all font-semibold active:scale-95;
-  }
-
-  .nav-link {
-    @apply flex flex-col md:flex-row items-center gap-1 md:gap-3 px-1.5 sm:px-3 py-2 md:px-4 md:py-3 rounded-xl transition-all relative text-white/50 hover:text-white hover:bg-white/5;
-  }
-  
-  .nav-link.active {
-    @apply text-white bg-white/10 border border-white/10 shadow-lg;
-  }
-}
-
-/* Hide scrollbar but keep functionality */
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-/* Light theme overrides */
+/* ── Light Theme ─────────────────────────────────────────── */
 html.light {
   --bg: #f4f4f5;
   --fg: #09090b;
-  --surface: rgba(0, 0, 0, 0.04);
+  --surface: rgba(0, 0, 0, 0.035);
   --surface-hover: rgba(0, 0, 0, 0.07);
-  --glass-border: rgba(0, 0, 0, 0.1);
+  --border: rgba(0, 0, 0, 0.1);
+  --muted1: rgba(9, 9, 11, 0.7);
+  --muted2: rgba(9, 9, 11, 0.55);
+  --muted3: rgba(9, 9, 11, 0.4);
 }
 
-html.light body {
-  background-color: #f4f4f5;
-  color: #09090b;
-  background-image: none;
-}
-
-html.light .glass-panel {
-  background-color: rgba(255,255,255,0.8);
-  border-color: rgba(0,0,0,0.08);
-  color: #09090b;
-}
-
-html.light .glass-card {
-  background-color: rgba(255,255,255,0.7);
-  border-color: rgba(0,0,0,0.08);
-  color: #09090b;
-}
-
-/* AMOLED pitch black */
+/* ── AMOLED ──────────────────────────────────────────────── */
 html.amoled {
   --bg: #000000;
 }
 
-html.amoled body {
-  background-color: #000000;
-  background-image: none;
+/* ── Reset ───────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 }
 
-html.amoled .glass-panel,
-html.amoled .glass-card {
-  background-color: rgba(255,255,255,0.02);
+html, body {
+  margin: 0;
+  padding: 0;
 }
 
-/* Custom select styling */
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family: 'Inter', system-ui, sans-serif;
+  overflow-x: hidden;
+  min-height: 100dvh;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+::selection {
+  background: rgba(220, 38, 38, 0.35);
+}
+
+/* ── Scrollbar ───────────────────────────────────────────── */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ── Component Layer ─────────────────────────────────────── */
+@layer components {
+
+  /* Surface cards — flat, no blur */
+  .surface-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+
+  .surface-card:hover {
+    background: var(--surface-hover);
+    border-color: rgba(255, 255, 255, 0.14);
+  }
+
+  /* Kept for backward compat during migration — maps to surface-card */
+  .glass-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+  }
+
+  .glass-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+
+  /* Buttons */
+  .btn-primary {
+    @apply px-5 py-2.5 bg-red-600 hover:bg-red-500 active:bg-red-700 text-white rounded-[14px] font-black text-sm transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none;
+    box-shadow: 0 12px 26px -10px var(--accent-glow);
+  }
+
+  .btn-secondary {
+    @apply px-5 py-2.5 font-bold text-sm rounded-[14px] transition-all active:scale-95;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--muted1);
+  }
+
+  .btn-secondary:hover {
+    background: var(--surface-hover);
+    border-color: rgba(255, 255, 255, 0.14);
+  }
+
+  /* Sidebar nav items */
+  .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 12px;
+    border-radius: 12px;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--muted1);
+    transition: background 0.12s ease, color 0.12s ease;
+  }
+
+  .nav-link:hover {
+    background: var(--surface-hover);
+    color: var(--fg);
+  }
+
+  .nav-link.active {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  /* Category / filter pills */
+  .filter-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 800;
+    white-space: nowrap;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted2);
+    cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+  }
+
+  .filter-pill:hover {
+    background: var(--surface-hover);
+    color: var(--fg);
+  }
+
+  .filter-pill.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  /* Page headings — Anton style */
+  .page-title {
+    font-family: 'Anton', sans-serif;
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    font-size: clamp(1.5rem, 4vw, 2rem);
+    line-height: 1.05;
+    margin: 0;
+  }
+
+  /* Icon button */
+  .icon-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--fg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.12s ease, border-color 0.12s ease;
+  }
+
+  .icon-btn:hover {
+    background: var(--surface-hover);
+    border-color: rgba(255, 255, 255, 0.14);
+  }
+
+  /* Sticky blurred header bar */
+  .sticky-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: color-mix(in srgb, var(--bg) 85%, transparent);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  /* Manga cover — 2:3 aspect ratio */
+  .manga-cover {
+    aspect-ratio: 2 / 3;
+    border-radius: 14px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  }
+
+  .manga-cover.compact {
+    border-radius: 8px;
+  }
+}
+
+/* ── Select Styling ──────────────────────────────────────── */
 select.select-styled {
   appearance: none;
   -webkit-appearance: none;
-  background-color: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  background-color: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 0.75rem;
-  color: rgba(255, 255, 255, 0.70);
+  color: var(--muted1);
   padding: 0.5rem 2.5rem 0.5rem 0.875rem;
   font-size: 0.875rem;
   font-weight: 600;
@@ -132,17 +253,43 @@ select.select-styled {
 }
 
 select.select-styled:hover {
-  border-color: rgba(255, 255, 255, 0.20);
-  background-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+  background-color: var(--surface-hover);
 }
 
 select.select-styled:focus {
   outline: none;
-  border-color: rgba(239, 68, 68, 0.40);
-  background-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(220, 38, 38, 0.4);
+  background-color: var(--surface-hover);
 }
 
 select.select-styled option {
-  background-color: #18181b;
-  color: rgba(255, 255, 255, 0.85);
+  background-color: #1a1a1a;
+  color: var(--fg);
 }
+
+/* ── Animations ──────────────────────────────────────────── */
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+@keyframes floatY {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-pulse-dot { animation: pulseDot 1.8s ease-in-out infinite; }
+.animate-float { animation: floatY 5s ease-in-out infinite; }
+.animate-fade-up { animation: fadeUp 0.4s ease both; }
+.animate-fade-in { animation: fadeIn 0.3s ease both; }

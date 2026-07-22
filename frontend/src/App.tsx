@@ -1,6 +1,9 @@
 import React, { useEffect, useRef, useCallback } from 'react'
 import { useAppStore } from './lib/store'
-import { Library, ExternalLink, Globe, BarChart2, HelpCircle, Clock, Bell, LogIn, MoreHorizontal, Search } from 'lucide-react'
+import {
+  Library, Search, Globe, BarChart2, HelpCircle, Clock, Bell,
+  LogIn, Download, Settings, ExternalLink,
+} from 'lucide-react'
 import { Routes, Route, Link, useLocation, useNavigate, Navigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from './lib/utils'
@@ -39,6 +42,7 @@ import HistoryPage from './pages/History'
 import UpdatesPage from './pages/Updates'
 import OnboardingPage from './pages/Onboarding'
 import ProfilePage from './pages/Profile'
+import { RawStaticViewer } from './components/RawStaticViewer'
 
 function useGlobalNotifications() {
   const wsRef = useRef<WebSocket | null>(null)
@@ -76,7 +80,6 @@ function useGlobalNotifications() {
       }
 
       ws.onclose = () => {
-        // Reconnect after 10s if connection drops
         setTimeout(connect, 10_000)
       }
     }
@@ -86,14 +89,202 @@ function useGlobalNotifications() {
   }, [])
 }
 
+// ── Nav config ───────────────────────────────────────────────
+const SIDEBAR_ITEMS = [
+  { icon: Library,   label: 'Library',   path: '/r' },
+  { icon: Search,    label: 'Search',    path: '/search' },
+  { icon: Globe,     label: 'Sources',   path: '/sources' },
+  { icon: Bell,      label: 'Updates',   path: '/updates' },
+  { icon: Clock,     label: 'History',   path: '/history' },
+  { icon: BarChart2, label: 'Stats',     path: '/stats' },
+  { icon: Download,  label: 'Downloads', path: '/downloads' },
+  { icon: Settings,  label: 'Settings',  path: '/settings' },
+]
+
+const BOTTOM_NAV_ITEMS = [
+  { icon: Library,  label: 'Library',   path: '/r' },
+  { icon: Search,   label: 'Search',    path: '/search' },
+  { icon: Bell,     label: 'Updates',   path: '/updates' },
+  { icon: Download, label: 'Downloads', path: '/downloads' },
+  { icon: Settings, label: 'Settings',  path: '/settings' },
+]
+
+// ── Sidebar ──────────────────────────────────────────────────
+function Sidebar({ session, onSignOut, isTauri }: {
+  session: Session | null
+  onSignOut: () => void
+  isTauri: boolean
+}) {
+  const location = useLocation()
+
+  return (
+    <aside
+      className={cn(
+        'hidden md:flex flex-col w-[232px] shrink-0 border-r sticky',
+        isTauri ? 'top-8 h-[calc(100vh-2rem)]' : 'top-0 h-screen'
+      )}
+      style={{ borderColor: 'var(--border)', background: 'var(--bg)' }}
+    >
+      {/* Logo */}
+      <Link to="/r" className="flex items-center gap-2.5 px-5 py-[22px]">
+        <img src="/Manga-dl1.png" alt="manga-dl" className="w-[30px] h-[30px] object-contain" />
+        <span className="font-black text-base" style={{ color: 'var(--fg)' }}>manga-dl</span>
+      </Link>
+
+      {/* Nav items */}
+      <nav className="flex flex-col gap-0.5 px-3 flex-1 overflow-y-auto">
+        {SIDEBAR_ITEMS.map((item) => {
+          const active = location.pathname === item.path ||
+            (item.path === '/settings' && location.pathname.startsWith('/settings'))
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={cn('nav-link', active && 'active')}
+            >
+              <item.icon className="w-5 h-5 shrink-0" />
+              {item.label}
+            </Link>
+          )
+        })}
+      </nav>
+
+      {/* Bottom — theme toggle + user */}
+      <div className="px-3 pb-3 pt-3 flex flex-col gap-1.5" style={{ borderTop: '1px solid var(--border)' }}>
+        {session ? (
+          <>
+            <Link
+              to={`/profile/${session.user.id}`}
+              className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-all"
+              style={{ color: 'var(--muted1)' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-hover)')}
+              onMouseLeave={e => (e.currentTarget.style.background = '')}
+            >
+              <span
+                className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-black text-white shrink-0"
+                style={{ background: 'var(--accent)' }}
+              >
+                {session.user.email?.[0]?.toUpperCase() ?? '?'}
+              </span>
+              <span className="text-[13px] font-bold truncate" style={{ color: 'var(--muted1)' }}>
+                {session.user.email?.split('@')[0]}
+              </span>
+            </Link>
+            <button
+              onClick={onSignOut}
+              className="text-left px-3 py-2 rounded-xl text-[12px] font-bold transition-all"
+              style={{ color: 'var(--muted3)' }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = 'var(--surface)'
+                e.currentTarget.style.color = 'var(--fg)'
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = ''
+                e.currentTarget.style.color = 'var(--muted3)'
+              }}
+            >
+              Sign out
+            </button>
+          </>
+        ) : (
+          <Link
+            to="/login"
+            className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-bold transition-all"
+            style={{ color: 'var(--muted1)' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-hover)')}
+            onMouseLeave={e => (e.currentTarget.style.background = '')}
+          >
+            <LogIn className="w-4 h-4 shrink-0" />
+            Sign in
+          </Link>
+        )}
+
+        <Link
+          to="/help"
+          className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-bold transition-all"
+          style={{ color: 'var(--muted3)' }}
+          onMouseEnter={e => {
+            e.currentTarget.style.background = 'var(--surface)'
+            e.currentTarget.style.color = 'var(--muted1)'
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.background = ''
+            e.currentTarget.style.color = 'var(--muted3)'
+          }}
+        >
+          <HelpCircle className="w-4 h-4 shrink-0" />
+          Help
+        </Link>
+
+        <a
+          href="https://github.com/zenmisan/manga-dl"
+          target="_blank"
+          rel="noreferrer"
+          className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-bold transition-all"
+          style={{ color: 'var(--muted3)' }}
+          onMouseEnter={e => {
+            e.currentTarget.style.background = 'var(--surface)'
+            e.currentTarget.style.color = 'var(--muted1)'
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.background = ''
+            e.currentTarget.style.color = 'var(--muted3)'
+          }}
+        >
+          <ExternalLink className="w-4 h-4 shrink-0" />
+          GitHub
+        </a>
+      </div>
+    </aside>
+  )
+}
+
+// ── Bottom Nav ───────────────────────────────────────────────
+function BottomNav() {
+  const location = useLocation()
+
+  return (
+    <nav
+      className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex"
+      style={{
+        background: `color-mix(in srgb, var(--bg) 88%, transparent)`,
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        borderTop: '1px solid var(--border)',
+        padding: '8px 8px calc(8px + env(safe-area-inset-bottom))',
+      }}
+    >
+      {BOTTOM_NAV_ITEMS.map((item) => {
+        const active = location.pathname === item.path ||
+          (item.path === '/settings' && location.pathname.startsWith('/settings'))
+        return (
+          <Link
+            key={item.path}
+            to={item.path}
+            className="flex flex-col items-center gap-0.5 flex-1 py-1"
+            style={{ color: active ? 'var(--accent-light)' : 'var(--muted3)' }}
+          >
+            <item.icon className="w-[22px] h-[22px]" />
+            <span className="text-[10px] font-black">{item.label}</span>
+          </Link>
+        )
+      })}
+    </nav>
+  )
+}
+
+// ── App ──────────────────────────────────────────────────────
 function App() {
   const location = useLocation()
+  if (location.pathname === '/sitemap.xml' || location.pathname === '/robots.txt') {
+    return <RawStaticViewer path={location.pathname} />
+  }
+
   const navigate = useNavigate()
   const { theme, amoledBlack, syncWifiOnly, syncChargingOnly, appLockEnabled } = useAppStore()
   const [locked, setLocked] = React.useState(false)
   const [session, setSession] = React.useState<Session | null>(null)
   const [loadingSession, setLoadingSession] = React.useState(true)
-  const [sidebarCollapsed, setSidebarCollapsed] = React.useState(() => localStorage.getItem('sidebar-collapsed') === 'true')
   const [showSplash, setShowSplash] = React.useState(() => {
     if (typeof sessionStorage === 'undefined') return false
     if (sessionStorage.getItem('splash-shown')) return false
@@ -102,7 +293,6 @@ function App() {
   })
   const handleSplashDone = useCallback(() => setShowSplash(false), [])
 
-  // Sync cloud data on app start
   useEffect(() => {
     syncReadTrackingFromCloud().catch(() => {})
     syncCategoriesFromCloud().catch(() => {})
@@ -120,7 +310,6 @@ function App() {
       setSession(s)
       setLoadingSession(false)
       if (event === 'SIGNED_OUT') {
-        // Clear Supabase local storage keys
         for (let i = 0; i < localStorage.length; i++) {
           const key = localStorage.key(i)
           if (key && key.startsWith('sb-')) {
@@ -136,14 +325,9 @@ function App() {
   }, [navigate])
 
   const handleSignOut = async () => {
-    try {
-      await supabase.auth.signOut()
-    } catch (e) {
-      console.error(e)
-    }
+    try { await supabase.auth.signOut() } catch (e) { console.error(e) }
   }
 
-  // Hide native Capacitor splash screen after web app is ready
   useEffect(() => {
     if (!('Capacitor' in window)) return
     import('@capacitor/splash-screen').then(({ SplashScreen }) => {
@@ -152,7 +336,6 @@ function App() {
   }, [])
   useGlobalNotifications()
 
-  // T10: Handle new-chapters event from Tauri background sync → navigate to manga
   useEffect(() => {
     if (!('__TAURI_INTERNALS__' in window)) return
     import('@tauri-apps/api/event').then(({ listen }) => {
@@ -186,7 +369,6 @@ function App() {
     document.documentElement.classList.toggle('amoled', amoledBlack)
   }, [amoledBlack])
 
-  // Biometric app lock (Android native only)
   const isAuthenticatingRef = useRef(false)
   const isUnlockedRef = useRef(false)
 
@@ -200,17 +382,12 @@ function App() {
       try {
         const { BiometricAuth } = await import('@aparajita/capacitor-biometric-auth')
         const { isAvailable } = await BiometricAuth.checkBiometry()
-        if (!isAvailable) {
-          isUnlockedRef.current = true
-          setLocked(false)
-          return
-        }
+        if (!isAvailable) { isUnlockedRef.current = true; setLocked(false); return }
         setLocked(true)
         await BiometricAuth.authenticate({ reason: 'Unlock manga-dl', cancelTitle: 'Cancel' })
         isUnlockedRef.current = true
         setLocked(false)
       } catch {
-        // Auth failed or cancelled — keep locked
         isUnlockedRef.current = false
       } finally {
         isAuthenticatingRef.current = false
@@ -218,23 +395,14 @@ function App() {
     }
 
     tryAuth()
-
-    const onPause = () => {
-      isUnlockedRef.current = false
-    }
-
     let removePauseListener: (() => void) | undefined
     import('@capacitor/app').then(({ App }) => {
-      const sub = App.addListener('pause', onPause)
+      const sub = App.addListener('pause', () => { isUnlockedRef.current = false })
       removePauseListener = () => { sub.then(h => h.remove()) }
     }).catch(() => {})
-
-    return () => {
-      if (removePauseListener) removePauseListener()
-    }
+    return () => { if (removePauseListener) removePauseListener() }
   }, [appLockEnabled])
 
-  // Auto-sync subscribed manga on web/Android (Tauri handles it via background Rust task)
   useEffect(() => {
     if ('__TAURI_INTERNALS__' in window) return
 
@@ -245,7 +413,6 @@ function App() {
           const status = await Network.getStatus()
           if (status.connectionType !== 'wifi') return false
         } catch {
-          // Not native — use navigator.connection if available
           const conn = (navigator as Navigator & { connection?: { type?: string } }).connection
           if (conn && conn.type && conn.type !== 'wifi') return false
         }
@@ -259,36 +426,21 @@ function App() {
       return true
     }
 
-    const run = async () => {
-      if (await canSync()) api.post('/manga/sync').catch(() => {})
-    }
-    // Initial run with a slight delay to allow backend to finish starting
+    const run = async () => { if (await canSync()) api.post('/manga/sync').catch(() => {}) }
     const timeout = setTimeout(run, 1500)
     const t = setInterval(run, 30 * 60 * 1000)
     return () => { clearTimeout(timeout); clearInterval(t) }
   }, [syncWifiOnly, syncChargingOnly])
 
-  const navItems = [
-    { icon: Library, label: 'Library', path: '/r' },
-    { icon: Bell, label: 'Updates', path: '/updates' },
-    { icon: Search, label: 'Search', path: '/search' },
-    { icon: Globe, label: 'Browse', path: '/sources' },
-    { icon: MoreHorizontal, label: 'More', path: '/more' },
-  ]
-
-  const sidebarExtra = [
-    { icon: Clock, label: 'History', path: '/history' },
-    { icon: BarChart2, label: 'Stats', path: '/stats' },
-    { icon: ExternalLink, label: 'Get App', path: '/download' },
-  ]
-
   if (locked) {
     return (
-      <div className="fixed inset-0 bg-black flex flex-col items-center justify-center gap-6 z-9999">
-        <div className="w-20 h-20 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center">
-          <svg className="w-10 h-10 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+      <div className="fixed inset-0 flex flex-col items-center justify-center gap-6 z-[9999]" style={{ background: 'var(--bg)' }}>
+        <div className="w-20 h-20 rounded-3xl flex items-center justify-center" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: 'var(--muted3)' }}>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
         </div>
-        <p className="text-white/40 font-bold text-sm uppercase tracking-widest">App Locked</p>
+        <p className="text-sm font-black uppercase tracking-widest" style={{ color: 'var(--muted3)' }}>App Locked</p>
         <button
           onClick={async () => {
             try {
@@ -297,7 +449,7 @@ function App() {
               setLocked(false)
             } catch { /* non-fatal */ }
           }}
-          className="px-6 py-3 rounded-2xl bg-white/10 border border-white/10 text-white font-bold text-sm hover:bg-white/20 transition-all"
+          className="btn-secondary px-6 py-3 rounded-2xl"
         >
           Unlock
         </button>
@@ -306,7 +458,7 @@ function App() {
   }
 
   if (loadingSession) {
-    return <div className="min-h-screen bg-[#050505]" />
+    return <div className="min-h-screen" style={{ background: 'var(--bg)' }} />
   }
 
   const isTauri = !!(window as unknown as Record<string, unknown>).__TAURI_INTERNALS__
@@ -317,17 +469,17 @@ function App() {
     return <Navigate to="/r" replace />
   }
 
-  // First-time visitors to app routes get onboarding
   const appRoute = !['/', '/login', '/register', '/terms', '/onboarding'].includes(location.pathname)
   if (appRoute && !localStorage.getItem('onboarded') && !isNative) {
     return <Navigate to={`/onboarding?redirect=${encodeURIComponent(location.pathname)}`} replace />
   }
 
   const noShell = ['/', '/login', '/register', '/terms', '/onboarding'].includes(location.pathname)
+  const isReader = location.pathname.startsWith('/read/')
 
   if (noShell) {
     return (
-      <div className="flex flex-col min-h-screen bg-[#050505] overflow-hidden">
+      <div className="flex flex-col min-h-screen overflow-hidden" style={{ background: 'var(--bg)' }}>
         {isTauri && <Titlebar />}
         <div className="flex-1 overflow-auto">
           <AnimatePresence mode="sync">
@@ -352,156 +504,16 @@ function App() {
     )
   }
 
-  if (showSplash) {
-    return <SplashScreen onDone={handleSplashDone} />
-  }
+  if (showSplash) return <SplashScreen onDone={handleSplashDone} />
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#09090b] text-[#fafafa] selection:bg-red-500/30">
+    <div className="flex min-h-screen" style={{ background: 'var(--bg)', color: 'var(--fg)' }}>
       {isTauri && <Titlebar />}
-      <div className="flex flex-col md:flex-row grow min-h-0">
-        {/* Desktop Sidebar */}
-        <aside className={cn(
-          "hidden md:flex flex-col sticky border-r border-white/5 bg-black/20 backdrop-blur-2xl transition-all duration-200",
-          isTauri ? "top-8 h-[calc(100vh-2rem)]" : "top-0 h-screen",
-          sidebarCollapsed ? "w-16" : "w-72"
-        )}>
-        <div className={cn("flex items-center", sidebarCollapsed ? "p-3 justify-center" : "p-8")}>
-          {sidebarCollapsed ? (
-            <button
-              onClick={() => { setSidebarCollapsed(false); localStorage.setItem('sidebar-collapsed', 'false') }}
-              className="w-10 h-10 flex items-center justify-center hover:rotate-6 transition-transform"
-              title="Expand sidebar"
-            >
-              <img src="/Manga-dl1.png" alt="manga-dl logo" className="w-8 h-8 object-contain" />
-            </button>
-          ) : (
-            <div className="flex items-center justify-between w-full">
-              <Link to="/r" className="flex items-center gap-3 group">
-                <img src="/Manga-dl1.png" alt="manga-dl logo" className="w-10 h-10 object-contain group-hover:rotate-6 transition-transform duration-300" />
-                <span className="font-bold text-xl tracking-tight">manga-dl</span>
-              </Link>
-              <button
-                onClick={() => { setSidebarCollapsed(true); localStorage.setItem('sidebar-collapsed', 'true') }}
-                className="p-1.5 rounded-lg text-white/20 hover:text-white hover:bg-white/5 transition-all"
-                title="Collapse sidebar"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-              </button>
-            </div>
-          )}
-        </div>
 
-        <nav className={cn("flex-1 space-y-2", sidebarCollapsed ? "px-2" : "px-4")}>
-          {navItems.map((item) => {
-            const isActive = location.pathname === item.path
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                title={sidebarCollapsed ? item.label : undefined}
-                className={cn("nav-link flex-row", isActive && "active", sidebarCollapsed && "justify-center px-0")}
-              >
-                {isActive && (
-                  <span className="absolute left-0 top-2.5 bottom-2.5 w-1 bg-red-600 rounded-r-md" />
-                )}
-                <item.icon className={cn("w-5 h-5", isActive ? "text-red-500" : "opacity-70")} />
-                {!sidebarCollapsed && <span className="font-semibold text-sm">{item.label}</span>}
-                {isActive && (
-                  <motion.div
-                    layoutId="nav-glow"
-                    className="absolute inset-0 bg-red-600/5 rounded-xl -z-10 blur-xl"
-                  />
-                )}
-              </Link>
-            )
-          })}
-        </nav>
+      <Sidebar session={session} onSignOut={handleSignOut} isTauri={isTauri} />
 
-        <div className={cn("pb-2 space-y-1 border-t border-white/5 pt-4", sidebarCollapsed ? "px-2" : "px-4")}>
-          {sidebarExtra.map((item) => {
-            const isActive = location.pathname === item.path
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                title={sidebarCollapsed ? item.label : undefined}
-                className={cn("nav-link flex-row", isActive && "active", sidebarCollapsed && "justify-center px-0")}
-              >
-                {isActive && (
-                  <span className="absolute left-0 top-2.5 bottom-2.5 w-1 bg-red-600 rounded-r-md" />
-                )}
-                <item.icon className={cn("w-5 h-5", isActive ? "text-red-500" : "opacity-70")} />
-                {!sidebarCollapsed && <span className="font-semibold text-sm">{item.label}</span>}
-              </Link>
-            )
-          })}
-        </div>
-
-        {session ? (
-          <div className={cn("pb-2", sidebarCollapsed ? "px-2" : "px-6")}>
-            {sidebarCollapsed ? (
-              <Link to={`/profile/${session.user.id}`} className="block">
-                <div className="w-10 h-10 rounded-lg bg-red-600/15 border border-red-500/20 flex items-center justify-center text-xs font-black text-red-400 mx-auto cursor-pointer hover:bg-red-600/25 transition-all" title={session.user.email}>
-                  {session.user.email?.[0]?.toUpperCase() ?? '?'}
-                </div>
-              </Link>
-            ) : (
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-white/04 border border-white/5">
-                <Link to={`/profile/${session.user.id}`} className="flex items-center gap-3 flex-1 min-w-0 group cursor-pointer">
-                  <div className="w-8 h-8 rounded-lg bg-red-600/15 border border-red-500/20 flex items-center justify-center text-xs font-black text-red-400 shrink-0 group-hover:bg-red-600/25 transition-all">
-                    {session.user.email?.[0]?.toUpperCase() ?? '?'}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-white/50 group-hover:text-white transition-colors truncate">{session.user.email}</p>
-                  </div>
-                </Link>
-                <button
-                  onClick={handleSignOut}
-                  className="text-[10px] font-black uppercase tracking-wider text-white/25 hover:text-red-400 transition-colors shrink-0 px-2 py-1"
-                >
-                  Out
-                </button>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className={cn("pb-2", sidebarCollapsed ? "px-2" : "px-6")}>
-            <Link
-              to="/login"
-              title={sidebarCollapsed ? "Sign In" : undefined}
-              className={cn("flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl bg-red-600/10 border border-red-600/20 hover:bg-red-600/20 transition-all text-red-400 hover:text-red-300", sidebarCollapsed && "px-0")}
-            >
-              <LogIn className="w-3.5 h-3.5" />
-              {!sidebarCollapsed && <span className="text-[11px] font-black uppercase tracking-widest">Sign In</span>}
-            </Link>
-          </div>
-        )}
-
-        <div className={cn("space-y-2", sidebarCollapsed ? "p-2" : "p-6")}>
-          <Link
-            to="/help"
-            title={sidebarCollapsed ? "Help" : undefined}
-            className={cn("flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all text-white/60 hover:text-white", sidebarCollapsed && "justify-center px-0")}
-          >
-            <HelpCircle className="w-5 h-5" />
-            {!sidebarCollapsed && <span className="text-xs font-bold uppercase tracking-wider">Help</span>}
-          </Link>
-          <a
-            href="https://github.com/zenmisan/manga-dl"
-            target="_blank"
-            rel="noreferrer"
-            title={sidebarCollapsed ? "GitHub" : undefined}
-            className={cn("flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all text-white/60 hover:text-white", sidebarCollapsed && "justify-center px-0")}
-          >
-            <ExternalLink className="w-5 h-5" />
-            {!sidebarCollapsed && <span className="text-xs font-bold uppercase tracking-wider">v1.0.0</span>}
-          </a>
-        </div>
-      </aside>
-
-      {/* Main Content Area */}
-      <main className={`flex-1 relative ${location.pathname.startsWith('/read/') ? '' : 'pb-24 md:pb-0'}`}>
+      {/* Main content */}
+      <main className={cn('flex-1 min-w-0', !isReader && 'pb-[76px] md:pb-0')}>
         <AnimatePresence mode="sync">
           <motion.div
             key={location.pathname}
@@ -542,28 +554,9 @@ function App() {
         </AnimatePresence>
       </main>
 
-      {/* Mobile Bottom Navigation */}
-      {!location.pathname.startsWith('/read/') && (
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 px-2 sm:px-4 pb-4 sm:pb-6 pt-2 bg-linear-to-t from-black via-black/90 to-transparent backdrop-blur-md border-t border-white/5">
-        <div className="flex items-center justify-around glass-panel p-1 max-w-lg mx-auto">
-          {navItems.map((item) => {
-            const isActive = location.pathname === item.path
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={cn("nav-link flex-1 py-2 sm:py-3", isActive && "active")}
-              >
-                <item.icon className={cn("w-4 h-4 sm:w-5 sm:h-5", isActive ? "text-red-500" : "opacity-70")} />
-                <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-tighter truncate max-w-full">{item.label}</span>
-              </Link>
-            )
-          })}
-        </div>
-      </nav>
-      )}
+      {/* Mobile bottom nav — hidden in reader */}
+      {!isReader && <BottomNav />}
     </div>
-  </div>
   )
 }
 
