@@ -51,57 +51,52 @@ async def upload_file(local_path: Path, remote_path: str) -> str:
         )
     return client.storage.from_(settings.SUPABASE_BUCKET).get_public_url(remote_path)
 
-async def check_and_evict(db: AsyncSession, new_file_size_bytes: int):
-    """
-    Check if uploading the new file will exceed the MAX_STORAGE_MB threshold.
-    If so, delete the oldest unpinned chapters until there is enough space.
-    """
+async def check_and_evict(db: AsyncSession, new_file_size_bytes: int, user_id: str = "local-api-key-user"):
+    """Evict oldest unpinned chapters for this user if their 200 MB quota would be exceeded."""
     if not settings.SUPABASE_URL or not settings.SUPABASE_SERVICE_KEY:
         return
 
-    max_bytes = settings.MAX_STORAGE_MB * 1024 * 1024
+    per_user_max = settings.MAX_STORAGE_PER_USER_MB * 1024 * 1024
 
-    # Get current total size of all successfully uploaded files
+    # Current usage for this user only
     result = await db.execute(
         select(func.sum(DownloadRecord.file_size_bytes))
         .where(DownloadRecord.status == "done")
         .where(DownloadRecord.output_path.isnot(None))
+        .where(DownloadRecord.user_id == user_id)
     )
     current_size = result.scalar() or 0
 
-    if current_size + new_file_size_bytes <= max_bytes:
-        return  # We have enough space
+    if current_size + new_file_size_bytes <= per_user_max:
+        return
 
-    log.info(f"Storage limit reached ({current_size/1024/1024:.2f}MB). Evicting old chapters...")
+    log.info("User %s at %.1f MB — evicting oldest chapters to make room", user_id, current_size / 1024 / 1024)
     client = get_supabase_client()
 
-    # Find oldest unpinned chapters
+    # Oldest unpinned chapters for this user
     result = await db.execute(
         select(DownloadRecord)
         .where(DownloadRecord.status == "done")
         .where(DownloadRecord.pinned == False)
+        .where(DownloadRecord.user_id == user_id)
         .order_by(DownloadRecord.completed_at.asc())
     )
     records_to_evict = result.scalars().all()
 
-    freed_space = 0
+    freed = 0
     for record in records_to_evict:
-        if current_size - freed_space + new_file_size_bytes <= max_bytes:
-            break  # We freed enough space
-
+        if current_size - freed + new_file_size_bytes <= per_user_max:
+            break
         if record.output_path:
-            # Assuming output_path stores the remote path relative to bucket
             try:
                 client.storage.from_(settings.SUPABASE_BUCKET).remove([record.output_path])
-                freed_space += record.file_size_bytes
-                
-                # Update DB record to mark it as evicted (status='evicted' or clear path)
+                freed += record.file_size_bytes
                 record.status = "evicted"
                 record.output_path = None
-                log.info(f"Evicted chapter: {record.manga_title} - {record.chapter_title}")
+                log.info("Evicted: %s — %s (%.1f MB freed)", record.manga_title, record.chapter_title, freed / 1024 / 1024)
             except Exception as e:
-                log.error(f"Failed to delete {record.output_path} from Supabase: {e}")
-    
+                log.error("Failed to delete %s from Supabase: %s", record.output_path, e)
+
     await db.commit()
 
 async def get_storage_used_bytes() -> int:

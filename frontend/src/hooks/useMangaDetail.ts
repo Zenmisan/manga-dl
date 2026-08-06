@@ -137,45 +137,62 @@ export function useMangaDetail() {
   useEffect(() => {
     if (!provider || !mangaId) return
     setLoading(true)
-    api.get(`/manga/detail/${provider}/${mangaId}`)
-      .then((res) => {
-        const override = getMangaOverride(provider, mangaId)
+
+    let isMounted = true
+
+    async function loadDetail() {
+      const mgr = ExtensionManager.getInstance()
+      const ext = provider ? await mgr.getExtension(provider) : undefined
+      if (ext) {
+        try {
+          const details = await (ext.getMangaDetail(mangaId!) as Promise<{ id: string; title: string; cover_url: string | null; description: string | null; status: string | null; genres?: string[]; authors?: string[]; url?: string; chapters?: Array<{ id: string; name?: string; title?: string; chapter_number?: number }> }>)
+          if (!isMounted) return
+          const chList = details.chapters || []
+          const combined: MangaDetail = {
+            id: details.id,
+            title: details.title,
+            cover_url: details.cover_url,
+            description: details.description,
+            status: details.status,
+            genres: details.genres || [],
+            authors: details.authors || [],
+            provider: provider!,
+            url: details.url || '',
+            chapters: chList.map((c: { id: string; name?: string; title?: string; chapter_number?: number }) => ({
+              id: c.id,
+              title: c.title || c.name || (c.chapter_number ? `Chapter ${c.chapter_number}` : 'Chapter 1'),
+              number: c.chapter_number || 0,
+              published_at: null
+            })),
+          }
+          const override = getMangaOverride(provider!, mangaId!)
+          setManga(override ? { ...combined, title: override.title || combined.title, cover_url: override.cover_url || combined.cover_url, description: override.description || combined.description } : combined)
+          setLoading(false)
+          return
+        } catch (err) {
+          console.warn('[useMangaDetail] Extension fetch failed, trying backend API:', err)
+        }
+      }
+
+      // Fallback to backend API if extension not found or extension failed
+      try {
+        const res = await api.get(`/manga/detail/${provider}/${mangaId}`)
+        if (!isMounted) return
+        const override = getMangaOverride(provider!, mangaId!)
         const data = override ? { ...res.data, title: override.title || res.data.title, cover_url: override.cover_url || res.data.cover_url, description: override.description || res.data.description } : res.data
         setManga(data)
-        setLoading(false)
-      })
-      .catch(async () => {
-        const mgr = ExtensionManager.getInstance()
-        const ext = provider ? await mgr.getExtension(provider) : undefined
-        if (ext) {
-          (ext.getMangaDetail(mangaId!) as Promise<{ id: string; title: string; cover_url: string | null; description: string | null; status: string | null; genres?: string[]; authors?: string[]; url?: string; chapters?: Array<{ id: string; name?: string; chapter_number?: number }> }>)
-            .then((details) => {
-              const chList = details.chapters || []
-              const combined: MangaDetail = {
-                id: details.id,
-                title: details.title,
-                cover_url: details.cover_url,
-                description: details.description,
-                status: details.status,
-                genres: details.genres || [],
-                authors: details.authors || [],
-                provider: provider!,
-                url: details.url || '',
-                chapters: chList.map((c: { id: string; name?: string; title?: string; chapter_number?: number }) => ({
-                  id: c.id,
-                  title: c.title || c.name || (c.chapter_number ? `Chapter ${c.chapter_number}` : 'Chapter 1'),
-                  number: c.chapter_number || 0,
-                  published_at: null
-                })),
-              }
-              const override = getMangaOverride(provider!, mangaId!)
-              setManga(override ? { ...combined, title: override.title || combined.title, cover_url: override.cover_url || combined.cover_url, description: override.description || combined.description } : combined)
-              setLoading(false)
-            }).catch(() => setLoading(false))
-        } else {
-          setLoading(false)
-        }
-      })
+      } catch {
+        // Suppress 404 error
+      } finally {
+        if (isMounted) setLoading(false)
+      }
+    }
+
+    loadDetail()
+
+    return () => {
+      isMounted = false
+    }
   }, [provider, mangaId])
 
   useEffect(() => {

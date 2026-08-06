@@ -97,30 +97,26 @@ async def list_library_items(db: AsyncSession, user_id: str) -> list[dict]:
     return sorted(items, key=lambda x: x["title"])
 
 
-async def fetch_library_stats(db: AsyncSession) -> dict:
-    """Aggregate reading statistics and download activity history."""
+async def fetch_library_stats(db: AsyncSession, user_id: str = "local-api-key-user") -> dict:
+    """Aggregate reading statistics and download activity history for one user."""
+    def _base():
+        return DownloadRecord.status == "done", DownloadRecord.user_id == user_id
+
     total_chapters = (await db.execute(
-        select(func.count(DownloadRecord.id)).where(DownloadRecord.status == "done")
+        select(func.count(DownloadRecord.id)).where(*_base())
     )).scalar() or 0
 
     total_manga = (await db.execute(
-        select(func.count(distinct(DownloadRecord.manga_title))).where(DownloadRecord.status == "done")
+        select(func.count(distinct(DownloadRecord.manga_title))).where(*_base())
     )).scalar() or 0
 
     total_pages = (await db.execute(
-        select(func.sum(DownloadRecord.total_pages)).where(DownloadRecord.status == "done")
+        select(func.sum(DownloadRecord.total_pages)).where(*_base())
     )).scalar() or 0
 
-    # Prefer live Supabase bucket size; fall back to DB sum
-    from app.config import get_settings as _gs
-    _s = _gs()
-    if _s.SUPABASE_URL and _s.SUPABASE_SERVICE_KEY:
-        from app.core.storage import get_storage_used_bytes
-        storage_bytes = await get_storage_used_bytes()
-    else:
-        storage_bytes = (await db.execute(
-            select(func.sum(DownloadRecord.file_size_bytes)).where(DownloadRecord.status == "done")
-        )).scalar() or 0
+    storage_bytes = (await db.execute(
+        select(func.sum(DownloadRecord.file_size_bytes)).where(*_base())
+    )).scalar() or 0
 
     # Downloads per day — last 30 days
     cutoff_30 = datetime.utcnow() - timedelta(days=30)
@@ -129,7 +125,7 @@ async def fetch_library_stats(db: AsyncSession) -> dict:
             func.date(DownloadRecord.completed_at).label("day"),
             func.count(DownloadRecord.id).label("count"),
         )
-        .where(DownloadRecord.status == "done")
+        .where(*_base())
         .where(DownloadRecord.completed_at >= cutoff_30)
         .group_by(func.date(DownloadRecord.completed_at))
         .order_by(func.date(DownloadRecord.completed_at))
@@ -143,7 +139,7 @@ async def fetch_library_stats(db: AsyncSession) -> dict:
             func.date(DownloadRecord.completed_at).label("day"),
             func.count(DownloadRecord.id).label("count"),
         )
-        .where(DownloadRecord.status == "done")
+        .where(*_base())
         .where(DownloadRecord.completed_at >= cutoff_365)
         .group_by(func.date(DownloadRecord.completed_at))
         .order_by(func.date(DownloadRecord.completed_at))
@@ -153,7 +149,7 @@ async def fetch_library_stats(db: AsyncSession) -> dict:
     # Provider breakdown
     provider_rows = (await db.execute(
         select(DownloadRecord.provider, func.count(DownloadRecord.id).label("count"))
-        .where(DownloadRecord.status == "done")
+        .where(*_base())
         .group_by(DownloadRecord.provider)
         .order_by(func.count(DownloadRecord.id).desc())
     )).all()
@@ -167,11 +163,16 @@ async def fetch_library_stats(db: AsyncSession) -> dict:
         streak += 1
         check = check - timedelta(days=1)
 
+    from app.config import get_settings as _gs2
+    _s2 = _gs2()
+    storage_limit_bytes = _s2.MAX_STORAGE_PER_USER_MB * 1024 * 1024
+
     return {
         "total_chapters": total_chapters,
         "total_manga": total_manga,
         "total_pages": total_pages,
         "storage_bytes": storage_bytes,
+        "storage_limit_bytes": storage_limit_bytes,
         "daily_downloads": daily_downloads,
         "yearly_downloads": yearly_downloads,
         "provider_breakdown": provider_breakdown,

@@ -213,7 +213,7 @@ class DownloadQueue:
                 await _update_db_record(db_factory, download_id, status="packaging")
 
                 async with db_factory() as db:
-                    await check_and_evict(db, file_size)
+                    await check_and_evict(db, file_size, user_id=job.get("user_id", "local-api-key-user"))
 
                 try:
                     await upload_file(cbz_path, remote_path)

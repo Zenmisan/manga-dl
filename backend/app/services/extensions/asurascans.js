@@ -85,8 +85,36 @@ var extension = {
   },
 
   async getMangaDetail(mangaId) {
-    var doc = await _fetchDoc(_AS + '/comics/' + mangaId);
-    var titleEl = doc.querySelector('h1');
+    var doc = null;
+    try {
+      doc = await _fetchDoc(_AS + '/comics/' + mangaId);
+    } catch (e) {
+      // Direct fetch failed (e.g. 502/404 on partial slug without hash)
+    }
+
+    var titleEl = doc ? doc.querySelector('h1') : null;
+
+    if (!doc || !titleEl) {
+      var cleanQuery = mangaId.replace(/-[a-f0-9]{8}$/, '').replace(/-/g, ' ');
+      try {
+        var searchCards = await this.search(cleanQuery);
+        if (searchCards && searchCards.length > 0) {
+          var resolvedId = searchCards[0].id;
+          if (resolvedId && resolvedId !== mangaId) {
+            mangaId = resolvedId;
+            doc = await _fetchDoc(_AS + '/comics/' + mangaId);
+            titleEl = doc.querySelector('h1');
+          }
+        }
+      } catch (err) {
+        // Fallback catch
+      }
+    }
+
+    if (!doc) {
+      throw new Error('Manga detail not found on Asura Scans');
+    }
+
     var title = titleEl ? titleEl.textContent.trim() : mangaId;
     
     var img = doc.querySelector('#mobile-cover-img') || doc.querySelector("img[src*='/asura-images/covers/']");

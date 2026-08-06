@@ -217,8 +217,8 @@ export function MangaChaptersSection({
     { value: 'default', label: 'Default Sort' },
     { value: 'newest', label: 'Newest First' },
     { value: 'oldest', label: 'Oldest First' },
-    { value: 'num-desc', label: 'Highest #' },
-    { value: 'num-asc', label: 'Lowest #' },
+    { value: 'num-desc', label: 'Highest' },
+    { value: 'num-asc', label: 'Lowest' },
   ]
 
   const scanlatorOptions: CustomGlassSelectOption<string>[] = [

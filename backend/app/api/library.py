@@ -258,7 +258,9 @@ async def upload_manga(
 
 
 @router.get("/stats")
-async def get_library_stats(request: Request, db: AsyncSession = Depends(get_db)):
-    """Aggregate reading statistics from the download history."""
-    await _assert_admin(request)
-    return await fetch_library_stats(db)
+async def get_library_stats(
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_current_user),
+):
+    """Aggregate reading statistics scoped to the authenticated user."""
+    return await fetch_library_stats(db, user_id)

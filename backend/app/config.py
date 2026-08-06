@@ -33,7 +33,8 @@ class Settings(BaseSettings):
     SUPABASE_SERVICE_KEY: str | None = None  # Required for backend bucket operations
     SUPABASE_JWT_SECRET: str | None = None
     SUPABASE_BUCKET: str = "manga-library"
-    MAX_STORAGE_MB: int = 900  # Threshold for Smart Eviction
+    MAX_STORAGE_MB: int = 900          # Global hard cap (Supabase free = 1 GB)
+    MAX_STORAGE_PER_USER_MB: int = 200  # Per-user eviction threshold
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod

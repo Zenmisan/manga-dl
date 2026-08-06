@@ -25,6 +25,7 @@ interface StatsData {
   total_manga: number
   total_pages: number
   storage_bytes: number
+  storage_limit_bytes?: number
   daily_downloads: { day: string; count: number }[]
   yearly_downloads: { day: string; count: number }[]
   provider_breakdown: { provider: string; count: number }[]
@@ -173,10 +174,13 @@ export default function StatsPage() {
           { label: 'Manga', value: formatNum(stats.total_manga) },
           { label: 'Chapters', value: formatNum(stats.total_chapters) },
           { label: 'Pages', value: formatNum(stats.total_pages) },
-          { label: 'Storage', value: formatBytes(stats.storage_bytes) },
+          { label: 'Storage', value: formatBytes(stats.storage_bytes), limit: stats.storage_limit_bytes },
           { label: 'Read Time', value: readTimeStr },
           { label: 'This Week', value: `${chapPerWeek} ch` },
-        ].map((card, i) => (
+        ].map((card, i) => {
+          const pct = card.limit ? Math.min(100, (stats.storage_bytes / card.limit) * 100) : null
+          const barColor = pct !== null && pct > 85 ? '#ef4444' : pct !== null && pct > 65 ? '#f97316' : '#ef4444'
+          return (
           <motion.div
             key={card.label}
             initial={{ opacity: 0, y: 12 }}
@@ -186,8 +190,19 @@ export default function StatsPage() {
           >
             <div style={{ fontSize: 26, fontWeight: 900, fontFamily: 'Anton, sans-serif', color: '#ef4444', letterSpacing: '-0.01em', lineHeight: 1 }}>{card.value}</div>
             <div style={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)', marginTop: 6 }}>{card.label}</div>
+            {pct !== null && (
+              <>
+                <div style={{ height: 3, borderRadius: 2, background: 'var(--border)', marginTop: 8, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${pct}%`, background: barColor, borderRadius: 2, transition: 'width 0.6s ease' }} />
+                </div>
+                <div style={{ fontSize: 9, color: 'var(--muted3)', marginTop: 3, fontWeight: 700 }}>
+                  {formatBytes(card.limit!)} limit · {pct.toFixed(0)}% used
+                </div>
+              </>
+            )}
           </motion.div>
-        ))}
+          )
+        })}
       </div>
 
       {/* Streak */}

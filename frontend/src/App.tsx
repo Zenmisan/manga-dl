@@ -147,7 +147,6 @@ function Sidebar({ session, onSignOut, isTauri }: {
           {!isCollapsed && (
             <div className="flex flex-col">
               <span className="font-black text-lg text-white uppercase tracking-wider font-mono leading-none">manga-dl</span>
-              <span className="text-[10px] font-extrabold uppercase tracking-widest text-red-500 mt-1">V3.0 Kinetic</span>
             </div>
           )}
         </Link>
