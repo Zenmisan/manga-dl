@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.core.supabase_auth import get_current_user_email
+from app.core.supabase_auth import get_current_user, get_current_user_email
 from app.config import get_settings
 from app.services.proxy_service import (
     proxy_html_content,
@@ -94,40 +94,61 @@ async def get_all_subscriptions(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/subscriptions")
-async def add_subscription(request: Request, meta: SubscribeMeta = SubscribeMeta(), db: AsyncSession = Depends(get_db)):
-    """Subscribe to a manga by provider_id + manga_id in body."""
-    await _assert_admin(request)
+async def add_subscription(
+    request: Request,
+    meta: SubscribeMeta = SubscribeMeta(),
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Subscribe to a manga. Scoped to the authenticated user."""
     body = await request.json()
     provider_id = body.get("provider_id", "")
     manga_id = body.get("manga_id", "")
     if not provider_id or not manga_id:
         raise HTTPException(status_code=422, detail="provider_id and manga_id required")
     full_meta = {**meta.model_dump(), **body}
-    status = await toggle_manga_subscription(provider_id, manga_id, full_meta, db)
+    status = await toggle_manga_subscription(provider_id, manga_id, full_meta, db, user_id=user_id)
     return {"subscribed": status}
 
 
 @router.delete("/subscriptions/{provider_id}/{manga_id:path}")
-async def remove_subscription(provider_id: str, manga_id: str, request: Request, db: AsyncSession = Depends(get_db)):
-    """Unsubscribe from a manga."""
-    await _assert_admin(request)
-    status = await toggle_manga_subscription(provider_id, manga_id, {}, db)
+async def remove_subscription(
+    provider_id: str,
+    manga_id: str,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Unsubscribe from a manga. Scoped to the authenticated user."""
+    status = await toggle_manga_subscription(provider_id, manga_id, {}, db, user_id=user_id)
     return {"subscribed": status}
 
 
 @router.get("/subscription/{provider_id}/{manga_id:path}")
-async def get_subscription_status(provider_id: str, manga_id: str, request: Request, db: AsyncSession = Depends(get_db)):
-    """Get subscription status for a manga."""
-    email = await get_current_user_email(request)
-    status = await fetch_subscription_status(provider_id, manga_id, email, db)
-    return {"subscribed": status}
+async def get_subscription_status(
+    provider_id: str,
+    manga_id: str,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get subscription status for this user."""
+    record_id = f"{provider_id}:{manga_id}:{user_id}"
+    from sqlalchemy import select
+    from app.models.manga import MangaRecord
+    result = await db.execute(select(MangaRecord).where(MangaRecord.id == record_id))
+    record = result.scalar_one_or_none()
+    return {"subscribed": bool(record and record.subscribed)}
 
 
 @router.post("/subscribe/{provider_id}/{manga_id:path}")
-async def toggle_subscribe(provider_id: str, manga_id: str, request: Request, meta: SubscribeMeta = SubscribeMeta(), db: AsyncSession = Depends(get_db)):
-    """Toggle subscription for a manga. Creates a record using provided metadata if it doesn't exist."""
-    await _assert_admin(request)
-    status = await toggle_manga_subscription(provider_id, manga_id, meta.model_dump(), db)
+async def toggle_subscribe(
+    provider_id: str,
+    manga_id: str,
+    meta: SubscribeMeta = SubscribeMeta(),
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Toggle subscription for a manga. Scoped to the authenticated user."""
+    status = await toggle_manga_subscription(provider_id, manga_id, meta.model_dump(), db, user_id=user_id)
     return {"subscribed": status}
 
 

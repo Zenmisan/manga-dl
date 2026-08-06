@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models.device import UserDevice
 from app.models.reading_progress import ReadingProgress
-from app.models.manga_override import MangaOverride
+from app.models.profiles import UserProfile
 from app.core.supabase_auth import get_current_user
 from app.services.device_service import register_user_device, forfeit_user_device
 from app.services.user_service import (
@@ -44,12 +44,8 @@ class ReadingProgressUpsert(BaseModel):
     chapter_title: str | None = None
 
 
-class MangaOverrideUpsert(BaseModel):
-    provider: str
-    manga_id: str
-    title: str | None = None
-    cover_url: str | None = None
-    description: str | None = None
+class ProfileSetup(BaseModel):
+    username: str
 
 
 @router.post("/device/register")
@@ -153,59 +149,46 @@ async def list_devices(
     ]
 
 
-@router.put("/manga-overrides")
-async def upsert_manga_override(
-    body: MangaOverrideUpsert,
+@router.post("/profile/setup")
+async def setup_profile(
+    body: ProfileSetup,
     user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(
-        select(MangaOverride).where(
-            MangaOverride.user_id == user_id,
-            MangaOverride.provider == body.provider,
-            MangaOverride.manga_id == body.manga_id,
-        )
-    )
-    record = result.scalar_one_or_none()
-    if record:
-        record.title = body.title
-        record.cover_url = body.cover_url
-        record.description = body.description
-        record.updated_at = datetime.utcnow()
-    else:
-        record = MangaOverride(
-            user_id=user_id,
-            provider=body.provider,
-            manga_id=body.manga_id,
-            title=body.title,
-            cover_url=body.cover_url,
-            description=body.description,
-        )
-        db.add(record)
+    """One-time username setup. Username cannot be changed after setting."""
+    import re
+    username = body.username.strip().lower()
+    if not re.match(r'^[a-z0-9_]{3,24}$', username):
+        raise HTTPException(status_code=422, detail="Username must be 3–24 characters: letters, numbers, underscores only.")
+
+    # Check user doesn't already have a profile
+    existing = (await db.execute(select(UserProfile).where(UserProfile.user_id == user_id))).scalar_one_or_none()
+    if existing:
+        raise HTTPException(status_code=409, detail="Profile already set up. Username cannot be changed.")
+
+    # Check username not taken
+    taken = (await db.execute(select(UserProfile).where(UserProfile.username == username))).scalar_one_or_none()
+    if taken:
+        raise HTTPException(status_code=409, detail="Username already taken.")
+
+    profile = UserProfile(user_id=user_id, username=username)
+    db.add(profile)
     await db.commit()
-    return {"status": "ok"}
+    return {"username": username}
 
 
-@router.get("/manga-overrides")
-async def get_all_manga_overrides(
+@router.get("/me")
+async def get_my_profile(
     user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get all overrides for the user (useful for initial sync)."""
-    result = await db.execute(
-        select(MangaOverride).where(MangaOverride.user_id == user_id)
-    )
-    records = result.scalars().all()
-    return [
-        {
-            "provider": r.provider,
-            "manga_id": r.manga_id,
-            "title": r.title,
-            "cover_url": r.cover_url,
-            "description": r.description,
-        }
-        for r in records
-    ]
+    """Return current user's profile."""
+    profile = (await db.execute(select(UserProfile).where(UserProfile.user_id == user_id))).scalar_one_or_none()
+    return {
+        "user_id": user_id,
+        "username": profile.username if profile else None,
+        "profile_set": profile is not None,
+    }
 
 
 @router.get("/me/stats")

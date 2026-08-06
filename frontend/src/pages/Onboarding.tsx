@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Book, Server, Key, ChevronRight, Check, Sparkles, Loader2 } from 'lucide-react'
+import { Book, Server, Key, ChevronRight, Check, Sparkles, Loader2, AtSign, AlertTriangle } from 'lucide-react'
 import api, { resolveBaseURL } from '../lib/api'
 
-const STEPS = ['welcome', 'backend', 'done'] as const
+const STEPS = ['welcome', 'backend', 'username', 'done'] as const
 type Step = typeof STEPS[number]
 
 const INPUT_STYLE: React.CSSProperties = {
@@ -20,6 +20,9 @@ export default function OnboardingPage() {
   const [backendUrl, setBackendUrl] = useState(localStorage.getItem('manga-backend-url') || '')
   const [testingConnection, setTestingConnection] = useState(false)
   const [connectionError, setConnectionError] = useState<string | null>(null)
+  const [username, setUsername] = useState('')
+  const [usernameLoading, setUsernameLoading] = useState(false)
+  const [usernameError, setUsernameError] = useState<string | null>(null)
 
   const handleConnect = async () => {
     setTestingConnection(true)
@@ -33,14 +36,35 @@ export default function OnboardingPage() {
       const timeout = setTimeout(() => controller.abort(), 10000)
       const res = await fetch(`${resolveBaseURL()}/sources/builtins?api_key=${apiKey || 'mgdl-creator'}`, { signal: controller.signal })
       clearTimeout(timeout)
-      if (res.ok) setStep('done')
+      if (res.ok) setStep('username')
       else if (res.status === 403) setConnectionError('API key rejected (403). Check your key — settings saved.')
       else setConnectionError(`Backend returned ${res.status}. Check the URL — settings saved.`)
     } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') setStep('done')
-      else { setConnectionError('Backend unreachable. Settings saved — it may still be starting up.'); setStep('done') }
+      if (err instanceof Error && err.name === 'AbortError') setStep('username')
+      else { setConnectionError('Backend unreachable. Settings saved — it may still be starting up.'); setStep('username') }
     } finally {
       setTestingConnection(false)
+    }
+  }
+
+  const handleUsernameSubmit = async () => {
+    const trimmed = username.trim().toLowerCase()
+    if (!trimmed) { setStep('done'); return }
+    if (!/^[a-z0-9_]{3,24}$/.test(trimmed)) {
+      setUsernameError('3–24 chars, letters/numbers/underscores only.')
+      return
+    }
+    setUsernameLoading(true)
+    setUsernameError(null)
+    try {
+      await api.post('/users/profile/setup', { username: trimmed })
+      localStorage.setItem('manga-username', trimmed)
+      setStep('done')
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail || 'Failed to set username.'
+      setUsernameError(msg)
+    } finally {
+      setUsernameLoading(false)
     }
   }
 
@@ -57,7 +81,7 @@ export default function OnboardingPage() {
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 16px', position: 'relative', overflow: 'hidden' }}>
       <div style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%,-50%)', width: 600, height: 600, background: 'radial-gradient(circle, rgba(220,38,38,0.07) 0%, transparent 70%)', pointerEvents: 'none' }} />
 
-      {/* Progress */}
+      {/* Progress dots */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 40 }}>
         {STEPS.map((s, i) => (
           <div key={s} style={{ height: 4, borderRadius: 2, background: i <= stepIdx ? '#dc2626' : 'var(--surface-hover)', width: i <= stepIdx ? 32 : 16, transition: 'all 0.3s' }} />
@@ -136,6 +160,66 @@ export default function OnboardingPage() {
                 {testingConnection ? <><Loader2 style={{ width: 15, height: 15 }} className="animate-spin" /> Connecting…</> : <>Continue <ChevronRight style={{ width: 15, height: 15 }} /></>}
               </button>
             </div>
+          </motion.div>
+        )}
+
+        {step === 'username' && (
+          <motion.div key="username" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -24 }}
+            style={{ maxWidth: 400, width: '100%' }}>
+            <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
+              <AtSign style={{ width: 24, height: 24, color: '#ef4444' }} />
+            </div>
+            <h2 className="page-title" style={{ fontSize: 24, marginBottom: 8 }}>Choose a username</h2>
+            <p style={{ fontSize: 13, color: 'var(--muted2)', marginBottom: 20, lineHeight: 1.6 }}>
+              Your unique identifier on manga-dl. Keeps your library separate from every other user.
+            </p>
+
+            <div style={{ display: 'flex', gap: 10, padding: '12px 14px', borderRadius: 12, background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.25)', marginBottom: 20 }}>
+              <AlertTriangle style={{ width: 16, height: 16, color: 'rgb(234,179,8)', flexShrink: 0, marginTop: 1 }} />
+              <p style={{ fontSize: 12, color: 'rgba(234,179,8,0.9)', margin: 0, lineHeight: 1.5, fontWeight: 600 }}>
+                This username <strong>cannot be changed</strong> after setting. Choose carefully.
+              </p>
+            </div>
+
+            <div style={{ marginBottom: 8 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)', marginBottom: 8 }}>
+                <AtSign style={{ width: 12, height: 12 }} /> Username
+              </label>
+              <input
+                type="text"
+                value={username}
+                onChange={e => { setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '')); setUsernameError(null) }}
+                placeholder="e.g. mangafan_23"
+                maxLength={24}
+                style={INPUT_STYLE}
+              />
+              <p style={{ marginTop: 6, fontSize: 11, color: 'var(--muted3)' }}>3–24 characters. Letters, numbers, underscores only.</p>
+            </div>
+
+            {usernameError && (
+              <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.2)', fontSize: 12, color: '#f87171', marginBottom: 12 }}>
+                {usernameError}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+              <button onClick={() => setStep('backend')} disabled={usernameLoading} className="btn-secondary" style={{ flex: 1 }}>Back</button>
+              <button
+                onClick={handleUsernameSubmit}
+                disabled={usernameLoading || username.trim().length < 3}
+                className="btn-primary"
+                style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+              >
+                {usernameLoading ? <><Loader2 style={{ width: 15, height: 15 }} className="animate-spin" /> Setting…</> : <>Set Username <ChevronRight style={{ width: 15, height: 15 }} /></>}
+              </button>
+            </div>
+            <button
+              onClick={() => setStep('done')}
+              disabled={usernameLoading}
+              style={{ marginTop: 14, width: '100%', fontSize: 12, color: 'var(--muted3)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+            >
+              Skip for now
+            </button>
           </motion.div>
         )}
 

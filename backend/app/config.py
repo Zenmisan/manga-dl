@@ -25,6 +25,8 @@ class Settings(BaseSettings):
         "capacitor://localhost",
     ]
     API_KEY: str | None = None
+    RESEND_API_KEY: str | None = None       # optional — set to get email pings on new tickets
+    SUPPORT_EMAIL: str = "zenmisan@gmail.com"  # where notification emails go
     
     # Supabase Storage Configuration
     SUPABASE_URL: str | None = None

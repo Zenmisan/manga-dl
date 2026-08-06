@@ -1,29 +1,18 @@
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, Depends, Request
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, delete
 import json
+import logging
 
 from app.providers import get_provider
 from app.core.queue import download_queue, register_ws_listener, unregister_ws_listener
 from app.database import get_db, AsyncSessionLocal
 from app.models.download import DownloadRecord
-from sqlalchemy import delete
-from app.core.supabase_auth import get_current_user_email
-from app.config import get_settings
+from app.core.supabase_auth import get_current_user
 
+log = logging.getLogger(__name__)
 router = APIRouter(prefix="/downloads", tags=["downloads"])
-
-async def _assert_admin(request: Request):
-    """Allow if valid API key present, or if JWT email matches admin."""
-    settings = get_settings()
-    api_key = request.headers.get("X-API-Key") or request.query_params.get("api_key")
-    if settings.API_KEY and api_key == settings.API_KEY:
-        return
-    email = await get_current_user_email(request)
-    if email != "zenmisan@gmail.com":
-        raise HTTPException(status_code=403, detail="Library access is restricted to administrator.")
-
 
 
 class DownloadRequest(BaseModel):
@@ -37,16 +26,16 @@ class DownloadRequest(BaseModel):
 
 
 @router.post("/queue")
-async def queue_download(req: DownloadRequest, request: Request):
-    """Queue a chapter for download. Supports both Python backend providers and pre-resolved JS extension pages."""
-    await _assert_admin(request)
-
+async def queue_download(
+    req: DownloadRequest,
+    user_id: str = Depends(get_current_user),
+):
+    """Queue a chapter for download, tagged to the authenticated user."""
     pages: list[str] = req.pages or []
     manga_title: str = req.manga_title or req.manga_id
     chapter_title: str = req.chapter_title or f"Chapter {req.chapter_number or 1}"
     chapter_number: float = req.chapter_number if req.chapter_number is not None else 1.0
 
-    # Try backend Python provider if registered (e.g. Komga, Suwayomi)
     provider = get_provider(req.provider_id)
     if provider:
         try:
@@ -72,38 +61,31 @@ async def queue_download(req: DownloadRequest, request: Request):
         chapter_title=chapter_title,
         chapter_number=chapter_number,
         page_urls=pages,
+        user_id=user_id,
     )
 
     return {"download_id": download_id, "total_pages": len(pages)}
 
 
 @router.post("/pause")
-async def pause_downloads(request: Request):
-    """Pause all queued downloads. In-progress downloads finish first."""
-    await _assert_admin(request)
+async def pause_downloads(user_id: str = Depends(get_current_user)):
     download_queue.pause()
     return {"paused": True}
 
 
 @router.post("/resume")
-async def resume_downloads(request: Request):
-    """Resume the download queue."""
-    await _assert_admin(request)
+async def resume_downloads(user_id: str = Depends(get_current_user)):
     download_queue.resume()
     return {"paused": False}
 
 
 @router.get("/queue-status")
-async def queue_status(request: Request):
-    """Get current queue pause state."""
-    await _assert_admin(request)
+async def queue_status(user_id: str = Depends(get_current_user)):
     return {"paused": download_queue.is_paused}
 
 
 @router.post("/cancel/{download_id}")
-async def cancel_download(download_id: str, request: Request):
-    """Cancel a queued or in-progress download."""
-    await _assert_admin(request)
+async def cancel_download(download_id: str, user_id: str = Depends(get_current_user)):
     cancelled = await download_queue.cancel(download_id, AsyncSessionLocal)
     if not cancelled:
         raise HTTPException(status_code=404, detail="Download not found in active queue")
@@ -111,11 +93,13 @@ async def cancel_download(download_id: str, request: Request):
 
 
 @router.post("/retry/{download_id}")
-async def retry_download(download_id: str, request: Request, db: AsyncSession = Depends(get_db)):
-    """Re-queue a failed download using its stored metadata."""
-    await _assert_admin(request)
+async def retry_download(
+    download_id: str,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     record = (await db.execute(
-        select(DownloadRecord).where(DownloadRecord.id == download_id)
+        select(DownloadRecord).where(DownloadRecord.id == download_id, DownloadRecord.user_id == user_id)
     )).scalar_one_or_none()
     if not record:
         raise HTTPException(status_code=404, detail="Download record not found")
@@ -141,34 +125,41 @@ async def retry_download(download_id: str, request: Request, db: AsyncSession = 
         chapter_title=record.chapter_title,
         chapter_number=record.chapter_number,
         page_urls=pages,
+        user_id=user_id,
     )
     return {"download_id": new_id, "total_pages": len(pages)}
 
 
 @router.delete("/history")
-async def clear_history(request: Request, db: AsyncSession = Depends(get_db)):
-    """Delete all completed/failed download records."""
-    await _assert_admin(request)
+async def clear_history(
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     await db.execute(
-        delete(DownloadRecord).where(DownloadRecord.status.in_(["done", "failed"]))
+        delete(DownloadRecord).where(
+            DownloadRecord.user_id == user_id,
+            DownloadRecord.status.in_(["done", "failed"]),
+        )
     )
     await db.commit()
     return {"cleared": True}
 
 
 @router.get("/active")
-async def list_active_downloads(request: Request):
-    """List all currently active/queued downloads."""
-    await _assert_admin(request)
+async def list_active_downloads(user_id: str = Depends(get_current_user)):
     return download_queue.list_active()
 
 
 @router.get("/history")
-async def download_history(request: Request, db: AsyncSession = Depends(get_db)):
-    """List completed download history from DB."""
-    await _assert_admin(request)
+async def download_history(
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     result = await db.execute(
-        select(DownloadRecord).order_by(DownloadRecord.created_at.desc()).limit(100)
+        select(DownloadRecord)
+        .where(DownloadRecord.user_id == user_id)
+        .order_by(DownloadRecord.created_at.desc())
+        .limit(100)
     )
     records = result.scalars().all()
     return [
@@ -187,26 +178,18 @@ async def download_history(request: Request, db: AsyncSession = Depends(get_db))
     ]
 
 
-
 @router.websocket("/ws")
 async def download_ws(websocket: WebSocket):
-    """
-    WebSocket endpoint for real-time download progress.
-    Broadcasts events: {type: "queued"|"started"|"progress"|"completed", download: {...}}
-    """
     await websocket.accept()
 
     async def send_event(event: dict):
         await websocket.send_json(event)
 
     register_ws_listener(send_event)
-
-    # Send current state immediately on connect
     await websocket.send_json({"type": "state", "downloads": download_queue.list_active()})
 
     try:
         while True:
-            # Keep connection alive; client sends pings
             data = await websocket.receive_text()
     except WebSocketDisconnect:
         pass

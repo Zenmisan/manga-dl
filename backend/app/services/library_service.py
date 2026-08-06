@@ -111,9 +111,16 @@ async def fetch_library_stats(db: AsyncSession) -> dict:
         select(func.sum(DownloadRecord.total_pages)).where(DownloadRecord.status == "done")
     )).scalar() or 0
 
-    storage_bytes = (await db.execute(
-        select(func.sum(DownloadRecord.file_size_bytes)).where(DownloadRecord.status == "done")
-    )).scalar() or 0
+    # Prefer live Supabase bucket size; fall back to DB sum
+    from app.config import get_settings as _gs
+    _s = _gs()
+    if _s.SUPABASE_URL and _s.SUPABASE_SERVICE_KEY:
+        from app.core.storage import get_storage_used_bytes
+        storage_bytes = await get_storage_used_bytes()
+    else:
+        storage_bytes = (await db.execute(
+            select(func.sum(DownloadRecord.file_size_bytes)).where(DownloadRecord.status == "done")
+        )).scalar() or 0
 
     # Downloads per day — last 30 days
     cutoff_30 = datetime.utcnow() - timedelta(days=30)

@@ -104,6 +104,32 @@ async def check_and_evict(db: AsyncSession, new_file_size_bytes: int):
     
     await db.commit()
 
+async def get_storage_used_bytes() -> int:
+    """Query Supabase Storage directly for actual bucket usage in bytes."""
+    if not settings.SUPABASE_URL or not settings.SUPABASE_SERVICE_KEY:
+        return 0
+    try:
+        client = get_supabase_client()
+        total = 0
+        # List top-level folders (manga titles), then files inside each
+        root_items = client.storage.from_(settings.SUPABASE_BUCKET).list("", {"limit": 1000})
+        for item in root_items:
+            if item.get("id") is None:
+                # It's a folder — list its contents
+                folder = item["name"]
+                children = client.storage.from_(settings.SUPABASE_BUCKET).list(folder, {"limit": 1000})
+                for child in children:
+                    size = (child.get("metadata") or {}).get("size") or 0
+                    total += size
+            else:
+                size = (item.get("metadata") or {}).get("size") or 0
+                total += size
+        return total
+    except Exception as e:
+        log.warning("Could not fetch Supabase bucket size: %s", e)
+        return 0
+
+
 async def download_file_to_cache(remote_path: str, local_cache_path: Path):
     """Download a file from Supabase to local ephemeral storage (for reading)."""
     if local_cache_path.exists():

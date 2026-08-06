@@ -1,11 +1,12 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, useInView } from 'framer-motion'
 import {
   Globe, Wifi, Star, Layers, Zap,
   ChevronDown, ArrowRight, Monitor, Smartphone,
-  Shield,
+  Shield, Send,
 } from 'lucide-react'
+import api from '../lib/api'
 
 const GRAIN = `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`
 
@@ -72,9 +73,54 @@ const PLATFORMS = [
   },
 ]
 
+const TAGLINES = [
+  'A product of ZΞNMƗ',
+  "ZΞNMƗ's hobby project that grew out of hand",
+  'Hobby project taken too seriously',
+]
+
+const CATEGORIES = ['general', 'bug', 'feature', 'question']
+
 export default function LandingPage() {
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
+
+  // Rotating footer tagline
+  const [taglineIdx, setTaglineIdx] = useState(0)
+  useEffect(() => {
+    const id = setInterval(() => setTaglineIdx(i => (i + 1) % TAGLINES.length), 4000)
+    return () => clearInterval(id)
+  }, [])
+
+  // Contact form state
+  const [ctName, setCtName] = useState('')
+  const [ctEmail, setCtEmail] = useState('')
+  const [ctCategory, setCtCategory] = useState('general')
+  const [ctMessage, setCtMessage] = useState('')
+  const [ctSending, setCtSending] = useState(false)
+  const [ctDone, setCtDone] = useState(false)
+  const [ctError, setCtError] = useState('')
+
+  const handleSubmitTicket = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!ctMessage.trim()) return
+    setCtSending(true)
+    setCtError('')
+    try {
+      await api.post('/support/ticket', {
+        name: ctName.trim() || null,
+        email: ctEmail.trim() || null,
+        category: ctCategory,
+        message: ctMessage.trim(),
+      })
+      setCtDone(true)
+      setCtName(''); setCtEmail(''); setCtCategory('general'); setCtMessage('')
+    } catch {
+      setCtError('Failed to send. Try emailing zenmisan@gmail.com directly.')
+    } finally {
+      setCtSending(false)
+    }
+  }
 
   const handleCTA = (e: React.FormEvent) => {
     e.preventDefault()
@@ -387,6 +433,116 @@ export default function LandingPage() {
         </section>
       </FadeUp>
 
+      {/* ── CONTACT / SUPPORT ───────────────────────────────── */}
+      <FadeUp>
+        <section className="py-28 px-6 border-t border-white/[.04]">
+          <div className="max-w-xl mx-auto">
+            <div className="text-center mb-12">
+              <h2
+                className="text-[clamp(2rem,7vw,4rem)] font-normal uppercase tracking-wide mb-3"
+                style={{ fontFamily: "'Anton', sans-serif" }}
+              >
+                Get in Touch
+              </h2>
+              <p className="text-white/38 text-sm max-w-sm mx-auto leading-relaxed">
+                Bug? Feature idea? Just wanna say hi? Drop a message — it lands straight in the dashboard.
+              </p>
+            </div>
+
+            {ctDone ? (
+              <div className="text-center py-16 flex flex-col items-center gap-4">
+                <div className="w-16 h-16 rounded-2xl bg-green-600/10 border border-green-600/20 flex items-center justify-center">
+                  <svg className="w-8 h-8 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <p className="font-black text-lg">Message sent!</p>
+                <p className="text-white/38 text-sm">We'll get back to you if you left an email.</p>
+                <button
+                  onClick={() => setCtDone(false)}
+                  className="mt-2 text-sm text-white/30 hover:text-white/60 transition-colors underline underline-offset-2"
+                >
+                  Send another
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmitTicket} className="flex flex-col gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-white/30">Name (optional)</label>
+                    <input
+                      type="text"
+                      value={ctName}
+                      onChange={e => setCtName(e.target.value)}
+                      placeholder="Your name"
+                      className="bg-white/[.04] border border-white/[.08] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-red-500/40 placeholder:text-white/18 transition-colors"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-white/30">Email (optional)</label>
+                    <input
+                      type="email"
+                      value={ctEmail}
+                      onChange={e => setCtEmail(e.target.value)}
+                      placeholder="for a reply"
+                      className="bg-white/[.04] border border-white/[.08] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-red-500/40 placeholder:text-white/18 transition-colors"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-white/30">Category</label>
+                  <select
+                    value={ctCategory}
+                    onChange={e => setCtCategory(e.target.value)}
+                    className="bg-white/[.04] border border-white/[.08] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-red-500/40 transition-colors appearance-none cursor-pointer"
+                    style={{ background: 'rgba(255,255,255,0.04)' }}
+                  >
+                    {CATEGORIES.map(c => (
+                      <option key={c} value={c} style={{ background: '#1a1a1a' }}>
+                        {c.charAt(0).toUpperCase() + c.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-white/30">Message <span className="text-red-500">*</span></label>
+                  <textarea
+                    value={ctMessage}
+                    onChange={e => setCtMessage(e.target.value)}
+                    placeholder="What's on your mind?"
+                    rows={5}
+                    required
+                    className="bg-white/[.04] border border-white/[.08] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-red-500/40 placeholder:text-white/18 transition-colors resize-none"
+                  />
+                </div>
+
+                {ctError && (
+                  <p className="text-red-400 text-xs font-bold">{ctError}</p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={ctSending || !ctMessage.trim()}
+                  className="flex items-center justify-center gap-2 px-6 py-3.5 bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:pointer-events-none rounded-xl font-black text-sm transition-all shadow-lg shadow-red-600/20 hover:-translate-y-px"
+                >
+                  <Send className="w-4 h-4" />
+                  {ctSending ? 'Sending…' : 'Send Message'}
+                </button>
+
+                <p className="text-[11px] text-white/20 text-center">
+                  Or open an issue on{' '}
+                  <a href="https://github.com/zenmisan/manga-dl" target="_blank" rel="noreferrer" className="underline text-white/30 hover:text-white/50 transition-colors">
+                    GitHub
+                  </a>
+                </p>
+              </form>
+            )}
+          </div>
+        </section>
+      </FadeUp>
+
       {/* ── FOOTER ──────────────────────────────────────────── */}
       <footer className="border-t border-white/[.05] py-10 px-6">
         <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
@@ -398,9 +554,22 @@ export default function LandingPage() {
             <Link to="/r" className="hover:text-white transition-colors">Library</Link>
             <Link to="/login" className="hover:text-white transition-colors">Sign In</Link>
             <Link to="/help" className="hover:text-white transition-colors">Help</Link>
+            <a href="mailto:zenmisan@gmail.com" className="hover:text-white transition-colors">Contact</a>
             <a href="https://github.com/zenmisan/manga-dl" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">GitHub</a>
           </div>
-          <p className="text-white/18 text-xs">© 2026 manga-dl. Open source.</p>
+          <div className="flex flex-col items-center md:items-end gap-1">
+            <motion.p
+              key={taglineIdx}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.4 }}
+              className="text-[11px] text-white/22 font-bold tracking-wide text-center md:text-right"
+            >
+              {TAGLINES[taglineIdx]}
+            </motion.p>
+            <p className="text-white/14 text-[10px]">© {new Date().getFullYear()} manga-dl</p>
+          </div>
         </div>
       </footer>
     </div>

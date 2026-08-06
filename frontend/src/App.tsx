@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useCallback, lazy, Suspense } from 'react'
 import { useAppStore } from './lib/store'
 import {
-  Library, Search, Globe, BarChart2, HelpCircle, Clock, Bell,
-  LogIn, UserPlus, Download, Settings, ExternalLink, Loader2, Sparkles,
+  Library, Search, Globe, BarChart2, Clock, Bell,
+  Download, Settings, Loader2, Sparkles, PanelLeftClose, PanelLeftOpen, LogOut,
 } from 'lucide-react'
 import { Routes, Route, Link, useLocation, useNavigate, Navigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -118,27 +118,54 @@ function Sidebar({ session, onSignOut, isTauri }: {
   isTauri: boolean
 }) {
   const location = useLocation()
+  const [isCollapsed, setIsCollapsed] = React.useState<boolean>(() => {
+    return localStorage.getItem('manga-dl-sidebar-collapsed') === 'true'
+  })
+
+  const toggleCollapse = () => {
+    setIsCollapsed(prev => {
+      const next = !prev
+      localStorage.setItem('manga-dl-sidebar-collapsed', String(next))
+      return next
+    })
+  }
 
   return (
     <aside
       className={cn(
-        'hidden md:flex flex-col w-[232px] shrink-0 border-r border-white/10 sticky z-50 bg-[#080808]/90 backdrop-blur-2xl',
+        'hidden md:flex flex-col shrink-0 border-r border-white/10 sticky z-50 bg-[#080808]/90 backdrop-blur-2xl transition-all duration-300',
+        isCollapsed ? 'w-[68px]' : 'w-[232px]',
         isTauri ? 'top-8 h-[calc(100vh-2rem)]' : 'top-0 h-screen'
       )}
     >
       {/* Stitch Kinetic Logo & Version Badge */}
-      <Link to="/r" className="flex items-center gap-3.5 px-5 py-6 group">
-        <div className="w-10 h-10 rounded-xl bg-red-600/10 border border-red-500/20 flex items-center justify-center p-1.5 overflow-hidden shrink-0 group-hover:border-red-500/40 transition-colors">
-          <img src="/Manga-dl1.png" alt="manga-dl" className="w-full h-full object-contain" />
-        </div>
-        <div className="flex flex-col">
-          <span className="font-black text-lg text-white uppercase tracking-wider font-mono leading-none">manga-dl</span>
-          <span className="text-[10px] font-extrabold uppercase tracking-widest text-red-500 mt-1">V3.0 Kinetic</span>
-        </div>
-      </Link>
+      <div className={cn('flex items-center py-5 px-3.5 border-b border-white/5 relative', isCollapsed ? 'justify-center' : 'justify-between')}>
+        <Link to="/r" className={cn('flex items-center gap-3.5 group overflow-hidden', isCollapsed && 'justify-center')}>
+          <div className="w-10 h-10 rounded-xl bg-red-600/10 border border-red-500/20 flex items-center justify-center p-1.5 overflow-hidden shrink-0 group-hover:border-red-500/40 transition-colors">
+            <img src="/Manga-dl1.png" alt="manga-dl" className="w-full h-full object-contain" />
+          </div>
+          {!isCollapsed && (
+            <div className="flex flex-col">
+              <span className="font-black text-lg text-white uppercase tracking-wider font-mono leading-none">manga-dl</span>
+              <span className="text-[10px] font-extrabold uppercase tracking-widest text-red-500 mt-1">V3.0 Kinetic</span>
+            </div>
+          )}
+        </Link>
+
+        <button
+          onClick={toggleCollapse}
+          className={cn(
+            'p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-all shrink-0',
+            isCollapsed && 'mt-2'
+          )}
+          title={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+        >
+          {isCollapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
+        </button>
+      </div>
 
       {/* Nav items */}
-      <nav className="flex flex-col gap-1 px-3 flex-1 overflow-y-auto pt-2">
+      <nav className="flex flex-col gap-1 px-2.5 flex-1 overflow-y-auto pt-3">
         {SIDEBAR_ITEMS.map((item) => {
           const active = location.pathname === item.path ||
             (item.path === '/settings' && location.pathname.startsWith('/settings'))
@@ -146,20 +173,22 @@ function Sidebar({ session, onSignOut, isTauri }: {
             <Link
               key={item.path}
               to={item.path}
+              title={isCollapsed ? item.label : undefined}
               className={cn(
-                'flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-extrabold transition-all',
+                'flex items-center rounded-xl text-xs font-extrabold transition-all',
+                isCollapsed ? 'justify-center p-3' : 'gap-3 px-3.5 py-2.5',
                 active
                   ? 'bg-red-600/10 border border-red-500/20 text-red-500 shadow-[0_0_12px_rgba(220,38,38,0.15)]'
                   : 'text-zinc-400 hover:text-white hover:bg-white/5'
               )}
             >
               <item.icon className="w-4 h-4 shrink-0" />
-              <span>{item.label}</span>
+              {!isCollapsed && <span>{item.label}</span>}
             </Link>
           )
         })}
 
-        {!isTauri && (
+        {!isTauri && !isCollapsed && (
           <div className="mt-auto pt-3 px-1 pb-1">
             <Link
               to="/download"
@@ -181,37 +210,51 @@ function Sidebar({ session, onSignOut, isTauri }: {
       </nav>
 
       {/* Bottom — Help, GitHub, User Profile & Sign Out */}
-      <div className="p-3 space-y-2 border-t border-white/10 bg-white/[0.02]">
-        <div className="flex items-center justify-between px-2 text-[11px] font-bold text-zinc-500">
-          <Link to="/help" className="hover:text-zinc-300 transition-colors">Help</Link>
-          <a href="https://github.com/Zenmisan/manga-dl" target="_blank" rel="noreferrer" className="hover:text-zinc-300 transition-colors">GitHub</a>
-        </div>
+      <div className="p-2.5 space-y-2 border-t border-white/10 bg-white/[0.02]">
+        {!isCollapsed && (
+          <div className="flex items-center justify-between px-2 text-[11px] font-bold text-zinc-500">
+            <Link to="/help" className="hover:text-zinc-300 transition-colors">Help</Link>
+            <a href="https://github.com/Zenmisan/manga-dl" target="_blank" rel="noreferrer" className="hover:text-zinc-300 transition-colors">GitHub</a>
+          </div>
+        )}
 
         {session ? (
-          <div className="space-y-1 pt-1">
+          <div className={cn('pt-1', isCollapsed ? 'flex flex-col items-center gap-2' : 'space-y-1')}>
             <Link
               to={`/profile/${session.user.id}`}
-              className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white transition-all text-xs font-bold"
+              title={isCollapsed ? session.user.email?.split('@')[0] : undefined}
+              className={cn(
+                'flex items-center rounded-xl bg-white/5 hover:bg-white/10 text-white transition-all text-xs font-bold',
+                isCollapsed ? 'p-2 justify-center' : 'gap-2.5 px-3 py-2'
+              )}
             >
               <span className="w-6 h-6 rounded-full bg-red-600 flex items-center justify-center text-[10px] font-black text-white shrink-0">
                 {session.user.email?.[0]?.toUpperCase() ?? '?'}
               </span>
-              <span className="truncate">{session.user.email?.split('@')[0]}</span>
+              {!isCollapsed && <span className="truncate">{session.user.email?.split('@')[0]}</span>}
             </Link>
             <button
               onClick={onSignOut}
-              className="w-full text-left px-3 py-1.5 rounded-xl text-xs font-bold text-zinc-400 hover:text-white hover:bg-white/5 transition-all"
+              title={isCollapsed ? 'Sign out' : undefined}
+              className={cn(
+                'rounded-xl text-xs font-bold text-zinc-400 hover:text-white hover:bg-white/5 transition-all',
+                isCollapsed ? 'p-2 flex items-center justify-center' : 'w-full text-left px-3 py-1.5'
+              )}
             >
-              Sign out
+              {isCollapsed ? <LogOut className="w-4 h-4 text-red-400" /> : 'Sign out'}
             </button>
           </div>
         ) : (
           <div className="flex flex-col gap-1 pt-1">
             <Link
               to="/login"
-              className="w-full text-center py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-black uppercase tracking-wider transition-all"
+              title={isCollapsed ? 'Sign In' : undefined}
+              className={cn(
+                'rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center',
+                isCollapsed ? 'p-2' : 'w-full text-center py-2'
+              )}
             >
-              Sign In
+              {isCollapsed ? <Sparkles className="w-4 h-4" /> : 'Sign In'}
             </Link>
           </div>
         )}
@@ -286,7 +329,7 @@ function App() {
     syncReadTrackingFromCloud().catch(() => {})
     syncCategoriesFromCloud().catch(() => {})
     syncMangaNotesFromCloud().catch(() => {})
-    syncMetaOverridesFromCloud().catch(() => {})
+    syncMetaOverridesFromCloud()
     ExtensionManager.getInstance().init().catch(() => {})
   }, [])
 

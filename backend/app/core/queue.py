@@ -92,6 +92,7 @@ class DownloadQueue:
         chapter_title: str,
         chapter_number: float,
         page_urls: list[str],
+        user_id: str = "local-api-key-user",
     ) -> str:
         download_id = str(uuid.uuid4())
         now = datetime.utcnow()
@@ -128,6 +129,7 @@ class DownloadQueue:
                     total_pages=len(page_urls),
                     downloaded_pages=0,
                     created_at=now,
+                    user_id=user_id,
                 )
                 db.add(record)
                 await db.commit()

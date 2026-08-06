@@ -17,6 +17,7 @@ export interface Chapter {
   title: string
   number: number
   published_at: string | null
+  scanlator?: string
 }
 
 export interface MangaDetail {
@@ -96,7 +97,7 @@ export function useMangaDetail() {
     if (!manga) return
     setManga({ ...manga, title: metaDraft.title || manga.title, cover_url: metaDraft.cover_url || manga.cover_url, description: metaDraft.description || manga.description })
     if (provider && mangaId) {
-      setMangaOverride(provider, mangaId, {
+      void setMangaOverride(provider, mangaId, {
         title: metaDraft.title || undefined,
         cover_url: metaDraft.cover_url || undefined,
         description: metaDraft.description || undefined,

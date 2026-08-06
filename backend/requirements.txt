@@ -10,3 +10,4 @@ supabase==2.4.5
 Pillow>=11.0.0
 img2pdf==0.5.1
 betterproto
+PyJWT[crypto]>=2.8.0
