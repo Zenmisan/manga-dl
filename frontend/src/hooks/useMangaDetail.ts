@@ -10,6 +10,8 @@ import { supabase } from '../lib/supabase'
 import { useMangaTracker } from './useMangaTracker'
 import { useMangaChaptersFilter } from './useMangaChaptersFilter'
 
+import { resolveSmartManga } from '../lib/smartUrl'
+
 export interface Chapter {
   id: string
   title: string
@@ -33,8 +35,25 @@ export interface MangaDetail {
 const fac = new FastAverageColor()
 
 export function useMangaDetail() {
-  const { provider, '*': mangaId } = useParams()
+  const { provider: rawProvider, '*': rawMangaId } = useParams()
   const navigate = useNavigate()
+
+  let provider = rawProvider
+  let mangaId = rawMangaId
+
+  if (rawProvider && !rawMangaId) {
+    const resolved = resolveSmartManga(rawProvider)
+    if (resolved) {
+      provider = resolved.provider
+      mangaId = resolved.mangaId
+    }
+  } else if (rawProvider === 'detail' && rawMangaId) {
+    const resolved = resolveSmartManga(rawMangaId)
+    if (resolved) {
+      provider = resolved.provider
+      mangaId = resolved.mangaId
+    }
+  }
   const [manga, setManga] = useState<MangaDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [downloading, setDownloading] = useState<string[]>([])
@@ -176,34 +195,47 @@ export function useMangaDetail() {
 
   useEffect(() => {
     if (!manga || !provider) return
-    api.get('/subscriptions')
+    const key = `${provider}:${manga.id}`
+    const rawLocal = localStorage.getItem('manga-dl-local-subs')
+    const localList: string[] = rawLocal ? JSON.parse(rawLocal) : []
+    const isLocalSub = localList.includes(key)
+
+    api.get('/manga/subscriptions')
       .then(res => {
         const exists = res.data.some((s: { provider_id: string; manga_id: string }) =>
           s.provider_id === provider && s.manga_id === manga.id
         )
-        setSubscribed(exists)
+        setSubscribed(exists || isLocalSub)
       })
-      .catch(() => {})
+      .catch(() => {
+        setSubscribed(isLocalSub)
+      })
   }, [manga, provider])
 
   const handleSubscribe = async () => {
     if (!manga || !provider) return
     setSubscribing(true)
+    const key = `${provider}:${manga.id}`
+    const rawLocal = localStorage.getItem('manga-dl-local-subs')
+    let localList: string[] = rawLocal ? JSON.parse(rawLocal) : []
+
     try {
       if (subscribed) {
-        await api.delete(`/subscriptions/${provider}/${manga.id}`)
+        localList = localList.filter(k => k !== key)
+        localStorage.setItem('manga-dl-local-subs', JSON.stringify(localList))
         setSubscribed(false)
+        await api.delete(`/manga/subscriptions/${provider}/${manga.id}`).catch(() => {})
       } else {
-        await api.post('/subscriptions', {
+        if (!localList.includes(key)) localList.push(key)
+        localStorage.setItem('manga-dl-local-subs', JSON.stringify(localList))
+        setSubscribed(true)
+        await api.post('/manga/subscriptions', {
           provider_id: provider,
           manga_id: manga.id,
           manga_title: manga.title,
           cover_url: manga.cover_url,
-        })
-        setSubscribed(true)
+        }).catch(() => {})
       }
-    } catch {
-      alert('Failed to update subscription status.')
     } finally {
       setSubscribing(false)
     }
@@ -214,10 +246,45 @@ export function useMangaDetail() {
     setDownloading((prev) => [...prev, chapter.id])
     setShowQueueLink(true)
     try {
+      let pages: string[] = []
+      const mgr = ExtensionManager.getInstance()
+      const ext = await mgr.getExtension(provider)
+      if (ext) {
+        try {
+          pages = (await ext.getPages(chapter.id)) as string[]
+        } catch (e) {
+          console.warn('[useMangaDetail] Extension getPages failed:', e)
+        }
+      }
+
+      // Direct fallback for MangaDex when extension returns nothing
+      if (!pages.length && provider === 'mangadex') {
+        try {
+          const atHomeRes = await api.get('/manga/proxy/json', {
+            params: { url: `https://api.mangadex.org/at-home/server/${chapter.id}` }
+          })
+          const d = atHomeRes.data
+          if (d?.baseUrl && d?.chapter?.data?.length) {
+            pages = d.chapter.data.map((f: string) => `${d.baseUrl}/data/${d.chapter.hash}/${f}`)
+          }
+        } catch (e) {
+          console.warn('[useMangaDetail] MangaDex at-home fallback failed:', e)
+        }
+      }
+
+      if (!pages.length) {
+        alert('Could not fetch chapter pages — try again or check your connection.')
+        return
+      }
+
       await api.post('/downloads/queue', {
         provider_id: provider,
         manga_id: manga.id,
         chapter_id: chapter.id,
+        manga_title: manga.title,
+        chapter_title: chapter.title || `Chapter ${chapter.number}`,
+        chapter_number: chapter.number,
+        pages,
       })
     } catch {
       alert('Failed to queue download')
@@ -229,14 +296,13 @@ export function useMangaDetail() {
   }
 
   const handleBulkDownload = async () => {
-    if (!manga || !provider) return
+    if (!manga || !provider || !manga.chapters || manga.chapters.length === 0) return
     setBulkLoading(true)
     setShowQueueLink(true)
     try {
-      await api.post('/downloads/bulk', {
-        provider_id: provider,
-        manga_id: manga.id,
-      })
+      for (const chapter of manga.chapters) {
+        await handleDownload(chapter)
+      }
     } catch {
       alert('Failed to queue bulk downloads')
     } finally {

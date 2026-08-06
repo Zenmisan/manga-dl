@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.core.supabase_auth import get_current_user_email
+from app.config import get_settings
 from app.services.proxy_service import (
     proxy_html_content,
     proxy_json_content,
@@ -14,6 +15,7 @@ from app.services.proxy_service import (
 from app.services.manga_service import (
     fetch_manga_updates,
     fetch_subscription_status,
+    list_subscriptions,
     toggle_manga_subscription,
     migrate_manga_provider,
 )
@@ -23,7 +25,11 @@ router = APIRouter(prefix="/manga", tags=["manga"])
 
 
 async def _assert_admin(request: Request):
-    """Raise 403 if the user is not zenmisan@gmail.com."""
+    """Allow if valid API key present, or if JWT email matches admin."""
+    settings = get_settings()
+    api_key = request.headers.get("X-API-Key") or request.query_params.get("api_key")
+    if settings.API_KEY and api_key == settings.API_KEY:
+        return
     email = await get_current_user_email(request)
     if email != "zenmisan@gmail.com":
         raise HTTPException(status_code=403, detail="Library access is restricted to administrator.")
@@ -79,6 +85,34 @@ async def trigger_sync(request: Request):
     from app.core.tasks import _sync_once
     asyncio.create_task(_sync_once())
     return {"status": "sync started"}
+
+
+@router.get("/subscriptions")
+async def get_all_subscriptions(db: AsyncSession = Depends(get_db)):
+    """List all subscribed manga."""
+    return await list_subscriptions(db)
+
+
+@router.post("/subscriptions")
+async def add_subscription(request: Request, meta: SubscribeMeta = SubscribeMeta(), db: AsyncSession = Depends(get_db)):
+    """Subscribe to a manga by provider_id + manga_id in body."""
+    await _assert_admin(request)
+    body = await request.json()
+    provider_id = body.get("provider_id", "")
+    manga_id = body.get("manga_id", "")
+    if not provider_id or not manga_id:
+        raise HTTPException(status_code=422, detail="provider_id and manga_id required")
+    full_meta = {**meta.model_dump(), **body}
+    status = await toggle_manga_subscription(provider_id, manga_id, full_meta, db)
+    return {"subscribed": status}
+
+
+@router.delete("/subscriptions/{provider_id}/{manga_id:path}")
+async def remove_subscription(provider_id: str, manga_id: str, request: Request, db: AsyncSession = Depends(get_db)):
+    """Unsubscribe from a manga."""
+    await _assert_admin(request)
+    status = await toggle_manga_subscription(provider_id, manga_id, {}, db)
+    return {"subscribed": status}
 
 
 @router.get("/subscription/{provider_id}/{manga_id:path}")

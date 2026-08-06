@@ -22,6 +22,7 @@ export interface ReaderFilters {
 
 export type TapZoneLayout = 'default' | 'l-nav' | 'edge' | 'disabled'
 export type AppTheme = 'dark' | 'light' | 'system'
+export type AccentColor = 'red' | 'blue' | 'purple' | 'green' | 'orange' | 'pink'
 
 interface AppState {
   // Search State
@@ -68,8 +69,10 @@ interface AppState {
   // Appearance
   theme: AppTheme
   amoledBlack: boolean
+  accent: AccentColor
   setTheme: (val: AppTheme) => void
   setAmoledBlack: (val: boolean) => void
+  setAccent: (val: AccentColor) => void
 
   // Privacy
   incognitoMode: boolean
@@ -159,8 +162,10 @@ export const useAppStore = create<AppState>()(
 
       theme: 'dark',
       amoledBlack: false,
+      accent: 'red',
       setTheme: (val) => set({ theme: val }),
       setAmoledBlack: (val) => set({ amoledBlack: val }),
+      setAccent: (val) => set({ accent: val }),
 
       incognitoMode: false,
       setIncognitoMode: (val) => set({ incognitoMode: val }),
@@ -203,6 +208,7 @@ export const useAppStore = create<AppState>()(
         tapZoneLayout: state.tapZoneLayout,
         theme: state.theme,
         amoledBlack: state.amoledBlack,
+        accent: state.accent,
         hapticFeedback: state.hapticFeedback,
         gridColumns: state.gridColumns,
         webtoonSidePadding: state.webtoonSidePadding,

@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useCallback } from 'react'
+import React, { useEffect, useRef, useCallback, lazy, Suspense } from 'react'
 import { useAppStore } from './lib/store'
 import {
   Library, Search, Globe, BarChart2, HelpCircle, Clock, Bell,
-  LogIn, Download, Settings, ExternalLink,
+  LogIn, UserPlus, Download, Settings, ExternalLink, Loader2, Sparkles,
 } from 'lucide-react'
 import { Routes, Route, Link, useLocation, useNavigate, Navigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -15,34 +15,44 @@ import { syncMetaOverridesFromCloud } from './lib/metaOverrides'
 import { ExtensionManager } from './lib/extensions'
 import LandingPage from './pages/Landing'
 import MorePage from './pages/More'
+import Dashboard from './pages/Dashboard'
 import SplashScreen from './components/SplashScreen'
 import { Titlebar } from './components/Titlebar'
 import { supabase } from './lib/supabase'
 import type { Session } from '@supabase/supabase-js'
-
-import Dashboard from './pages/Dashboard'
-import SearchPage from './pages/Search'
-import DownloadsPage from './pages/Downloads'
-import SettingsLayout from './pages/Settings'
-import SettingsGeneral from './pages/Settings/General'
-import SettingsReader from './pages/Settings/Reader'
-import SettingsLibrary from './pages/Settings/Library'
-import SettingsTrackers from './pages/Settings/Trackers'
-import SettingsSystem from './pages/Settings/System'
-import StatsPage from './pages/Stats'
-import MangaDetail from './pages/MangaDetail'
-import Reader from './pages/Reader'
-import SourcesPage from './pages/Sources'
-import DownloadHub from './pages/DownloadHub'
-import LoginPage from './pages/Login'
-import RegisterPage from './pages/Register'
-import TermsPage from './pages/Terms'
-import HelpPage from './pages/Help'
-import HistoryPage from './pages/History'
-import UpdatesPage from './pages/Updates'
-import OnboardingPage from './pages/Onboarding'
-import ProfilePage from './pages/Profile'
 import { RawStaticViewer } from './components/RawStaticViewer'
+
+// Lazy-loaded page chunks
+const SearchPage = lazy(() => import('./pages/Search'))
+const DownloadsPage = lazy(() => import('./pages/Downloads'))
+const SettingsLayout = lazy(() => import('./pages/Settings'))
+const SettingsGeneral = lazy(() => import('./pages/Settings/General'))
+const SettingsReader = lazy(() => import('./pages/Settings/Reader'))
+const SettingsLibrary = lazy(() => import('./pages/Settings/Library'))
+const SettingsTrackers = lazy(() => import('./pages/Settings/Trackers'))
+const SettingsSystem = lazy(() => import('./pages/Settings/System'))
+const StatsPage = lazy(() => import('./pages/Stats'))
+const MangaDetail = lazy(() => import('./pages/MangaDetail'))
+const Reader = lazy(() => import('./pages/Reader'))
+const SourcesPage = lazy(() => import('./pages/Sources'))
+const DownloadHub = lazy(() => import('./pages/DownloadHub'))
+const LoginPage = lazy(() => import('./pages/Login'))
+const RegisterPage = lazy(() => import('./pages/Register'))
+const TermsPage = lazy(() => import('./pages/Terms'))
+const HelpPage = lazy(() => import('./pages/Help'))
+const HistoryPage = lazy(() => import('./pages/History'))
+const UpdatesPage = lazy(() => import('./pages/Updates'))
+const OnboardingPage = lazy(() => import('./pages/Onboarding'))
+const ProfilePage = lazy(() => import('./pages/Profile'))
+
+function PageLoader() {
+  return (
+    <div className="min-h-[50vh] flex flex-col items-center justify-center gap-3">
+      <Loader2 className="w-7 h-7 animate-spin" style={{ color: 'var(--accent)' }} />
+      <span className="text-xs font-bold uppercase tracking-widest text-white/30">Loading...</span>
+    </div>
+  )
+}
 
 function useGlobalNotifications() {
   const wsRef = useRef<WebSocket | null>(null)
@@ -101,14 +111,6 @@ const SIDEBAR_ITEMS = [
   { icon: Settings,  label: 'Settings',  path: '/settings' },
 ]
 
-const BOTTOM_NAV_ITEMS = [
-  { icon: Library,  label: 'Library',   path: '/r' },
-  { icon: Search,   label: 'Search',    path: '/search' },
-  { icon: Bell,     label: 'Updates',   path: '/updates' },
-  { icon: Download, label: 'Downloads', path: '/downloads' },
-  { icon: Settings, label: 'Settings',  path: '/settings' },
-]
-
 // ── Sidebar ──────────────────────────────────────────────────
 function Sidebar({ session, onSignOut, isTauri }: {
   session: Session | null
@@ -147,6 +149,33 @@ function Sidebar({ session, onSignOut, isTauri }: {
             </Link>
           )
         })}
+
+        {!isTauri && (
+          <div className="mt-auto pt-3 px-1 pb-1">
+            <Link
+              to="/download"
+              className="group relative flex flex-col gap-2 p-3 rounded-2xl border transition-all overflow-hidden"
+              style={{
+                borderColor: 'rgba(220,38,38,0.3)',
+                background: 'linear-gradient(135deg, rgba(220,38,38,0.12) 0%, rgba(10,10,10,0.4) 100%)',
+              }}
+            >
+              <div className="flex items-center justify-between">
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-red-500">
+                  <Sparkles className="w-3 h-3" />
+                  Native Apps
+                </span>
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              </div>
+              <div className="text-xs font-black text-white group-hover:text-red-400 transition-colors">
+                Get Desktop & Mobile App
+              </div>
+              <p className="text-[11px] text-zinc-400 leading-tight">
+                Windows, macOS, Linux & Android
+              </p>
+            </Link>
+          </div>
+        )}
       </nav>
 
       {/* Bottom — theme toggle + user */}
@@ -187,16 +216,28 @@ function Sidebar({ session, onSignOut, isTauri }: {
             </button>
           </>
         ) : (
-          <Link
-            to="/login"
-            className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-bold transition-all"
-            style={{ color: 'var(--muted1)' }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-hover)')}
-            onMouseLeave={e => (e.currentTarget.style.background = '')}
-          >
-            <LogIn className="w-4 h-4 shrink-0" />
-            Sign in
-          </Link>
+          <div className="flex flex-col gap-1">
+            <Link
+              to="/login"
+              className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] font-bold transition-all"
+              style={{ color: 'var(--muted1)' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-hover)')}
+              onMouseLeave={e => (e.currentTarget.style.background = '')}
+            >
+              <LogIn className="w-4 h-4 shrink-0" />
+              Sign in
+            </Link>
+            <Link
+              to="/register"
+              className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] font-bold transition-all"
+              style={{ color: '#ef4444', background: 'rgba(239,68,68,0.08)' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.16)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.08)')}
+            >
+              <UserPlus className="w-4 h-4 shrink-0" />
+              Sign up
+            </Link>
+          </div>
         )}
 
         <Link
@@ -243,6 +284,14 @@ function Sidebar({ session, onSignOut, isTauri }: {
 function BottomNav() {
   const location = useLocation()
 
+  const navItems = [
+    { icon: Library, label: 'Library', path: '/r' },
+    { icon: Search, label: 'Search', path: '/search' },
+    { icon: Clock, label: 'History', path: '/history' },
+    { icon: Bell, label: 'Updates', path: '/updates' },
+    { icon: Settings, label: 'Settings', path: '/settings' },
+  ]
+
   return (
     <nav
       className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex"
@@ -254,12 +303,12 @@ function BottomNav() {
         padding: '8px 8px calc(8px + env(safe-area-inset-bottom))',
       }}
     >
-      {BOTTOM_NAV_ITEMS.map((item) => {
+      {navItems.map((item) => {
         const active = location.pathname === item.path ||
           (item.path === '/settings' && location.pathname.startsWith('/settings'))
         return (
           <Link
-            key={item.path}
+            key={item.label}
             to={item.path}
             className="flex flex-col items-center gap-0.5 flex-1 py-1"
             style={{ color: active ? 'var(--accent-light)' : 'var(--muted3)' }}
@@ -281,7 +330,7 @@ function App() {
   }
 
   const navigate = useNavigate()
-  const { theme, amoledBlack, syncWifiOnly, syncChargingOnly, appLockEnabled } = useAppStore()
+  const { theme, amoledBlack, accent, syncWifiOnly, syncChargingOnly, appLockEnabled } = useAppStore()
   const [locked, setLocked] = React.useState(false)
   const [session, setSession] = React.useState<Session | null>(null)
   const [loadingSession, setLoadingSession] = React.useState(true)
@@ -368,6 +417,14 @@ function App() {
   useEffect(() => {
     document.documentElement.classList.toggle('amoled', amoledBlack)
   }, [amoledBlack])
+
+  useEffect(() => {
+    if (accent === 'red') {
+      document.documentElement.removeAttribute('data-accent')
+    } else {
+      document.documentElement.setAttribute('data-accent', accent)
+    }
+  }, [accent])
 
   const isAuthenticatingRef = useRef(false)
   const isUnlockedRef = useRef(false)
@@ -490,13 +547,15 @@ function App() {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.08 }}
             >
-              <Routes location={location}>
-                <Route path="/" element={<LandingPage />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/register" element={<RegisterPage />} />
-                <Route path="/terms" element={<TermsPage />} />
-                <Route path="/onboarding" element={<OnboardingPage />} />
-              </Routes>
+              <Suspense fallback={<PageLoader />}>
+                <Routes location={location}>
+                  <Route path="/" element={<LandingPage />} />
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/register" element={<RegisterPage />} />
+                  <Route path="/terms" element={<TermsPage />} />
+                  <Route path="/onboarding" element={<OnboardingPage />} />
+                </Routes>
+              </Suspense>
             </motion.div>
           </AnimatePresence>
         </div>
@@ -523,33 +582,40 @@ function App() {
             transition={{ duration: 0.08 }}
             className="h-full"
           >
-            <Routes location={location}>
-              <Route path="/r" element={<Dashboard />} />
-              <Route path="/more" element={<MorePage />} />
-              <Route path="/search" element={<SearchPage />} />
-              <Route path="/stats" element={<StatsPage />} />
-              <Route path="/sources" element={<SourcesPage />} />
-              <Route path="/download" element={<DownloadHub />} />
-              <Route path="/downloads" element={<DownloadsPage />} />
-              <Route path="/settings" element={<SettingsLayout />}>
-                <Route index element={<Navigate to="general" replace />} />
-                <Route path="general" element={<SettingsGeneral />} />
-                <Route path="reader" element={<SettingsReader />} />
-                <Route path="library" element={<SettingsLibrary />} />
-                <Route path="trackers" element={<SettingsTrackers />} />
-                <Route path="system" element={<SettingsSystem />} />
-              </Route>
-              <Route path="/manga/:provider/*" element={<MangaDetail />} />
-              <Route path="/read/:mangaTitle/:filename" element={<Reader />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
-              <Route path="/terms" element={<TermsPage />} />
-              <Route path="/help" element={<HelpPage />} />
-              <Route path="/history" element={<HistoryPage />} />
-              <Route path="/updates" element={<UpdatesPage />} />
-              <Route path="/onboarding" element={<OnboardingPage />} />
-              <Route path="/profile/:userId" element={<ProfilePage />} />
-            </Routes>
+            <Suspense fallback={<PageLoader />}>
+              <Routes location={location}>
+                <Route path="/r" element={<Dashboard />} />
+                <Route path="/more" element={<MorePage />} />
+                <Route path="/search" element={<SearchPage />} />
+                <Route path="/stats" element={<StatsPage />} />
+                <Route path="/sources" element={<SourcesPage />} />
+                <Route path="/download" element={<DownloadHub />} />
+                <Route path="/download-app" element={<DownloadHub />} />
+                <Route path="/download-hub" element={<DownloadHub />} />
+                <Route path="/downloads" element={<DownloadsPage />} />
+                <Route path="/settings" element={<SettingsLayout />}>
+                  <Route index element={<Navigate to="profile" replace />} />
+                  <Route path="profile" element={<ProfilePage />} />
+                  <Route path="general" element={<SettingsGeneral />} />
+                  <Route path="reader" element={<SettingsReader />} />
+                  <Route path="library" element={<SettingsLibrary />} />
+                  <Route path="trackers" element={<SettingsTrackers />} />
+                  <Route path="system" element={<SettingsSystem />} />
+                </Route>
+                <Route path="/manga/:provider/*" element={<MangaDetail />} />
+                <Route path="/read/:mangaTitle/:filename" element={<Reader />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<RegisterPage />} />
+                <Route path="/terms" element={<TermsPage />} />
+                <Route path="/help" element={<HelpPage />} />
+                <Route path="/history" element={<HistoryPage />} />
+                <Route path="/updates" element={<UpdatesPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/profile/:userId" element={<ProfilePage />} />
+                <Route path="/static-viewer" element={<RawStaticViewer path="/sitemap.xml" />} />
+                <Route path="*" element={<Navigate to="/r" replace />} />
+              </Routes>
+            </Suspense>
           </motion.div>
         </AnimatePresence>
       </main>

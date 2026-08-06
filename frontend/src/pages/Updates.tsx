@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import api from '../lib/api'
 import { useMangaUpdates } from '../lib/queries'
 import { motion } from 'framer-motion'
-import { Bell, Play, Download, Loader2, RefreshCw } from 'lucide-react'
+import { Bell, Download, Loader2, RefreshCw } from 'lucide-react'
 import { cn } from '../lib/utils'
-import { buildSmartReadUrl } from '../lib/smartUrl'
+import { buildSmartReadUrl, buildSmartMangaUrl } from '../lib/smartUrl'
 
 interface UpdateEntry {
   manga_title: string
@@ -16,6 +16,17 @@ interface UpdateEntry {
   chapter_title: string
   chapter_number: number
   published_at: string | null
+}
+
+function dateBucket(iso: string | null): string {
+  if (!iso) return 'Earlier'
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return 'Earlier'
+  const days = Math.floor((Date.now() - d.getTime()) / 86400000)
+  if (days === 0) return 'Today'
+  if (days === 1) return 'Yesterday'
+  if (days < 7) return `${days} days ago`
+  return d.toLocaleDateString('en', { month: 'short', day: 'numeric' })
 }
 
 function timeAgo(iso: string | null): string {
@@ -29,6 +40,16 @@ function timeAgo(iso: string | null): string {
   if (days < 7) return `${days}d ago`
   if (days < 30) return `${Math.floor(days / 7)}w ago`
   return d.toLocaleDateString('en', { month: 'short', day: 'numeric' })
+}
+
+const BUCKET_ORDER_FN = (a: string, b: string) => {
+  const order = ['Today', 'Yesterday']
+  const ai = order.indexOf(a)
+  const bi = order.indexOf(b)
+  if (ai !== -1 && bi !== -1) return ai - bi
+  if (ai !== -1) return -1
+  if (bi !== -1) return 1
+  return a.localeCompare(b)
 }
 
 export default function UpdatesPage() {
@@ -58,12 +79,14 @@ export default function UpdatesPage() {
     navigate(targetUrl)
   }
 
-  // Group by manga title
-  const grouped = updates.reduce<Record<string, UpdateEntry[]>>((acc, u) => {
-    if (!acc[u.manga_title]) acc[u.manga_title] = []
-    acc[u.manga_title].push(u)
-    return acc
-  }, {})
+  // Group by date bucket instead of manga title
+  const grouped: Record<string, UpdateEntry[]> = {}
+  for (const u of updates) {
+    const bucket = dateBucket(u.published_at)
+    if (!grouped[bucket]) grouped[bucket] = []
+    grouped[bucket].push(u)
+  }
+  const buckets = Object.keys(grouped).sort(BUCKET_ORDER_FN)
 
   return (
     <div className="min-h-full flex flex-col">
@@ -84,7 +107,7 @@ export default function UpdatesPage() {
         </button>
       </header>
 
-      <div className="px-4 md:px-6 pt-4 pb-28 flex-1 max-w-2xl">
+      <div className="px-4 md:px-6 pt-4 pb-28 flex-1" style={{ maxWidth: 720 }}>
         {loading ? (
           <div className="flex justify-center py-20">
             <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--accent)' }} />
@@ -99,56 +122,64 @@ export default function UpdatesPage() {
             <button onClick={() => navigate('/search')} className="btn-primary" style={{ marginTop: 8 }}>Find Manga</button>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-            {Object.entries(grouped).map(([title, chapters], gi) => (
-              <motion.section
-                key={title}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            {buckets.map((bucket, bi) => (
+              <motion.div
+                key={bucket}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: gi * 0.04 }}
+                transition={{ delay: bi * 0.04 }}
               >
-                <button
-                  onClick={() => { const ch = chapters[0]; navigate(`/manga/${ch.provider}/${ch.manga_id}`) }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10, background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left', width: '100%' }}
-                >
-                  {chapters[0].cover_url ? (
-                    <img
-                      src={`${api.defaults.baseURL || ''}/manga/image-proxy?url=${encodeURIComponent(chapters[0].cover_url)}&api_key=${localStorage.getItem('manga-api-key') || ''}`}
-                      alt={title}
-                      style={{ width: 44, height: 62, objectFit: 'cover', borderRadius: 8, flexShrink: 0, border: '1px solid var(--border)' }}
-                    />
-                  ) : (
-                    <div style={{ width: 44, height: 62, borderRadius: 8, flexShrink: 0, background: 'var(--surface)', border: '1px solid var(--border)' }} />
-                  )}
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--fg)' }}>{title}</div>
-                    <div style={{ fontSize: 11, color: 'var(--muted3)', marginTop: 2 }}>{chapters.length} chapter{chapters.length !== 1 ? 's' : ''}</div>
-                  </div>
-                </button>
-
+                <div style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)', marginBottom: 10 }}>
+                  {bucket}
+                </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {chapters.map((ch) => {
+                  {grouped[bucket].map((ch) => {
                     const key = `${ch.provider}-${ch.chapter_id}`
+                    const isDone = downloading.has(key)
                     return (
                       <div
-                        key={ch.chapter_id}
-                        style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 12, background: 'var(--surface)', border: '1px solid var(--border)' }}
+                        key={`${ch.provider}-${ch.chapter_id}`}
+                        style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 14, background: 'var(--surface)', border: '1px solid var(--border)' }}
                       >
+                        {ch.cover_url ? (
+                          <img
+                            src={`${api.defaults.baseURL || ''}/manga/image-proxy?url=${encodeURIComponent(ch.cover_url)}&api_key=${localStorage.getItem('manga-api-key') || ''}`}
+                            alt={ch.manga_title}
+                            style={{ width: 48, height: 64, objectFit: 'cover', borderRadius: 8, flexShrink: 0, border: '1px solid var(--border)' }}
+                          />
+                        ) : (
+                          <div style={{ width: 48, height: 64, borderRadius: 8, flexShrink: 0, background: 'var(--surface-hover)', border: '1px solid var(--border)' }} />
+                        )}
+
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ch.chapter_title}</div>
+                          <button
+                            onClick={() => navigate(buildSmartMangaUrl(ch.provider, ch.manga_id, ch.manga_title))}
+                            style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                          >
+                            <div style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ch.manga_title}</div>
+                          </button>
+                          <div style={{ fontSize: 12, color: 'var(--muted2)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ch.chapter_title}</div>
                           {ch.published_at && (
-                            <div style={{ fontSize: 11, color: 'var(--muted3)', marginTop: 2 }}>{timeAgo(ch.published_at)}</div>
+                            <div style={{ fontSize: 11, color: 'var(--accent)', marginTop: 3, fontWeight: 600 }}>{timeAgo(ch.published_at)}</div>
                           )}
                         </div>
+
                         <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                          <button onClick={() => handleReadOnline(ch)} title="Read online" className="icon-btn" style={{ width: 34, height: 34, borderRadius: 10, color: 'var(--accent)' }}>
-                            <Play className="w-3.5 h-3.5" />
+                          <button
+                            onClick={() => handleReadOnline(ch)}
+                            className="btn-primary"
+                            style={{ padding: '6px 14px', fontSize: 12, fontWeight: 700, borderRadius: 10, height: 34 }}
+                          >
+                            Read
                           </button>
                           <button
                             onClick={() => handleDownload(ch)}
                             title="Download"
                             className="icon-btn"
-                            style={downloading.has(key) ? { width: 34, height: 34, borderRadius: 10, color: 'rgb(74,222,128)', borderColor: 'rgba(74,222,128,0.3)' } : { width: 34, height: 34, borderRadius: 10 }}
+                            style={isDone
+                              ? { width: 34, height: 34, borderRadius: 10, color: 'rgb(74,222,128)', borderColor: 'rgba(74,222,128,0.3)' }
+                              : { width: 34, height: 34, borderRadius: 10 }}
                           >
                             <Download className="w-3.5 h-3.5" />
                           </button>
@@ -157,7 +188,7 @@ export default function UpdatesPage() {
                     )
                   })}
                 </div>
-              </motion.section>
+              </motion.div>
             ))}
           </div>
         )}

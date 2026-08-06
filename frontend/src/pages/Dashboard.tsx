@@ -33,7 +33,7 @@ export default function Dashboard() {
 
   const gridStyle = view === 'grid' ? {
     display: 'grid' as const,
-    gridTemplateColumns: `repeat(auto-fill, minmax(${density === 'large' ? 140 : 100}px, 1fr))`,
+    gridTemplateColumns: `repeat(auto-fill, minmax(${density === 'large' ? 160 : 110}px, 1fr))`,
     gap: density === 'large' ? 18 : 10,
   } : undefined
 
@@ -95,6 +95,7 @@ export default function Dashboard() {
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
+            className="glass-card"
             style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '48px 24px', maxWidth: 360, margin: '48px auto 0' }}
           >
             <div style={{ width: 64, height: 64, borderRadius: 20, background: 'var(--surface)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
@@ -102,22 +103,18 @@ export default function Dashboard() {
             </div>
             <h2 style={{ fontSize: 16, fontWeight: 800, color: 'var(--fg)', margin: '0 0 8px' }}>No manga in this category</h2>
             <p style={{ fontSize: 12.5, color: 'var(--muted2)', lineHeight: 1.6, margin: '0 0 24px' }}>
-              {isAdmin
-                ? 'Search the catalog or upload local archives to get started.'
-                : 'Browse the catalog to find something to read.'}
+              Search the catalog or upload local archives (.zip, .cbz, .epub) to get started.
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
               <button onClick={() => navigate('/search')} className="btn-primary" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 12 }}>
                 <Sparkles style={{ width: 14, height: 14 }} />
                 Browse Catalog
               </button>
-              {isAdmin && (
-                <label className="btn-secondary" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', fontSize: 12 }}>
-                  <input type="file" className="hidden" accept=".zip,.cbz,.epub" onChange={handleUpload} />
-                  <Upload style={{ width: 14, height: 14 }} />
-                  Upload File
-                </label>
-              )}
+              <label className="btn-secondary" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', fontSize: 12 }}>
+                <input type="file" className="hidden" accept=".zip,.cbz,.epub" onChange={handleUpload} />
+                <Upload style={{ width: 14, height: 14 }} />
+                Upload Local Archive (.zip, .cbz)
+              </label>
             </div>
           </motion.div>
         ) : (

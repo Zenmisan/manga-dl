@@ -7,6 +7,12 @@ import api, { resolveBaseURL } from '../lib/api'
 const STEPS = ['welcome', 'backend', 'done'] as const
 type Step = typeof STEPS[number]
 
+const INPUT_STYLE: React.CSSProperties = {
+  width: '100%', padding: '12px 14px', borderRadius: 12,
+  border: '1px solid var(--border)', background: 'var(--bg)',
+  fontSize: 14, color: 'var(--fg)', outline: 'none', boxSizing: 'border-box',
+}
+
 export default function OnboardingPage() {
   const navigate = useNavigate()
   const [step, setStep] = useState<Step>('welcome')
@@ -18,39 +24,21 @@ export default function OnboardingPage() {
   const handleConnect = async () => {
     setTestingConnection(true)
     setConnectionError(null)
-
-    // Save immediately so a cold-start timeout doesn't block setup
     localStorage.setItem('manga-api-key', apiKey || 'mgdl-creator')
-    if (backendUrl.trim()) {
-      localStorage.setItem('manga-backend-url', backendUrl.trim())
-    } else {
-      localStorage.removeItem('manga-backend-url')
-    }
+    if (backendUrl.trim()) localStorage.setItem('manga-backend-url', backendUrl.trim())
+    else localStorage.removeItem('manga-backend-url')
     api.defaults.baseURL = resolveBaseURL()
-
     try {
       const controller = new AbortController()
       const timeout = setTimeout(() => controller.abort(), 10000)
-      const res = await fetch(`${resolveBaseURL()}/sources/builtins?api_key=${apiKey || 'mgdl-creator'}`, {
-        signal: controller.signal,
-      })
+      const res = await fetch(`${resolveBaseURL()}/sources/builtins?api_key=${apiKey || 'mgdl-creator'}`, { signal: controller.signal })
       clearTimeout(timeout)
-      if (res.ok) {
-        setStep('done')
-      } else if (res.status === 403) {
-        setConnectionError('API key rejected (403). Check your key — settings saved.')
-      } else {
-        setConnectionError(`Backend returned ${res.status}. Check the URL — settings saved.`)
-      }
+      if (res.ok) setStep('done')
+      else if (res.status === 403) setConnectionError('API key rejected (403). Check your key — settings saved.')
+      else setConnectionError(`Backend returned ${res.status}. Check the URL — settings saved.`)
     } catch (err) {
-      const isTimeout = err instanceof Error && err.name === 'AbortError'
-      // Still advance — Render cold starts can take up to 60s
-      if (isTimeout) {
-        setStep('done')
-      } else {
-        setConnectionError('Backend unreachable. Settings saved — it may still be starting up.')
-        setStep('done')
-      }
+      if (err instanceof Error && err.name === 'AbortError') setStep('done')
+      else { setConnectionError('Backend unreachable. Settings saved — it may still be starting up.'); setStep('done') }
     } finally {
       setTestingConnection(false)
     }
@@ -58,130 +46,94 @@ export default function OnboardingPage() {
 
   const finish = () => {
     localStorage.setItem('onboarded', '1')
-    
     const params = new URLSearchParams(window.location.search)
     const redirectTo = params.get('redirect')
-    if (redirectTo) {
-      navigate(redirectTo, { replace: true })
-    } else {
-      navigate('/', { replace: true })
-    }
+    navigate(redirectTo || '/', { replace: true })
   }
 
   const stepIdx = STEPS.indexOf(step)
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-white flex flex-col items-center justify-center p-4 sm:p-6">
-      {/* Progress dots */}
-      <div className="flex gap-2 mb-8 sm:mb-12">
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 16px', position: 'relative', overflow: 'hidden' }}>
+      <div style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%,-50%)', width: 600, height: 600, background: 'radial-gradient(circle, rgba(220,38,38,0.07) 0%, transparent 70%)', pointerEvents: 'none' }} />
+
+      {/* Progress */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 40 }}>
         {STEPS.map((s, i) => (
-          <div key={s} className={`h-1.5 rounded-full transition-all duration-300 ${i <= stepIdx ? 'w-8 bg-red-500' : 'w-4 bg-white/10'}`} />
+          <div key={s} style={{ height: 4, borderRadius: 2, background: i <= stepIdx ? '#dc2626' : 'var(--surface-hover)', width: i <= stepIdx ? 32 : 16, transition: 'all 0.3s' }} />
         ))}
       </div>
 
       <AnimatePresence mode="wait">
         {step === 'welcome' && (
           <motion.div key="welcome" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -24 }}
-            className="max-w-md w-full text-center"
-          >
-            <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-6 sm:mb-8 flex items-center justify-center">
-              <img src="/Manga-dl1.png" alt="manga-dl logo" className="w-full h-full object-contain drop-shadow-[0_0_15px_rgba(220,38,38,0.3)]" />
+            style={{ maxWidth: 400, width: '100%', textAlign: 'center' }}>
+            <div style={{ width: 80, height: 80, margin: '0 auto 28px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <img src="/Manga-dl1.png" alt="manga-dl" style={{ width: '100%', height: '100%', objectFit: 'contain', filter: 'drop-shadow(0 0 16px rgba(220,38,38,0.3))' }} />
             </div>
-            <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight mb-3 sm:mb-4">Welcome to manga-dl</h1>
-            <p className="text-white/50 mb-8 sm:mb-10 text-xs sm:text-sm leading-relaxed">
+            <h1 className="page-title" style={{ fontSize: 30, marginBottom: 12 }}>Welcome to manga-dl</h1>
+            <p style={{ fontSize: 13, color: 'var(--muted2)', marginBottom: 32, lineHeight: 1.7, maxWidth: 320, margin: '0 auto 32px' }}>
               Your cloud-connected manga reader. Search, download, and read across 500+ sources — on web, desktop, and mobile.
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 mb-10">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 32 }}>
               {[
                 { icon: Book, label: 'Library', desc: 'Cloud + local' },
                 { icon: Sparkles, label: 'AI Upscale', desc: 'Sharper pages' },
-                { icon: Server, label: 'Self-hostable', desc: 'Your server' },
+                { icon: Server, label: 'Self-host', desc: 'Your server' },
               ].map(item => (
-                <div key={item.label} className="p-4 bg-white/5 rounded-2xl border border-white/5 text-center">
-                  <item.icon className="w-6 h-6 text-red-400 mx-auto mb-2" />
-                  <p className="text-xs font-bold text-white/80">{item.label}</p>
-                  <p className="text-[10px] text-white/30">{item.desc}</p>
+                <div key={item.label} style={{ padding: '14px 10px', borderRadius: 16, border: '1px solid var(--border)', background: 'var(--surface)', textAlign: 'center' }}>
+                  <item.icon style={{ width: 20, height: 20, color: '#ef4444', margin: '0 auto 8px' }} />
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--fg)' }}>{item.label}</div>
+                  <div style={{ fontSize: 10, color: 'var(--muted3)', marginTop: 2 }}>{item.desc}</div>
                 </div>
               ))}
             </div>
-            <button onClick={() => setStep('backend')}
-              className="w-full btn-primary flex items-center justify-center gap-2 py-4 text-base font-bold"
-            >
-              Get Started <ChevronRight className="w-5 h-5" />
+            <button onClick={() => setStep('backend')} className="btn-primary"
+              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px 0', fontSize: 14, boxShadow: '0 4px 24px rgba(220,38,38,0.25)' }}>
+              Get Started <ChevronRight style={{ width: 18, height: 18 }} />
             </button>
           </motion.div>
         )}
 
         {step === 'backend' && (
           <motion.div key="backend" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -24 }}
-            className="max-w-md w-full"
-          >
-            <div className="w-14 h-14 bg-blue-500/10 rounded-2xl flex items-center justify-center mb-6 border border-blue-500/20">
-              <Server className="w-7 h-7 text-blue-400" />
+            style={{ maxWidth: 400, width: '100%' }}>
+            <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
+              <Server style={{ width: 24, height: 24, color: 'rgb(56,189,248)' }} />
             </div>
-            <h2 className="text-2xl font-extrabold tracking-tight mb-2">Connect to backend</h2>
-            <p className="text-white/40 mb-8 text-sm">The app needs an API key to talk to the server. The default key works for the hosted version.</p>
+            <h2 className="page-title" style={{ fontSize: 24, marginBottom: 8 }}>Connect to backend</h2>
+            <p style={{ fontSize: 13, color: 'var(--muted2)', marginBottom: 28, lineHeight: 1.6 }}>
+              The app needs an API key to talk to the server. The default key works for the hosted version.
+            </p>
 
-            <div className="space-y-5">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
-                <label className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-white/30 mb-2">
-                  <Key className="w-3.5 h-3.5" /> API Key
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)', marginBottom: 8 }}>
+                  <Key style={{ width: 12, height: 12 }} /> API Key
                 </label>
-                <input
-                  type="text"
-                  value={apiKey}
-                  onChange={e => setApiKey(e.target.value)}
-                  placeholder="mgdl-creator"
-                  className="w-full bg-black/40 border border-white/10 rounded-xl px-5 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all text-white placeholder:text-white/20"
-                />
-                <p className="mt-1.5 text-[10px] text-white/20">Default: <span className="font-mono text-white/40">mgdl-creator</span></p>
+                <input type="text" value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="mgdl-creator" style={INPUT_STYLE} />
+                <p style={{ marginTop: 6, fontSize: 11, color: 'var(--muted3)' }}>Default: <span style={{ fontFamily: 'monospace', color: 'var(--muted2)' }}>mgdl-creator</span></p>
               </div>
-
               <div>
-                <label className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-white/30 mb-2">
-                  <Server className="w-3.5 h-3.5" /> Custom Backend URL <span className="text-white/20 normal-case font-normal">(optional)</span>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)', marginBottom: 8 }}>
+                  <Server style={{ width: 12, height: 12 }} /> Custom Backend URL <span style={{ color: 'var(--muted3)', fontWeight: 400, textTransform: 'none' }}>(optional)</span>
                 </label>
-                <input
-                  type="text"
-                  value={backendUrl}
-                  onChange={e => setBackendUrl(e.target.value)}
-                  placeholder="https://your-server.example.com"
-                  className="w-full bg-black/40 border border-white/10 rounded-xl px-5 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all text-white placeholder:text-white/20"
-                />
-                <p className="mt-1.5 text-[10px] text-white/20">Leave empty to use the default cloud backend</p>
+                <input type="text" value={backendUrl} onChange={e => setBackendUrl(e.target.value)} placeholder="https://your-server.example.com" style={INPUT_STYLE} />
+                <p style={{ marginTop: 6, fontSize: 11, color: 'var(--muted3)' }}>Leave empty to use the default cloud backend</p>
               </div>
             </div>
 
             {connectionError && (
-              <p className="mt-4 text-xs font-semibold text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-2.5">
+              <div style={{ marginTop: 16, padding: '10px 14px', borderRadius: 10, background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.2)', fontSize: 12, color: '#f87171' }}>
                 {connectionError}
-              </p>
+              </div>
             )}
 
-            <div className="flex gap-3 mt-8">
-              <button
-                onClick={() => setStep('welcome')}
-                disabled={testingConnection}
-                className="flex-1 py-3 bg-white/5 border border-white/10 rounded-xl font-bold text-sm text-white/40 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Back
-              </button>
-              <button
-                onClick={handleConnect}
-                disabled={testingConnection}
-                className="flex-1 btn-primary flex items-center justify-center gap-2 py-3 font-bold disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {testingConnection ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Connecting...
-                  </>
-                ) : (
-                  <>
-                    Continue
-                    <ChevronRight className="w-4 h-4" />
-                  </>
-                )}
+            <div style={{ display: 'flex', gap: 10, marginTop: 28 }}>
+              <button onClick={() => setStep('welcome')} disabled={testingConnection} className="btn-secondary" style={{ flex: 1 }}>Back</button>
+              <button onClick={handleConnect} disabled={testingConnection} className="btn-primary"
+                style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                {testingConnection ? <><Loader2 style={{ width: 15, height: 15 }} className="animate-spin" /> Connecting…</> : <>Continue <ChevronRight style={{ width: 15, height: 15 }} /></>}
               </button>
             </div>
           </motion.div>
@@ -189,17 +141,17 @@ export default function OnboardingPage() {
 
         {step === 'done' && (
           <motion.div key="done" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
-            className="max-w-md w-full text-center"
-          >
-            <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center border border-emerald-500/20 mx-auto mb-8">
-              <Check className="w-10 h-10 text-emerald-400" />
+            style={{ maxWidth: 400, width: '100%', textAlign: 'center' }}>
+            <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 28px' }}>
+              <Check style={{ width: 36, height: 36, color: 'rgb(74,222,128)' }} />
             </div>
-            <h2 className="text-3xl font-extrabold tracking-tight mb-4">You're all set!</h2>
-            <p className="text-white/40 mb-10">Search for manga, subscribe to series, download chapters and read anywhere.</p>
-            <button onClick={finish}
-              className="w-full btn-primary flex items-center justify-center gap-2 py-4 text-base font-bold"
-            >
-              Open Library <ChevronRight className="w-5 h-5" />
+            <h2 className="page-title" style={{ fontSize: 28, marginBottom: 12 }}>You're all set!</h2>
+            <p style={{ fontSize: 13, color: 'var(--muted2)', marginBottom: 36, lineHeight: 1.6 }}>
+              Search for manga, subscribe to series, download chapters and read anywhere.
+            </p>
+            <button onClick={finish} className="btn-primary"
+              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px 0', fontSize: 14, boxShadow: '0 4px 24px rgba(220,38,38,0.25)' }}>
+              Open Library <ChevronRight style={{ width: 18, height: 18 }} />
             </button>
           </motion.div>
         )}

@@ -82,7 +82,7 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#050505] text-[#fafafa]" style={{ fontFamily: "'Inter', sans-serif" }}>
+    <div className="min-h-screen text-[#fafafa]" style={{ background: 'var(--bg)', fontFamily: "'Inter', sans-serif" }}>
 
       {/* ── HERO ────────────────────────────────────────────── */}
       <section className="relative min-h-[100dvh] flex flex-col overflow-hidden">
@@ -92,7 +92,7 @@ export default function LandingPage() {
           <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse 90% 60% at 50% -10%, rgba(220,38,38,.28) 0%, transparent 65%)' }} />
           <div className="absolute inset-0" style={{ backgroundImage: GRID }} />
           <div className="absolute inset-0 opacity-[.035] mix-blend-overlay" style={{ backgroundImage: GRAIN, backgroundRepeat: 'repeat' }} />
-          <div className="absolute bottom-0 left-0 right-0 h-48" style={{ background: 'linear-gradient(to bottom, transparent, #050505)' }} />
+          <div className="absolute bottom-0 left-0 right-0 h-48" style={{ background: 'linear-gradient(to bottom, transparent, var(--bg))' }} />
         </div>
 
         {/* Nav */}
@@ -170,18 +170,18 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.65 }}
-            className="flex flex-col sm:flex-row items-center gap-3"
+            className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto max-w-xs sm:max-w-none"
           >
             <Link
               to="/r"
-              className="group flex items-center gap-2 px-8 py-4 bg-red-600 hover:bg-red-500 rounded-2xl font-black text-[.9375rem] transition-all shadow-xl shadow-red-600/25 hover:shadow-red-500/35 hover:-translate-y-0.5"
+              className="group flex items-center justify-center gap-2 w-full sm:w-auto px-8 py-4 bg-red-600 hover:bg-red-500 rounded-2xl font-black text-[.9375rem] transition-all shadow-xl shadow-red-600/25 hover:shadow-red-500/35 hover:-translate-y-0.5"
             >
               Start Reading
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Link>
             <Link
               to="/login"
-              className="flex items-center gap-2 px-8 py-4 rounded-2xl font-bold text-[.9375rem] border border-white/10 hover:border-white/20 bg-white/[.04] hover:bg-white/[.08] transition-all text-white/60 hover:text-white"
+              className="flex items-center justify-center gap-2 w-full sm:w-auto px-8 py-4 rounded-2xl font-bold text-[.9375rem] border border-white/10 hover:border-white/20 bg-white/[.04] hover:bg-white/[.08] transition-all text-white/60 hover:text-white"
             >
               Sign In
             </Link>

@@ -154,8 +154,31 @@ export function buildSmartReadUrl(
 }
 
 /**
- * Resolves legacy base64 string from smart URL parameters
+ * Generates a clean Smart Manga Detail URL.
+ * Example output: /manga/solo-leveling-as or /manga/eleceed-mk
  */
+export function buildSmartMangaUrl(
+  provider: string = 'manga',
+  mangaId: string = '',
+  mangaTitle: string = 'manga'
+): string {
+  if (!mangaTitle || mangaTitle === 'manga') {
+    return `/manga/${provider}/${encodeURIComponent(mangaId)}`
+  }
+
+  const smartSlug = createSmartSlug(mangaTitle, provider)
+  const meta = JSON.stringify({ provider, mangaId, title: mangaTitle })
+
+  if (typeof localStorage !== 'undefined') {
+    try {
+      localStorage.setItem(`smart-manga:${smartSlug}`, meta)
+      localStorage.setItem(`smart-manga:${provider}:${mangaId}`, smartSlug)
+    } catch { /* non-fatal */ }
+  }
+
+  return `/manga/${smartSlug}`
+}
+
 export function resolveSmartContext(smartSlug: string, chapterSlug: string, ctxQuery?: string | null): string | null {
   if (ctxQuery) return ctxQuery
 
@@ -163,6 +186,22 @@ export function resolveSmartContext(smartSlug: string, chapterSlug: string, ctxQ
     const cached = localStorage.getItem(`smart-ctx:${smartSlug}:${chapterSlug}`) ||
                    localStorage.getItem(`smart-ctx:${smartSlug}:latest`)
     if (cached) return cached
+  }
+
+  return null
+}
+
+/**
+ * Resolves a smart manga slug (e.g., 'eleceed-mk') to { provider, mangaId, title }
+ */
+export function resolveSmartManga(slug: string): { provider: string; mangaId: string; title?: string } | null {
+  if (!slug) return null
+
+  if (typeof localStorage !== 'undefined') {
+    try {
+      const raw = localStorage.getItem(`smart-manga:${slug}`)
+      if (raw) return JSON.parse(raw)
+    } catch { /* non-fatal */ }
   }
 
   return null

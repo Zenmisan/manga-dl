@@ -1,8 +1,7 @@
 import type React from 'react'
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { User, Tag, Clock, Info, Pencil, BookOpen } from 'lucide-react'
-import { cn } from '../../lib/utils'
+import { User, Tag, Clock, Info, BookOpen, ChevronDown, ChevronUp } from 'lucide-react'
 import api from '../../lib/api'
 import type { MangaDetail } from '../../hooks/useMangaDetail'
 
@@ -10,106 +9,104 @@ interface Props {
   manga: MangaDetail
   themeColor: string
   imgRef: React.RefObject<HTMLImageElement | null>
-  onOpenMetaEdit: () => void
 }
 
-export function MangaInfoCard({ manga, themeColor, imgRef, onOpenMetaEdit }: Props) {
+export function MangaInfoCard({ manga, themeColor, imgRef }: Props) {
   const [imgError, setImgError] = useState(false)
+  const [expanded, setExpanded] = useState(false)
   const proxyUrl = manga.cover_url
     ? `${api.defaults.baseURL || ''}/manga/image-proxy?url=${encodeURIComponent(manga.cover_url)}&api_key=${localStorage.getItem('manga-api-key') || ''}`
     : ''
 
+  const isLong = (manga.description?.length ?? 0) > 160
+
   return (
     <>
-      {/* Cover Art */}
-      <motion.div 
-        initial={{ opacity: 0, y: 40 }}
+      {/* Cover — overlaps hero banner */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-48 md:w-64 shrink-0 mx-auto md:mx-0 lg:mx-auto"
+        style={{ marginTop: -110, marginBottom: 16, display: 'flex', justifyContent: 'center' }}
       >
-        <div 
-          className="aspect-[3/4.5] glass-panel p-2 shadow-2xl transition-shadow duration-1000"
-          style={{ boxShadow: `0 25px 50px -12px ${themeColor}` }}
-        >
+        <div className="manga-cover" style={{ width: 140, borderRadius: 16, overflow: 'hidden', border: '1px solid var(--border)', boxShadow: `0 20px 40px -8px ${themeColor}55` }}>
           {proxyUrl && !imgError ? (
-            <img
-              ref={imgRef}
-              src={proxyUrl}
-              alt={manga.title}
-              className="w-full h-full object-cover rounded-xl"
-              onError={() => setImgError(true)}
-            />
+            <img ref={imgRef} src={proxyUrl} alt={manga.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={() => setImgError(true)} />
           ) : (
-            <div className="w-full h-full flex items-center justify-center bg-white/5 rounded-xl">
-              <BookOpen className="w-12 h-12 text-white/20" />
+            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface)' }}>
+              <BookOpen style={{ width: 32, height: 32, color: 'var(--muted3)' }} />
             </div>
           )}
         </div>
       </motion.div>
 
-      {/* Info Content */}
-      <div className="flex-1 space-y-6">
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.1 }}
-        >
-          <div className="flex items-center gap-3 mb-3">
-            <span 
-              className="px-3 py-1 text-xs font-black uppercase tracking-[0.2em] border rounded-lg transition-colors duration-1000"
-              style={{ backgroundColor: 'var(--theme-color)', color: '#fff', borderColor: 'var(--theme-color)', opacity: 0.8 }}
-            >
-              {manga.provider}
-            </span>
-            <div className="flex items-center gap-1.5">
-              <div className={cn(
-                "w-2 h-2 rounded-full",
-                manga.status === 'ongoing' ? 'bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.5)]' : 'bg-sky-400'
-              )} />
-              <span className="text-[11px] font-bold uppercase tracking-widest text-white/40">
-                {manga.status || 'unknown'}
-              </span>
-            </div>
+      {/* Info */}
+      <div style={{ flex: 1 }}>
+        {/* Source badge + status */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+          <span style={{ fontSize: 9, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', padding: '3px 8px', borderRadius: 6, background: `${themeColor}22`, border: `1px solid ${themeColor}44`, color: themeColor }}>
+            {manga.provider}
+          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <div style={{ width: 7, height: 7, borderRadius: '50%', background: manga.status === 'ongoing' ? 'rgb(52,211,153)' : 'rgb(56,189,248)' }} />
+            <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted3)' }}>{manga.status || 'unknown'}</span>
           </div>
+        </div>
 
-          <div className="flex items-start gap-3 mb-4">
-            <h1 className="text-xl sm:text-3xl md:text-6xl font-black tracking-tighter leading-tight text-white flex-1">
-              {manga.title}
-            </h1>
-            <button
-              onClick={onOpenMetaEdit}
-              title="Edit metadata"
-              className="mt-2 p-2 rounded-xl bg-white/5 border border-white/10 text-white/30 hover:text-white hover:bg-white/10 transition-all shrink-0"
-            >
-              <Pencil className="w-4 h-4" />
-            </button>
-          </div>
-          
-          <div className="flex flex-wrap gap-4 text-white/40 mb-8">
-            <div className="flex items-center gap-2">
-              <User className="w-4 h-4" />
-              <span className="text-sm font-medium">{manga.authors.join(', ') || 'Unknown Author'}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Tag className="w-4 h-4" />
-              <span className="text-sm font-medium">{manga.genres.slice(0, 3).join(', ')}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4" />
-              <span className="text-sm font-medium">{manga.chapters.length} Chapters</span>
-            </div>
-          </div>
+        {/* Title */}
+        <div style={{ marginBottom: 12 }}>
+          <h1 className="page-title" style={{ fontSize: 'clamp(22px, 5vw, 36px)', lineHeight: 1.1 }}>{manga.title}</h1>
+        </div>
 
-          <div className="glass-panel p-6 border-white/5 mb-4">
-            <h3 className="text-sm font-bold uppercase tracking-widest text-white/20 mb-3 flex items-center gap-2">
-              <Info className="w-4 h-4" />
-              Synopsis
-            </h3>
-            <p className="text-white/60 leading-relaxed line-clamp-4 md:line-clamp-none text-sm md:text-base font-medium">
-              {manga.description || 'No description available for this series.'}
+        {/* Stats row */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 16 }}>
+          {[
+            { icon: User, label: 'Author', val: manga.authors[0] || 'Unknown' },
+            { icon: Clock, label: 'Chapters', val: String(manga.chapters.length) },
+            { icon: Tag, label: 'Genre', val: manga.genres[0] || '—' },
+          ].map(({ icon: Icon, label, val }) => (
+            <div key={label} style={{ padding: '10px 12px', borderRadius: 14, border: '1px solid var(--border)', background: 'var(--surface)', textAlign: 'center' }}>
+              <Icon style={{ width: 14, height: 14, color: 'var(--muted3)', margin: '0 auto 4px' }} />
+              <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{val}</div>
+              <div style={{ fontSize: 9, fontWeight: 900, textTransform: 'uppercase', color: 'var(--muted3)', letterSpacing: '0.08em' }}>{label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Synopsis */}
+        {manga.description && (
+          <div style={{ padding: '14px 16px', borderRadius: 16, border: '1px solid var(--border)', background: 'var(--surface)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)', marginBottom: 8 }}>
+              <Info style={{ width: 12, height: 12 }} /> Synopsis
+            </div>
+            <p
+              style={{ fontSize: 13, color: 'var(--muted1)', lineHeight: 1.65, whiteSpace: 'pre-line' }}
+              className={!expanded && isLong ? 'line-clamp-4' : ''}
+            >
+              {manga.description}
             </p>
+            {isLong && (
+              <button
+                onClick={() => setExpanded(e => !e)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  marginTop: 10,
+                  fontSize: 11,
+                  fontWeight: 800,
+                  color: 'var(--accent)',
+                  cursor: 'pointer',
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                }}
+              >
+                <span>{expanded ? 'Show Less' : 'Read More'}</span>
+                {expanded ? <ChevronUp style={{ width: 13, height: 13 }} /> : <ChevronDown style={{ width: 13, height: 13 }} />}
+              </button>
+            )}
           </div>
-        </motion.div>
+        )}
       </div>
     </>
   )

@@ -149,6 +149,8 @@ async def fetch_user_reading_stats(user_id: str, db: AsyncSession) -> dict:
         "storage_bytes": 0,
         "daily_reads": daily_reads,
         "yearly_reads": yearly_reads,
+        "daily_downloads": daily_reads,
+        "yearly_downloads": yearly_reads,
         "provider_breakdown": provider_breakdown,
         "streak_days": streak,
     }

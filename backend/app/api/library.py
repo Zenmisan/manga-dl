@@ -55,7 +55,12 @@ async def _assert_admin(request: Request):
 @router.get("/", response_model=list[LibraryItem], include_in_schema=False)
 async def list_library(request: Request, db: AsyncSession = Depends(get_db)):
     """Fetch the library from the database. Show all series including in-progress downloads."""
-    email = await get_current_user_email(request)
+    settings = get_settings()
+    api_key = request.headers.get("X-API-Key") or request.query_params.get("api_key")
+    if settings.API_KEY and api_key == settings.API_KEY:
+        email = "zenmisan@gmail.com"
+    else:
+        email = await get_current_user_email(request)
     items = await list_library_items(db, email)
     return [LibraryItem(**item) for item in items]
 

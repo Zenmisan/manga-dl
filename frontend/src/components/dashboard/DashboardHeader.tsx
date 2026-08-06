@@ -68,15 +68,13 @@ export function DashboardHeader({
           </button>
         )}
 
-        {isAdmin && (
-          <label
-            className={cn('icon-btn cursor-pointer', uploading && 'opacity-50 pointer-events-none')}
-            title="Upload manga file"
-          >
-            <input type="file" className="hidden" accept=".zip,.cbz,.epub" onChange={handleUpload} />
-            {uploading ? <RefreshCw className="w-4 h-4 animate-spin" style={{ color: 'var(--accent)' }} /> : <Upload className="w-4 h-4" />}
-          </label>
-        )}
+        <label
+          className={cn('icon-btn cursor-pointer', uploading && 'opacity-50 pointer-events-none')}
+          title="Upload manga archive (.zip, .cbz, .epub)"
+        >
+          <input type="file" className="hidden" accept=".zip,.cbz,.epub" onChange={handleUpload} />
+          {uploading ? <RefreshCw className="w-4 h-4 animate-spin" style={{ color: 'var(--accent)' }} /> : <Upload className="w-4 h-4" />}
+        </label>
 
         <div style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 2px' }} />
 

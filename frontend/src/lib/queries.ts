@@ -44,7 +44,66 @@ export function useLibrary() {
 export function useLibraryStats() {
   return useQuery<any>({
     queryKey: QK.libraryStats,
-    queryFn: () => api.get('/library/stats').then(r => r.data),
+    queryFn: async () => {
+      // 1. Try fetching authenticated user's reading stats first
+      try {
+        const userRes = await api.get('/users/me/stats')
+        if (userRes.data && typeof userRes.data === 'object') {
+          const d = userRes.data
+          return {
+            ...d,
+            daily_downloads: d.daily_downloads || d.daily_reads || [],
+            yearly_downloads: d.yearly_downloads || d.yearly_reads || [],
+          }
+        }
+      } catch {
+        // User not logged in or backend endpoint unauthenticated
+      }
+
+      // 2. Compute local reading stats for guest / offline users
+      try {
+        const localReadMap: Record<string, string[]> = JSON.parse(localStorage.getItem('manga-dl-read') || '{}')
+        const entries = Object.entries(localReadMap)
+        if (entries.length > 0) {
+          let totalChapters = 0
+          const mangaSet = new Set<string>()
+          const providerCount: Record<string, number> = {}
+
+          for (const [key, chs] of entries) {
+            const parts = key.split(':')
+            const provider = parts[0] || 'local'
+            const mangaId = parts.slice(1).join(':')
+            mangaSet.add(mangaId)
+            totalChapters += chs.length
+            providerCount[provider] = (providerCount[provider] || 0) + chs.length
+          }
+
+          const providerBreakdown = Object.entries(providerCount).map(([provider, count]) => ({ provider, count }))
+
+          return {
+            total_chapters: totalChapters,
+            total_manga: mangaSet.size,
+            total_pages: totalChapters * 20,
+            storage_bytes: 0,
+            daily_downloads: [],
+            yearly_downloads: [],
+            provider_breakdown: providerBreakdown,
+            streak_days: totalChapters > 0 ? 1 : 0,
+          }
+        }
+      } catch {
+        /* non-fatal */
+      }
+
+      // 3. Fallback to server library stats
+      const libRes = await api.get('/library/stats')
+      const d = libRes.data
+      return {
+        ...d,
+        daily_downloads: d.daily_downloads || d.daily_reads || [],
+        yearly_downloads: d.yearly_downloads || d.yearly_reads || [],
+      }
+    },
     staleTime: STALE.libraryStats,
   })
 }

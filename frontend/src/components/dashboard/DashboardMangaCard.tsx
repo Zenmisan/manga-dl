@@ -1,12 +1,12 @@
 import type React from 'react'
-import { useState } from 'react'
+import { useState, memo } from 'react'
 import { motion } from 'framer-motion'
 import {
   Book, Pin, PinOff, Trash2, BookOpen, HardDrive, WifiOff, CheckSquare, Square, Download,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import api from '../../lib/api'
-import { buildSmartReadUrl } from '../../lib/smartUrl'
+import { buildSmartReadUrl, buildSmartMangaUrl } from '../../lib/smartUrl'
 import type { LibraryItem, LastReadEntry } from '../../hooks/useDashboardData'
 
 interface Props {
@@ -24,7 +24,7 @@ interface Props {
   onDelete: (item: LibraryItem, e: React.MouseEvent) => void
 }
 
-export function DashboardMangaCard({
+export const DashboardMangaCard = memo(function DashboardMangaCard({
   item, idx, view, density, selectMode, isSelected, isPinned, lastRead, navigate,
   onToggleSelect, onTogglePin, onDelete,
 }: Props) {
@@ -41,7 +41,7 @@ export function DashboardMangaCard({
     if (item.isLocal) {
       navigate(`/read/local/${encodeURIComponent(item.title)}`)
     } else if (item.provider && item.provider_manga_id) {
-      navigate(`/manga/detail/${item.provider}/${encodeURIComponent(item.provider_manga_id)}`)
+      navigate(buildSmartMangaUrl(item.provider, item.provider_manga_id, item.title))
     }
   }
 
@@ -234,4 +234,4 @@ export function DashboardMangaCard({
       )}
     </motion.div>
   )
-}
+})

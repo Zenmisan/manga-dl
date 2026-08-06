@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Clock, Play, Trash2, Loader2, EyeOff } from 'lucide-react'
 import { useAppStore } from '../lib/store'
 import { cn } from '../lib/utils'
-import { buildSmartReadUrl } from '../lib/smartUrl'
+import { buildSmartReadUrl, buildSmartMangaUrl } from '../lib/smartUrl'
 
 interface HistoryEntry {
   provider: string
@@ -42,6 +42,28 @@ function startOf(filter: DateFilter): number {
   return 0
 }
 
+function dateBucket(iso: string): string {
+  const today = new Date()
+  const entryDate = new Date(iso)
+  if (entryDate.toDateString() === today.toDateString()) return 'TODAY'
+  const yesterday = new Date(today)
+  yesterday.setDate(today.getDate() - 1)
+  if (entryDate.toDateString() === yesterday.toDateString()) return 'YESTERDAY'
+  const days = Math.floor((Date.now() - entryDate.getTime()) / 86400000)
+  if (days < 7) return 'EARLIER THIS WEEK'
+  return 'OLDER'
+}
+
+const BUCKET_ORDER = ['TODAY', 'YESTERDAY', 'EARLIER THIS WEEK', 'OLDER']
+
+const COVER_GRADIENTS = [
+  'linear-gradient(135deg, #1e3a5f, #2d6a9f)',
+  'linear-gradient(135deg, #3d1a1a, #8b2c2c)',
+  'linear-gradient(135deg, #1a3d2b, #2d6b4a)',
+  'linear-gradient(135deg, #2d1a4d, #5b3a8a)',
+  'linear-gradient(135deg, #3d2e1a, #8b6b2c)',
+]
+
 export default function HistoryPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -70,6 +92,16 @@ export default function HistoryPage() {
       return true
     })
   }, [history, dateFilter, search])
+
+  const grouped = useMemo(() => {
+    const map: Record<string, HistoryEntry[]> = {}
+    for (const e of filtered) {
+      const bucket = e.updated_at ? dateBucket(e.updated_at) : 'OLDER'
+      if (!map[bucket]) map[bucket] = []
+      map[bucket].push(e)
+    }
+    return map
+  }, [filtered])
 
   const handleClearAll = async () => {
     if (!confirm('Clear all reading history?')) return
@@ -104,14 +136,6 @@ export default function HistoryPage() {
     { label: 'This Month', value: 'month' },
   ]
 
-  const COVER_GRADIENTS = [
-    'linear-gradient(135deg, #1e3a5f, #2d6a9f)',
-    'linear-gradient(135deg, #3d1a1a, #8b2c2c)',
-    'linear-gradient(135deg, #1a3d2b, #2d6b4a)',
-    'linear-gradient(135deg, #2d1a4d, #5b3a8a)',
-    'linear-gradient(135deg, #3d2e1a, #8b6b2c)',
-  ]
-
   if (incognitoMode) {
     return (
       <div className="min-h-full flex flex-col">
@@ -141,10 +165,10 @@ export default function HistoryPage() {
           <button
             onClick={handleClearAll}
             disabled={clearing}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'none', fontSize: 12, fontWeight: 700, color: '#dc2626', cursor: 'pointer' }}
+            title="Clear all history"
+            className="icon-btn"
           >
-            {clearing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-            Clear
+            {clearing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
           </button>
         )}
       </header>
@@ -195,62 +219,65 @@ export default function HistoryPage() {
           </div>
         ) : (
           <AnimatePresence>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {filtered.map((entry, i) => {
-                const gradIdx = Math.abs(entry.manga_title.charCodeAt(0) + entry.manga_title.charCodeAt(1 % entry.manga_title.length)) % COVER_GRADIENTS.length
-                return (
-                  <motion.div
-                    key={`${entry.provider}-${entry.manga_id}-${entry.chapter_id}`}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.02 }}
-                    className="group"
-                    style={{ display: 'flex', gap: 14, padding: '12px 14px', borderRadius: 14, cursor: 'pointer' }}
-                  >
-                    {/* Cover placeholder */}
-                    <div style={{ width: 44, height: 62, borderRadius: 8, flexShrink: 0, background: COVER_GRADIENTS[gradIdx], overflow: 'hidden' }} />
-
-                    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 3 }}>
-                      <div
-                        style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                        onClick={() => navigate(`/manga/${entry.provider}/${encodeURIComponent(entry.manga_id)}`)}
-                      >
-                        {entry.manga_title}
-                      </div>
-                      <div style={{ fontSize: 11.5, color: 'var(--muted2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {entry.chapter_title}
-                        {entry.last_page > 1 && <span style={{ color: 'var(--muted3)', marginLeft: 6 }}>· p.{entry.last_page}</span>}
-                      </div>
-                      {entry.last_page > 1 && (
-                        <div style={{ width: '100%', maxWidth: 160, height: 4, borderRadius: 4, background: 'var(--surface-hover)', marginTop: 4 }}>
-                          <div style={{ height: '100%', borderRadius: 4, background: '#dc2626', width: `${Math.min(100, (entry.last_page / 20) * 100)}%` }} />
-                        </div>
-                      )}
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'space-between', flexShrink: 0, gap: 6 }}>
-                      <span style={{ fontSize: 11, color: 'var(--muted3)' }}>{entry.updated_at ? timeAgo(entry.updated_at) : ''}</span>
-                      <div style={{ display: 'flex', gap: 4 }}>
-                        <button onClick={() => resumeChapter(entry)} title="Resume" className="icon-btn" style={{ width: 30, height: 30, borderRadius: 8, color: 'var(--accent)' }}>
-                          <Play className="w-3 h-3" />
-                        </button>
-                        <button
-                          onClick={() => handleClearManga(entry.provider, entry.manga_id)}
-                          title="Remove"
-                          disabled={clearingMangaId === entry.manga_id}
-                          className="icon-btn"
-                          style={{ width: 30, height: 30, borderRadius: 8 }}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+              {BUCKET_ORDER.filter(b => grouped[b]?.length > 0).map((bucket, bi) => (
+                <div key={bucket}>
+                  <div style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)', marginBottom: 10 }}>
+                    {bucket}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {grouped[bucket].map((entry, i) => {
+                      const gradIdx = (entry.manga_title.charCodeAt(0) + (entry.manga_title.charCodeAt(1) || 0)) % COVER_GRADIENTS.length
+                      return (
+                        <motion.div
+                          key={`${entry.provider}-${entry.manga_id}-${entry.chapter_id}`}
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: (bi * 5 + i) * 0.02 }}
+                          className="group"
+                          style={{ display: 'flex', gap: 14, padding: '10px 12px', borderRadius: 12, background: 'var(--surface)', border: '1px solid var(--border)', cursor: 'pointer' }}
                         >
-                          {clearingMangaId === entry.manga_id
-                            ? <Loader2 className="w-3 h-3 animate-spin" />
-                            : <Trash2 className="w-3 h-3" />
-                          }
-                        </button>
-                      </div>
-                    </div>
-                  </motion.div>
-                )
-              })}
+                          <div style={{ width: 48, height: 48, borderRadius: 8, flexShrink: 0, background: COVER_GRADIENTS[gradIdx], overflow: 'hidden' }} />
+
+                          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 3 }}>
+                            <div
+                              style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                              onClick={() => navigate(buildSmartMangaUrl(entry.provider, entry.manga_id, entry.manga_title))}
+                            >
+                              {entry.manga_title}
+                            </div>
+                            <div style={{ fontSize: 11.5, color: 'var(--muted2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {entry.chapter_title}
+                              {entry.last_page > 1 && <span style={{ color: 'var(--muted3)', marginLeft: 6 }}>· p.{entry.last_page}</span>}
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'space-between', flexShrink: 0, gap: 6 }}>
+                            <span style={{ fontSize: 11, color: 'var(--muted3)' }}>{entry.updated_at ? timeAgo(entry.updated_at) : ''}</span>
+                            <div style={{ display: 'flex', gap: 4 }}>
+                              <button onClick={() => resumeChapter(entry)} title="Resume" className="icon-btn" style={{ width: 30, height: 30, borderRadius: 8, color: 'var(--accent)' }}>
+                                <Play className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={() => handleClearManga(entry.provider, entry.manga_id)}
+                                title="Remove"
+                                disabled={clearingMangaId === entry.manga_id}
+                                className="icon-btn"
+                                style={{ width: 30, height: 30, borderRadius: 8 }}
+                              >
+                                {clearingMangaId === entry.manga_id
+                                  ? <Loader2 className="w-3 h-3 animate-spin" />
+                                  : <Trash2 className="w-3 h-3" />
+                                }
+                              </button>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           </AnimatePresence>
         )}

@@ -1,105 +1,110 @@
-import { useAppStore } from '../../lib/store'
 import { BookOpen } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { useAppStore } from '../../lib/store'
+import { cn } from '../../lib/utils'
+
+const SECTION: React.CSSProperties = { padding: '22px 20px', marginBottom: 14 }
+const ROW: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '14px 0', borderTop: '1px solid var(--border)', minHeight: 52 }
+
+function CardLabel({ icon: Icon, title }: { icon: React.ElementType; title: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+      <div style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--surface-hover)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <Icon style={{ width: 14, height: 14, color: 'var(--accent)' }} />
+      </div>
+      <span style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted2)' }}>{title}</span>
+    </div>
+  )
+}
+
+function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
+  return (
+    <button role="switch" aria-checked={on} onClick={onToggle}
+      style={{ width: 48, height: 28, borderRadius: 999, background: on ? 'var(--accent)' : 'var(--surface-hover)', border: 'none', position: 'relative', cursor: 'pointer', flexShrink: 0, transition: 'background 0.2s' }}
+    >
+      <span style={{ position: 'absolute', top: 4, width: 20, height: 20, borderRadius: 999, background: '#fff', left: on ? 24 : 4, transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.35)' }} />
+    </button>
+  )
+}
+
+const ease = [0.16, 1, 0.3, 1] as const
 
 export default function ReaderSettings() {
-  const { 
-    tapZoneLayout, setTapZoneLayout, 
-    cropBorders, setCropBorders, 
-    dualPageSpread, setDualPageSpread, 
-    webtoonSidePadding, setWebtoonSidePadding, 
-    cropBordersWebtoon, setCropBordersWebtoon 
-  } = useAppStore()
+  const { tapZoneLayout, setTapZoneLayout, cropBorders, setCropBorders, dualPageSpread, setDualPageSpread, webtoonSidePadding, setWebtoonSidePadding, cropBordersWebtoon, setCropBordersWebtoon } = useAppStore()
 
   return (
-    <div className="space-y-6 md:space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
-      <section className="glass-panel overflow-hidden border-white/5">
-        <div className="p-6 border-b border-white/5 flex items-center gap-3 bg-white/[0.02]">
-          <div className="p-2 bg-indigo-500/10 rounded-lg">
-            <BookOpen className="w-5 h-5 text-indigo-400" />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <div className="hidden md:block" style={{ marginBottom: 24 }}>
+        <h2 style={{ fontSize: 26, fontWeight: 900, color: 'var(--fg)', marginBottom: 4 }}>Reader</h2>
+        <p style={{ fontSize: 13, color: 'var(--muted2)' }}>Customize how manga is displayed and navigated.</p>
+      </div>
+
+      <motion.section className="glass-card" style={SECTION}
+        initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0, duration: 0.4, ease }}
+      >
+        <CardLabel icon={BookOpen} title="Reader Appearance" />
+
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)', marginBottom: 10 }}>Tap Zones</div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {([['default', 'Default'], ['l-nav', 'L-Nav'], ['edge', 'Edge'], ['disabled', 'Disabled']] as const).map(([v, label]) => (
+              <button key={v} onClick={() => setTapZoneLayout(v)} className={cn('filter-pill', tapZoneLayout === v && 'active')}>{label}</button>
+            ))}
           </div>
-          <h2 className="font-bold text-lg">Reader Appearance</h2>
-        </div>
-        <div className="p-6 md:p-8 space-y-6">
-          {/* Tap Zone Layout */}
-          <div>
-            <label className="block text-xs font-black uppercase tracking-widest text-white/30 mb-3">Reader Tap Zones</label>
-            <div className="flex gap-2 flex-wrap">
-              {([['default','Default'],['l-nav','L-Nav'],['edge','Edge'],['disabled','Disabled']] as const).map(([v, label]) => (
-                <button key={v}
-                  onClick={() => setTapZoneLayout(v)}
-                  className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border transition-all ${
-                    tapZoneLayout === v ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' : 'text-white/30 border-white/10 hover:border-white/20'
-                  }`}
-                >{label}</button>
-              ))}
-            </div>
-            <p className="text-[10px] text-white/20 mt-2">
-              {tapZoneLayout === 'default' && 'Left 1/3 = prev, right 1/3 = next, center = toggle UI'}
-              {tapZoneLayout === 'l-nav' && 'Left half = prev, right half = next'}
-              {tapZoneLayout === 'edge' && '15% edges only for navigation'}
-              {tapZoneLayout === 'disabled' && 'Taps only toggle UI — no navigation'}
-            </p>
-          </div>
-          {/* Crop Borders */}
-          <div className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] border border-white/5">
-            <div>
-              <h4 className="font-bold text-sm">Crop Borders</h4>
-              <p className="text-xs text-white/30 mt-0.5">Remove whitespace margins from page images</p>
-            </div>
-            <button
-              onClick={() => setCropBorders(!cropBorders)}
-              className={`w-12 h-6 rounded-full relative transition-all border ${cropBorders ? 'bg-indigo-500/30 border-indigo-500/40' : 'bg-white/5 border-white/10'}`}
-            >
-              <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${cropBorders ? 'left-6' : 'left-0.5'}`} />
-            </button>
-          </div>
-          {/* Dual Page Spread */}
-          <div>
-            <label className="block text-xs font-black uppercase tracking-widest text-white/30 mb-3">Dual-Page Spread (Pager modes)</label>
-            <div className="flex gap-2">
-              {([['auto','Auto (landscape)'],['on','Always On'],['off','Off']] as const).map(([v, label]) => (
-                <button key={v}
-                  onClick={() => setDualPageSpread(v)}
-                  className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border transition-all ${
-                    dualPageSpread === v ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' : 'text-white/30 border-white/10 hover:border-white/20'
-                  }`}
-                >{label}</button>
-              ))}
-            </div>
-          </div>
-          
-          {/* Webtoon settings */}
-          <div className="pt-6 border-t border-white/5 space-y-6">
-            <h3 className="text-xs font-black uppercase tracking-widest text-white/30">Webtoon Mode</h3>
-            {/* Webtoon side padding */}
-            <div>
-              <label className="block text-xs font-black uppercase tracking-widest text-white/30 mb-3">
-                Side Padding — {webtoonSidePadding}px
-              </label>
-              <input
-                type="range"
-                min={0} max={80} step={4}
-                value={webtoonSidePadding}
-                onChange={e => setWebtoonSidePadding(Number(e.target.value))}
-                className="w-full accent-indigo-500"
-              />
-            </div>
-            {/* Crop borders webtoon */}
-            <div className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] border border-white/5">
-              <div>
-                <h4 className="font-bold text-sm">Crop Borders (Webtoon)</h4>
-                <p className="text-xs text-white/30 mt-0.5">Use object-cover to crop horizontal whitespace in webtoon strips</p>
-              </div>
-              <button
-                onClick={() => setCropBordersWebtoon(!cropBordersWebtoon)}
-                className={`w-12 h-6 rounded-full relative transition-all border ${cropBordersWebtoon ? 'bg-indigo-500/30 border-indigo-500/40' : 'bg-white/5 border-white/10'}`}
-              >
-                <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${cropBordersWebtoon ? 'left-6' : 'left-0.5'}`} />
-              </button>
-            </div>
+          <div style={{ fontSize: 11, color: 'var(--muted3)', marginTop: 8 }}>
+            {tapZoneLayout === 'default' && 'Left 1/3 = prev, right 1/3 = next, center = toggle UI'}
+            {tapZoneLayout === 'l-nav' && 'Left half = prev, right half = next'}
+            {tapZoneLayout === 'edge' && '15% edges only for navigation'}
+            {tapZoneLayout === 'disabled' && 'Taps only toggle UI — no navigation'}
           </div>
         </div>
-      </section>
+
+        <div style={ROW}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--fg)' }}>Crop Borders</div>
+            <div style={{ fontSize: 12, color: 'var(--muted2)', marginTop: 3 }}>Remove whitespace margins from page images</div>
+          </div>
+          <Toggle on={cropBorders} onToggle={() => setCropBorders(!cropBorders)} />
+        </div>
+
+        <div style={{ ...ROW, flexDirection: 'column', alignItems: 'flex-start', gap: 10 }}>
+          <div style={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)' }}>Dual-Page Spread</div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {([['auto', 'Auto'], ['on', 'Always On'], ['off', 'Off']] as const).map(([v, label]) => (
+              <button key={v} onClick={() => setDualPageSpread(v)} className={cn('filter-pill', dualPageSpread === v && 'active')}>{label}</button>
+            ))}
+          </div>
+        </div>
+      </motion.section>
+
+      <motion.section className="glass-card" style={SECTION}
+        initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.07, duration: 0.4, ease }}
+      >
+        <CardLabel icon={BookOpen} title="Webtoon Mode" />
+
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)', marginBottom: 8 }}>
+            Side Padding — {webtoonSidePadding}px
+          </div>
+          <input type="range" min={0} max={80} step={4} value={webtoonSidePadding}
+            onChange={e => setWebtoonSidePadding(Number(e.target.value))}
+            style={{ width: '100%', accentColor: 'var(--accent)' }}
+          />
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--muted3)', marginTop: 4 }}>
+            <span>0px</span><span>80px</span>
+          </div>
+        </div>
+
+        <div style={ROW}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--fg)' }}>Crop Borders (Webtoon)</div>
+            <div style={{ fontSize: 12, color: 'var(--muted2)', marginTop: 3 }}>Crop horizontal whitespace in webtoon strips</div>
+          </div>
+          <Toggle on={cropBordersWebtoon} onToggle={() => setCropBordersWebtoon(!cropBordersWebtoon)} />
+        </div>
+      </motion.section>
     </div>
   )
 }

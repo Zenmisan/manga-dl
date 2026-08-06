@@ -13,30 +13,30 @@ interface TrackerResult {
 
 interface Props {
   // Tracker Search Modal
-  showTrackerModal: 'anilist' | 'mal' | 'mangaupdates' | 'shikimori' | 'bangumi' | null
-  setShowTrackerModal: (v: 'anilist' | 'mal' | 'mangaupdates' | 'shikimori' | 'bangumi' | null) => void
-  trackerSearch: string
-  setTrackerSearch: (v: string) => void
-  trackerSearching: boolean
-  trackerResults: TrackerResult[]
-  searchTracker: (query: string, tracker: string | null) => void
-  saveTrackerLink: (tracker: string, entry: { id: number; title: string; score?: number; status?: string; progress?: number }) => void
+  showTrackerModal?: 'anilist' | 'mal' | 'mangaupdates' | 'shikimori' | 'bangumi' | null
+  setShowTrackerModal?: (v: 'anilist' | 'mal' | 'mangaupdates' | 'shikimori' | 'bangumi' | null) => void
+  trackerSearch?: string
+  setTrackerSearch?: (v: string) => void
+  trackerSearching?: boolean
+  trackerResults?: TrackerResult[]
+  searchTracker?: (query: string, tracker: string | null) => void
+  saveTrackerLink?: (tracker: string, entry: { id: number; title: string; score?: number; status?: string; progress?: number }) => void
 
   // Tracker Sync Modal
-  showSyncModal: 'anilist' | 'mal' | 'mangaupdates' | 'shikimori' | 'bangumi' | null
-  setShowSyncModal: (v: 'anilist' | 'mal' | 'mangaupdates' | 'shikimori' | 'bangumi' | null) => void
-  syncStatus: string
-  setSyncStatus: (v: string) => void
-  syncScore: number
-  setSyncScore: (v: number) => void
-  syncProgress: number
-  setSyncProgress: (v: number) => void
-  syncStartDate: string
-  setSyncStartDate: (v: string) => void
-  syncEndDate: string
-  setSyncEndDate: (v: string) => void
-  syncing: boolean
-  handleTrackerSync: () => void
+  showSyncModal?: 'anilist' | 'mal' | 'mangaupdates' | 'shikimori' | 'bangumi' | null
+  setShowSyncModal?: (v: 'anilist' | 'mal' | 'mangaupdates' | 'shikimori' | 'bangumi' | null) => void
+  syncStatus?: string
+  setSyncStatus?: (v: string) => void
+  syncScore?: number
+  setSyncScore?: (v: number) => void
+  syncProgress?: number
+  setSyncProgress?: (v: number) => void
+  syncStartDate?: string
+  setSyncStartDate?: (v: string) => void
+  syncEndDate?: string
+  setSyncEndDate?: (v: string) => void
+  syncing?: boolean
+  handleTrackerSync?: () => void
 
   // Metadata Edit Modal
   editingMeta: boolean
@@ -64,7 +64,7 @@ export function MangaModals({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
-            onClick={() => setShowTrackerModal(null)}
+            onClick={() => setShowTrackerModal?.(null)}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
@@ -79,14 +79,14 @@ export function MangaModals({
               <div className="flex gap-2 mb-4">
                 <input
                   type="text"
-                  value={trackerSearch}
-                  onChange={e => setTrackerSearch(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && searchTracker(trackerSearch, showTrackerModal)}
+                  value={trackerSearch ?? ''}
+                  onChange={e => setTrackerSearch?.(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && searchTracker?.(trackerSearch ?? '', showTrackerModal)}
                   className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-white/30"
                   placeholder="Search manga title..."
                 />
                 <button
-                  onClick={() => searchTracker(trackerSearch, showTrackerModal)}
+                  onClick={() => searchTracker?.(trackerSearch ?? '', showTrackerModal)}
                   disabled={trackerSearching}
                   className="btn-primary py-2 px-4 text-xs font-bold shrink-0"
                 >
@@ -94,12 +94,12 @@ export function MangaModals({
                 </button>
               </div>
               <div className="max-h-64 overflow-y-auto space-y-2 no-scrollbar">
-                {trackerResults.map(item => (
+                {trackerResults?.map(item => (
                   <div
                     key={item.id}
                     onClick={() => {
-                      saveTrackerLink(showTrackerModal, { id: item.id, title: item.title, score: item.score, status: item.status, progress: item.progress })
-                      setShowTrackerModal(null)
+                      saveTrackerLink?.(showTrackerModal, { id: item.id, title: item.title, score: item.score, status: item.status, progress: item.progress })
+                      setShowTrackerModal?.(null)
                     }}
                     className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/10 cursor-pointer transition-all border border-transparent hover:border-white/10"
                   >
@@ -124,7 +124,7 @@ export function MangaModals({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
-            onClick={() => setShowSyncModal(null)}
+            onClick={() => setShowSyncModal?.(null)}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
@@ -138,8 +138,8 @@ export function MangaModals({
               <div>
                 <label className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-1 block">Status</label>
                 <select
-                  value={syncStatus}
-                  onChange={e => setSyncStatus(e.target.value)}
+                  value={syncStatus ?? 'CURRENT'}
+                  onChange={e => setSyncStatus?.(e.target.value)}
                   className="select-styled w-full text-xs"
                 >
                   <option value="CURRENT">Reading (Current)</option>
@@ -156,8 +156,8 @@ export function MangaModals({
                   type="number"
                   min="0"
                   max="10"
-                  value={syncScore}
-                  onChange={e => setSyncScore(Number(e.target.value))}
+                  value={syncScore ?? 0}
+                  onChange={e => setSyncScore?.(Number(e.target.value))}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-white/30"
                 />
               </div>
@@ -167,8 +167,8 @@ export function MangaModals({
                 <input
                   type="number"
                   min="0"
-                  value={syncProgress}
-                  onChange={e => setSyncProgress(Number(e.target.value))}
+                  value={syncProgress ?? 0}
+                  onChange={e => setSyncProgress?.(Number(e.target.value))}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-white/30"
                 />
               </div>
@@ -178,8 +178,8 @@ export function MangaModals({
                   <label className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-1 block">Start Date</label>
                   <input
                     type="date"
-                    value={syncStartDate}
-                    onChange={e => setSyncStartDate(e.target.value)}
+                    value={syncStartDate ?? ''}
+                    onChange={e => setSyncStartDate?.(e.target.value)}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none"
                   />
                 </div>
@@ -187,8 +187,8 @@ export function MangaModals({
                   <label className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-1 block">Finish Date</label>
                   <input
                     type="date"
-                    value={syncEndDate}
-                    onChange={e => setSyncEndDate(e.target.value)}
+                    value={syncEndDate ?? ''}
+                    onChange={e => setSyncEndDate?.(e.target.value)}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none"
                   />
                 </div>
@@ -196,7 +196,7 @@ export function MangaModals({
 
               <div className="flex gap-2 pt-2">
                 <button
-                  onClick={() => setShowSyncModal(null)}
+                  onClick={() => setShowSyncModal?.(null)}
                   className="flex-1 py-2 rounded-xl border border-white/10 text-xs font-bold text-white/40 hover:text-white"
                 >
                   Cancel

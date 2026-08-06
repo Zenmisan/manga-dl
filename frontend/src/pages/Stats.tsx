@@ -126,9 +126,12 @@ export default function StatsPage() {
     )
   }
 
-  const daily = fillDays(stats.daily_downloads)
+  const dailyDownloads = stats.daily_downloads || (stats as unknown as Record<string, { day: string; count: number }[]>).daily_reads || []
+  const yearlyDownloads = stats.yearly_downloads || (stats as unknown as Record<string, { day: string; count: number }[]>).yearly_reads || []
+
+  const daily = fillDays(dailyDownloads)
   const maxDaily = Math.max(...daily.map(d => d.count), 1)
-  const heatmapCols = buildHeatmapGrid(stats.yearly_downloads ?? [])
+  const heatmapCols = buildHeatmapGrid(yearlyDownloads)
 
   const totalReadSecs = stats.total_pages * 45
   const readHours = Math.floor(totalReadSecs / 3600)
@@ -137,7 +140,7 @@ export default function StatsPage() {
 
   // eslint-disable-next-line react-hooks/purity
   const now = Date.now()
-  const last7 = (stats.daily_downloads || [])
+  const last7 = dailyDownloads
     .filter(d => { const diff = (now - new Date(d.day).getTime()) / 86_400_000; return diff <= 7 })
     .reduce((s, d) => s + d.count, 0)
   const chapPerWeek = last7
@@ -314,7 +317,7 @@ export default function StatsPage() {
             {goals.monthlyChapters > 0 && (() => {
               const d = new Date()
               const thisMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-              const count = (stats.daily_downloads || []).filter(x => x.day.startsWith(thisMonth)).reduce((s, x) => s + x.count, 0)
+              const count = dailyDownloads.filter(x => x.day.startsWith(thisMonth)).reduce((s, x) => s + x.count, 0)
               const pct = Math.min(Math.round((count / goals.monthlyChapters) * 100), 100)
               return (
                 <div style={{ marginBottom: 12 }}>

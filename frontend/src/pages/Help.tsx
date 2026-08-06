@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -8,7 +9,7 @@ import {
   Tv2, Sparkles, CloudUpload, Layout, ChevronRight, ChevronLeft as CL,
   BookMarked, Check, X, Activity, CheckCircle2, XCircle,
   Share2, Key, HardDrive, LogOut, User, UserPlus,
-  ExternalLink, Info,
+  ExternalLink, Info, ChevronDown,
 } from 'lucide-react'
 
 interface LegendItem {
@@ -74,74 +75,147 @@ const icons: LegendItem[] = [
   { icon: LogOut,     label: 'Sign Out',       description: 'Sign out of your account on this device', location: 'Settings → Account' },
 ]
 
-const grouped: Record<string, LegendItem[]> = {}
+const groupedIcons: Record<string, LegendItem[]> = {}
 for (const item of icons) {
   const section = item.location.split(' ')[0]
-  if (!grouped[section]) grouped[section] = []
-  grouped[section].push(item)
+  if (!groupedIcons[section]) groupedIcons[section] = []
+  groupedIcons[section].push(item)
 }
+
+const NAV_CARDS = [
+  { icon: Library, label: 'Library', desc: 'Saved manga & reading lists', color: 'var(--accent)' },
+  { icon: DL, label: 'Downloads', desc: 'Offline chapters ready to read', color: 'var(--accent)' },
+  { icon: RefreshCw, label: 'Updates', desc: 'New chapters for your library', color: 'var(--accent)' },
+  { icon: Globe, label: 'Sources', desc: 'Manage your content providers', color: 'var(--accent)' },
+]
+
+const FAQS = [
+  { q: 'How do I add manga to my library?', a: 'Search for a manga, open its detail page, and tap the subscribe (bell) icon. It will be added to your library and new chapters will be auto-downloaded.' },
+  { q: 'What file formats can I read?', a: 'manga-dl supports CBZ, ZIP, and EPUB archives. Drag-and-drop a file onto the library or use the Upload button in the header.' },
+  { q: 'How does cloud sync work?', a: 'Sign in with your account. Your reading progress, bookmarks, and library sync automatically across all 3 of your registered devices via Supabase.' },
+  { q: 'Can I read offline?', a: 'Yes. Download chapters first (tap the download icon on any chapter). Downloaded chapters are stored locally and accessible without internet.' },
+  { q: 'How do I link AniList or MAL?', a: 'Go to Settings → Trackers, enter your API credentials or OAuth token. Your reading progress will sync automatically when you finish a chapter.' },
+]
 
 export default function HelpPage() {
   const navigate = useNavigate()
+  const [openFaq, setOpenFaq] = useState<number | null>(null)
 
   return (
-    <div className="p-4 sm:p-6 md:p-12 max-w-4xl mx-auto min-h-full pb-32">
-      <header className="mb-12">
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-white/40 hover:text-white transition-colors mb-6 text-sm font-bold"
-        >
-          <ChevronLeft className="w-4 h-4" />
-          Back
-        </button>
-        <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-3 bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent">
-          Icon Legend
-        </h1>
-        <p className="text-white/40 font-medium md:text-lg">What every button and icon does</p>
-      </header>
+    <div className="min-h-full flex flex-col">
+      <div className="px-4 md:px-6 pt-6 pb-4" style={{ maxWidth: 720, width: '100%', margin: '0 auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
+          <button onClick={() => navigate(-1)} className="icon-btn"><ChevronLeft style={{ width: 16, height: 16 }} /></button>
+        </div>
+        <h1 style={{ fontSize: 'clamp(2rem,6vw,3rem)', fontWeight: 900, color: 'var(--fg)', lineHeight: 1.1, marginBottom: 6 }}>Help Center</h1>
+        <p style={{ fontSize: 14, color: 'var(--muted2)', marginBottom: 20 }}>How can we assist you with your manga experience today?</p>
+        <input
+          type="search"
+          placeholder="Search FAQs, features, or issues..."
+          style={{ width: '100%', padding: '11px 14px 11px 40px', borderRadius: 14, border: '1px solid var(--border)', background: 'var(--surface)', fontSize: 13, color: 'var(--fg)', outline: 'none', backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E\")", backgroundRepeat: 'no-repeat', backgroundPosition: '14px center', marginBottom: 0 }}
+        />
+      </div>
 
-      <div className="space-y-10">
-        {Object.entries(grouped).map(([section, items], si) => (
-          <motion.section
-            key={section}
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: si * 0.04 }}
-          >
-            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-white/30 mb-4 pl-1">{section}</h2>
-            <div className="glass-panel overflow-hidden border-white/5">
-              {items.map((item, i) => (
-                <div
-                  key={item.label}
-                  className={`flex items-start gap-4 p-4 md:p-5 ${i < items.length - 1 ? 'border-b border-white/[0.04]' : ''}`}
-                >
-                  <div className="w-9 h-9 shrink-0 bg-white/5 rounded-xl flex items-center justify-center border border-white/10">
-                    <item.icon className="w-4 h-4 text-white/60" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-baseline gap-2 mb-0.5">
-                      <span className="font-bold text-sm text-white/90">{item.label}</span>
-                      <span className="text-[9px] font-black uppercase tracking-widest text-white/20 bg-white/5 px-2 py-0.5 rounded-md border border-white/5">
-                        {item.location}
-                      </span>
-                    </div>
-                    <p className="text-sm text-white/40 font-medium leading-snug">{item.description}</p>
-                  </div>
+      <div className="px-4 md:px-6 pt-4 pb-28 flex-1" style={{ maxWidth: 720, width: '100%', margin: '0 auto' }}>
+
+        {/* Icon Glossary — navigation focused */}
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--fg)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Info style={{ width: 16, height: 16, color: 'var(--accent)' }} />
+            Icon Glossary
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            {NAV_CARDS.map(({ icon: Icon, label, desc }, i) => (
+              <motion.div key={label} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+                style={{ padding: '14px 16px', borderRadius: 16, border: '1px solid var(--border)', background: 'var(--surface)', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Icon style={{ width: 16, height: 16, color: 'var(--accent)' }} />
                 </div>
-              ))}
-            </div>
-          </motion.section>
-        ))}
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--fg)' }}>{label}</div>
+                  <div style={{ fontSize: 11, color: 'var(--muted2)', marginTop: 2 }}>{desc}</div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
 
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.4 }}
-          className="flex items-center gap-2 text-xs text-white/20 font-bold justify-center pt-4"
-        >
-          <Info className="w-3 h-3" />
+        {/* FAQ accordion */}
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)', marginBottom: 10 }}>Frequently Asked Questions</div>
+          <div style={{ borderRadius: 18, border: '1px solid var(--border)', background: 'var(--surface)', overflow: 'hidden' }}>
+            {FAQS.map((faq, i) => (
+              <div key={i} style={{ borderTop: i > 0 ? '1px solid var(--border)' : 'none' }}>
+                <button
+                  onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '14px 16px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+                >
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--fg)', flex: 1 }}>{faq.q}</span>
+                  <ChevronDown style={{ width: 16, height: 16, color: 'var(--muted3)', flexShrink: 0, transform: openFaq === i ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                </button>
+                {openFaq === i && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    style={{ padding: '0 16px 14px', fontSize: 13, color: 'var(--muted1)', lineHeight: 1.6 }}
+                  >
+                    {faq.a}
+                  </motion.div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Icon legend sections */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)' }}>Icon Reference</div>
+          {Object.entries(groupedIcons).map(([section, items], si) => (
+            <motion.section key={section} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: si * 0.04 }}>
+              <div style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)', marginBottom: 10 }}>{section}</div>
+              <div style={{ borderRadius: 18, border: '1px solid var(--border)', background: 'var(--surface)', overflow: 'hidden' }}>
+                {items.map((item, i) => (
+                  <div key={item.label} style={{ display: 'flex', alignItems: 'flex-start', gap: 14, padding: '12px 16px', borderTop: i > 0 ? '1px solid var(--border)' : 'none' }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--surface-hover)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <item.icon style={{ width: 15, height: 15, color: 'var(--muted1)' }} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: 8, marginBottom: 3 }}>
+                        <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--fg)' }}>{item.label}</span>
+                        <span style={{ fontSize: 9, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted3)', background: 'var(--surface-hover)', border: '1px solid var(--border)', padding: '1px 6px', borderRadius: 5 }}>{item.location}</span>
+                      </div>
+                      <p style={{ fontSize: 12, color: 'var(--muted2)', lineHeight: 1.5 }}>{item.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.section>
+          ))}
+        </div>
+
+        {/* GitHub CTA */}
+        <div style={{ marginTop: 32, padding: '20px 22px', borderRadius: 20, border: '1px solid var(--border)', background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--fg)', marginBottom: 4 }}>Still need help?</div>
+            <div style={{ fontSize: 12, color: 'var(--muted2)' }}>Open an issue on GitHub or browse existing discussions.</div>
+          </div>
+          <a
+            href="https://github.com/zenmisan/manga-dl/issues"
+            target="_blank"
+            rel="noreferrer"
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--surface-hover)', fontSize: 12, fontWeight: 700, color: 'var(--fg)', textDecoration: 'none', flexShrink: 0 }}
+          >
+            <ExternalLink style={{ width: 14, height: 14 }} />
+            GitHub
+          </a>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 11, color: 'var(--muted3)', paddingTop: 16 }}>
+          <Info style={{ width: 12, height: 12 }} />
           Hover over any button to see its tooltip on desktop
-        </motion.div>
+        </div>
       </div>
     </div>
   )

@@ -10,11 +10,16 @@ from app.database import get_db, AsyncSessionLocal
 from app.models.download import DownloadRecord
 from sqlalchemy import delete
 from app.core.supabase_auth import get_current_user_email
+from app.config import get_settings
 
 router = APIRouter(prefix="/downloads", tags=["downloads"])
 
 async def _assert_admin(request: Request):
-    """Raise 403 if the user is not zenmisan@gmail.com."""
+    """Allow if valid API key present, or if JWT email matches admin."""
+    settings = get_settings()
+    api_key = request.headers.get("X-API-Key") or request.query_params.get("api_key")
+    if settings.API_KEY and api_key == settings.API_KEY:
+        return
     email = await get_current_user_email(request)
     if email != "zenmisan@gmail.com":
         raise HTTPException(status_code=403, detail="Library access is restricted to administrator.")
@@ -25,32 +30,35 @@ class DownloadRequest(BaseModel):
     provider_id: str
     manga_id: str
     chapter_id: str
+    manga_title: str | None = None
+    chapter_title: str | None = None
+    chapter_number: float | None = None
+    pages: list[str] | None = None
 
 
 @router.post("/queue")
 async def queue_download(req: DownloadRequest, request: Request):
-    """Queue a chapter for download. Fetches page URLs then enqueues."""
+    """Queue a chapter for download. Supports both Python backend providers and pre-resolved JS extension pages."""
     await _assert_admin(request)
+
+    pages: list[str] = req.pages or []
+    manga_title: str = req.manga_title or req.manga_id
+    chapter_title: str = req.chapter_title or f"Chapter {req.chapter_number or 1}"
+    chapter_number: float = req.chapter_number if req.chapter_number is not None else 1.0
+
+    # Try backend Python provider if registered (e.g. Komga, Suwayomi)
     provider = get_provider(req.provider_id)
-    if not provider:
-        raise HTTPException(status_code=404, detail=f"Provider '{req.provider_id}' not found")
-
-    # Fetch the manga detail to get titles (needed for file naming)
-    try:
-        manga = await provider.get_manga(req.manga_id)
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Failed to fetch manga info: {exc}")
-
-    # Find the chapter
-    chapter = next((c for c in manga.chapters if c.id == req.chapter_id), None)
-    if not chapter:
-        raise HTTPException(status_code=404, detail="Chapter not found")
-
-    # Fetch page URLs
-    try:
-        pages = await provider.get_pages(req.chapter_id)
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Failed to fetch chapter pages: {exc}")
+    if provider:
+        try:
+            manga = await provider.get_manga(req.manga_id)
+            chapter = next((c for c in manga.chapters if c.id == req.chapter_id), None)
+            if chapter:
+                manga_title = manga.title
+                chapter_title = chapter.title
+                chapter_number = chapter.number
+                pages = await provider.get_pages(req.chapter_id)
+        except Exception as exc:
+            log.warning("Failed to fetch Python provider info for %s: %s", req.provider_id, exc)
 
     if not pages:
         raise HTTPException(status_code=422, detail="No pages found — chapter may be paywalled or unavailable")
@@ -59,10 +67,10 @@ async def queue_download(req: DownloadRequest, request: Request):
         db_session_factory=AsyncSessionLocal,
         provider_id=req.provider_id,
         manga_id=req.manga_id,
-        manga_title=manga.title,
+        manga_title=manga_title,
         chapter_id=req.chapter_id,
-        chapter_title=chapter.title,
-        chapter_number=chapter.number,
+        chapter_title=chapter_title,
+        chapter_number=chapter_number,
         page_urls=pages,
     )
 

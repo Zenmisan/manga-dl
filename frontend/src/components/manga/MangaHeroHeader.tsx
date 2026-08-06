@@ -17,19 +17,38 @@ export function MangaHeroHeader({ manga, themeColor, showQueueLink, onBack, onQu
     : undefined
 
   return (
-    <div className="relative h-64 md:h-96 overflow-hidden">
-      <div 
-        className="absolute inset-0 bg-cover bg-center blur-3xl opacity-20 scale-110 transition-all duration-1000"
-        style={{ backgroundImage: proxyUrl ? `url(${proxyUrl})` : undefined, backgroundColor: themeColor }}
-      />
-      <div className="absolute inset-0 bg-gradient-to-t from-[#09090b] via-[#09090b]/40 to-transparent" />
-      
-      <div className="relative max-w-7xl mx-auto px-6 md:p-12 h-full flex items-end">
-        <button 
+    <div style={{ position: 'relative', height: 260, overflow: 'hidden', background: 'linear-gradient(150deg, #3f1d1d, #1c0a0a)' }}>
+      {/* Blurred Backdrop Image */}
+      {proxyUrl && (
+        <div
+          style={{
+            position: 'absolute', inset: 0,
+            backgroundImage: `url(${proxyUrl})`,
+            backgroundColor: themeColor,
+            backgroundSize: 'cover', backgroundPosition: 'center',
+            filter: 'blur(36px)', opacity: 0.35, transform: 'scale(1.1)',
+            transition: 'all 1s',
+          }}
+        />
+      )}
+
+      {/* Fade overlay to body background */}
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, transparent 30%, var(--bg) 100%)' }} />
+
+      {/* Header controls */}
+      <div style={{ position: 'relative', height: '100%', display: 'flex', alignItems: 'flex-start', padding: '16px 16px 0' }}>
+        <button
           onClick={onBack}
-          className="absolute top-8 left-6 p-3 glass-panel hover:bg-white/10 transition-all text-white shadow-xl z-10"
+          style={{
+            width: 38, height: 38, borderRadius: 12,
+            background: 'rgba(0,0,0,.4)', backdropFilter: 'blur(8px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#fff', border: '1px solid rgba(255,255,255,.1)',
+            cursor: 'pointer', zIndex: 10,
+          }}
+          title="Go Back"
         >
-          <ChevronLeft className="w-6 h-6" />
+          <ChevronLeft style={{ width: 20, height: 20 }} />
         </button>
 
         <AnimatePresence>
@@ -39,10 +58,10 @@ export function MangaHeroHeader({ manga, themeColor, showQueueLink, onBack, onQu
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
               onClick={onQueueClick}
-              className="absolute top-8 right-6 flex items-center gap-2 px-5 py-3 glass-panel transition-all shadow-xl z-10 font-bold text-sm"
-              style={{ backgroundColor: 'var(--theme-color)', color: '#fff', opacity: 0.9 }}
+              className="btn-primary"
+              style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, zIndex: 10 }}
             >
-              <ExternalLink className="w-4 h-4" />
+              <ExternalLink style={{ width: 14, height: 14 }} />
               View Queue
             </motion.button>
           )}

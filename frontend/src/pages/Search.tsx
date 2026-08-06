@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../lib/api'
-import { supabase } from '../lib/supabase'
 import { ExtensionManager } from '../lib/extensions'
-import { Search as SearchIcon, Globe, Loader2, ChevronRight, BookOpen, Layers, Star, BookMarked, Check, TrendingUp, Clock, SlidersHorizontal, ChevronDown } from 'lucide-react'
+import { Search as SearchIcon, Globe, Loader2, BookOpen, BookMarked, Check, SlidersHorizontal, X, TrendingUp, Clock } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
 import { useAppStore } from '../lib/store'
+import { buildSmartMangaUrl } from '../lib/smartUrl'
 
 interface MangaResult {
   id: string
@@ -26,14 +26,13 @@ const PROVIDERS = [
   { id: 'omegascans', name: 'Omega Scans' },
 ]
 
-function MangaCard({ r, idx, onSubscribe, subscribed, subscribing, navigate, isAdmin }: {
+function MangaCard({ r, idx, onSubscribe, subscribed, subscribing, navigate }: {
   r: MangaResult
   idx: number
-  onSubscribe: (e: React.MouseEvent, provider: string, id: string) => void
+  onSubscribe: (e: React.MouseEvent, result: MangaResult) => void
   subscribed: string[]
   subscribing: string[]
   navigate: ReturnType<typeof useNavigate>
-  isAdmin: boolean
 }) {
   const [coverError, setCoverError] = useState(false)
   const key = `${r.provider}:${r.id}`
@@ -42,76 +41,62 @@ function MangaCard({ r, idx, onSubscribe, subscribed, subscribing, navigate, isA
   return (
     <motion.div
       layout
-      key={r.id + r.provider}
-      initial={{ opacity: 0, scale: 0.95 }}
+      initial={{ opacity: 0, scale: 0.96 }}
       animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      transition={{ delay: Math.min(idx * 0.03, 0.4), ease: 'easeOut' }}
-      onClick={() => navigate(`/manga/${r.provider}/${encodeURIComponent(r.id)}`)}
-      className="group flex gap-5 glass-card p-4 hover:bg-white/[0.08] hover:border-red-500/30 cursor-pointer relative overflow-hidden"
+      exit={{ opacity: 0 }}
+      transition={{ delay: Math.min(idx * 0.03, 0.3) }}
+      onClick={() => navigate(buildSmartMangaUrl(r.provider, r.id, r.title))}
+      className="group cursor-pointer"
     >
-      <div className="w-24 h-32 md:w-28 md:h-36 glass-panel overflow-hidden shrink-0 relative shadow-xl">
+      <div className="manga-cover" style={{ position: 'relative' }}>
         {r.cover_url && !coverError ? (
           <img
             src={`${api.defaults.baseURL || ''}/manga/image-proxy?url=${encodeURIComponent(r.cover_url)}&api_key=${localStorage.getItem('manga-api-key') || ''}`}
             alt={r.title}
             loading="lazy"
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            className="group-hover:scale-105 transition-transform duration-400"
             onError={() => setCoverError(true)}
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-white/10 bg-white/[0.02]">
-            <BookOpen className="w-8 h-8" />
+          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface)' }}>
+            <BookOpen style={{ width: 28, height: 28, color: 'var(--muted3)' }} />
           </div>
         )}
-        <div className="absolute top-1 left-1 bg-black/70 backdrop-blur-md px-2 py-0.5 rounded-lg text-[9px] uppercase tracking-[0.15em] font-black text-white/90 border border-white/10 shadow-lg">
+        <div style={{ position: 'absolute', bottom: 6, left: 6, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)', padding: '2px 6px', borderRadius: 6, fontSize: 9, fontWeight: 800, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
           {r.provider}
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col justify-between py-1 min-w-0">
-        <div className="space-y-1.5">
-          <div className="flex items-start justify-between gap-3">
-            <h3 className="font-bold text-gray-100 line-clamp-2 leading-snug md:text-lg group-hover:text-red-400 transition-colors flex-1">
-              {r.title}
-            </h3>
-            {r.anilist_score && (
-              <div className="flex items-center gap-1 px-2 py-0.5 bg-amber-500/10 text-amber-500 rounded-lg border border-amber-500/20 shrink-0">
-                <Star className="w-3 h-3 fill-current" />
-                <span className="text-[10px] font-black">{r.anilist_score}%</span>
-              </div>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <div className={cn(
-              "w-1.5 h-1.5 rounded-full",
-              r.status === 'ongoing' ? 'bg-emerald-400' : 'bg-sky-400'
-            )} />
-            <span className="text-[11px] font-black uppercase tracking-widest text-white/30">
-              {r.status || 'unknown'}
-            </span>
-          </div>
-        </div>
-        <div className="flex items-center justify-between mt-4 gap-2">
-          {isAdmin && (
-            <button
-              onClick={(e) => onSubscribe(e, r.provider, r.id)}
-              disabled={isSubscribed || isSubscribing}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all",
-                isSubscribed
-                  ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                  : "bg-white/5 border-white/10 text-white/40 hover:text-white hover:border-white/20"
-              )}
-            >
-              {isSubscribing ? <Loader2 className="w-3 h-3 animate-spin" /> : isSubscribed ? <Check className="w-3 h-3" /> : <BookMarked className="w-3 h-3" />}
-              {isSubscribed ? 'In Library' : 'Add'}
-            </button>
+      <div style={{ marginTop: 8, paddingLeft: 2 }}>
+        <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.3 }}>{r.title}</div>
+        <div style={{ fontSize: 11, color: 'var(--muted3)', marginTop: 2, fontWeight: 500 }}>{r.status || 'unknown'}</div>
+
+        <button
+          onClick={(e) => onSubscribe(e, r)}
+          disabled={isSubscribing}
+          className={cn(
+            "w-full mt-2 py-1.5 px-3 rounded-xl font-extrabold text-[11px] flex items-center justify-center gap-1.5 transition-all cursor-pointer border shadow-sm",
+            isSubscribed
+              ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-400 hover:bg-red-500/20 hover:border-red-500/30 hover:text-red-400"
+              : "bg-white/10 border-white/15 hover:bg-white/20 text-white"
           )}
-          <div className="p-2 bg-white/5 rounded-xl text-white/20 group-hover:text-white group-hover:bg-red-600 group-hover:shadow-lg transition-all duration-300 ml-auto">
-            <ChevronRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
-          </div>
-        </div>
+          title={isSubscribed ? "In Library (tap to remove)" : "Add to Library"}
+        >
+          {isSubscribing ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : isSubscribed ? (
+            <>
+              <Check className="w-3.5 h-3.5 text-emerald-400" />
+              <span>In Library</span>
+            </>
+          ) : (
+            <>
+              <BookMarked className="w-3.5 h-3.5 text-white" />
+              <span>Add to Library</span>
+            </>
+          )}
+        </button>
       </div>
     </motion.div>
   )
@@ -137,71 +122,48 @@ export default function SearchPage() {
   const [subscribing, setSubscribing] = useState<string[]>([])
   const [subscribed, setSubscribed] = useState<string[]>([])
   const [extCount, setExtCount] = useState(0)
-  const [userEmail, setUserEmail] = useState<string | null>(null)
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUserEmail(session?.user?.email || null)
-    })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUserEmail(session?.user?.email || null)
-    })
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [])
-
-  const isAdmin = userEmail === 'zenmisan@gmail.com'
-
-  // Dynamic source filters
-  interface FilterDef { id: string; label: string; type: string; options: { value: string; label: string }[]; default: string }
-  const [sourceFilters, setSourceFilters] = useState<FilterDef[]>([])
-  const [activeFilters, setActiveFilters] = useState<Record<string, string>>({})
   const [showFilterPanel, setShowFilterPanel] = useState(false)
 
-  // Track active extensions size
+  const [filterStatus, setFilterStatus] = useState<string>('any')
+  const [filterRating, setFilterRating] = useState<string[]>(['safe'])
+  const [filterFormat, setFilterFormat] = useState<string[]>([])
+
+  interface FilterDef { id: string; label: string; type: string; options: { value: string; label: string }[]; default: string }
+  const [sourceFilters] = useState<FilterDef[]>([])
+  const [activeFilters, setActiveFilters] = useState<Record<string, string>>({})
+
   useEffect(() => {
     const manager = ExtensionManager.getInstance()
     if (manager.extensions.size === 0) {
-      manager.init().then(() => {
-        setExtCount(manager.extensions.size)
-      })
+      manager.init().then(() => { setExtCount(manager.extensions.size) })
     } else {
       setExtCount(manager.extensions.size)
     }
   }, [])
 
-  // Filter providers dynamically based on loaded extensions
   const activeProviders = useMemo(() => {
     const manager = ExtensionManager.getInstance()
     return PROVIDERS.filter(p => manager.extensions.has(p.id))
   }, [extCount])
 
-  // Sanitise provider selections if they become inactive
   useEffect(() => {
     if (activeProviders.length > 0) {
-      if (selectedProvider && !activeProviders.some(p => p.id === selectedProvider)) {
-        setSelectedProvider(null)
-      }
-      if (browseProvider && !activeProviders.some(p => p.id === browseProvider)) {
-        setBrowseProvider(activeProviders[0]?.id || 'mangadex')
-      }
+      if (selectedProvider && !activeProviders.some(p => p.id === selectedProvider)) setSelectedProvider(null)
+      if (browseProvider && !activeProviders.some(p => p.id === browseProvider)) setBrowseProvider(activeProviders[0]?.id || 'mangadex')
     }
   }, [activeProviders, selectedProvider, browseProvider, setSelectedProvider, setBrowseProvider])
 
-  const handleSubscribe = async (e: React.MouseEvent, provider: string, mangaId: string) => {
+  const handleSubscribe = async (e: React.MouseEvent, result: MangaResult) => {
     e.stopPropagation()
+    const { provider, id: mangaId, title, cover_url } = result
     const key = `${provider}:${mangaId}`
     if (subscribed.includes(key) || subscribing.includes(key)) return
     setSubscribing(prev => [...prev, key])
     try {
-      await api.post(`/manga/subscribe/${provider}/${encodeURIComponent(mangaId)}`)
+      await api.post(`/manga/subscribe/${provider}/${encodeURIComponent(mangaId)}`, { title, cover_url })
       setSubscribed(prev => [...prev, key])
-    } catch {
-      alert('Could not add to library.')
-    } finally {
-      setSubscribing(prev => prev.filter(k => k !== key))
-    }
+    } catch { alert('Could not add to library.') }
+    finally { setSubscribing(prev => prev.filter(k => k !== key)) }
   }
 
   const performSearch = useCallback(async (query: string) => {
@@ -210,15 +172,8 @@ export default function SearchPage() {
     setHasSearched(false)
     try {
       const manager = ExtensionManager.getInstance()
-      if (manager.extensions.size === 0) {
-        await manager.init()
-      }
-
-      if (manager.extensions.size === 0) {
-        alert('No sources loaded. Please check your API Key in Settings.')
-        setLoading(false)
-        return
-      }
+      if (manager.extensions.size === 0) await manager.init()
+      if (manager.extensions.size === 0) { alert('No sources loaded. Please check your API Key in Settings.'); setLoading(false); return }
 
       if (selectedProvider) {
         const ext = manager.extensions.get(selectedProvider)
@@ -227,43 +182,21 @@ export default function SearchPage() {
       } else {
         const allExts = Array.from(manager.extensions.values())
         const settled = await Promise.allSettled(allExts.map(ext => ext.search(query, 1) as Promise<MangaResult[]>))
-
-        // Log failures to console for debugging
-        settled.forEach((r, i) => {
-          if (r.status === 'rejected') {
-            console.error(`[Search] ${allExts[i].name} failed:`, r.reason)
-          }
-        })
-
+        settled.forEach((r, i) => { if (r.status === 'rejected') console.error(`[Search] ${allExts[i].name} failed:`, r.reason) })
         const merged = settled.flatMap(r => r.status === 'fulfilled' ? r.value : [])
-
         if (merged.length === 0 && settled.some(r => r.status === 'rejected')) {
           const firstError = settled.find(r => r.status === 'rejected') as PromiseRejectedResult
-          if (String(firstError?.reason).includes('403')) {
-            alert('Search failed (403 Forbidden). Is your API Key correct in Settings?')
-          }
+          if (String(firstError?.reason).includes('403')) alert('Search failed (403 Forbidden). Is your API Key correct in Settings?')
         }
-
         setSearchResults(merged)
       }
       setHasSearched(true)
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setLoading(false)
-    }
+    } catch (err) { console.error(err) }
+    finally { setLoading(false) }
   }, [selectedProvider, setSearchResults, setHasSearched])
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault()
-    performSearch(searchQuery.trim())
-  }
-
-  // Trigger search automatically when selectedProvider changes and tab is search
   useEffect(() => {
-    if (searchQuery.trim() && tab === 'search') {
-      performSearch(searchQuery.trim())
-    }
+    if (searchQuery.trim() && tab === 'search') performSearch(searchQuery.trim())
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProvider])
 
@@ -274,40 +207,23 @@ export default function SearchPage() {
       let data: MangaResult[]
       if (ext) {
         const method = endpoint === 'popular' ? ext.getPopular : ext.getLatest
-        if (method) {
-          data = await method(page) as MangaResult[]
-        } else {
-          data = await ext.search('', page) as MangaResult[]
-        }
-      } else {
-        data = []
-      }
+        data = method ? await method(page) as MangaResult[] : await ext.search('', page) as MangaResult[]
+      } else { data = [] }
       setBrowseResults(page === 1 ? data : [...browseResults, ...data])
       setBrowseHasMore(data.length === 20)
-    } catch (err) {
-      console.error(err)
-      setBrowseHasMore(false)
-    } finally {
-      setBrowseLoading(false)
-    }
+    } catch (err) { console.error(err); setBrowseHasMore(false) }
+    finally { setBrowseLoading(false) }
   }, [browseResults, setBrowseResults, setBrowseHasMore])
 
-  const selectBrowseProvider = (id: string) => {
-    setBrowseProvider(id)
-    setSourceFilters([])
-    setActiveFilters({})
-  }
+  const selectBrowseProvider = (id: string) => { setBrowseProvider(id); setActiveFilters({}) }
 
   useEffect(() => {
     if (tab === 'popular' || tab === 'latest') {
       const fetchKey = `${tab}:${browseProvider}`
       if (lastFetchKey !== fetchKey || browseResults.length === 0) {
         setLastFetchKey(fetchKey)
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setBrowsePage(1)
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setBrowseResults([])
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setBrowseHasMore(true)
         fetchBrowse(browseProvider, 1, tab)
       }
@@ -321,303 +237,275 @@ export default function SearchPage() {
     fetchBrowse(browseProvider, nextPage, tab as 'popular' | 'latest')
   }
 
-  const applyFilters = () => {
-    setBrowsePage(1)
-    setBrowseResults([])
-    setBrowseHasMore(true)
-    fetchBrowse(browseProvider, 1, 'popular')
-    setShowFilterPanel(false)
+  const resetSearchFilters = () => { setFilterStatus('any'); setFilterRating(['safe']); setFilterFormat([]) }
+  const toggleArr = (arr: string[], val: string, set: (v: string[]) => void) => {
+    set(arr.includes(val) ? arr.filter(v => v !== val) : [...arr, val])
   }
 
-  return (
-    <div className="p-4 sm:p-6 md:p-12 max-w-7xl mx-auto min-h-full">
-      <header className="mb-10">
-        <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-4 bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent">
-          Discover Manga
-        </h1>
-        <p className="text-white/40 font-medium md:text-lg mb-8">Search across multiple sources to find your next read.</p>
+  const hasSearchFilters = filterStatus !== 'any' || filterRating.length !== 1 || !filterRating.includes('safe') || filterFormat.length > 0
 
-        {/* Tabs */}
-        <div className="flex gap-2 mb-8 border-b border-white/5 pb-4 overflow-x-auto no-scrollbar">
-          {[
-            { id: 'search', label: 'Search', icon: SearchIcon },
-            { id: 'popular', label: 'Popular', icon: TrendingUp },
-            { id: 'latest', label: 'Latest', icon: Clock },
-          ].map(t => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id as typeof tab)}
-              className={cn(
-                "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold uppercase tracking-widest border transition-all shrink-0",
-                tab === t.id
-                  ? "bg-white/10 border-white/20 text-white shadow-lg"
-                  : "border-transparent text-white/40 hover:text-white/60 hover:bg-white/5"
-              )}
+  const FILTER_SECTIONS = [
+    { label: 'Publication Status', items: ['any', 'ongoing', 'completed', 'hiatus'], active: filterStatus, onToggle: (v: string) => setFilterStatus(v), single: true },
+    { label: 'Content Rating', items: ['safe', 'suggestive', 'erotica'], active: filterRating, onToggle: (v: string) => toggleArr(filterRating, v, setFilterRating), single: false },
+    { label: 'Format', items: ['manga', 'manhwa', 'manhua', 'webtoon'], active: filterFormat, onToggle: (v: string) => toggleArr(filterFormat, v, setFilterFormat), single: false },
+  ]
+
+  const GRID_STYLE = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px,1fr))', gap: 18 } as const
+
+  const TABS = [
+    { id: 'search', label: 'SEARCH', Icon: SearchIcon },
+    { id: 'popular', label: 'POPULAR', Icon: TrendingUp },
+    { id: 'latest', label: 'LATEST', Icon: Clock },
+  ]
+
+  return (
+    <div className="min-h-full flex flex-col">
+      <div className="px-4 md:px-6 pt-5 pb-28 flex-1">
+
+        {/* Page heading */}
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} style={{ marginBottom: 16 }}>
+          <h1 style={{ fontSize: 'clamp(22px, 4vw, 34px)', fontWeight: 800, color: 'var(--fg)', lineHeight: 1.15, marginBottom: 3 }}>Discover Manga</h1>
+          <p className="hidden md:block" style={{ fontSize: 13, color: 'var(--muted2)' }}>Search across multiple sources to find your next read.</p>
+        </motion.div>
+
+        {/* Mode tabs */}
+        <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
+          {TABS.map(({ id, label, Icon }) => (
+            <button key={id} onClick={() => setTab(id as typeof tab)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 999,
+                border: `1px solid ${tab === id ? 'var(--accent)' : 'var(--border)'}`,
+                background: tab === id ? 'rgba(220,38,38,0.1)' : 'var(--surface)',
+                color: tab === id ? 'var(--accent)' : 'var(--muted1)',
+                fontSize: 11, fontWeight: 900, letterSpacing: '0.06em', cursor: 'pointer', transition: 'all 0.15s',
+              }}
             >
-              <t.icon className="w-4 h-4" />
-              {t.label}
+              <Icon style={{ width: 12, height: 12 }} />
+              {label}
             </button>
           ))}
         </div>
 
+        {/* Search bar (shown on search tab) */}
         {tab === 'search' && (
-          <>
-            <form onSubmit={handleSearch} className="relative group max-w-2xl mb-8 flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1">
-                <SearchIcon className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-white/20 group-focus-within:text-red-500 transition-colors z-10" />
+          <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} style={{ marginBottom: 12 }}>
+            <form onSubmit={(e) => { e.preventDefault(); performSearch(searchQuery.trim()) }}
+              style={{ display: 'flex', gap: 8, alignItems: 'center' }}
+            >
+              <div style={{ position: 'relative', flex: 1 }}>
+                <SearchIcon style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', width: 15, height: 15, color: 'var(--muted3)', pointerEvents: 'none' }} />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search by title, author, or genre..."
-                  className="w-full glass-panel py-3.5 sm:py-4 md:py-5 pl-11 sm:pl-14 pr-4 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-all text-sm sm:text-base md:text-lg placeholder:text-white/20 relative z-0"
+                  style={{ width: '100%', padding: '11px 14px 11px 38px', borderRadius: 14, border: '1px solid var(--border)', background: 'var(--surface)', fontSize: 13.5, color: 'var(--fg)', outline: 'none', boxSizing: 'border-box' }}
                 />
               </div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="btn-primary py-3 px-6 flex items-center justify-center gap-2 shrink-0 text-sm md:text-base font-bold"
+              <button type="submit" disabled={loading} className="btn-primary"
+                style={{ flexShrink: 0, padding: '11px 22px', borderRadius: 14, fontSize: 13.5, fontWeight: 900, display: 'flex', alignItems: 'center', gap: 7 }}
               >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Search'}
+                {loading ? <Loader2 style={{ width: 14, height: 14 }} className="animate-spin" /> : null}
+                Search
+              </button>
+              <button type="button" onClick={() => setShowFilterPanel(true)}
+                style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 14, border: '1px solid var(--border)', background: 'var(--surface)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: hasSearchFilters ? 'var(--accent)' : 'var(--muted2)' }}
+              >
+                <SlidersHorizontal style={{ width: 15, height: 15 }} />
               </button>
             </form>
-            <div className="flex flex-wrap gap-2.5">
-              <button
-                onClick={() => setSelectedProvider(null)}
-                className={cn(
-                  "px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-widest border transition-all flex items-center gap-2",
-                  !selectedProvider
-                    ? "bg-white/10 border-white/20 text-white shadow-lg"
-                    : "bg-white/[0.02] border-white/5 text-white/40 hover:text-white/60 hover:border-white/10"
-                )}
-              >
-                <Layers className="w-3 h-3" />
-                All
+
+            {/* Source filter pills — only show if providers are loaded */}
+            {activeProviders.length > 0 && (
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
+                <button onClick={() => setSelectedProvider(null)} className={cn('filter-pill', !selectedProvider && 'active')}>All</button>
+                {activeProviders.map(p => (
+                  <button key={p.id} onClick={() => setSelectedProvider(p.id)} className={cn('filter-pill', selectedProvider === p.id && 'active')} style={{ textTransform: 'uppercase', fontSize: 11 }}>
+                    {p.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {/* Browse tab source pills */}
+        {(tab === 'popular' || tab === 'latest') && activeProviders.length > 0 && (
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
+            {activeProviders.map(p => (
+              <button key={p.id} onClick={() => selectBrowseProvider(p.id)} className={cn('filter-pill', browseProvider === p.id && 'active')} style={{ textTransform: 'uppercase', fontSize: 11 }}>
+                {p.name}
               </button>
-              {activeProviders.map(p => (
-                <button
-                  key={p.id}
-                  onClick={() => setSelectedProvider(p.id)}
-                  className={cn(
-                    "px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-widest border transition-all",
-                    selectedProvider === p.id
-                      ? "bg-white/10 border-white/20 text-white shadow-lg"
-                      : "bg-white/[0.02] border-white/5 text-white/40 hover:text-white/60 hover:border-white/10"
-                  )}
-                >
-                  {p.name}
-                </button>
-              ))}
-            </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── Search results ── */}
+        {tab === 'search' && (
+          <>
+            {loading ? (
+              <div style={GRID_STYLE}>
+                {[...Array(12)].map((_, i) => (
+                  <div key={i} style={{ aspectRatio: '2/3', background: 'var(--surface)', borderRadius: 14, border: '1px solid var(--border)' }} className="animate-pulse" />
+                ))}
+              </div>
+            ) : searchResults.length > 0 ? (
+              selectedProvider ? (
+                <div style={GRID_STYLE}>
+                  <AnimatePresence mode="popLayout">
+                    {searchResults.map((r, idx) => (
+                      <MangaCard key={r.id + r.provider} r={r} idx={idx} onSubscribe={handleSubscribe} subscribed={subscribed} subscribing={subscribing} navigate={navigate} />
+                    ))}
+                  </AnimatePresence>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+                  {Object.entries(searchResults.reduce<Record<string, MangaResult[]>>((acc, r) => { ;(acc[r.provider] ??= []).push(r); return acc }, {}))
+                    .filter(([_, results]) => results.length > 0)
+                    .map(([provider, results]) => (
+                      <div key={provider}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                          <span style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)' }}>{provider}</span>
+                          <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                          <span style={{ fontSize: 11, color: 'var(--muted3)' }}>{results.length}</span>
+                        </div>
+                        <div style={GRID_STYLE}>
+                          <AnimatePresence mode="popLayout">
+                            {results.map((r, idx) => (
+                              <MangaCard key={r.id + r.provider} r={r} idx={idx} onSubscribe={handleSubscribe} subscribed={subscribed} subscribing={subscribing} navigate={navigate} />
+                            ))}
+                          </AnimatePresence>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )
+            ) : hasSearched ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '80px 24px', gap: 12 }}>
+                <Globe style={{ width: 52, height: 52, color: 'var(--muted3)', opacity: 0.35 }} />
+                <p style={{ fontSize: 16, fontWeight: 800, color: 'var(--fg)' }}>No results found</p>
+                <p style={{ fontSize: 13, color: 'var(--muted2)' }}>Couldn't find "{searchQuery}". Try another spelling.</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '72px 24px', gap: 16 }}>
+                <SearchIcon style={{ width: 56, height: 56, color: 'var(--muted3)', opacity: 0.3 }} />
+                <p style={{ fontSize: 11, fontWeight: 900, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--muted3)' }}>Type something to search</p>
+              </div>
+            )}
           </>
         )}
 
+        {/* ── Browse tabs ── */}
         {(tab === 'popular' || tab === 'latest') && (
-          <div className="space-y-3">
-            <div className="flex flex-wrap gap-2.5 items-center">
-              {activeProviders.map(p => (
-                <button
-                  key={p.id}
-                  onClick={() => selectBrowseProvider(p.id)}
-                  className={cn(
-                    "px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-widest border transition-all",
-                    browseProvider === p.id
-                      ? "bg-white/10 border-white/20 text-white shadow-lg"
-                      : "bg-white/[0.02] border-white/5 text-white/40 hover:text-white/60 hover:border-white/10"
-                  )}
-                >
-                  {p.name}
-                </button>
-              ))}
-              {tab === 'popular' && sourceFilters.length > 0 && (
-                <button
-                  onClick={() => setShowFilterPanel(f => !f)}
-                  className={cn(
-                    "ml-auto flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest border transition-all",
-                    showFilterPanel
-                      ? "bg-red-500/20 border-red-500/30 text-red-400"
-                      : "bg-white/[0.02] border-white/5 text-white/40 hover:text-white/60 hover:border-white/10"
-                  )}
-                >
-                  <SlidersHorizontal className="w-3.5 h-3.5" />
-                  Filters
-                </button>
-              )}
-            </div>
+          <>
+            {browseLoading && browseResults.length === 0 ? (
+              <div style={GRID_STYLE}>
+                {[...Array(12)].map((_, i) => (
+                  <div key={i} style={{ aspectRatio: '2/3', background: 'var(--surface)', borderRadius: 14, border: '1px solid var(--border)' }} className="animate-pulse" />
+                ))}
+              </div>
+            ) : browseResults.length > 0 ? (
+              <>
+                <div style={{ ...GRID_STYLE, marginBottom: 24 }}>
+                  <AnimatePresence mode="popLayout">
+                    {browseResults.map((r, idx) => (
+                      <MangaCard key={r.id + r.provider} r={r} idx={idx} onSubscribe={handleSubscribe} subscribed={subscribed} subscribing={subscribing} navigate={navigate} />
+                    ))}
+                  </AnimatePresence>
+                </div>
+                {browseHasMore && (
+                  <div style={{ display: 'flex', justifyContent: 'center' }}>
+                    <button onClick={loadMoreBrowse} disabled={browseLoading} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {browseLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                      Load More
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : !browseLoading ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '64px 24px', gap: 12 }}>
+                <Globe style={{ width: 36, height: 36, color: 'var(--muted3)', opacity: 0.4 }} />
+                <p style={{ fontSize: 13, color: 'var(--muted2)' }}>No results from {browseProvider}</p>
+              </div>
+            ) : null}
+          </>
+        )}
+      </div>
 
-            {/* Dynamic filter panel */}
-            {showFilterPanel && tab === 'popular' && sourceFilters.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="glass-panel p-5 border-white/5 space-y-4"
-              >
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* ── Mobile / shared filter bottom sheet ── */}
+      <AnimatePresence>
+        {showFilterPanel && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setShowFilterPanel(false)}
+              style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 40 }}
+            />
+            <motion.div
+              initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              style={{ position: 'fixed', bottom: 76, left: 0, right: 0, background: 'var(--bg)', borderTop: '1px solid var(--border)', borderRadius: '20px 20px 0 0', zIndex: 50, maxHeight: 'calc(85vh - 76px)', display: 'flex', flexDirection: 'column' }}
+              className="md:!bottom-0 md:!max-h-[85vh]"
+            >
+              {/* Scrollable content */}
+              <div style={{ overflowY: 'auto', flex: 1, padding: '0 20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 16px' }}>
+                  <div style={{ width: 36, height: 4, borderRadius: 999, background: 'var(--border)' }} />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                  <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--fg)' }}>Search Filters</span>
+                  <button onClick={() => setShowFilterPanel(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
+                    <X style={{ width: 20, height: 20, color: 'var(--muted2)' }} />
+                  </button>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 24, marginBottom: 16 }}>
+                  {FILTER_SECTIONS.map(sec => (
+                    <div key={sec.label}>
+                      <div style={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)', marginBottom: 12 }}>{sec.label}</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                        {sec.items.map(item => {
+                          const isOn = sec.single ? sec.active === item : (sec.active as string[]).includes(item)
+                          return (
+                            <button key={item} onClick={() => sec.onToggle(item)} className={cn('filter-pill', isOn && 'active')} style={{ textTransform: 'capitalize', padding: '8px 16px' }}>
+                              {item}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ))}
                   {sourceFilters.map(f => (
-                    <div key={f.id} className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-white/30">{f.label}</label>
-                      {f.type === 'select' ? (
-                        <div className="relative">
-                          <select
-                            value={activeFilters[f.id] ?? f.default}
-                            onChange={e => setActiveFilters(prev => ({ ...prev, [f.id]: e.target.value }))}
-                            className="select-styled w-full"
-                          >
-                            {f.options.map(o => (
-                              <option key={o.value} value={o.value} className="bg-neutral-900">{o.label}</option>
-                            ))}
-                          </select>
-                          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30 pointer-events-none" />
-                        </div>
-                      ) : f.type === 'multiselect' ? (
-                        <div className="flex flex-wrap gap-1.5">
+                    <div key={f.id}>
+                      <div style={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)', marginBottom: 12 }}>{f.label}</div>
+                      {f.type === 'multiselect' && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                           {f.options.map(o => {
                             const current = (activeFilters[f.id] ?? f.default).split(',').filter(Boolean)
-                            const active = current.includes(o.value)
+                            const isActive = current.includes(o.value)
                             return (
-                              <button
-                                key={o.value}
-                                onClick={() => {
-                                  const next = active ? current.filter(v => v !== o.value) : [...current, o.value]
-                                  setActiveFilters(prev => ({ ...prev, [f.id]: next.join(',') }))
-                                }}
-                                className={cn(
-                                  "px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all",
-                                  active ? "bg-red-500/20 border-red-500/30 text-red-400" : "bg-white/5 border-white/5 text-white/30 hover:border-white/10"
-                                )}
-                              >
+                              <button key={o.value} onClick={() => { const next = isActive ? current.filter(v => v !== o.value) : [...current, o.value]; setActiveFilters(prev => ({ ...prev, [f.id]: next.join(',') })) }} className={cn('filter-pill', isActive && 'active')} style={{ padding: '8px 16px' }}>
                                 {o.label}
                               </button>
                             )
                           })}
                         </div>
-                      ) : null}
+                      )}
                     </div>
                   ))}
                 </div>
-                <button
-                  onClick={applyFilters}
-                  className="px-6 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all"
-                >
-                  Apply Filters
+              </div>
+
+              {/* Sticky bottom buttons — always visible */}
+              <div style={{ padding: '12px 20px', paddingBottom: 'max(20px, env(safe-area-inset-bottom))', borderTop: '1px solid var(--border)', display: 'flex', gap: 10, background: 'var(--bg)', flexShrink: 0 }}>
+                <button onClick={resetSearchFilters} className="btn-secondary" style={{ flex: 1, padding: '13px 0', fontSize: 14, fontWeight: 700 }}>Reset</button>
+                <button onClick={() => setShowFilterPanel(false)} className="btn-primary" style={{ flex: 2, padding: '13px 0', fontSize: 14, fontWeight: 700 }}>
+                  Apply
                 </button>
-              </motion.div>
-            )}
-          </div>
-        )}
-      </header>
-
-      {tab === 'search' && (
-        <>
-          {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="h-44 bg-white/5 animate-pulse rounded-2xl border border-white/5" />
-              ))}
-            </div>
-          ) : searchResults.length > 0 ? (
-            selectedProvider ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                <AnimatePresence mode="popLayout">
-                  {searchResults.map((r, idx) => (
-                    <MangaCard key={r.id + r.provider} r={r} idx={idx}
-                      onSubscribe={handleSubscribe} subscribed={subscribed} subscribing={subscribing} navigate={navigate} isAdmin={isAdmin}
-                    />
-                  ))}
-                </AnimatePresence>
               </div>
-            ) : (
-              // Grouped by provider when searching all sources
-              <div className="space-y-10">
-                {Object.entries(
-                  searchResults.reduce<Record<string, MangaResult[]>>((acc, r) => {
-                    ;(acc[r.provider] ??= []).push(r)
-                    return acc
-                  }, {})
-                )
-                  .filter(([_, results]) => results.length > 0)
-                  .map(([provider, results]) => (
-                  <div key={provider}>
-                    <div className="flex items-center gap-3 mb-4">
-                      <span className="text-xs font-black uppercase tracking-[0.25em] text-white/40 px-3 py-1 bg-white/5 rounded-full border border-white/5">
-                        {provider}
-                      </span>
-                      <div className="flex-1 h-px bg-white/5" />
-                      <span className="text-xs text-white/20 font-mono">{results.length} result{results.length !== 1 ? 's' : ''}</span>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                      <AnimatePresence mode="popLayout">
-                        {results.map((r, idx) => (
-                          <MangaCard key={r.id + r.provider} r={r} idx={idx}
-                            onSubscribe={handleSubscribe} subscribed={subscribed} subscribing={subscribing} navigate={navigate} isAdmin={isAdmin}
-                          />
-                        ))}
-                      </AnimatePresence>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )
-          ) : hasSearched ? (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-center py-24 glass-panel border-dashed border-white/5"
-            >
-              <Globe className="w-12 h-12 text-white/10 mx-auto mb-4" />
-              <h3 className="text-xl font-bold mb-2">No results found</h3>
-              <p className="text-white/30 max-w-xs mx-auto text-sm">Couldn't find "{searchQuery}". Try another spelling or provider.</p>
             </motion.div>
-          ) : (
-            <div className="text-center py-24 text-white/20">
-              <SearchIcon className="w-12 h-12 mx-auto mb-4 opacity-20" />
-              <p className="font-bold uppercase tracking-widest text-xs">Type something to search</p>
-            </div>
-          )}
-        </>
-      )}
-
-      {(tab === 'popular' || tab === 'latest') && (
-        <>
-          {browseLoading && browseResults.length === 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="h-44 bg-white/5 animate-pulse rounded-2xl border border-white/5" />
-              ))}
-            </div>
-          ) : browseResults.length > 0 ? (
-            <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-8">
-                <AnimatePresence mode="popLayout">
-                  {browseResults.map((r, idx) => (
-                    <MangaCard key={r.id + r.provider} r={r} idx={idx}
-                      onSubscribe={handleSubscribe} subscribed={subscribed} subscribing={subscribing} navigate={navigate} isAdmin={isAdmin}
-                    />
-                  ))}
-                </AnimatePresence>
-              </div>
-              {browseHasMore && (
-                <div className="flex justify-center">
-                  <button
-                    onClick={loadMoreBrowse}
-                    disabled={browseLoading}
-                    className="flex items-center gap-2 px-8 py-3 glass-panel border-white/10 hover:bg-white/10 transition-all font-bold text-sm uppercase tracking-widest text-white/60 hover:text-white"
-                  >
-                    {browseLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                    Load More
-                  </button>
-                </div>
-              )}
-            </>
-          ) : !browseLoading ? (
-            <div className="text-center py-24 text-white/20">
-              <Globe className="w-12 h-12 mx-auto mb-4 opacity-20" />
-              <p className="font-bold uppercase tracking-widest text-xs">No results from {browseProvider}</p>
-            </div>
-          ) : null}
-        </>
-      )}
+          </>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
