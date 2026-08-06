@@ -182,44 +182,61 @@ export default function MangaDetail() {
           </div>
         </div>
 
-        {/* 3. Main Body Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8 md:gap-12 items-start">
-          {/* Left Column: Synopsis, 4-Card Stats, Chapters */}
-          <div className="min-w-0">
-            {/* Synopsis */}
+        {/* 3. Main Body Grid (Stitch 12-Column Desktop Layout) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          {/* Left Column (lg:col-span-4): Synopsis, Details, Personal Rating & Notes */}
+          <div className="lg:col-span-4 space-y-6">
+            {/* Synopsis Card */}
             {manga.description && (
-              <p className="text-sm leading-relaxed text-zinc-300 max-w-3xl mb-8 whitespace-pre-line">
-                {manga.description}
-              </p>
+              <div className="p-5 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl relative overflow-hidden group">
+                <div className="text-[11px] font-extrabold uppercase tracking-widest text-zinc-400 mb-3">Synopsis</div>
+                <p className="text-xs sm:text-sm leading-relaxed text-zinc-300 whitespace-pre-line">
+                  {manga.description}
+                </p>
+              </div>
             )}
 
-            {/* 4-Card Stats Row */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-10">
-              <div className="p-3.5 rounded-2xl border border-white/10 bg-white/5">
-                <div className="text-[11px] font-extrabold uppercase tracking-widest text-zinc-500 mb-1">Status</div>
-                <div className="text-base font-black capitalize text-zinc-100">{manga.status || 'Ongoing'}</div>
+            {/* Details Card */}
+            <div className="p-5 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl space-y-3">
+              <div className="text-[11px] font-extrabold uppercase tracking-widest text-zinc-400 mb-2">Details</div>
+              <div className="flex justify-between items-center border-b border-white/10 pb-2 text-xs">
+                <span className="text-zinc-400">Source</span>
+                <span className="font-bold text-white capitalize">{manga.provider}</span>
               </div>
-
-              <div className="p-3.5 rounded-2xl border border-white/10 bg-white/5">
-                <div className="text-[11px] font-extrabold uppercase tracking-widest text-zinc-500 mb-1">Chapters</div>
-                <div className="text-base font-black text-zinc-100">{manga.chapters.length}</div>
+              <div className="flex justify-between items-center border-b border-white/10 pb-2 text-xs">
+                <span className="text-zinc-400">Status</span>
+                <span className="font-bold text-white capitalize">{manga.status || 'Ongoing'}</span>
               </div>
-
-              <div className="p-3.5 rounded-2xl border border-white/10 bg-white/5">
-                <div className="text-[11px] font-extrabold uppercase tracking-widest text-zinc-500 mb-1">Rating</div>
-                <div className="text-base font-black text-amber-400 flex items-center gap-1">
-                  <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+              <div className="flex justify-between items-center border-b border-white/10 pb-2 text-xs">
+                <span className="text-zinc-400">Chapters</span>
+                <span className="font-bold text-white">{manga.chapters.length}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-zinc-400">Rating</span>
+                <span className="font-bold text-amber-400 flex items-center gap-1">
+                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                   {userRating > 0 ? `${userRating}.0` : '9.1'}
-                </div>
-              </div>
-
-              <div className="p-3.5 rounded-2xl border border-white/10 bg-white/5">
-                <div className="text-[11px] font-extrabold uppercase tracking-widest text-zinc-500 mb-1">Source</div>
-                <div className="text-base font-black capitalize text-zinc-100">{manga.provider}</div>
+                </span>
               </div>
             </div>
 
-            {/* Chapters Section */}
+            {/* Personal Rating & Notes */}
+            <MangaRatingNotes
+              provider={provider}
+              mangaId={mangaId}
+              userRating={userRating}
+              setUserRating={setUserRating}
+              userNote={userNote}
+              setUserNote={setUserNote}
+              noteEditing={noteEditing}
+              setNoteEditing={setNoteEditing}
+              noteDraft={noteDraft}
+              setNoteDraft={setNoteDraft}
+            />
+          </div>
+
+          {/* Right Column (lg:col-span-8): Chapter Management & Chapter List */}
+          <div className="lg:col-span-8 min-w-0">
             <MangaChaptersSection
               manga={manga}
               provider={provider}
@@ -257,22 +274,6 @@ export default function MangaDetail() {
               swipeStartX={swipeStartX}
             />
           </div>
-
-          {/* Right Aside Column: Personal Rating & Notes */}
-          <aside className="sticky top-6">
-            <MangaRatingNotes
-              provider={provider}
-              mangaId={mangaId}
-              userRating={userRating}
-              setUserRating={setUserRating}
-              userNote={userNote}
-              setUserNote={setUserNote}
-              noteEditing={noteEditing}
-              setNoteEditing={setNoteEditing}
-              noteDraft={noteDraft}
-              setNoteDraft={setNoteDraft}
-            />
-          </aside>
         </div>
       </div>
 

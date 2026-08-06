@@ -45,6 +45,8 @@ export default function TrackerSettings() {
   const [anilistToken, setAnilistToken] = useState(localStorage.getItem('anilist-token') || '')
   const [anilistClientId, setAnilistClientId] = useState(localStorage.getItem('anilist-client-id') || '')
   const [showAdvancedAnilist, setShowAdvancedAnilist] = useState(false)
+  const [_showManualAnilist, setShowManualAnilist] = useState(false)
+  const [manualAnilistToken, setManualAnilistToken] = useState('')
   const [userName, setUserName] = useState<string | null>(null)
   
   const [malClientId, setMalClientId] = useState(localStorage.getItem('mal-client-id') || '')
@@ -93,6 +95,17 @@ export default function TrackerSettings() {
     window.location.href = `https://anilist.co/api/v2/oauth/authorize?client_id=${effectiveClientId}&response_type=token&redirect_uri=${redirectUri}`
   }
   const handleAnilistLogout = () => { localStorage.removeItem('anilist-token'); setAnilistToken(''); setUserName(null) }
+  const handleManualAnilistSave = async () => {
+    const token = manualAnilistToken.trim()
+    if (!token) return
+    const name = await fetchAniListUsername(token)
+    if (!name) { alert('Invalid token — could not verify with AniList.'); return }
+    localStorage.setItem('anilist-token', token)
+    setAnilistToken(token)
+    setUserName(name)
+    setManualAnilistToken('')
+    setShowManualAnilist(false)
+  }
 
   const handleMALLogin = async () => {
     const effectiveClientId = (malClientId.trim() || DEFAULT_MAL_CLIENT_ID).trim()
@@ -142,31 +155,19 @@ export default function TrackerSettings() {
         <p style={{ fontSize: 13, color: 'var(--muted2)' }}>Link your manga tracking accounts with 1-click automatic progress sync.</p>
       </div>
 
-      {/* Quick 1-click status overview banner */}
-      <motion.div
-        className="p-4 rounded-2xl mb-4 border border-red-500/20 bg-gradient-to-r from-red-600/10 via-zinc-900/40 to-zinc-900/80 backdrop-blur-md"
-        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-      >
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs font-black uppercase tracking-widest text-red-400">1-Click Zero Setup Login</p>
-            <p className="text-xs text-zinc-400 mt-0.5">Connect AniList or MyAnimeList instantly without configuring API Client IDs!</p>
-          </div>
-        </div>
-      </motion.div>
-
       {/* AniList Card */}
       <motion.section className="glass-card" style={{ padding: '22px 20px', marginBottom: 14 }}
         initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0, duration: 0.4, ease }}
       >
         <CardLabel icon={Share2} title="AniList" />
-        <div style={ROW}>
-          <div>
-            <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--fg)' }}>AniList Integration</div>
-            <div style={{ fontSize: 11.5, color: 'var(--muted2)', marginTop: 2 }}>Auto-sync reading progress with AniList</div>
-          </div>
-          {userName ? (
+
+        {userName ? (
+          <div style={ROW}>
+            <div>
+              <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--fg)' }}>AniList Integration</div>
+              <div style={{ fontSize: 11.5, color: 'var(--muted2)', marginTop: 2 }}>Auto-sync reading progress with AniList</div>
+            </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 10, background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.3)', fontSize: 12, fontWeight: 700, color: 'rgb(74,222,128)' }}>
                 <CheckCircle2 style={{ width: 14, height: 14 }} /> {userName}
@@ -175,33 +176,60 @@ export default function TrackerSettings() {
                 <LogOut style={{ width: 14, height: 14 }} />
               </button>
             </div>
-          ) : (
-            <button onClick={handleAnilistLogin} className="px-4 py-2 bg-[#3DB4F2] text-white font-extrabold text-xs rounded-xl hover:bg-[#3DB4F2]/80 transition-all shadow-md">
-              Connect AniList
-            </button>
-          )}
-        </div>
-        {!userName && (
-          <div className="mt-3 pt-3 border-t border-white/5">
-            <button
-              type="button"
-              onClick={() => setShowAdvancedAnilist(!showAdvancedAnilist)}
-              className="text-[11px] font-bold text-zinc-400 hover:text-white transition-colors"
-            >
-              {showAdvancedAnilist ? '▲ Hide Custom Client ID' : '▼ Advanced: Use Custom Client ID'}
-            </button>
-            {showAdvancedAnilist && (
-              <div className="mt-2 space-y-2">
-                <input
-                  type="text"
-                  value={anilistClientId}
-                  onChange={(e) => { setAnilistClientId(e.target.value); localStorage.setItem('anilist-client-id', e.target.value) }}
-                  placeholder={`Default ID (${DEFAULT_ANILIST_CLIENT_ID})`}
-                  style={INPUT_STYLE}
-                />
-                <div style={{ fontSize: 10, color: 'var(--muted3)' }}>Custom App Redirect URI: <span className="font-mono text-zinc-300">{window.location.origin}/settings/trackers</span></div>
-              </div>
-            )}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {/* Step-by-step instructions */}
+            <div style={{ padding: '12px 14px', borderRadius: 10, background: 'rgba(61,180,242,0.06)', border: '1px solid rgba(61,180,242,0.15)', fontSize: 12, color: 'var(--muted1)', lineHeight: 1.7 }}>
+              <strong style={{ color: '#3DB4F2', display: 'block', marginBottom: 4 }}>How to connect AniList:</strong>
+              1. Go to <a href="https://anilist.co/settings/developer" target="_blank" rel="noreferrer" style={{ color: '#3DB4F2' }}>anilist.co/settings/developer</a><br />
+              2. Click <strong>Create new client</strong> → set redirect URI to <code style={{ fontSize: 10, background: 'rgba(255,255,255,0.07)', padding: '1px 5px', borderRadius: 4 }}>{window.location.origin}/settings/trackers</code><br />
+              3. Set grant type to <strong>Implicit</strong> → save<br />
+              4. Click the authorize URL that AniList shows you<br />
+              5. Copy the <code style={{ fontSize: 10, background: 'rgba(255,255,255,0.07)', padding: '1px 5px', borderRadius: 4 }}>access_token</code> from the redirect URL and paste below
+            </div>
+            {/* Token paste */}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                type="password"
+                value={manualAnilistToken}
+                onChange={e => setManualAnilistToken(e.target.value)}
+                placeholder="Paste access_token here..."
+                style={{ ...INPUT_STYLE, flex: 1, width: 'auto' }}
+              />
+              <button
+                onClick={handleManualAnilistSave}
+                disabled={!manualAnilistToken.trim()}
+                className="btn-primary"
+                style={{ flexShrink: 0, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}
+              >
+                <Save style={{ width: 13, height: 13 }} /> Connect
+              </button>
+            </div>
+            {/* Advanced: OAuth with custom client */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowAdvancedAnilist(!showAdvancedAnilist)}
+                className="text-[11px] font-bold text-zinc-500 hover:text-white transition-colors"
+              >
+                {showAdvancedAnilist ? '▲ Hide' : '▼ Or use 1-click OAuth (requires your own client ID)'}
+              </button>
+              {showAdvancedAnilist && (
+                <div className="mt-2 space-y-2">
+                  <input
+                    type="text"
+                    value={anilistClientId}
+                    onChange={(e) => { setAnilistClientId(e.target.value); localStorage.setItem('anilist-client-id', e.target.value) }}
+                    placeholder="Your AniList Client ID..."
+                    style={INPUT_STYLE}
+                  />
+                  <button onClick={handleAnilistLogin} className="px-4 py-2 bg-[#3DB4F2] text-white font-extrabold text-xs rounded-xl hover:bg-[#3DB4F2]/80 transition-all w-full">
+                    Authorize with AniList
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </motion.section>

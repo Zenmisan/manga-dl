@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Loader2, UserPlus, BookOpen, ExternalLink, ArrowLeft } from 'lucide-react'
+import { Loader2, UserPlus, BookOpen, ExternalLink, ArrowLeft, Eye, EyeOff } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 const INPUT_STYLE: React.CSSProperties = {
@@ -31,6 +31,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [agreedToTerms, setAgreedToTerms] = useState(false)
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
@@ -190,11 +191,53 @@ export default function RegisterPage() {
             </div>
             <div>
               <label style={LABEL_STYLE}>Password</label>
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)} required style={INPUT_STYLE} placeholder="Min. 8 characters" />
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  required
+                  style={{ ...INPUT_STYLE, paddingRight: 42 }}
+                  placeholder="Min. 8 characters"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+                    background: 'none', border: 'none', color: 'var(--muted2)', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 4,
+                  }}
+                  title={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff style={{ width: 16, height: 16 }} /> : <Eye style={{ width: 16, height: 16 }} />}
+                </button>
+              </div>
             </div>
             <div>
               <label style={LABEL_STYLE}>Confirm Password</label>
-              <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)} required style={INPUT_STYLE} placeholder="••••••••" />
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={confirm}
+                  onChange={e => setConfirm(e.target.value)}
+                  required
+                  style={{ ...INPUT_STYLE, paddingRight: 42 }}
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+                    background: 'none', border: 'none', color: 'var(--muted2)', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 4,
+                  }}
+                  title={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff style={{ width: 16, height: 16 }} /> : <Eye style={{ width: 16, height: 16 }} />}
+                </button>
+              </div>
             </div>
 
             <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>

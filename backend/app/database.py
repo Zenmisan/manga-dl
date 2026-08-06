@@ -1,7 +1,11 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy import text
 from app.config import get_settings
+import logging
 import socket
+
+log = logging.getLogger(__name__)
 
 settings = get_settings()
 
@@ -33,3 +37,26 @@ async def get_db() -> AsyncSession:
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    await _migrate_add_columns()
+
+
+async def _migrate_add_columns():
+    """Non-destructive column additions for existing databases."""
+    is_sqlite = "sqlite" in settings.DATABASE_URL
+
+    async def _safe_add(conn, table: str, col: str, typedef: str):
+        try:
+            if is_sqlite:
+                await conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {typedef}"))
+            else:
+                await conn.execute(text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {typedef}"))
+        except Exception:
+            pass  # column already exists
+
+    async with engine.begin() as conn:
+        await _safe_add(conn, "manga", "user_id", "VARCHAR")
+        await _safe_add(conn, "downloads", "user_id", "VARCHAR")
+        # Back-fill existing rows so they belong to the local API-key user
+        await conn.execute(text("UPDATE manga SET user_id = 'local-api-key-user' WHERE user_id IS NULL"))
+        await conn.execute(text("UPDATE downloads SET user_id = 'local-api-key-user' WHERE user_id IS NULL"))
+    log.info("DB column migration complete")

@@ -1,7 +1,8 @@
 import type React from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   RefreshCw, HardDrive, Upload, SlidersHorizontal, CheckSquare,
-  Square, LayoutGrid, Grid3X3, List,
+  Square, LayoutGrid, Grid3X3, List, Search,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
@@ -32,89 +33,115 @@ export function DashboardHeader({
   handleUpload, showSortPanel, setShowSortPanel, sort, filter, selectMode,
   setSelectMode, setSelectedItems, view, setView, density, setDensity, totalCount,
 }: Props) {
+  const navigate = useNavigate()
   const hasActiveFilters = sort !== 'default' || filter !== 'all'
 
   return (
     <header
-      className="sticky-header border-b px-4 md:px-6 py-3 flex items-center justify-between gap-3"
+      className="sticky-header border-b"
       style={{ borderColor: 'var(--border)' }}
     >
-      <div>
-        <h1 className="page-title" style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)' }}>Library</h1>
-        <p style={{ fontSize: 11, color: 'var(--muted2)', fontWeight: 600, marginTop: 1 }}>
-          {totalCount} {totalCount === 1 ? 'series' : 'series'}
-        </p>
+      {/* Mobile header — title + search + filter only */}
+      <div className="flex sm:hidden items-center justify-between px-4 h-[60px]">
+        <h1 className="page-title" style={{ fontSize: 24, letterSpacing: '0.02em', textTransform: 'uppercase' }}>Library</h1>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigate('/search')}
+            className="icon-btn"
+            title="Search"
+          >
+            <Search className="w-[18px] h-[18px]" />
+          </button>
+          <button
+            onClick={() => setShowSortPanel(p => !p)}
+            className="icon-btn"
+            style={showSortPanel || hasActiveFilters ? { background: 'var(--accent-muted)', color: 'var(--accent)', borderColor: 'var(--accent)' } : {}}
+            title="Filter"
+          >
+            <SlidersHorizontal className="w-[18px] h-[18px]" />
+          </button>
+        </div>
       </div>
 
-      <div className="flex items-center gap-1.5">
-        <button
-          onClick={() => refetchLibrary()}
-          disabled={refreshing}
-          className="icon-btn"
-          title="Refresh library"
-        >
-          <RefreshCw className={cn('w-4 h-4', refreshing && 'animate-spin')} />
-        </button>
+      {/* Desktop header — all controls */}
+      <div className="hidden sm:flex items-center justify-between px-4 md:px-6 py-3 gap-3">
+        <div>
+          <h1 className="page-title" style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)' }}>Library</h1>
+          <p style={{ fontSize: 11, color: 'var(--muted2)', fontWeight: 600, marginTop: 1 }}>
+            {totalCount} {totalCount === 1 ? 'series' : 'series'}
+          </p>
+        </div>
 
-        {isAdmin && isDesktop && (
+        <div className="flex items-center gap-1.5">
           <button
-            onClick={handleScanFolder}
-            disabled={uploading}
-            className={cn('icon-btn', uploading && 'opacity-50 pointer-events-none')}
-            style={{ color: 'rgb(52 211 153)' }}
-            title="Scan local manga directory"
-          >
-            {uploading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <HardDrive className="w-4 h-4" />}
-          </button>
-        )}
-
-        <label
-          className={cn('icon-btn cursor-pointer', uploading && 'opacity-50 pointer-events-none')}
-          title="Upload manga archive (.zip, .cbz, .epub)"
-        >
-          <input type="file" className="hidden" accept=".zip,.cbz,.epub" onChange={handleUpload} />
-          {uploading ? <RefreshCw className="w-4 h-4 animate-spin" style={{ color: 'var(--accent)' }} /> : <Upload className="w-4 h-4" />}
-        </label>
-
-        <div style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 2px' }} />
-
-        <button
-          onClick={() => setShowSortPanel(p => !p)}
-          className="icon-btn"
-          style={showSortPanel || hasActiveFilters ? { background: 'var(--accent-muted)', color: 'var(--accent)', borderColor: 'var(--accent)' } : {}}
-          title="Sort & Filter"
-        >
-          <SlidersHorizontal className="w-4 h-4" />
-        </button>
-
-        <button
-          onClick={() => { setSelectMode(p => !p); setSelectedItems(new Set()) }}
-          className="icon-btn"
-          style={selectMode ? { background: 'var(--accent-muted)', color: 'var(--accent)', borderColor: 'var(--accent)' } : {}}
-          title="Select mode"
-        >
-          {selectMode ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
-        </button>
-
-        <div style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 2px' }} />
-
-        {view === 'grid' && (
-          <button
-            onClick={() => setDensity(density === 'large' ? 'compact' : 'large')}
+            onClick={() => refetchLibrary()}
+            disabled={refreshing}
             className="icon-btn"
-            title={density === 'large' ? 'Switch to compact' : 'Switch to large'}
+            title="Refresh library"
           >
-            {density === 'large' ? <Grid3X3 className="w-4 h-4" /> : <LayoutGrid className="w-4 h-4" />}
+            <RefreshCw className={cn('w-4 h-4', refreshing && 'animate-spin')} />
           </button>
-        )}
 
-        <button
-          onClick={() => setView(view === 'grid' ? 'list' : 'grid')}
-          className="icon-btn"
-          title={view === 'grid' ? 'List view' : 'Grid view'}
-        >
-          {view === 'grid' ? <List className="w-4 h-4" /> : <LayoutGrid className="w-4 h-4" />}
-        </button>
+          {isAdmin && isDesktop && (
+            <button
+              onClick={handleScanFolder}
+              disabled={uploading}
+              className={cn('icon-btn', uploading && 'opacity-50 pointer-events-none')}
+              style={{ color: 'rgb(52 211 153)' }}
+              title="Scan local manga directory"
+            >
+              {uploading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <HardDrive className="w-4 h-4" />}
+            </button>
+          )}
+
+          <label
+            className={cn('icon-btn cursor-pointer', uploading && 'opacity-50 pointer-events-none')}
+            title="Upload manga archive (.zip, .cbz, .epub)"
+          >
+            <input type="file" className="hidden" accept=".zip,.cbz,.epub" onChange={handleUpload} />
+            {uploading ? <RefreshCw className="w-4 h-4 animate-spin" style={{ color: 'var(--accent)' }} /> : <Upload className="w-4 h-4" />}
+          </label>
+
+          <div style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 2px' }} />
+
+          <button
+            onClick={() => setShowSortPanel(p => !p)}
+            className="icon-btn"
+            style={showSortPanel || hasActiveFilters ? { background: 'var(--accent-muted)', color: 'var(--accent)', borderColor: 'var(--accent)' } : {}}
+            title="Sort & Filter"
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={() => { setSelectMode(p => !p); setSelectedItems(new Set()) }}
+            className="icon-btn"
+            style={selectMode ? { background: 'var(--accent-muted)', color: 'var(--accent)', borderColor: 'var(--accent)' } : {}}
+            title="Select mode"
+          >
+            {selectMode ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+          </button>
+
+          <div style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 2px' }} />
+
+          {view === 'grid' && (
+            <button
+              onClick={() => setDensity(density === 'large' ? 'compact' : 'large')}
+              className="icon-btn"
+              title={density === 'large' ? 'Switch to compact' : 'Switch to large'}
+            >
+              {density === 'large' ? <Grid3X3 className="w-4 h-4" /> : <LayoutGrid className="w-4 h-4" />}
+            </button>
+          )}
+
+          <button
+            onClick={() => setView(view === 'grid' ? 'list' : 'grid')}
+            className="icon-btn"
+            title={view === 'grid' ? 'List view' : 'Grid view'}
+          >
+            {view === 'grid' ? <List className="w-4 h-4" /> : <LayoutGrid className="w-4 h-4" />}
+          </button>
+        </div>
       </div>
     </header>
   )

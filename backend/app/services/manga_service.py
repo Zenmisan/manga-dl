@@ -64,9 +64,10 @@ async def toggle_manga_subscription(
     manga_id: str,
     meta: dict,
     db: AsyncSession,
+    user_id: str = "local-api-key-user",
 ) -> bool:
-    """Toggle subscription for a manga, creating a record if needed."""
-    record_id = f"{provider_id}:{manga_id}"
+    """Toggle subscription for a manga per-user, creating a record if needed."""
+    record_id = f"{provider_id}:{manga_id}:{user_id}"
     result = await db.execute(select(MangaRecord).where(MangaRecord.id == record_id))
     record = result.scalar_one_or_none()
 
@@ -89,6 +90,7 @@ async def toggle_manga_subscription(
             authors=meta.get("authors", []),
             url=meta.get("url", ""),
             subscribed=True,
+            user_id=user_id,
         )
         db.add(record)
         await db.commit()

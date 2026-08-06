@@ -38,13 +38,11 @@ async def ensure_local_file(manga_title: str, filename: str) -> Path:
     raise HTTPException(status_code=404, detail="File not found locally and cloud storage is not configured")
 
 
-async def list_library_items(db: AsyncSession, email: str | None) -> list[dict]:
-    """Fetch all library series records including in-progress and cloud subscriptions."""
-    if email != "zenmisan@gmail.com":
-        return []
-
+async def list_library_items(db: AsyncSession, user_id: str) -> list[dict]:
+    """Fetch library items belonging to user_id — downloads + subscriptions."""
     result = await db.execute(
         select(DownloadRecord)
+        .where(DownloadRecord.user_id == user_id)
         .order_by(DownloadRecord.created_at.desc())
     )
     records = result.scalars().all()
@@ -63,7 +61,9 @@ async def list_library_items(db: AsyncSession, email: str | None) -> list[dict]:
             grouped[title]["failed"] += 1
 
     # Include subscribed manga even if no chapters downloaded yet
-    sub_result = await db.execute(select(MangaRecord).where(MangaRecord.subscribed == True))
+    sub_result = await db.execute(
+        select(MangaRecord).where(MangaRecord.subscribed == True, MangaRecord.user_id == user_id)
+    )
     for r in sub_result.scalars().all():
         chapter_count = len(r.chapters_json) if isinstance(r.chapters_json, dict) else 0
         if r.title not in grouped:

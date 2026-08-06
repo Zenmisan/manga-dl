@@ -122,19 +122,23 @@ function Sidebar({ session, onSignOut, isTauri }: {
   return (
     <aside
       className={cn(
-        'hidden md:flex flex-col w-[232px] shrink-0 border-r sticky',
+        'hidden md:flex flex-col w-[232px] shrink-0 border-r border-white/10 sticky z-50 bg-[#080808]/90 backdrop-blur-2xl',
         isTauri ? 'top-8 h-[calc(100vh-2rem)]' : 'top-0 h-screen'
       )}
-      style={{ borderColor: 'var(--border)', background: 'var(--bg)' }}
     >
-      {/* Logo */}
-      <Link to="/r" className="flex items-center gap-2.5 px-5 py-[22px]">
-        <img src="/Manga-dl1.png" alt="manga-dl" className="w-[30px] h-[30px] object-contain" />
-        <span className="font-black text-base" style={{ color: 'var(--fg)' }}>manga-dl</span>
+      {/* Stitch Kinetic Logo & Version Badge */}
+      <Link to="/r" className="flex items-center gap-3.5 px-5 py-6 group">
+        <div className="w-10 h-10 rounded-xl bg-red-600/10 border border-red-500/20 flex items-center justify-center p-1.5 overflow-hidden shrink-0 group-hover:border-red-500/40 transition-colors">
+          <img src="/Manga-dl1.png" alt="manga-dl" className="w-full h-full object-contain" />
+        </div>
+        <div className="flex flex-col">
+          <span className="font-black text-lg text-white uppercase tracking-wider font-mono leading-none">manga-dl</span>
+          <span className="text-[10px] font-extrabold uppercase tracking-widest text-red-500 mt-1">V3.0 Kinetic</span>
+        </div>
       </Link>
 
       {/* Nav items */}
-      <nav className="flex flex-col gap-0.5 px-3 flex-1 overflow-y-auto">
+      <nav className="flex flex-col gap-1 px-3 flex-1 overflow-y-auto pt-2">
         {SIDEBAR_ITEMS.map((item) => {
           const active = location.pathname === item.path ||
             (item.path === '/settings' && location.pathname.startsWith('/settings'))
@@ -142,10 +146,15 @@ function Sidebar({ session, onSignOut, isTauri }: {
             <Link
               key={item.path}
               to={item.path}
-              className={cn('nav-link', active && 'active')}
+              className={cn(
+                'flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-extrabold transition-all',
+                active
+                  ? 'bg-red-600/10 border border-red-500/20 text-red-500 shadow-[0_0_12px_rgba(220,38,38,0.15)]'
+                  : 'text-zinc-400 hover:text-white hover:bg-white/5'
+              )}
             >
-              <item.icon className="w-5 h-5 shrink-0" />
-              {item.label}
+              <item.icon className="w-4 h-4 shrink-0" />
+              <span>{item.label}</span>
             </Link>
           )
         })}
@@ -154,127 +163,58 @@ function Sidebar({ session, onSignOut, isTauri }: {
           <div className="mt-auto pt-3 px-1 pb-1">
             <Link
               to="/download"
-              className="group relative flex flex-col gap-2 p-3 rounded-2xl border transition-all overflow-hidden"
-              style={{
-                borderColor: 'rgba(220,38,38,0.3)',
-                background: 'linear-gradient(135deg, rgba(220,38,38,0.12) 0%, rgba(10,10,10,0.4) 100%)',
-              }}
+              className="group relative flex flex-col gap-1.5 p-3 rounded-2xl border border-red-500/20 bg-gradient-to-br from-red-600/10 to-transparent transition-all overflow-hidden"
             >
               <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-red-500">
+                <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-red-500">
                   <Sparkles className="w-3 h-3" />
-                  Native Apps
+                  Desktop App
                 </span>
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               </div>
               <div className="text-xs font-black text-white group-hover:text-red-400 transition-colors">
-                Get Desktop & Mobile App
+                Native Windows App
               </div>
-              <p className="text-[11px] text-zinc-400 leading-tight">
-                Windows, macOS, Linux & Android
-              </p>
             </Link>
           </div>
         )}
       </nav>
 
-      {/* Bottom — theme toggle + user */}
-      <div className="px-3 pb-3 pt-3 flex flex-col gap-1.5" style={{ borderTop: '1px solid var(--border)' }}>
+      {/* Bottom — Help, GitHub, User Profile & Sign Out */}
+      <div className="p-3 space-y-2 border-t border-white/10 bg-white/[0.02]">
+        <div className="flex items-center justify-between px-2 text-[11px] font-bold text-zinc-500">
+          <Link to="/help" className="hover:text-zinc-300 transition-colors">Help</Link>
+          <a href="https://github.com/Zenmisan/manga-dl" target="_blank" rel="noreferrer" className="hover:text-zinc-300 transition-colors">GitHub</a>
+        </div>
+
         {session ? (
-          <>
+          <div className="space-y-1 pt-1">
             <Link
               to={`/profile/${session.user.id}`}
-              className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-all"
-              style={{ color: 'var(--muted1)' }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-hover)')}
-              onMouseLeave={e => (e.currentTarget.style.background = '')}
+              className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white transition-all text-xs font-bold"
             >
-              <span
-                className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-black text-white shrink-0"
-                style={{ background: 'var(--accent)' }}
-              >
+              <span className="w-6 h-6 rounded-full bg-red-600 flex items-center justify-center text-[10px] font-black text-white shrink-0">
                 {session.user.email?.[0]?.toUpperCase() ?? '?'}
               </span>
-              <span className="text-[13px] font-bold truncate" style={{ color: 'var(--muted1)' }}>
-                {session.user.email?.split('@')[0]}
-              </span>
+              <span className="truncate">{session.user.email?.split('@')[0]}</span>
             </Link>
             <button
               onClick={onSignOut}
-              className="text-left px-3 py-2 rounded-xl text-[12px] font-bold transition-all"
-              style={{ color: 'var(--muted3)' }}
-              onMouseEnter={e => {
-                e.currentTarget.style.background = 'var(--surface)'
-                e.currentTarget.style.color = 'var(--fg)'
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.background = ''
-                e.currentTarget.style.color = 'var(--muted3)'
-              }}
+              className="w-full text-left px-3 py-1.5 rounded-xl text-xs font-bold text-zinc-400 hover:text-white hover:bg-white/5 transition-all"
             >
               Sign out
             </button>
-          </>
+          </div>
         ) : (
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1 pt-1">
             <Link
               to="/login"
-              className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] font-bold transition-all"
-              style={{ color: 'var(--muted1)' }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-hover)')}
-              onMouseLeave={e => (e.currentTarget.style.background = '')}
+              className="w-full text-center py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-black uppercase tracking-wider transition-all"
             >
-              <LogIn className="w-4 h-4 shrink-0" />
-              Sign in
-            </Link>
-            <Link
-              to="/register"
-              className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] font-bold transition-all"
-              style={{ color: '#ef4444', background: 'rgba(239,68,68,0.08)' }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.16)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.08)')}
-            >
-              <UserPlus className="w-4 h-4 shrink-0" />
-              Sign up
+              Sign In
             </Link>
           </div>
         )}
-
-        <Link
-          to="/help"
-          className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-bold transition-all"
-          style={{ color: 'var(--muted3)' }}
-          onMouseEnter={e => {
-            e.currentTarget.style.background = 'var(--surface)'
-            e.currentTarget.style.color = 'var(--muted1)'
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.background = ''
-            e.currentTarget.style.color = 'var(--muted3)'
-          }}
-        >
-          <HelpCircle className="w-4 h-4 shrink-0" />
-          Help
-        </Link>
-
-        <a
-          href="https://github.com/zenmisan/manga-dl"
-          target="_blank"
-          rel="noreferrer"
-          className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-bold transition-all"
-          style={{ color: 'var(--muted3)' }}
-          onMouseEnter={e => {
-            e.currentTarget.style.background = 'var(--surface)'
-            e.currentTarget.style.color = 'var(--muted1)'
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.background = ''
-            e.currentTarget.style.color = 'var(--muted3)'
-          }}
-        >
-          <ExternalLink className="w-4 h-4 shrink-0" />
-          GitHub
-        </a>
       </div>
     </aside>
   )

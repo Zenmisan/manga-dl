@@ -12,7 +12,7 @@ from sqlalchemy import select
 from app.config import get_settings
 from app.database import get_db
 from app.models.download import DownloadRecord
-from app.core.supabase_auth import get_current_user_email
+from app.core.supabase_auth import get_current_user
 from app.services.archive_converter import (
     read_cbz_pages,
     extract_cbz_image_bytes,
@@ -53,15 +53,12 @@ async def _assert_admin(request: Request):
 
 @router.get("", response_model=list[LibraryItem])
 @router.get("/", response_model=list[LibraryItem], include_in_schema=False)
-async def list_library(request: Request, db: AsyncSession = Depends(get_db)):
-    """Fetch the library from the database. Show all series including in-progress downloads."""
-    settings = get_settings()
-    api_key = request.headers.get("X-API-Key") or request.query_params.get("api_key")
-    if settings.API_KEY and api_key == settings.API_KEY:
-        email = "zenmisan@gmail.com"
-    else:
-        email = await get_current_user_email(request)
-    items = await list_library_items(db, email)
+async def list_library(
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Fetch the library for the authenticated user."""
+    items = await list_library_items(db, user_id)
     return [LibraryItem(**item) for item in items]
 
 

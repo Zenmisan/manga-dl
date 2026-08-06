@@ -4,6 +4,7 @@ import { loadLocalMangaIntoSession } from '../lib/localLibrary'
 import api from '../lib/api'
 import { supabase } from '../lib/supabase'
 import { markRead } from '../lib/readTracking'
+import { saveLocalHistoryEntry } from '../lib/historyTracking'
 import { ExtensionManager } from '../lib/extensions'
 import { resolveSmartContext } from '../lib/smartUrl'
 
@@ -57,20 +58,44 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
   const saveOnlineProgress = useCallback(async (page: number) => {
     if (incognitoMode) return
     const parts = onlinePartsRef.current
-    if (!parts) return
-    const { data } = await supabase.auth.getSession()
-    if (!data.session) return
-    try {
-      await api.put('/users/reading-progress', {
+    if (parts) {
+      saveLocalHistoryEntry({
         provider: parts.provider,
         manga_id: parts.mangaId,
         chapter_id: parts.chapterId,
+        manga_title: parts.mangaTitle || parts.mangaId,
+        chapter_title: parts.chapterTitle || `Ch. ${parts.chapterId}`,
         last_page: page,
-        manga_title: parts.mangaTitle,
-        chapter_title: parts.chapterTitle,
+        updated_at: new Date().toISOString(),
       })
-    } catch { /* silent */ }
-  }, [incognitoMode])
+      markRead(parts.provider, parts.mangaId, parts.chapterId)
+
+      const { data } = await supabase.auth.getSession()
+      if (!data.session) return
+      try {
+        await api.put('/users/reading-progress', {
+          provider: parts.provider,
+          manga_id: parts.mangaId,
+          chapter_id: parts.chapterId,
+          last_page: page,
+          manga_title: parts.mangaTitle,
+          chapter_title: parts.chapterTitle,
+        })
+      } catch { /* silent */ }
+    } else if (filename) {
+      const title = localTitle || filename
+      saveLocalHistoryEntry({
+        provider: 'local',
+        manga_id: filename,
+        chapter_id: filename,
+        manga_title: title,
+        chapter_title: 'Local Upload',
+        last_page: page,
+        updated_at: new Date().toISOString(),
+      })
+      markRead('local', filename, filename)
+    }
+  }, [incognitoMode, filename, localTitle])
 
   // MAL + AniList auto-sync on last page
   useEffect(() => {
@@ -223,6 +248,18 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
           setLocalTitle(s.title)
           setPages(s.pages)
           setLoading(false)
+          if (!incognitoMode && filename) {
+            saveLocalHistoryEntry({
+              provider: 'local',
+              manga_id: filename,
+              chapter_id: filename,
+              manga_title: s.title || filename,
+              chapter_title: 'Local Reader',
+              last_page: 1,
+              updated_at: new Date().toISOString(),
+            })
+            markRead('local', filename, filename)
+          }
           return
         }
         setFetchError('Local session expired or archive file was not found in storage.')

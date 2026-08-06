@@ -71,7 +71,27 @@ export function useDashboardData() {
       chapters_downloading: item.chapters_downloading ?? 0,
       chapters_failed: item.chapters_failed ?? 0,
     }))
-    return [...localItems, ...backend]
+
+    // Supplement with locally-saved subscription metadata (manga added via "In Library"
+    // button that may not have synced to backend yet, or for offline use)
+    const backendTitles = new Set(backend.map(i => i.title.toLowerCase().trim()))
+    const localSubMeta: Record<string, { title: string; cover_url: string | null; provider: string; mangaId: string }> =
+      JSON.parse(localStorage.getItem('manga-dl-local-sub-meta') || '{}')
+    const localSubItems: LibraryItem[] = Object.values(localSubMeta)
+      .filter(m => !backendTitles.has(m.title.toLowerCase().trim()))
+      .map(m => ({
+        title: m.title,
+        files: [],
+        chapters_downloading: 0,
+        chapters_failed: 0,
+        cover_url: m.cover_url,
+        subscribed: true,
+        total_chapters: 0,
+        provider: m.provider,
+        provider_manga_id: m.mangaId,
+      }))
+
+    return [...localItems, ...backend, ...localSubItems]
   }, [libraryRaw, localItems])
 
   const lastReadMap = useMemo<Record<string, LastReadEntry>>(() => {

@@ -7,6 +7,7 @@ import {
 import { cn } from '../../lib/utils'
 import api from '../../lib/api'
 import { buildSmartReadUrl, buildSmartMangaUrl } from '../../lib/smartUrl'
+import { getReadCount } from '../../lib/readTracking'
 import type { LibraryItem, LastReadEntry } from '../../hooks/useDashboardData'
 
 interface Props {
@@ -32,6 +33,10 @@ export const DashboardMangaCard = memo(function DashboardMangaCard({
   const isCloudOnly = !item.isLocal && item.files.length === 0
   const isCompact = view === 'grid' && density === 'compact'
   const chapterCount = item.total_chapters || item.files.length
+  const readCount = item.provider && item.provider_manga_id
+    ? getReadCount(item.provider, item.provider_manga_id)
+    : 0
+  const unreadCount = !item.isLocal && chapterCount > 0 ? Math.max(0, chapterCount - readCount) : 0
 
   const handleClick = (e: React.MouseEvent) => {
     if (selectMode) {
@@ -148,7 +153,7 @@ export const DashboardMangaCard = memo(function DashboardMangaCard({
       animate={{ opacity: 1, scale: 1 }}
       transition={{ delay: idx * 0.03 }}
       onClick={handleClick}
-      className="group cursor-pointer"
+      className="group cursor-pointer active:scale-[0.98] transition-transform"
     >
       {/* Cover */}
       <div
@@ -201,6 +206,13 @@ export const DashboardMangaCard = memo(function DashboardMangaCard({
           </div>
         )}
 
+        {/* Unread badge top-left — red pill with count */}
+        {unreadCount > 0 && item.chapters_downloading === 0 && (
+          <div style={{ position: 'absolute', top: 6, left: 6, background: 'var(--accent)', borderRadius: 6, padding: '2px 7px', fontSize: 9, fontWeight: 900, color: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.5)' }}>
+            {unreadCount}
+          </div>
+        )}
+
         {/* Downloading indicator */}
         {item.chapters_downloading > 0 && (
           <div style={{ position: 'absolute', top: 6, left: 6, background: 'rgba(251,191,36,0.9)', borderRadius: 6, padding: '2px 5px', fontSize: 9, fontWeight: 900, color: '#000' }}>
@@ -212,7 +224,7 @@ export const DashboardMangaCard = memo(function DashboardMangaCard({
       {/* Meta below cover — large density only */}
       {!isCompact && (
         <div style={{ marginTop: 8, paddingLeft: 2 }}>
-          <h3 style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--fg)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.3 }}>
+          <h3 className="manga-card-title">
             {item.title}
           </h3>
           <p style={{ fontSize: 11, color: 'var(--muted3)', margin: '3px 0 0', fontWeight: 500 }}>

@@ -223,16 +223,23 @@ export function useMangaDetail() {
       if (subscribed) {
         localList = localList.filter(k => k !== key)
         localStorage.setItem('manga-dl-local-subs', JSON.stringify(localList))
+        const metaStore: Record<string, unknown> = JSON.parse(localStorage.getItem('manga-dl-local-sub-meta') || '{}')
+        delete metaStore[key]
+        localStorage.setItem('manga-dl-local-sub-meta', JSON.stringify(metaStore))
         setSubscribed(false)
         await api.delete(`/manga/subscriptions/${provider}/${manga.id}`).catch(() => {})
       } else {
         if (!localList.includes(key)) localList.push(key)
         localStorage.setItem('manga-dl-local-subs', JSON.stringify(localList))
+        // Save metadata so library can display without a backend round-trip
+        const metaStore: Record<string, { title: string; cover_url: string | null; provider: string; mangaId: string }> = JSON.parse(localStorage.getItem('manga-dl-local-sub-meta') || '{}')
+        metaStore[key] = { title: manga.title, cover_url: manga.cover_url || null, provider, mangaId: manga.id }
+        localStorage.setItem('manga-dl-local-sub-meta', JSON.stringify(metaStore))
         setSubscribed(true)
         await api.post('/manga/subscriptions', {
           provider_id: provider,
           manga_id: manga.id,
-          manga_title: manga.title,
+          title: manga.title,
           cover_url: manga.cover_url,
         }).catch(() => {})
       }

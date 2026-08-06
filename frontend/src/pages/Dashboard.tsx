@@ -118,7 +118,7 @@ export default function Dashboard() {
             </div>
           </motion.div>
         ) : (
-          <div style={gridStyle} className={view === 'list' ? 'flex flex-col gap-2' : ''}>
+          <div style={gridStyle} className={view === 'list' ? 'flex flex-col gap-2' : 'lib-grid'}>
             {displayedItems.map((item: LibraryItem, idx: number) => {
               const lastRead = lastReadMap[item.title?.toLowerCase().trim() ?? '']
               const isSelected = selectedItems.has(item.title)

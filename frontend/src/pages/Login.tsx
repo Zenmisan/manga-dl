@@ -1,21 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Loader2, LogIn, BookOpen, ArrowLeft, Key } from 'lucide-react'
+import { Loader2, LogIn, BookOpen, ArrowLeft, Key, Eye, EyeOff, Mail, Lock } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 const hasSupabase = !!import.meta.env.VITE_SUPABASE_ANON_KEY
-
-const INPUT_STYLE: React.CSSProperties = {
-  width: '100%', padding: '12px 14px', borderRadius: 12,
-  border: '1px solid var(--border)', background: 'var(--bg)',
-  fontSize: 14, color: 'var(--fg)', outline: 'none', boxSizing: 'border-box',
-}
-
-const LABEL_STYLE: React.CSSProperties = {
-  fontSize: 11, fontWeight: 900, textTransform: 'uppercase',
-  letterSpacing: '0.12em', color: 'var(--muted3)', display: 'block', marginBottom: 6,
-}
 
 function GoogleIcon({ style }: { style?: React.CSSProperties }) {
   return (
@@ -32,9 +21,19 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [rememberMe, setRememberMe] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const saved = localStorage.getItem('manga-dl-remembered-email')
+    if (saved) {
+      setEmail(saved)
+      setRememberMe(true)
+    }
+  }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -44,6 +43,11 @@ export default function LoginPage() {
     try {
       const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
       if (authError) throw authError
+      if (rememberMe) {
+        localStorage.setItem('manga-dl-remembered-email', email)
+      } else {
+        localStorage.removeItem('manga-dl-remembered-email')
+      }
       navigate('/r')
     } catch (err: unknown) {
       setError((err as { message?: string }).message || 'Login failed.')
@@ -76,73 +80,56 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, position: 'relative', overflow: 'hidden' }}>
+    <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden bg-[#050505] p-6 text-white">
+      {/* Radial red glow backdrop */}
+      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,rgba(220,38,38,0.15)_0%,rgba(5,5,5,0)_70%)]" />
+
       {/* Back button */}
       <button
         type="button"
         onClick={() => navigate('/r')}
-        style={{
-          position: 'absolute',
-          top: 24,
-          left: 24,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          padding: '10px 16px',
-          borderRadius: 14,
-          border: '1px solid var(--border)',
-          background: 'var(--surface)',
-          color: 'var(--fg)',
-          fontSize: 13,
-          fontWeight: 700,
-          cursor: 'pointer',
-          zIndex: 20,
-          backdropFilter: 'blur(16px)',
-          transition: 'all 0.2s ease',
-        }}
-        onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-hover)')}
-        onMouseLeave={e => (e.currentTarget.style.background = 'var(--surface)')}
+        className="absolute top-6 left-6 z-20 flex items-center gap-2 px-4 py-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white text-xs font-bold transition-all backdrop-blur-md"
       >
-        <ArrowLeft style={{ width: 16, height: 16 }} />
+        <ArrowLeft className="w-4 h-4" />
         Back
       </button>
-      {/* Radial glow */}
-      <div style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%,-50%)', width: 600, height: 600, background: 'radial-gradient(circle, rgba(220,38,38,0.08) 0%, transparent 70%)', pointerEvents: 'none' }} />
 
+      {/* Container */}
       <motion.div
-        initial={{ opacity: 0, y: 24 }}
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        style={{ width: '100%', maxWidth: 400, position: 'relative' }}
+        className="w-full max-w-md z-10 flex flex-col items-center"
       >
-        {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 32 }}>
-          <div style={{ padding: 10, background: 'rgba(220,38,38,0.12)', borderRadius: 16, border: '1px solid rgba(220,38,38,0.2)' }}>
-            <BookOpen style={{ width: 24, height: 24, color: '#ef4444' }} />
+        {/* Logo Header */}
+        <div className="mb-6 text-center flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-red-600/10 border border-red-500/20">
+            <BookOpen className="w-6 h-6 text-red-500" />
           </div>
-          <span className="page-title" style={{ fontSize: 22 }}>manga-dl</span>
+          <h1 className="text-2xl font-black text-red-500 tracking-wider uppercase font-mono">MANGA-DL</h1>
         </div>
 
-        {/* Card */}
-        <div style={{ padding: '36px 32px', borderRadius: 24, border: '1px solid var(--border)', background: 'var(--surface)', backdropFilter: 'blur(24px)' }}>
-          <h1 className="page-title" style={{ fontSize: 26, marginBottom: 4 }}>Welcome Back</h1>
-          <p style={{ fontSize: 13, color: 'var(--muted2)', marginBottom: 28 }}>Your library awaits.</p>
+        {/* Glass Card */}
+        <div className="w-full rounded-2xl border border-white/10 bg-white/5 backdrop-blur-2xl p-6 sm:p-8 shadow-2xl relative space-y-6">
+          <div className="text-center space-y-1">
+            <h2 className="text-xl font-black text-white tracking-wide uppercase">Welcome Back</h2>
+            <p className="text-xs text-zinc-400">Your library awaits.</p>
+          </div>
 
           {!hasSupabase ? (
             /* API-key mode — no Supabase configured */
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 16px', borderRadius: 12, background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)' }}>
-                <Key style={{ width: 16, height: 16, color: '#818cf8', flexShrink: 0, marginTop: 2 }} />
-                <p style={{ fontSize: 13, color: 'var(--muted1)', margin: 0, lineHeight: 1.5 }}>
+            <div className="space-y-4">
+              <div className="flex items-start gap-3 p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
+                <Key className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
+                <p className="text-xs text-zinc-300 leading-relaxed">
                   Running in local mode — authenticated via API key. No account needed.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => navigate('/r')}
-                className="btn-primary"
-                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '13px 0', fontSize: 14, boxShadow: '0 4px 24px rgba(220,38,38,0.25)' }}
+                className="w-full py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-extrabold text-xs uppercase tracking-wider shadow-[0_4px_24px_rgba(220,38,38,0.3)] transition-all flex items-center justify-center gap-2"
               >
-                <LogIn style={{ width: 16, height: 16 }} />
+                <LogIn className="w-4 h-4" />
                 Continue to App
               </button>
             </div>
@@ -153,75 +140,105 @@ export default function LoginPage() {
                 type="button"
                 onClick={handleGoogleLogin}
                 disabled={loading || googleLoading}
-                style={{
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 10,
-                  padding: '12px 0',
-                  borderRadius: 14,
-                  border: '1px solid var(--border)',
-                  background: 'rgba(255, 255, 255, 0.04)',
-                  color: 'var(--fg)',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: loading || googleLoading ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.2s ease',
-                }}
-                onMouseEnter={e => {
-                  if (!loading && !googleLoading) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'
-                }}
-                onMouseLeave={e => {
-                  if (!loading && !googleLoading) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)'
-                }}
+                className="w-full py-3 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white text-xs font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {googleLoading ? (
-                  <Loader2 style={{ width: 18, height: 18 }} className="animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
                 ) : (
-                  <GoogleIcon style={{ width: 18, height: 18 }} />
+                  <GoogleIcon style={{ width: 16, height: 16 }} />
                 )}
-                Continue with Google
+                <span>Continue with Google</span>
               </button>
 
               {/* Divider */}
-              <div style={{ display: 'flex', alignItems: 'center', margin: '20px 0', gap: 12 }}>
-                <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted3)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Or</span>
-                <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+              <div className="flex items-center gap-3 my-4">
+                <div className="flex-1 h-px bg-white/10" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Or</span>
+                <div className="flex-1 h-px bg-white/10" />
               </div>
 
-              <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <div>
-                  <label style={LABEL_STYLE}>Email</label>
-                  <input type="email" value={email} onChange={e => setEmail(e.target.value)} required style={INPUT_STYLE} placeholder="you@example.com" />
-                </div>
-                <div>
-                  <label style={LABEL_STYLE}>Password</label>
-                  <input type="password" value={password} onChange={e => setPassword(e.target.value)} required style={INPUT_STYLE} placeholder="••••••••" />
+              {/* Login Form */}
+              <form onSubmit={handleLogin} className="space-y-4">
+                {/* Email Input */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Email</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      required
+                      placeholder="enter your email"
+                      className="w-full h-11 rounded-xl pl-10 pr-4 bg-white/5 border border-white/10 text-white text-xs placeholder-zinc-500 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 focus:shadow-[0_0_15px_2px_rgba(220,38,38,0.4)] transition-all"
+                    />
+                  </div>
                 </div>
 
+                {/* Password Input */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Password</label>
+                  </div>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      required
+                      placeholder="••••••••"
+                      className="w-full h-11 rounded-xl pl-10 pr-10 bg-white/5 border border-white/10 text-white text-xs placeholder-zinc-500 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 focus:shadow-[0_0_15px_2px_rgba(220,38,38,0.4)] transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-white transition-colors"
+                      title={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Remember Me Checkbox */}
+                <div className="flex items-center justify-between pt-1">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs text-zinc-400 select-none hover:text-zinc-200 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={e => setRememberMe(e.target.checked)}
+                      className="accent-red-600 w-4 h-4 rounded cursor-pointer"
+                    />
+                    <span>Remember me</span>
+                  </label>
+                </div>
+
+                {/* Error Banner */}
                 {error && (
-                  <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.2)', fontSize: 13, color: '#f87171' }}>
+                  <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-bold leading-relaxed">
                     {error}
                   </div>
                 )}
 
+                {/* Submit Button */}
                 <button
                   type="submit"
                   disabled={loading || googleLoading}
-                  className="btn-primary"
-                  style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '13px 0', fontSize: 14, boxShadow: '0 4px 24px rgba(220,38,38,0.25)' }}
+                  className="w-full h-11 rounded-xl bg-red-600 hover:bg-red-500 text-white font-extrabold text-xs uppercase tracking-wider shadow-[0_4px_24px_rgba(220,38,38,0.3)] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? <Loader2 style={{ width: 16, height: 16 }} className="animate-spin" /> : <LogIn style={{ width: 16, height: 16 }} />}
-                  Sign In
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />}
+                  <span>Sign In</span>
                 </button>
               </form>
 
-              <div style={{ marginTop: 20, textAlign: 'center' }}>
-                <p style={{ fontSize: 13, color: 'var(--muted2)' }}>
-                  No account?{' '}
-                  <Link to="/register" style={{ color: '#ef4444', fontWeight: 700 }}>Create one</Link>
+              {/* Sign up prompt */}
+              <div className="text-center pt-2">
+                <p className="text-xs text-zinc-400">
+                  Don't have an account?{' '}
+                  <Link to="/register" className="text-red-500 font-bold hover:text-red-400 transition-colors">
+                    Sign up
+                  </Link>
                 </p>
               </div>
             </>
@@ -231,3 +248,4 @@ export default function LoginPage() {
     </div>
   )
 }
+

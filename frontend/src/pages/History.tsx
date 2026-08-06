@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import api from '../lib/api'
 import { supabase } from '../lib/supabase'
 import { useHistory, QK } from '../lib/queries'
+import { getLocalHistory, deleteLocalHistoryEntry, clearLocalHistory } from '../lib/historyTracking'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Clock, Play, Trash2, Loader2, EyeOff } from 'lucide-react'
 import { useAppStore } from '../lib/store'
@@ -81,7 +82,19 @@ export default function HistoryPage() {
   }, [])
 
   const { data: rawHistory = [], isLoading: loading } = useHistory(authed)
-  const history = rawHistory as HistoryEntry[]
+
+  const history = useMemo(() => {
+    const local = getLocalHistory()
+    const map = new Map<string, HistoryEntry>()
+    for (const e of (rawHistory as HistoryEntry[])) {
+      map.set(`${e.provider}:${e.manga_id}:${e.chapter_id}`, e)
+    }
+    for (const e of local) {
+      const key = `${e.provider}:${e.manga_id}:${e.chapter_id}`
+      if (!map.has(key)) map.set(key, e)
+    }
+    return Array.from(map.values()).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+  }, [rawHistory])
 
   const filtered = useMemo(() => {
     const cutoff = startOf(dateFilter)
@@ -106,21 +119,25 @@ export default function HistoryPage() {
   const handleClearAll = async () => {
     if (!confirm('Clear all reading history?')) return
     setClearing(true)
-    try {
-      await api.delete('/users/history')
-      queryClient.setQueryData(QK.history, [])
-    } catch { /* non-fatal */ }
+    clearLocalHistory()
+    if (authed) {
+      try { await api.delete('/users/history') } catch { /* non-fatal */ }
+    }
+    queryClient.setQueryData(QK.history, [])
     setClearing(false)
   }
 
   const handleClearManga = async (provider: string, mangaId: string) => {
     setClearingMangaId(mangaId)
-    try {
-      await api.delete(`/users/history/${encodeURIComponent(provider)}/${encodeURIComponent(mangaId)}`)
-      queryClient.setQueryData(QK.history, (prev: HistoryEntry[]) =>
-        (prev ?? []).filter(e => !(e.provider === provider && e.manga_id === mangaId))
-      )
-    } catch { /* non-fatal */ }
+    deleteLocalHistoryEntry(provider, mangaId)
+    if (authed) {
+      try {
+        await api.delete(`/users/history/${encodeURIComponent(provider)}/${encodeURIComponent(mangaId)}`)
+      } catch { /* non-fatal */ }
+    }
+    queryClient.setQueryData(QK.history, (prev: HistoryEntry[]) =>
+      (prev ?? []).filter(e => !(e.provider === provider && e.manga_id === mangaId))
+    )
     setClearingMangaId(null)
   }
 
@@ -174,7 +191,7 @@ export default function HistoryPage() {
       </header>
 
       <div className="px-4 md:px-6 pt-4 pb-28 flex-1" style={{ maxWidth: 720 }}>
-        {authed && history.length > 0 && (
+        {history.length > 0 && (
           <div style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
             <input
               type="search"
@@ -201,7 +218,7 @@ export default function HistoryPage() {
           <div style={{ display: 'flex', justifyContent: 'center', padding: '80px 0' }}>
             <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--accent)' }} />
           </div>
-        ) : !authed ? (
+        ) : !authed && history.length === 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '64px 24px', gap: 16 }}>
             <div style={{ width: 64, height: 64, borderRadius: 20, background: 'var(--surface)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Clock style={{ width: 28, height: 28, color: 'var(--muted3)' }} />
