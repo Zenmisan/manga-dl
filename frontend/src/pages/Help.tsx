@@ -117,6 +117,7 @@ export default function HelpPage() {
       </div>
 
       <div className="px-4 md:px-6 pt-4 pb-28 flex-1" style={{ maxWidth: 720, width: '100%', margin: '0 auto' }}>
+<<<<<<< HEAD
 
         {/* Icon Glossary — navigation focused */}
         <div style={{ marginBottom: 24 }}>
@@ -140,6 +141,63 @@ export default function HelpPage() {
           </div>
         </div>
 
+=======
+
+        {/* Featured Guide Banner */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          onClick={() => navigate('/guide/import')}
+          className="mb-6 p-4 md:p-5 rounded-3xl bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--accent)]/40 cursor-pointer transition-all duration-300 relative overflow-hidden group shadow-lg"
+        >
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-2xl bg-[var(--accent)]/10 border border-[var(--accent)]/20 flex items-center justify-center text-[var(--accent)] shrink-0">
+                <BookOpen className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm md:text-base font-bold text-[var(--fg)] group-hover:text-[var(--accent)] transition-colors">
+                    MangaKatana & OmegaScans Import Guide
+                  </span>
+                  <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[var(--accent)] text-white">
+                    Guide
+                  </span>
+                </div>
+                <p className="text-xs text-[var(--muted2)] mt-0.5">
+                  Learn how to download archives (.zip / .cbz) in batches of 10 and read them offline on Web, Mobile & Desktop.
+                </p>
+              </div>
+            </div>
+            <div className="w-8 h-8 rounded-full bg-[var(--surface-hover)] border border-[var(--border)] flex items-center justify-center text-[var(--fg)] shrink-0 group-hover:bg-[var(--accent)] group-hover:text-white transition-all">
+              <ChevronRight className="w-4 h-4" />
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Icon Glossary — navigation focused */}
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--fg)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Info style={{ width: 16, height: 16, color: 'var(--accent)' }} />
+            Icon Glossary
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            {NAV_CARDS.map(({ icon: Icon, label, desc }, i) => (
+              <motion.div key={label} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+                style={{ padding: '14px 16px', borderRadius: 16, border: '1px solid var(--border)', background: 'var(--surface)', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Icon style={{ width: 16, height: 16, color: 'var(--accent)' }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--fg)' }}>{label}</div>
+                  <div style={{ fontSize: 11, color: 'var(--muted2)', marginTop: 2 }}>{desc}</div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+
+>>>>>>> 56ca80f (fix: per-user library isolation, JWT auth, and security hardening)
         {/* FAQ accordion */}
         <div style={{ marginBottom: 24 }}>
           <div style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)', marginBottom: 10 }}>Frequently Asked Questions</div>

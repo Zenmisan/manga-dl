@@ -25,18 +25,25 @@ BACKUP_VERSION = "1.0"
 
 # ── Tachiyomi .tachibk import ─────────────────────────────────────────────────
 
+MAX_TACHIBK_BYTES = 50 * 1024 * 1024  # 50 MB — Tachiyomi backups are rarely > 5 MB
+
+
 @router.post("/import/tachibk")
-async def import_tachibk(file: UploadFile = File(...)):
+async def import_tachibk(
+    file: UploadFile = File(...),
+    user_id: str = Depends(get_current_user),
+):
     """
     Accept a .tachibk file, decode it from gzip+protobuf, return JSON.
     The frontend uses this to restore library, history, bookmarks, etc.
     """
-    if not file.filename or not file.filename.endswith(('.tachibk', '.proto', '.pb')):
-        # Also accept no-extension files — browser can't always sniff type
-        pass
+    if file.size and file.size > MAX_TACHIBK_BYTES:
+        raise HTTPException(413, "File exceeds 50 MB limit.")
     raw = await file.read()
     if len(raw) == 0:
         raise HTTPException(400, "Empty file")
+    if len(raw) > MAX_TACHIBK_BYTES:
+        raise HTTPException(413, "File exceeds 50 MB limit.")
     try:
         parsed = decode_tachibk(raw)
     except Exception as e:

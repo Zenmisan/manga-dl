@@ -180,7 +180,38 @@ async def download_history(
 
 @router.websocket("/ws")
 async def download_ws(websocket: WebSocket):
+    """
+    WebSocket endpoint for real-time download progress.
+    Broadcasts events: {type: "queued"|"started"|"progress"|"completed", download: {...}}
+    """
     await websocket.accept()
+
+    # Validate: API key OR Bearer token must be present
+    api_key_ok = settings.API_KEY is None or (api_key and api_key == settings.API_KEY)
+    token_ok = bool(token)  # existence check — full JWT verify below
+    if not api_key_ok and not token_ok:
+        await websocket.close(code=4401, reason="Unauthorized")
+        return
+
+    if token_ok and not api_key_ok:
+        # Verify Supabase JWT from query param
+        from starlette.requests import Request as _Req
+        from starlette.datastructures import Headers as _Hdrs
+        import urllib.parse
+        scope = {
+            "type": "http",
+            "method": "GET",
+            "path": "/",
+            "query_string": b"",
+            "headers": [(b"authorization", f"Bearer {token}".encode())],
+        }
+        fake_req = _Req(scope)
+        try:
+            from app.core.supabase_auth import get_current_user
+            await get_current_user(fake_req)
+        except Exception:
+            await websocket.close(code=4401, reason="Invalid token")
+            return
 
     async def send_event(event: dict):
         await websocket.send_json(event)

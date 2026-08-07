@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback, lazy, Suspense } from 'react'
+import React, { useEffect, useRef, useCallback, lazy, Suspense, lazy, Suspense } from 'react'
 import { useAppStore } from './lib/store'
 import {
   Library, Search, Globe, BarChart2, Clock, Bell,
@@ -20,39 +20,29 @@ import SplashScreen from './components/SplashScreen'
 import { Titlebar } from './components/Titlebar'
 import { supabase } from './lib/supabase'
 import type { Session } from '@supabase/supabase-js'
-import { RawStaticViewer } from './components/RawStaticViewer'
 
-// Lazy-loaded page chunks
-const SearchPage = lazy(() => import('./pages/Search'))
-const DownloadsPage = lazy(() => import('./pages/Downloads'))
-const SettingsLayout = lazy(() => import('./pages/Settings'))
-const SettingsGeneral = lazy(() => import('./pages/Settings/General'))
-const SettingsReader = lazy(() => import('./pages/Settings/Reader'))
-const SettingsLibrary = lazy(() => import('./pages/Settings/Library'))
-const SettingsTrackers = lazy(() => import('./pages/Settings/Trackers'))
-const SettingsSystem = lazy(() => import('./pages/Settings/System'))
-const StatsPage = lazy(() => import('./pages/Stats'))
-const MangaDetail = lazy(() => import('./pages/MangaDetail'))
-const Reader = lazy(() => import('./pages/Reader'))
-const SourcesPage = lazy(() => import('./pages/Sources'))
-const DownloadHub = lazy(() => import('./pages/DownloadHub'))
-const LoginPage = lazy(() => import('./pages/Login'))
-const RegisterPage = lazy(() => import('./pages/Register'))
-const TermsPage = lazy(() => import('./pages/Terms'))
-const HelpPage = lazy(() => import('./pages/Help'))
-const HistoryPage = lazy(() => import('./pages/History'))
-const UpdatesPage = lazy(() => import('./pages/Updates'))
-const OnboardingPage = lazy(() => import('./pages/Onboarding'))
-const ProfilePage = lazy(() => import('./pages/Profile'))
-
-function PageLoader() {
-  return (
-    <div className="min-h-[50vh] flex flex-col items-center justify-center gap-3">
-      <Loader2 className="w-7 h-7 animate-spin" style={{ color: 'var(--accent)' }} />
-      <span className="text-xs font-bold uppercase tracking-widest text-white/30">Loading...</span>
-    </div>
-  )
-}
+import Dashboard from './pages/Dashboard'
+import SearchPage from './pages/Search'
+import DownloadsPage from './pages/Downloads'
+import SettingsLayout from './pages/Settings'
+import SettingsGeneral from './pages/Settings/General'
+import SettingsReader from './pages/Settings/Reader'
+import SettingsLibrary from './pages/Settings/Library'
+import SettingsTrackers from './pages/Settings/Trackers'
+import SettingsSystem from './pages/Settings/System'
+import StatsPage from './pages/Stats'
+import MangaDetail from './pages/MangaDetail'
+import Reader from './pages/Reader'
+import SourcesPage from './pages/Sources'
+import DownloadHub from './pages/DownloadHub'
+import LoginPage from './pages/Login'
+import RegisterPage from './pages/Register'
+import TermsPage from './pages/Terms'
+import HelpPage from './pages/Help'
+import HistoryPage from './pages/History'
+import UpdatesPage from './pages/Updates'
+import OnboardingPage from './pages/Onboarding'
+import ProfilePage from './pages/Profile'
 
 function useGlobalNotifications() {
   const wsRef = useRef<WebSocket | null>(null)
@@ -63,15 +53,22 @@ function useGlobalNotifications() {
     const notificationsEnabled = localStorage.getItem('notifications-enabled') === 'true'
     if (!notificationsEnabled) return
 
-    const apiBase = (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__
-      ? 'http://127.0.0.1:8000/api'
-      : window.location.origin + '/api'
-    const apiKey = localStorage.getItem('manga-api-key') || ''
-    const protocol = apiBase.startsWith('https') ? 'wss' : 'ws'
-    const wsUrl = apiBase.replace(/^https?/, protocol).replace('/api', '') + `/api/downloads/ws?api_key=${apiKey}`
+    let destroyed = false
 
-    const connect = () => {
-      const ws = new WebSocket(wsUrl)
+    const connect = async () => {
+      const apiBase = (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__
+        ? 'http://127.0.0.1:8000/api'
+        : window.location.origin + '/api'
+      const apiKey = localStorage.getItem('manga-api-key') || ''
+      const protocol = apiBase.startsWith('https') ? 'wss' : 'ws'
+      const wsBase = apiBase.replace(/^https?/, protocol).replace('/api', '') + '/api/downloads/ws'
+      const params = new URLSearchParams()
+      if (apiKey) params.set('api_key', apiKey)
+      const { supabase } = await import('./lib/supabase')
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.access_token) params.set('token', session.access_token)
+      if (destroyed) return
+      const ws = new WebSocket(`${wsBase}?${params.toString()}`)
       wsRef.current = ws
 
       ws.onmessage = (event) => {
@@ -90,12 +87,16 @@ function useGlobalNotifications() {
       }
 
       ws.onclose = () => {
+        // Reconnect after 10s if connection drops
         setTimeout(connect, 10_000)
       }
     }
 
-    connect()
-    return () => wsRef.current?.close()
+    connect().catch(console.error)
+    return () => {
+      destroyed = true
+      wsRef.current?.close()
+    }
   }, [])
 }
 
@@ -564,40 +565,33 @@ function App() {
             transition={{ duration: 0.08 }}
             className="h-full"
           >
-            <Suspense fallback={<PageLoader />}>
-              <Routes location={location}>
-                <Route path="/r" element={<Dashboard />} />
-                <Route path="/more" element={<MorePage />} />
-                <Route path="/search" element={<SearchPage />} />
-                <Route path="/stats" element={<StatsPage />} />
-                <Route path="/sources" element={<SourcesPage />} />
-                <Route path="/download" element={<DownloadHub />} />
-                <Route path="/download-app" element={<DownloadHub />} />
-                <Route path="/download-hub" element={<DownloadHub />} />
-                <Route path="/downloads" element={<DownloadsPage />} />
-                <Route path="/settings" element={<SettingsLayout />}>
-                  <Route index element={<Navigate to="profile" replace />} />
-                  <Route path="profile" element={<ProfilePage />} />
-                  <Route path="general" element={<SettingsGeneral />} />
-                  <Route path="reader" element={<SettingsReader />} />
-                  <Route path="library" element={<SettingsLibrary />} />
-                  <Route path="trackers" element={<SettingsTrackers />} />
-                  <Route path="system" element={<SettingsSystem />} />
-                </Route>
-                <Route path="/manga/:provider/*" element={<MangaDetail />} />
-                <Route path="/read/:mangaTitle/:filename" element={<Reader />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/register" element={<RegisterPage />} />
-                <Route path="/terms" element={<TermsPage />} />
-                <Route path="/help" element={<HelpPage />} />
-                <Route path="/history" element={<HistoryPage />} />
-                <Route path="/updates" element={<UpdatesPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/profile/:userId" element={<ProfilePage />} />
-                <Route path="/static-viewer" element={<RawStaticViewer path="/sitemap.xml" />} />
-                <Route path="*" element={<Navigate to="/r" replace />} />
-              </Routes>
-            </Suspense>
+            <Routes location={location}>
+              <Route path="/r" element={<Dashboard />} />
+              <Route path="/more" element={<MorePage />} />
+              <Route path="/search" element={<SearchPage />} />
+              <Route path="/stats" element={<StatsPage />} />
+              <Route path="/sources" element={<SourcesPage />} />
+              <Route path="/download" element={<DownloadHub />} />
+              <Route path="/downloads" element={<DownloadsPage />} />
+              <Route path="/settings" element={<SettingsLayout />}>
+                <Route index element={<Navigate to="general" replace />} />
+                <Route path="general" element={<SettingsGeneral />} />
+                <Route path="reader" element={<SettingsReader />} />
+                <Route path="library" element={<SettingsLibrary />} />
+                <Route path="trackers" element={<SettingsTrackers />} />
+                <Route path="system" element={<SettingsSystem />} />
+              </Route>
+              <Route path="/manga/:provider/*" element={<MangaDetail />} />
+              <Route path="/read/:mangaTitle/:filename" element={<Reader />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/terms" element={<TermsPage />} />
+              <Route path="/help" element={<HelpPage />} />
+              <Route path="/history" element={<HistoryPage />} />
+              <Route path="/updates" element={<UpdatesPage />} />
+              <Route path="/onboarding" element={<OnboardingPage />} />
+              <Route path="/profile/:userId" element={<ProfilePage />} />
+            </Routes>
           </motion.div>
         </AnimatePresence>
       </main>
