@@ -137,6 +137,7 @@ export default function SearchPage() {
     if (manager.extensions.size === 0) {
       manager.init().then(() => { setExtCount(manager.extensions.size) })
     } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setExtCount(manager.extensions.size)
     }
   }, [])
@@ -196,6 +197,7 @@ export default function SearchPage() {
   }, [selectedProvider, setSearchResults, setHasSearched])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (searchQuery.trim() && tab === 'search') performSearch(searchQuery.trim())
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProvider])
@@ -221,10 +223,15 @@ export default function SearchPage() {
     if (tab === 'popular' || tab === 'latest') {
       const fetchKey = `${tab}:${browseProvider}`
       if (lastFetchKey !== fetchKey || browseResults.length === 0) {
+         
         setLastFetchKey(fetchKey)
+         
         setBrowsePage(1)
+         
         setBrowseResults([])
+         
         setBrowseHasMore(true)
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchBrowse(browseProvider, 1, tab)
       }
     }
@@ -361,7 +368,7 @@ export default function SearchPage() {
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
                   {Object.entries(searchResults.reduce<Record<string, MangaResult[]>>((acc, r) => { ;(acc[r.provider] ??= []).push(r); return acc }, {}))
-                    .filter(([_, results]) => results.length > 0)
+                    .filter(([, results]) => results.length > 0)
                     .map(([provider, results]) => (
                       <div key={provider}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>

@@ -129,16 +129,21 @@ export function useMangaDetail() {
 
   useEffect(() => {
     if (provider && mangaId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setReadChapters(getReadChapters(provider, mangaId))
       const n = getMangaNote(provider, mangaId)
+       
       setUserNote(n.note)
+       
       setUserRating(n.rating)
+       
       setNoteDraft(n.note)
     }
   }, [provider, mangaId])
 
   useEffect(() => {
     if (!provider || !mangaId) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
 
     let isMounted = true

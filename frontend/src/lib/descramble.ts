@@ -33,13 +33,13 @@ export function parseDescrambleFragment(url: string): DescrambleData | null {
         };
       }
     }
-  } catch (e) {
+  } catch {
     // Ignore parsing errors
   }
   return null;
 }
 
-export function unwrapAstro(el: any): any {
+export function unwrapAstro(el: unknown): unknown {
   if (Array.isArray(el)) {
     if (el.length === 2 && typeof el[0] === "number") {
       return unwrapAstro(el[1]);
@@ -47,10 +47,11 @@ export function unwrapAstro(el: any): any {
     return el.map(unwrapAstro);
   }
   if (typeof el === "object" && el !== null) {
-    const out: Record<string, any> = {};
-    for (const k in el) {
-      if (Object.prototype.hasOwnProperty.call(el, k)) {
-        out[k] = unwrapAstro(el[k]);
+    const out: Record<string, unknown> = {};
+    const record = el as Record<string, unknown>;
+    for (const k in record) {
+      if (Object.prototype.hasOwnProperty.call(record, k)) {
+        out[k] = unwrapAstro(record[k]);
       }
     }
     return out;

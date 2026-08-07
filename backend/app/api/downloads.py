@@ -10,6 +10,9 @@ from app.core.queue import download_queue, register_ws_listener, unregister_ws_l
 from app.database import get_db, AsyncSessionLocal
 from app.models.download import DownloadRecord
 from app.core.supabase_auth import get_current_user
+from app.config import get_settings
+
+settings = get_settings()
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/downloads", tags=["downloads"])
@@ -184,6 +187,9 @@ async def download_ws(websocket: WebSocket):
     WebSocket endpoint for real-time download progress.
     Broadcasts events: {type: "queued"|"started"|"progress"|"completed", download: {...}}
     """
+    api_key = websocket.query_params.get("api_key", "")
+    token = websocket.query_params.get("token", "")
+
     await websocket.accept()
 
     # Validate: API key OR Bearer token must be present

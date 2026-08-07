@@ -1,27 +1,18 @@
-import React, { useEffect, useRef, useCallback, lazy, Suspense, lazy, Suspense } from 'react'
-import { useAppStore } from './lib/store'
+import React, { useRef, useCallback, Suspense, useEffect } from 'react'
 import {
   Library, Search, Globe, BarChart2, Clock, Bell,
   Download, Settings, Loader2, Sparkles, PanelLeftClose, PanelLeftOpen, LogOut,
 } from 'lucide-react'
-import { Routes, Route, Link, useLocation, useNavigate, Navigate } from 'react-router-dom'
+import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from './lib/utils'
-import api from './lib/api'
-import { syncReadTrackingFromCloud } from './lib/readTracking'
-import { syncCategoriesFromCloud } from './lib/categories'
-import { syncMangaNotesFromCloud } from './lib/mangaNotes'
-import { syncMetaOverridesFromCloud } from './lib/metaOverrides'
-import { ExtensionManager } from './lib/extensions'
+import { useAuthSession, useThemeEffects, useAppLock, useBackgroundSync } from './hooks/useAppSetup'
 import LandingPage from './pages/Landing'
 import MorePage from './pages/More'
 import Dashboard from './pages/Dashboard'
 import SplashScreen from './components/SplashScreen'
 import { Titlebar } from './components/Titlebar'
-import { supabase } from './lib/supabase'
-import type { Session } from '@supabase/supabase-js'
-
-import Dashboard from './pages/Dashboard'
+import { RawStaticViewer } from './components/RawStaticViewer'
 import SearchPage from './pages/Search'
 import DownloadsPage from './pages/Downloads'
 import SettingsLayout from './pages/Settings'
@@ -43,6 +34,17 @@ import HistoryPage from './pages/History'
 import UpdatesPage from './pages/Updates'
 import OnboardingPage from './pages/Onboarding'
 import ProfilePage from './pages/Profile'
+import ImportGuide from './pages/ImportGuide'
+import type { Session } from '@supabase/supabase-js'
+
+function PageLoader() {
+  return (
+    <div className="min-h-[50vh] flex flex-col items-center justify-center gap-3">
+      <Loader2 className="w-7 h-7 animate-spin" style={{ color: 'var(--accent)' }} />
+      <span className="text-xs font-bold uppercase tracking-widest text-white/30">Loading...</span>
+    </div>
+  )
+}
 
 function useGlobalNotifications() {
   const wsRef = useRef<WebSocket | null>(null)
@@ -87,7 +89,6 @@ function useGlobalNotifications() {
       }
 
       ws.onclose = () => {
-        // Reconnect after 10s if connection drops
         setTimeout(connect, 10_000)
       }
     }
@@ -308,15 +309,6 @@ function BottomNav() {
 // ── App ──────────────────────────────────────────────────────
 function App() {
   const location = useLocation()
-  if (location.pathname === '/sitemap.xml' || location.pathname === '/robots.txt') {
-    return <RawStaticViewer path={location.pathname} />
-  }
-
-  const navigate = useNavigate()
-  const { theme, amoledBlack, accent, syncWifiOnly, syncChargingOnly, appLockEnabled } = useAppStore()
-  const [locked, setLocked] = React.useState(false)
-  const [session, setSession] = React.useState<Session | null>(null)
-  const [loadingSession, setLoadingSession] = React.useState(true)
   const [showSplash, setShowSplash] = React.useState(() => {
     if (typeof sessionStorage === 'undefined') return false
     if (sessionStorage.getItem('splash-shown')) return false
@@ -325,152 +317,15 @@ function App() {
   })
   const handleSplashDone = useCallback(() => setShowSplash(false), [])
 
-  useEffect(() => {
-    syncReadTrackingFromCloud().catch(() => {})
-    syncCategoriesFromCloud().catch(() => {})
-    syncMangaNotesFromCloud().catch(() => {})
-    syncMetaOverridesFromCloud()
-    ExtensionManager.getInstance().init().catch(() => {})
-  }, [])
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setLoadingSession(false)
-    })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
-      setSession(s)
-      setLoadingSession(false)
-      if (event === 'SIGNED_OUT') {
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i)
-          if (key && key.startsWith('sb-')) {
-            localStorage.removeItem(key)
-            i--
-          }
-        }
-        navigate('/')
-        window.location.reload()
-      }
-    })
-    return () => subscription.unsubscribe()
-  }, [navigate])
-
-  const handleSignOut = async () => {
-    try { await supabase.auth.signOut() } catch (e) { console.error(e) }
-  }
-
-  useEffect(() => {
-    if (!('Capacitor' in window)) return
-    import('@capacitor/splash-screen').then(({ SplashScreen }) => {
-      SplashScreen.hide({ fadeOutDuration: 400 }).catch(() => {})
-    }).catch(() => {})
-  }, [])
+  const { session, loadingSession, handleSignOut } = useAuthSession()
+  useThemeEffects()
+  const { locked, setLocked } = useAppLock()
+  useBackgroundSync()
   useGlobalNotifications()
 
-  useEffect(() => {
-    if (!('__TAURI_INTERNALS__' in window)) return
-    import('@tauri-apps/api/event').then(({ listen }) => {
-      const unlisten = listen<{ provider?: string; mangaId?: string; count?: number }>('new-chapters', ({ payload }) => {
-        if (payload.provider && payload.mangaId) {
-          navigate(`/manga/${payload.provider}/${encodeURIComponent(payload.mangaId)}`)
-        }
-      })
-      return () => { unlisten.then(fn => fn()) }
-    }).catch(() => {})
-  }, [navigate])
-
-  useEffect(() => {
-    const root = document.documentElement
-    const applyTheme = (isDark: boolean) => {
-      root.classList.toggle('dark', isDark)
-      root.classList.toggle('light', !isDark)
-    }
-    if (theme === 'system') {
-      const mq = window.matchMedia('(prefers-color-scheme: dark)')
-      applyTheme(mq.matches)
-      const handler = (e: MediaQueryListEvent) => applyTheme(e.matches)
-      mq.addEventListener('change', handler)
-      return () => mq.removeEventListener('change', handler)
-    } else {
-      applyTheme(theme === 'dark')
-    }
-  }, [theme])
-
-  useEffect(() => {
-    document.documentElement.classList.toggle('amoled', amoledBlack)
-  }, [amoledBlack])
-
-  useEffect(() => {
-    if (accent === 'red') {
-      document.documentElement.removeAttribute('data-accent')
-    } else {
-      document.documentElement.setAttribute('data-accent', accent)
-    }
-  }, [accent])
-
-  const isAuthenticatingRef = useRef(false)
-  const isUnlockedRef = useRef(false)
-
-  useEffect(() => {
-    if (!appLockEnabled) { setLocked(false); isUnlockedRef.current = true; return }
-    if (!('Capacitor' in window)) return
-
-    const tryAuth = async () => {
-      if (isAuthenticatingRef.current || isUnlockedRef.current) return
-      isAuthenticatingRef.current = true
-      try {
-        const { BiometricAuth } = await import('@aparajita/capacitor-biometric-auth')
-        const { isAvailable } = await BiometricAuth.checkBiometry()
-        if (!isAvailable) { isUnlockedRef.current = true; setLocked(false); return }
-        setLocked(true)
-        await BiometricAuth.authenticate({ reason: 'Unlock manga-dl', cancelTitle: 'Cancel' })
-        isUnlockedRef.current = true
-        setLocked(false)
-      } catch {
-        isUnlockedRef.current = false
-      } finally {
-        isAuthenticatingRef.current = false
-      }
-    }
-
-    tryAuth()
-    let removePauseListener: (() => void) | undefined
-    import('@capacitor/app').then(({ App }) => {
-      const sub = App.addListener('pause', () => { isUnlockedRef.current = false })
-      removePauseListener = () => { sub.then(h => h.remove()) }
-    }).catch(() => {})
-    return () => { if (removePauseListener) removePauseListener() }
-  }, [appLockEnabled])
-
-  useEffect(() => {
-    if ('__TAURI_INTERNALS__' in window) return
-
-    const canSync = async (): Promise<boolean> => {
-      if (syncWifiOnly) {
-        try {
-          const { Network } = await import('@capacitor/network')
-          const status = await Network.getStatus()
-          if (status.connectionType !== 'wifi') return false
-        } catch {
-          const conn = (navigator as Navigator & { connection?: { type?: string } }).connection
-          if (conn && conn.type && conn.type !== 'wifi') return false
-        }
-      }
-      if (syncChargingOnly) {
-        try {
-          const bat = await (navigator as Navigator & { getBattery?: () => Promise<{ charging: boolean }> }).getBattery?.()
-          if (bat && !bat.charging) return false
-        } catch { /* non-fatal */ }
-      }
-      return true
-    }
-
-    const run = async () => { if (await canSync()) api.post('/manga/sync').catch(() => {}) }
-    const timeout = setTimeout(run, 1500)
-    const t = setInterval(run, 30 * 60 * 1000)
-    return () => { clearTimeout(timeout); clearInterval(t) }
-  }, [syncWifiOnly, syncChargingOnly])
+  if (location.pathname === '/sitemap.xml' || location.pathname === '/robots.txt') {
+    return <RawStaticViewer path={location.pathname} />
+  }
 
   if (locked) {
     return (
@@ -587,6 +442,8 @@ function App() {
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/terms" element={<TermsPage />} />
               <Route path="/help" element={<HelpPage />} />
+              <Route path="/guide/import" element={<ImportGuide />} />
+              <Route path="/import-guide" element={<ImportGuide />} />
               <Route path="/history" element={<HistoryPage />} />
               <Route path="/updates" element={<UpdatesPage />} />
               <Route path="/onboarding" element={<OnboardingPage />} />

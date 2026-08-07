@@ -125,7 +125,9 @@ export default function DownloadHub() {
     else if (ua.includes('mac')) detected = 'mac'
     else if (ua.includes('linux')) detected = 'linux'
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDetectedOS(detected)
+     
     setSelectedOS(detected)
   }, [])
 

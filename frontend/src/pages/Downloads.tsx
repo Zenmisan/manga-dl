@@ -93,19 +93,12 @@ export default function DownloadsPage() {
     fetchData()
     api.get('/downloads/queue-status').then(res => setPaused(res.data.paused)).catch(() => {})
 
-<<<<<<< HEAD
-    const getWsUrl = () => {
-      const apiKey = localStorage.getItem('manga-api-key') || ''
-      const apiBase = api.defaults.baseURL || ''
-
-=======
     let ws: WebSocket | null = null
     let closed = false
 
     const connectWs = async () => {
       const apiKey = localStorage.getItem('manga-api-key') || ''
       const apiBase = api.defaults.baseURL || ''
->>>>>>> 56ca80f (fix: per-user library isolation, JWT auth, and security hardening)
       let wsBase: string
       if (apiBase.startsWith('http')) {
         wsBase = apiBase.replace(/^http/, 'ws') + '/downloads/ws'
@@ -114,49 +107,6 @@ export default function DownloadsPage() {
         const host = window.location.host.includes('localhost') ? 'localhost:8000' : window.location.host
         wsBase = `${protocol}//${host}/api/downloads/ws`
       }
-<<<<<<< HEAD
-
-      return `${wsBase}?api_key=${apiKey}`
-    }
-
-    const ws = new WebSocket(getWsUrl())
-
-    ws.onopen = () => console.log('WebSocket connected to backend')
-    ws.onerror = (err) => console.error('WebSocket error:', err)
-    ws.onclose = () => console.log('WebSocket disconnected')
-
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data)
-      if (data.type === 'progress' || data.type === 'started' || data.type === 'queued') {
-        setActive(prev => {
-          const idx = prev.findIndex(i => i.id === data.download.id)
-          if (idx > -1) {
-            const next = [...prev]
-            next[idx] = data.download
-            return next
-          }
-          return [data.download, ...prev]
-        })
-      } else if (data.type === 'completed') {
-        setActive(prev => prev.filter(i => i.id !== data.download.id))
-        setHistory(prev => {
-          if (prev.some(i => i.id === data.download.id)) return prev
-          return [data.download, ...prev].slice(0, 100)
-        })
-        if (isNative) {
-          import('@capacitor/local-notifications').then(({ LocalNotifications }) => {
-            LocalNotifications.requestPermissions().then(({ display }) => {
-              if (display === 'granted') {
-                LocalNotifications.schedule({
-                  notifications: [{
-                    id: Math.floor(Math.random() * 100000),
-                    title: 'Download Complete',
-                    body: `${data.download.manga_title} — ${data.download.chapter_title} downloaded`,
-                    schedule: { at: new Date(Date.now() + 100) },
-                  }]
-                }).catch(() => {})
-              }
-=======
       const params = new URLSearchParams()
       if (apiKey) params.set('api_key', apiKey)
       const { supabase } = await import('../lib/supabase')
@@ -200,7 +150,6 @@ export default function DownloadsPage() {
                   }).catch(() => {})
                 }
               }).catch(() => {})
->>>>>>> 56ca80f (fix: per-user library isolation, JWT auth, and security hardening)
             }).catch(() => {})
           }
         }

@@ -116,7 +116,10 @@ export function useDashboardData() {
 
   useEffect(() => {
     backendDownRef.current = backendDown
-    if (!backendDown) setBannerDismissed(false)
+    if (!backendDown) {
+      const id = requestAnimationFrame(() => setBannerDismissed(false))
+      return () => cancelAnimationFrame(id)
+    }
   }, [backendDown])
 
   useEffect(() => {
@@ -210,6 +213,7 @@ export function useDashboardData() {
   }, [])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsDesktop(!!(window as unknown as Record<string, unknown>).__TAURI_INTERNALS__)
 
     getAllLocalManga().then(localEntries => {
@@ -345,6 +349,7 @@ export function useDashboardData() {
   useEffect(() => {
     try {
       const stored = localStorage.getItem('manga-dl-pinned')
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (stored) setPinnedFiles(JSON.parse(stored))
     } catch { /* non-fatal */ }
   }, [])

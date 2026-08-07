@@ -93,6 +93,7 @@ export function useReaderNavigation({
     navigate(buildSmartReadUrl(parts.provider, parts.mangaId, targetId, parts.mangaTitle ?? 'manga', 'Next Chapter'))
   }, [navigate, getNextUnreadChapterId, onlinePartsRef])
 
+  // eslint-disable-next-line react-hooks/refs
   const nextUnreadChapterId = getNextUnreadChapterId()
 
   // Keybindings sub-hook

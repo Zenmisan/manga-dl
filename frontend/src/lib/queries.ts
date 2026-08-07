@@ -32,9 +32,8 @@ const STALE = {
 
 // ── Hooks ─────────────────────────────────────────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function useLibrary() {
-  return useQuery<any>({
+  return useQuery<unknown>({
     queryKey: QK.library,
     queryFn: () => api.get('/library').then(r => r.data),
     staleTime: STALE.library,
@@ -42,7 +41,7 @@ export function useLibrary() {
 }
 
 export function useLibraryStats() {
-  return useQuery<any>({
+  return useQuery<unknown>({
     queryKey: QK.libraryStats,
     queryFn: async () => {
       // 1. Try fetching authenticated user's reading stats first
@@ -109,7 +108,7 @@ export function useLibraryStats() {
 }
 
 export function useBuiltinSources() {
-  return useQuery<any>({
+  return useQuery<unknown>({
     queryKey: QK.sources,
     queryFn: () => api.get('/sources/builtins').then(r => r.data),
     staleTime: STALE.sources,
@@ -117,7 +116,7 @@ export function useBuiltinSources() {
 }
 
 export function useMarketSources() {
-  return useQuery<any>({
+  return useQuery<unknown>({
     queryKey: QK.sourcesMarket,
     queryFn: () => api.get('/sources/market').then(r => r.data),
     staleTime: STALE.sourcesMarket,
@@ -125,7 +124,7 @@ export function useMarketSources() {
 }
 
 export function useMangaUpdates() {
-  return useQuery<any>({
+  return useQuery<unknown>({
     queryKey: QK.mangaUpdates,
     queryFn: () => api.get('/manga/updates').then(r => r.data),
     staleTime: STALE.updates,
@@ -133,7 +132,7 @@ export function useMangaUpdates() {
 }
 
 export function useMangaDetail(provider: string, mangaId: string, enabled = true) {
-  return useQuery<any>({
+  return useQuery<unknown>({
     queryKey: QK.mangaDetail(provider, mangaId),
     queryFn: () => api.get(`/manga/${provider}/${encodeURIComponent(mangaId)}`).then(r => r.data),
     staleTime: STALE.mangaDetail,
@@ -142,7 +141,7 @@ export function useMangaDetail(provider: string, mangaId: string, enabled = true
 }
 
 export function useMangaSubscription(provider: string, mangaId: string, enabled = true) {
-  return useQuery<any>({
+  return useQuery<unknown>({
     queryKey: QK.mangaSubscription(provider, mangaId),
     queryFn: () => api.get(`/manga/subscription/${provider}/${mangaId}`).then(r => r.data),
     staleTime: STALE.subscription,
@@ -151,7 +150,7 @@ export function useMangaSubscription(provider: string, mangaId: string, enabled 
 }
 
 export function useHistory(enabled = true) {
-  return useQuery<any>({
+  return useQuery<unknown>({
     queryKey: QK.history,
     queryFn: () => api.get('/users/history').then(r => r.data),
     staleTime: STALE.history,
@@ -160,7 +159,7 @@ export function useHistory(enabled = true) {
 }
 
 export function useDownloadHistory() {
-  return useQuery<any>({
+  return useQuery<unknown>({
     queryKey: QK.downloadHistory,
     queryFn: () => api.get('/downloads/history').then(r => r.data),
     staleTime: STALE.downloadHistory,

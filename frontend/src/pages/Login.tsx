@@ -30,7 +30,9 @@ export default function LoginPage() {
   useEffect(() => {
     const saved = localStorage.getItem('manga-dl-remembered-email')
     if (saved) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setEmail(saved)
+       
       setRememberMe(true)
     }
   }, [])

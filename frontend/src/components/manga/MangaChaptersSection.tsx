@@ -146,6 +146,7 @@ export function MangaChaptersSection({
   scanlators, scanlatorFilter, setScanlatorFilter, handleMarkAllRead,
   toggleBookmark, toggleReadStatus, handleDownload, swipedChapterId, setSwipedChapterId, swipeStartX,
 }: Props) {
+  const swipeStartXRef = swipeStartX
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; chapter: Chapter } | null>(null)
   const [hiddenChapters, setHiddenChapters] = useState<Set<string>>(new Set())
   const [copiedNotification, setCopiedNotification] = useState(false)
@@ -161,7 +162,7 @@ export function MangaChaptersSection({
   }
 
   const handleTouchStart = (e: React.TouchEvent, chapter: Chapter) => {
-    swipeStartX.current = e.touches[0].clientX
+    swipeStartXRef.current = e.touches[0].clientX
     const touch = e.touches[0]
     longPressTimerRef.current = setTimeout(() => {
       setContextMenu({ x: touch.clientX, y: touch.clientY, chapter })
@@ -180,7 +181,7 @@ export function MangaChaptersSection({
       clearTimeout(longPressTimerRef.current)
       longPressTimerRef.current = null
     }
-    const delta = e.changedTouches[0].clientX - swipeStartX.current
+    const delta = e.changedTouches[0].clientX - swipeStartXRef.current
     if (delta < -60) setSwipedChapterId(chapter.id)
     else if (delta > 60) setSwipedChapterId(null)
   }

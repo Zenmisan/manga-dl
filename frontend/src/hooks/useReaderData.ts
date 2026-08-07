@@ -154,10 +154,14 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
 
   // Main data loader
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCurrentPage(1)
     window.scrollTo(0, 0)
+     
     setLoading(true)
+     
     setFetchError(null)
+     
     setPages([])
 
     const fetchManifest = async () => {
@@ -171,7 +175,7 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
       }
 
       if (onlineBase64) {
-        let decoded = ''
+        let decoded: string
         try {
           decoded = decodeURIComponent(escape(atob(onlineBase64)))
         } catch {

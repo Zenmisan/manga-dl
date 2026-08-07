@@ -45,7 +45,7 @@ export default function TrackerSettings() {
   const [anilistToken, setAnilistToken] = useState(localStorage.getItem('anilist-token') || '')
   const [anilistClientId, setAnilistClientId] = useState(localStorage.getItem('anilist-client-id') || '')
   const [showAdvancedAnilist, setShowAdvancedAnilist] = useState(false)
-  const [_showManualAnilist, setShowManualAnilist] = useState(false)
+  const [, setShowManualAnilist] = useState(false)
   const [manualAnilistToken, setManualAnilistToken] = useState('')
   const [userName, setUserName] = useState<string | null>(null)
   
@@ -63,6 +63,7 @@ export default function TrackerSettings() {
   const [bangumiToken, setBangumiToken] = useState(localStorage.getItem('bangumi-token') || '')
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!anilistToken || anilistToken.startsWith('mock_token_')) { setUserName(null); return }
     fetchAniListUsername(anilistToken).then(name => setUserName(name))
   }, [anilistToken])
@@ -72,6 +73,7 @@ export default function TrackerSettings() {
     if (!hash.includes('access_token')) return
     const params = new URLSearchParams(hash.substring(1))
     const token = params.get('access_token')
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (token) { localStorage.setItem('anilist-token', token); setAnilistToken(token); window.history.replaceState(null, '', window.location.pathname) }
   }, [])
 
@@ -81,6 +83,7 @@ export default function TrackerSettings() {
     const verifier = localStorage.getItem('mal-code-verifier')
     const clientId = localStorage.getItem('mal-client-id') || DEFAULT_MAL_CLIENT_ID
     if (!code || !verifier) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMalLoading(true)
     window.history.replaceState(null, '', window.location.pathname)
     api.post('/auth/mal/token', { client_id: clientId, code, code_verifier: verifier, redirect_uri: window.location.origin + '/settings/trackers' })

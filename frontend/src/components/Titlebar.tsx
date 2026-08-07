@@ -1,7 +1,13 @@
 import { useState, useEffect } from 'react'
 
+interface TauriWindow {
+  minimize(): Promise<void>
+  toggleMaximize(): Promise<void>
+  close(): Promise<void>
+}
+
 export function Titlebar() {
-  const [windowApi, setWindowApi] = useState<any>(null)
+  const [windowApi, setWindowApi] = useState<TauriWindow | null>(null)
 
   useEffect(() => {
     // Only import tauri APIs dynamically in browser/native environment
