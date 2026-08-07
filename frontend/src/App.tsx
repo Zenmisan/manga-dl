@@ -16,6 +16,7 @@ import { RawStaticViewer } from './components/RawStaticViewer'
 import SearchPage from './pages/Search'
 import DownloadsPage from './pages/Downloads'
 import SettingsLayout from './pages/Settings'
+import SettingsProfile from './pages/Settings/Profile'
 import SettingsGeneral from './pages/Settings/General'
 import SettingsReader from './pages/Settings/Reader'
 import SettingsLibrary from './pages/Settings/Library'
@@ -425,7 +426,8 @@ function App() {
               <Route path="/download" element={<DownloadHub />} />
               <Route path="/downloads" element={<DownloadsPage />} />
               <Route path="/settings" element={<SettingsLayout />}>
-                <Route index element={<Navigate to="general" replace />} />
+                <Route index element={<Navigate to="profile" replace />} />
+                <Route path="profile" element={<SettingsProfile />} />
                 <Route path="general" element={<SettingsGeneral />} />
                 <Route path="reader" element={<SettingsReader />} />
                 <Route path="library" element={<SettingsLibrary />} />
@@ -443,6 +445,7 @@ function App() {
               <Route path="/history" element={<HistoryPage />} />
               <Route path="/updates" element={<UpdatesPage />} />
               <Route path="/onboarding" element={<OnboardingPage />} />
+              <Route path="/profile" element={<ProfilePage />} />
               <Route path="/profile/:userId" element={<ProfilePage />} />
             </Routes>
           </motion.div>
