@@ -16,12 +16,12 @@ import { RawStaticViewer } from './components/RawStaticViewer'
 import SearchPage from './pages/Search'
 import DownloadsPage from './pages/Downloads'
 import SettingsLayout from './pages/Settings'
-import SettingsProfile from './pages/Settings/Profile'
 import SettingsGeneral from './pages/Settings/General'
 import SettingsReader from './pages/Settings/Reader'
 import SettingsLibrary from './pages/Settings/Library'
 import SettingsTrackers from './pages/Settings/Trackers'
 import SettingsSystem from './pages/Settings/System'
+import SettingsProfile from './pages/Settings/Profile'
 import StatsPage from './pages/Stats'
 import MangaDetail from './pages/MangaDetail'
 import Reader from './pages/Reader'
@@ -137,25 +137,22 @@ function Sidebar({ session, onSignOut, isTauri }: {
         isTauri ? 'top-8 h-[calc(100vh-2rem)]' : 'top-0 h-screen'
       )}
     >
-      {/* Stitch Kinetic Logo & Version Badge */}
-      <div className={cn('flex items-center py-5 px-3.5 border-b border-white/5 relative', isCollapsed ? 'justify-center' : 'justify-between')}>
-        <Link to="/r" className={cn('flex items-center gap-3.5 group overflow-hidden', isCollapsed && 'justify-center')}>
-          <div className="w-10 h-10 rounded-xl bg-red-600/10 border border-red-500/20 flex items-center justify-center p-1.5 overflow-hidden shrink-0 group-hover:border-red-500/40 transition-colors">
-            <img src="/Manga-dl1.png" alt="manga-dl" className="w-full h-full object-contain" />
+      {/* Stitch Kinetic Logo & Collapse Toggle */}
+      <div className={cn('flex border-b border-white/5 relative transition-all', isCollapsed ? 'flex-col items-center gap-2 py-4 px-2' : 'flex-row items-center justify-between py-4 px-3.5')}>
+        <Link to="/r" className="flex items-center gap-3 group shrink-0 min-w-0" title="manga-dl">
+          <div className="w-10 h-10 rounded-xl bg-red-600/10 border border-red-500/20 flex items-center justify-center p-1.5 shrink-0 group-hover:border-red-500/40 transition-colors shadow-sm aspect-square">
+            <img src="/Manga-dl1.png" alt="manga-dl" className="w-full h-full object-contain shrink-0" />
           </div>
           {!isCollapsed && (
-            <div className="flex flex-col">
-              <span className="font-black text-lg text-white uppercase tracking-wider font-mono leading-none">manga-dl</span>
+            <div className="flex flex-col min-w-0 overflow-hidden">
+              <span className="font-black text-lg text-white uppercase tracking-wider font-mono leading-none truncate">manga-dl</span>
             </div>
           )}
         </Link>
 
         <button
           onClick={toggleCollapse}
-          className={cn(
-            'p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-all shrink-0',
-            isCollapsed && 'mt-2'
-          )}
+          className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-all shrink-0 flex items-center justify-center"
           title={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
         >
           {isCollapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
@@ -445,7 +442,6 @@ function App() {
               <Route path="/history" element={<HistoryPage />} />
               <Route path="/updates" element={<UpdatesPage />} />
               <Route path="/onboarding" element={<OnboardingPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
               <Route path="/profile/:userId" element={<ProfilePage />} />
             </Routes>
           </motion.div>

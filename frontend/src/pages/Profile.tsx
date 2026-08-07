@@ -50,25 +50,9 @@ export default function ProfilePage() {
   const { userId } = useParams<{ userId: string }>()
   const navigate = useNavigate()
   const { readingMode, imageScale } = useAppStore()
-  const [profile, setProfile] = useState<ProfileData>(() => {
-    let localHistoryCount = 0
-    let localMangaCount = 0
-    try {
-      const h = JSON.parse(localStorage.getItem('manga-dl-history') || '[]')
-      localHistoryCount = Array.isArray(h) ? h.length : 0
-      const subs = JSON.parse(localStorage.getItem('manga-dl-local-subs') || '[]')
-      localMangaCount = Array.isArray(subs) ? subs.length : 0
-    } catch { /* no-op */ }
-    return {
-      user_id: userId || 'me',
-      chapters_read: localHistoryCount,
-      manga_count: localMangaCount,
-      streak_days: 1,
-      recent_activity: []
-    }
-  })
-  const [loading, setLoading] = useState(false)
-  const [isOwnProfile, setIsOwnProfile] = useState(!userId || userId === 'me')
+  const [profile, setProfile] = useState<ProfileData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [isOwnProfile, setIsOwnProfile] = useState(false)
   const [copied, setCopied] = useState(false)
   const [currentEmail, setCurrentEmail] = useState<string | null>(null)
   const [activeUserId, setActiveUserId] = useState<string | null>(null)
@@ -80,13 +64,13 @@ export default function ProfilePage() {
     'fit-screen': 'Fit Screen', 'fit-width': 'Fit Width', 'fit-height': 'Fit Height', 'original': 'Original'
   }
 
-  // Profile metadata (username, display name, bio, avatar) with synchronous local hydration
-  const [meta, setMeta] = useState<UserProfileMeta>(() => {
-    try {
-      const globalMeta = localStorage.getItem('manga-dl-profile-meta')
-      if (globalMeta) return JSON.parse(globalMeta)
-    } catch { /* no-op */ }
-    return { username: '', displayName: 'Manga Reader', bio: '', avatarUrl: '', usernameLocked: false }
+  // Profile metadata (username, display name, bio, avatar)
+  const [meta, setMeta] = useState<UserProfileMeta>({
+    username: '',
+    displayName: '',
+    bio: '',
+    avatarUrl: '',
+    usernameLocked: false
   })
 
   // Edit Modal State
@@ -101,20 +85,20 @@ export default function ProfilePage() {
   const [editError, setEditError] = useState<string | null>(null)
 
   useEffect(() => {
-    // 1. Check active session immediately
     supabase.auth.getSession().then(({ data }) => {
       const sessUser = data.session?.user
       if (sessUser) {
         setActiveUserId(sessUser.id)
         setCurrentEmail(sessUser.email ?? null)
         const isSelf = !userId || userId === sessUser.id || userId === sessUser.email?.split('@')[0]
-        setIsOwnProfile(isSelf)
+        if (isSelf) setIsOwnProfile(true)
 
+        // Load saved profile meta
+        const storageKey = `manga-dl-profile-${sessUser.id}`
+        const saved = localStorage.getItem(storageKey)
         const defaultUsername = (sessUser.email ? sessUser.email.split('@')[0] : 'reader').toLowerCase().replace(/[^a-z0-9_]/g, '')
         const defaultName = sessUser.email ? sessUser.email.split('@')[0] : 'Manga Reader'
 
-        const storageKey = `manga-dl-profile-${sessUser.id}`
-        const saved = localStorage.getItem(storageKey) || localStorage.getItem('manga-dl-profile-meta')
         if (saved) {
           try {
             const parsed = JSON.parse(saved)
@@ -131,65 +115,23 @@ export default function ProfilePage() {
         } else {
           setMeta({ username: defaultUsername, displayName: defaultName, bio: '', avatarUrl: '', usernameLocked: true })
         }
-      } else {
-        setIsOwnProfile(!userId || userId === 'me')
       }
     })
 
-    // Listen to live auth changes (e.g. login/logout without page reload)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
-      const sessUser = session?.user
-      if (sessUser) {
-        setActiveUserId(sessUser.id)
-        setCurrentEmail(sessUser.email ?? null)
-        const isSelf = !userId || userId === sessUser.id || userId === sessUser.email?.split('@')[0]
-        setIsOwnProfile(isSelf)
-      } else {
-        setActiveUserId(null)
-        setCurrentEmail(null)
-        setIsOwnProfile(!userId || userId === 'me')
-      }
-    })
-
-    // 2. Synchronously initialize fallback stats from local storage so UI renders instantly
-    let localHistoryCount = 0
-    let localMangaCount = 0
-    try {
-      const h = JSON.parse(localStorage.getItem('manga-dl-history') || '[]')
-      localHistoryCount = Array.isArray(h) ? h.length : 0
-      const subs = JSON.parse(localStorage.getItem('manga-dl-local-subs') || '[]')
-      localMangaCount = Array.isArray(subs) ? subs.length : 0
-    } catch { /* no-op */ }
-
-    const initialProfile: ProfileData = {
-      user_id: userId || 'me',
-      chapters_read: localHistoryCount,
-      manga_count: localMangaCount,
-      streak_days: 1,
-      recent_activity: []
-    }
-    setProfile(initialProfile)
-    setLoading(false)
-
-    // 3. Background fetch from backend
-    const endpoint = !userId || userId === 'me' ? '/users/me/stats' : `/users/profile/${userId}`
-    api.get(endpoint)
-      .then(res => {
-        if (res.data) {
-          setProfile(prev => ({
-            user_id: res.data.user_id || prev?.user_id || 'me',
-            chapters_read: res.data.chapters_read ?? prev?.chapters_read ?? localHistoryCount,
-            manga_count: res.data.manga_count ?? prev?.manga_count ?? localMangaCount,
-            streak_days: res.data.streak_days ?? prev?.streak_days ?? 1,
-            recent_activity: res.data.recent_activity ?? prev?.recent_activity ?? []
-          }))
-        }
-      })
+    const targetId = userId || 'me'
+    api.get(`/users/profile/${targetId}`)
+      .then(res => setProfile(res.data))
       .catch(() => {
-        // Already loaded with local profile fallback
+        // Fallback profile state
+        setProfile({
+          user_id: targetId,
+          chapters_read: 0,
+          manga_count: 0,
+          streak_days: 1,
+          recent_activity: []
+        })
       })
-
-    return () => subscription.unsubscribe()
+      .finally(() => setLoading(false))
   }, [userId])
 
   const handleOpenEdit = () => {
