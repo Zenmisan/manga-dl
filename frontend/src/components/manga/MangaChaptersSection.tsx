@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Download, Loader2, Bell, BellOff, ListPlus, Play,
+  Download, Bell, BellOff, ListPlus, Play,
   ArrowUpDown, Search as SearchIcon, Bookmark, BookmarkCheck,
   Eye, EyeOff, Filter, CheckCircle2, Check, Copy, RotateCcw, ChevronDown,
 } from 'lucide-react'
+import { ThemedSpinner } from '../common/ThemedLoader'
 import { cn } from '../../lib/utils'
 import { buildSmartReadUrl } from '../../lib/smartUrl'
 import type { MangaDetail, Chapter } from '../../hooks/useMangaDetail'
@@ -259,7 +260,7 @@ export function MangaChaptersSection({
                 title="Mark as Reading on MAL"
                 className="p-2.5 rounded-full transition-all border bg-blue-500/10 border-blue-500/20 text-blue-400 hover:bg-blue-500/20 disabled:opacity-50"
               >
-                {malSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <ListPlus className="w-4 h-4" />}
+                {malSyncing ? <ThemedSpinner size="sm" /> : <ListPlus className="w-4 h-4" />}
               </button>
             )}
             {isAdmin && (
@@ -275,7 +276,7 @@ export function MangaChaptersSection({
                 )}
               >
                 {subscribing ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <ThemedSpinner size="sm" />
                 ) : subscribed ? (
                   <BellOff className="w-4 h-4" />
                 ) : (
@@ -305,7 +306,7 @@ export function MangaChaptersSection({
               >
                 {bulkLoading ? (
                   <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <ThemedSpinner size="xs" />
                     Queuing...
                   </>
                 ) : (
@@ -479,7 +480,7 @@ export function MangaChaptersSection({
                         title="Download Chapter"
                       >
                         {isDownloading ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <ThemedSpinner size="sm" />
                         ) : (
                           <Download className="w-4 h-4" />
                         )}

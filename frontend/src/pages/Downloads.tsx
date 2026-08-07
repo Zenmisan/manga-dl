@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import api from '../lib/api'
-import { Download as DownloadIcon, CheckCircle2, XCircle, Pause, Play, Trash2, FolderOpen, X, RotateCcw, HardDrive, Loader2 } from 'lucide-react'
+import { Download as DownloadIcon, CheckCircle2, XCircle, Pause, Play, Trash2, FolderOpen, X, RotateCcw, HardDrive } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Capacitor } from '@capacitor/core'
 import { fetchCbzAsBase64, saveToDeviceStorage, getCbzUrl } from '../lib/nativeDownload'
 import { supabase } from '../lib/supabase'
+import { ThemedLoadingScreen, ThemedSpinner } from '../components/common/ThemedLoader'
 
 
 interface DownloadItem {
@@ -166,9 +167,10 @@ export default function DownloadsPage() {
 
   if (loadingSession) {
     return (
-      <div className="min-h-full flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-t-red-500 rounded-full animate-spin" style={{ borderColor: 'var(--surface-hover)', borderTopColor: 'var(--accent)' }} />
-      </div>
+      <ThemedLoadingScreen
+        message="Loading Queue..."
+        subMessage="Connecting to download workers and sync session..."
+      />
     )
   }
 
@@ -239,7 +241,7 @@ export default function DownloadsPage() {
               className="icon-btn"
               style={{ width: 30, height: 30, borderRadius: 8 }}
             >
-              {retrying.has(item.id) ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
+              {retrying.has(item.id) ? <ThemedSpinner size="xs" /> : <RotateCcw className="w-3 h-3" />}
             </button>
             <button
               onClick={() => setHistory(prev => prev.filter(i => i.id !== item.id))}

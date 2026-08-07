@@ -1,7 +1,7 @@
 import React, { useRef, useCallback, Suspense, useEffect } from 'react'
 import {
   Library, Search, Globe, BarChart2, Clock, Bell,
-  Download, Settings, Loader2, Sparkles, PanelLeftClose, PanelLeftOpen, LogOut,
+  Download, Settings, Sparkles, PanelLeftClose, PanelLeftOpen, LogOut,
 } from 'lucide-react'
 import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -35,15 +35,11 @@ import UpdatesPage from './pages/Updates'
 import OnboardingPage from './pages/Onboarding'
 import ProfilePage from './pages/Profile'
 import ImportGuide from './pages/ImportGuide'
+import { ThemedLoadingScreen } from './components/common/ThemedLoader'
 import type { Session } from '@supabase/supabase-js'
 
 function PageLoader() {
-  return (
-    <div className="min-h-[50vh] flex flex-col items-center justify-center gap-3">
-      <Loader2 className="w-7 h-7 animate-spin" style={{ color: 'var(--accent)' }} />
-      <span className="text-xs font-bold uppercase tracking-widest text-white/30">Loading...</span>
-    </div>
-  )
+  return <ThemedLoadingScreen fullScreen={false} message="Loading Page..." />
 }
 
 function useGlobalNotifications() {

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Capacitor } from '@capacitor/core'
-import { Moon, Sun, Smartphone, Check, Eye, EyeOff, Link2, Key, Loader2, Bell, BellOff, Palette, Plug, Trash2, BellRing, ShieldCheck } from 'lucide-react'
+import { Moon, Sun, Smartphone, Check, Eye, EyeOff, Link2, Key, Bell, BellOff, Palette, Plug, Trash2, BellRing, ShieldCheck } from 'lucide-react'
+import { ThemedSpinner } from '../../components/common/ThemedLoader'
 import { motion } from 'framer-motion'
 import { useAppStore } from '../../lib/store'
 import type { AccentColor } from '../../lib/store'
@@ -208,7 +209,7 @@ export default function GeneralSettings() {
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
           <button onClick={() => testConnection()} disabled={saving} className="btn-secondary" style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
-            {saving ? <Loader2 style={{ width: 13, height: 13 }} className="animate-spin" /> : null}
+            {saving ? <ThemedSpinner size="xs" /> : null}
             Test
           </button>
           <button onClick={handleSave} disabled={saving} className="btn-primary" style={{ fontSize: 13 }}>

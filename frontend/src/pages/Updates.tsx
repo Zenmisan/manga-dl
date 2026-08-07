@@ -2,9 +2,9 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../lib/api'
 import { useMangaUpdates } from '../lib/queries'
+import { Bell, Download, RefreshCw } from 'lucide-react'
+import { ThemedSpinner } from '../components/common/ThemedLoader'
 import { motion } from 'framer-motion'
-import { Bell, Download, Loader2, RefreshCw } from 'lucide-react'
-import { cn } from '../lib/utils'
 import { buildSmartReadUrl, buildSmartMangaUrl } from '../lib/smartUrl'
 
 interface UpdateEntry {
@@ -103,14 +103,14 @@ export default function UpdatesPage() {
           className="icon-btn"
           title="Refresh"
         >
-          <RefreshCw className={cn('w-4 h-4', refreshing && 'animate-spin')} />
+          {refreshing ? <ThemedSpinner size="xs" /> : <RefreshCw className="w-4 h-4" />}
         </button>
       </header>
 
       <div className="px-4 md:px-6 pt-4 pb-28 flex-1" style={{ maxWidth: 720 }}>
         {loading ? (
           <div className="flex justify-center py-20">
-            <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--accent)' }} />
+            <ThemedSpinner size="lg" />
           </div>
         ) : updates.length === 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '64px 24px', gap: 16 }}>

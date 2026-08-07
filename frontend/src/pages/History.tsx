@@ -5,8 +5,9 @@ import api from '../lib/api'
 import { supabase } from '../lib/supabase'
 import { useHistory, QK } from '../lib/queries'
 import { getLocalHistory, deleteLocalHistoryEntry, clearLocalHistory } from '../lib/historyTracking'
+import { Clock, Play, Trash2, EyeOff } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Clock, Play, Trash2, Loader2, EyeOff } from 'lucide-react'
+import { ThemedSpinner } from '../components/common/ThemedLoader'
 import { useAppStore } from '../lib/store'
 import { cn } from '../lib/utils'
 import { buildSmartReadUrl, buildSmartMangaUrl } from '../lib/smartUrl'
@@ -185,7 +186,7 @@ export default function HistoryPage() {
             title="Clear all history"
             className="icon-btn"
           >
-            {clearing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+            {clearing ? <ThemedSpinner size="sm" /> : <Trash2 className="w-4 h-4" />}
           </button>
         )}
       </header>
@@ -216,7 +217,7 @@ export default function HistoryPage() {
 
         {loading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: '80px 0' }}>
-            <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--accent)' }} />
+            <ThemedSpinner size="lg" />
           </div>
         ) : !authed && history.length === 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '64px 24px', gap: 16 }}>
@@ -283,7 +284,7 @@ export default function HistoryPage() {
                                 style={{ width: 30, height: 30, borderRadius: 8 }}
                               >
                                 {clearingMangaId === entry.manga_id
-                                  ? <Loader2 className="w-3 h-3 animate-spin" />
+                                  ? <ThemedSpinner size="xs" />
                                   : <Trash2 className="w-3 h-3" />
                                 }
                               </button>

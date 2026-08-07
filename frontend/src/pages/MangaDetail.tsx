@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Loader2, Play, Bookmark, BookmarkCheck, Download, Star, Pencil } from 'lucide-react'
+import { Play, Bookmark, BookmarkCheck, Download, Star, Pencil } from 'lucide-react'
 import { useMangaDetail } from '../hooks/useMangaDetail'
 import { MangaHeroHeader } from '../components/manga/MangaHeroHeader'
 import { MangaRatingNotes } from '../components/manga/MangaRatingNotes'
@@ -8,6 +8,7 @@ import { MangaModals } from '../components/manga/MangaModals'
 import { buildSmartReadUrl } from '../lib/smartUrl'
 import { cn } from '../lib/utils'
 import api from '../lib/api'
+import { ThemedLoadingScreen, ThemedSpinner } from '../components/common/ThemedLoader'
 
 export default function MangaDetail() {
   const {
@@ -27,13 +28,10 @@ export default function MangaDetail() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen gap-4 bg-[var(--bg)] transition-colors">
-        <div className="relative">
-          <div className="w-14 h-14 rounded-full border-2 border-[var(--accent,#dc2626)]/20 animate-ping absolute inset-0" />
-          <Loader2 className="w-14 h-14 text-[var(--accent,#dc2626)] animate-spin drop-shadow-[0_0_12px_var(--accent-glow)]" />
-        </div>
-        <p className="text-[var(--muted2)] text-xs font-bold uppercase tracking-widest animate-pulse">Loading Details...</p>
-      </div>
+      <ThemedLoadingScreen
+        message="Loading Manga Details..."
+        subMessage="Fetching metadata, chapters, and cover..."
+      />
     )
   }
 
@@ -163,7 +161,7 @@ export default function MangaDetail() {
                 )}
               >
                 {subscribing ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <ThemedSpinner size="sm" />
                 ) : subscribed ? (
                   <BookmarkCheck className="w-4 h-4 text-emerald-400 fill-emerald-400" />
                 ) : (
@@ -178,7 +176,7 @@ export default function MangaDetail() {
                   disabled={bulkLoading}
                   className="btn-secondary px-5 py-3 rounded-2xl font-extrabold text-sm flex items-center gap-2 border border-white/10 bg-white/5 hover:bg-white/10 text-white transition-all"
                 >
-                  {bulkLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                  {bulkLoading ? <ThemedSpinner size="sm" /> : <Download className="w-4 h-4" />}
                   Download All
                 </button>
               )}

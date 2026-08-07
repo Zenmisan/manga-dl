@@ -2,11 +2,12 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../lib/api'
 import { ExtensionManager } from '../lib/extensions'
-import { Search as SearchIcon, Globe, Loader2, BookOpen, BookMarked, Check, SlidersHorizontal, X, TrendingUp, Clock } from 'lucide-react'
+import { Search as SearchIcon, Globe, BookOpen, BookMarked, Check, SlidersHorizontal, X, TrendingUp, Clock } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
 import { useAppStore } from '../lib/store'
 import { buildSmartMangaUrl } from '../lib/smartUrl'
+import { ThemedSpinner, ThemedSkeletonGrid } from '../components/common/ThemedLoader'
 
 interface MangaResult {
   id: string
@@ -84,7 +85,7 @@ function MangaCard({ r, idx, onSubscribe, subscribed, subscribing, navigate }: {
           title={isSubscribed ? "In Library (tap to remove)" : "Add to Library"}
         >
           {isSubscribing ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            <ThemedSpinner size="xs" />
           ) : isSubscribed ? (
             <>
               <Check className="w-3.5 h-3.5 text-emerald-400" />
@@ -312,7 +313,7 @@ export default function SearchPage() {
               <button type="submit" disabled={loading} className="btn-primary"
                 style={{ flexShrink: 0, padding: '11px 22px', borderRadius: 14, fontSize: 13.5, fontWeight: 900, display: 'flex', alignItems: 'center', gap: 7 }}
               >
-                {loading ? <Loader2 style={{ width: 14, height: 14 }} className="animate-spin" /> : null}
+                {loading ? <ThemedSpinner size="sm" /> : null}
                 Search
               </button>
               <button type="button" onClick={() => setShowFilterPanel(true)}
@@ -351,11 +352,7 @@ export default function SearchPage() {
         {tab === 'search' && (
           <>
             {loading ? (
-              <div style={GRID_STYLE}>
-                {[...Array(12)].map((_, i) => (
-                  <div key={i} style={{ aspectRatio: '2/3', background: 'var(--surface)', borderRadius: 14, border: '1px solid var(--border)' }} className="animate-pulse" />
-                ))}
-              </div>
+              <ThemedSkeletonGrid count={12} />
             ) : searchResults.length > 0 ? (
               selectedProvider ? (
                 <div style={GRID_STYLE}>
@@ -406,11 +403,7 @@ export default function SearchPage() {
         {(tab === 'popular' || tab === 'latest') && (
           <>
             {browseLoading && browseResults.length === 0 ? (
-              <div style={GRID_STYLE}>
-                {[...Array(12)].map((_, i) => (
-                  <div key={i} style={{ aspectRatio: '2/3', background: 'var(--surface)', borderRadius: 14, border: '1px solid var(--border)' }} className="animate-pulse" />
-                ))}
-              </div>
+              <ThemedSkeletonGrid count={12} />
             ) : browseResults.length > 0 ? (
               <>
                 <div style={{ ...GRID_STYLE, marginBottom: 24 }}>
@@ -423,7 +416,7 @@ export default function SearchPage() {
                 {browseHasMore && (
                   <div style={{ display: 'flex', justifyContent: 'center' }}>
                     <button onClick={loadMoreBrowse} disabled={browseLoading} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      {browseLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                      {browseLoading ? <ThemedSpinner size="sm" /> : null}
                       Load More
                     </button>
                   </div>

@@ -4,7 +4,8 @@ import api from '../lib/api'
 import { supabase } from '../lib/supabase'
 import { useAppStore } from '../lib/store'
 import { motion, AnimatePresence } from 'framer-motion'
-import { BookOpen, BarChart2, Share2, ArrowLeft, Loader2, User, Calendar, Pencil, Lock, Check, X, ExternalLink, Trash2 } from 'lucide-react'
+import { BookOpen, BarChart2, Share2, ArrowLeft, User, Calendar, Pencil, Lock, Check, X, ExternalLink, Trash2 } from 'lucide-react'
+import { ThemedLoadingScreen } from '../components/common/ThemedLoader'
 
 interface Activity {
   manga_title: string
@@ -176,9 +177,23 @@ export default function ProfilePage() {
     }
   }
 
-  const handleSignOut = async () => { try { await supabase.auth.signOut() } catch (e) { console.error(e) } }
+  const handleSignOut = async () => {
+    try {
+      await supabase.auth.signOut()
+      navigate('/login')
+    } catch (e) {
+      console.error(e)
+    }
+  }
 
-  if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg)' }}><Loader2 style={{ width: 36, height: 36, color: 'var(--accent)' }} className="animate-spin" /></div>
+  if (loading) {
+    return (
+      <ThemedLoadingScreen
+        message="Loading Profile..."
+        subMessage="Fetching reader stats and reading activity..."
+      />
+    )
+  }
 
   if (!profile) return (
     <div style={{ padding: '48px 24px', textAlign: 'center' }}>

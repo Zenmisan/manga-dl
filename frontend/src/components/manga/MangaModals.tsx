@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { Loader2 } from 'lucide-react'
+import { ThemedSpinner } from '../common/ThemedLoader'
 
 interface TrackerResult {
   id: number
@@ -90,7 +90,7 @@ export function MangaModals({
                   disabled={trackerSearching}
                   className="btn-primary py-2 px-4 text-xs font-bold shrink-0"
                 >
-                  {trackerSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Search'}
+                  {trackerSearching ? <ThemedSpinner size="sm" /> : 'Search'}
                 </button>
               </div>
               <div className="max-h-64 overflow-y-auto space-y-2 no-scrollbar">
@@ -206,7 +206,7 @@ export function MangaModals({
                   disabled={syncing}
                   className="flex-1 btn-primary py-2 text-xs font-bold flex items-center justify-center gap-2"
                 >
-                  {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Sync'}
+                  {syncing ? <ThemedSpinner size="sm" /> : 'Save Sync'}
                 </button>
               </div>
             </motion.div>

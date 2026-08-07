@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useBuiltinSources, useMarketSources } from '../lib/queries'
-import { Download, Search, ShieldAlert, Loader2, Trash2, RefreshCw, PowerOff, Power, Zap } from 'lucide-react'
+import { Download, Search, ShieldAlert, Trash2, RefreshCw, PowerOff, Power, Zap } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { ThemedSpinner } from '../components/common/ThemedLoader'
 import { cn } from '../lib/utils'
 import { ExtensionManager } from '../lib/extensions'
 
@@ -152,7 +153,7 @@ const handleUninstall = (id: string) => {
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             {installedIds.length > 0 && (
               <button onClick={handleCheckUpdates} disabled={checkingUpdates} className="icon-btn" title="Check updates">
-                {checkingUpdates ? <Loader2 style={{ width: 16, height: 16 }} className="animate-spin" /> : <RefreshCw style={{ width: 16, height: 16 }} />}
+                {checkingUpdates ? <ThemedSpinner size="sm" /> : <RefreshCw style={{ width: 16, height: 16 }} />}
               </button>
             )}
           </div>
@@ -281,14 +282,14 @@ const handleUninstall = (id: string) => {
                             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                               {hasUpdate && (
                                 <button onClick={() => handleUpdate(s)} disabled={installing.includes(s.id)} className="icon-btn" style={{ width: 30, height: 30, borderRadius: 8, color: 'rgb(251,191,36)' }}>
-                                  {installing.includes(s.id) ? <Loader2 style={{ width: 13, height: 13 }} className="animate-spin" /> : <RefreshCw style={{ width: 13, height: 13 }} />}
+                                  {installing.includes(s.id) ? <ThemedSpinner size="xs" /> : <RefreshCw style={{ width: 13, height: 13 }} />}
                                 </button>
                               )}
                               <button onClick={() => handleToggleDisable(s.id)} className="icon-btn" style={{ width: 30, height: 30, borderRadius: 8, color: isDisabled ? 'rgb(74,222,128)' : undefined }}>
                                 {isDisabled ? <Power style={{ width: 13, height: 13 }} /> : <PowerOff style={{ width: 13, height: 13 }} />}
                               </button>
                               <button onClick={() => handleUninstall(s.id)} disabled={uninstalling.includes(s.id)} className="icon-btn" style={{ width: 30, height: 30, borderRadius: 8 }}>
-                                {uninstalling.includes(s.id) ? <Loader2 style={{ width: 13, height: 13 }} className="animate-spin" /> : <Trash2 style={{ width: 13, height: 13 }} />}
+                                {uninstalling.includes(s.id) ? <ThemedSpinner size="xs" /> : <Trash2 style={{ width: 13, height: 13 }} />}
                               </button>
                             </div>
                           </motion.div>
@@ -318,7 +319,7 @@ const handleUninstall = (id: string) => {
                             <div style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted3)', marginTop: 2 }}>{s.lang} · v{s.version}</div>
                           </div>
                           <button onClick={() => handleInstall(s)} disabled={installing.includes(s.id)} className="icon-btn" style={{ width: 34, height: 34, borderRadius: 10 }}>
-                            {installing.includes(s.id) ? <Loader2 style={{ width: 15, height: 15 }} className="animate-spin" /> : <Download style={{ width: 15, height: 15 }} />}
+                            {installing.includes(s.id) ? <ThemedSpinner size="sm" /> : <Download style={{ width: 15, height: 15 }} />}
                           </button>
                         </motion.div>
                       ))}

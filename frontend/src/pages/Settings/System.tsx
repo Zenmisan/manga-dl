@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Database, RefreshCw, Loader2, CheckCircle2, DownloadCloud, UploadCloud, BookOpen, Cloud, Save, User, LogOut, UserPlus, Wifi, Server } from 'lucide-react'
+import { Database, RefreshCw, CheckCircle2, DownloadCloud, UploadCloud, BookOpen, Cloud, Save, User, LogOut, UserPlus, Wifi, Server } from 'lucide-react'
+import { ThemedSpinner } from '../../components/common/ThemedLoader'
 import { motion } from 'framer-motion'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 import api from '../../lib/api'
@@ -210,7 +211,7 @@ export default function SystemSettings() {
             <div style={{ fontSize: 12, color: 'var(--muted2)', marginTop: 3 }}>Check for new chapters across all subscribed manga</div>
           </div>
           <button onClick={handleRunSync} disabled={syncing} className="btn-secondary" style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-            {syncing ? <Loader2 style={{ width: 13, height: 13 }} className="animate-spin" /> : syncDone ? <CheckCircle2 style={{ width: 13, height: 13, color: 'rgb(74,222,128)' }} /> : <RefreshCw style={{ width: 13, height: 13 }} />}
+            {syncing ? <ThemedSpinner size="xs" /> : syncDone ? <CheckCircle2 style={{ width: 13, height: 13, color: 'rgb(74,222,128)' }} /> : <RefreshCw style={{ width: 13, height: 13 }} />}
             {syncing ? 'Syncing...' : syncDone ? 'Done' : 'Run Sync'}
           </button>
         </div>
@@ -243,7 +244,7 @@ export default function SystemSettings() {
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={handleCloudBackup} disabled={!supabaseUser || cloudBackupLoading} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, opacity: !supabaseUser ? 0.4 : 1 }}>
-                {cloudBackupLoading ? <Loader2 style={{ width: 13, height: 13 }} className="animate-spin" /> : cloudBackupDone ? <CheckCircle2 style={{ width: 13, height: 13, color: 'rgb(74,222,128)' }} /> : <Cloud style={{ width: 13, height: 13 }} />}
+                {cloudBackupLoading ? <ThemedSpinner size="xs" /> : cloudBackupDone ? <CheckCircle2 style={{ width: 13, height: 13, color: 'rgb(74,222,128)' }} /> : <Cloud style={{ width: 13, height: 13 }} />}
                 {cloudBackupDone ? 'Saved!' : 'Backup'}
               </button>
               <button onClick={handleCloudRestore} disabled={!supabaseUser} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, opacity: !supabaseUser ? 0.4 : 1 }}>
@@ -267,7 +268,7 @@ export default function SystemSettings() {
             <input value={komgaUser} onChange={e => setKomgaUser(e.target.value)} placeholder="Username" style={INPUT_STYLE} />
           </div>
           <button onClick={handleKomgaSave} disabled={komgaSaving || !komgaUrl.trim()} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-            {komgaSaving ? <Loader2 style={{ width: 13, height: 13 }} className="animate-spin" /> : <Save style={{ width: 13, height: 13 }} />} {localStorage.getItem('komga-url') ? 'Update' : 'Connect'}
+            {komgaSaving ? <ThemedSpinner size="xs" /> : <Save style={{ width: 13, height: 13 }} />} {localStorage.getItem('komga-url') ? 'Update' : 'Connect'}
           </button>
         </div>
 
@@ -275,7 +276,7 @@ export default function SystemSettings() {
           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--fg)', marginBottom: 10 }}>Suwayomi</div>
           <input value={suwayomiUrl} onChange={e => setSuwayomiUrl(e.target.value)} placeholder="http://localhost:4567" style={{ ...INPUT_STYLE, marginBottom: 10 }} />
           <button onClick={handleSuwayomiSave} disabled={suwayomiSaving || !suwayomiUrl.trim()} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-            {suwayomiSaving ? <Loader2 style={{ width: 13, height: 13 }} className="animate-spin" /> : <Save style={{ width: 13, height: 13 }} />} {localStorage.getItem('suwayomi-url') ? 'Update' : 'Connect'}
+            {suwayomiSaving ? <ThemedSpinner size="xs" /> : <Save style={{ width: 13, height: 13 }} />} {localStorage.getItem('suwayomi-url') ? 'Update' : 'Connect'}
           </button>
         </div>
       </motion.section>

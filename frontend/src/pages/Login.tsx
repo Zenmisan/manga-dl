@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Loader2, LogIn, BookOpen, ArrowLeft, Key, Eye, EyeOff, Mail, Lock } from 'lucide-react'
+import { LogIn, BookOpen, ArrowLeft, Key, Eye, EyeOff, Mail, Lock } from 'lucide-react'
+import { ThemedSpinner } from '../components/common/ThemedLoader'
 import { supabase } from '../lib/supabase'
 
 const hasSupabase = !!import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -145,7 +146,7 @@ export default function LoginPage() {
                 className="w-full py-3 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white text-xs font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {googleLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  <ThemedSpinner size="sm" />
                 ) : (
                   <GoogleIcon style={{ width: 16, height: 16 }} />
                 )}
@@ -227,9 +228,9 @@ export default function LoginPage() {
                 <button
                   type="submit"
                   disabled={loading || googleLoading}
-                  className="w-full h-11 rounded-xl bg-red-600 hover:bg-red-500 text-white font-extrabold text-xs uppercase tracking-wider shadow-[0_4px_24px_rgba(220,38,38,0.3)] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full h-11 rounded-xl bg-[var(--accent)] hover:opacity-90 text-white font-extrabold text-xs uppercase tracking-wider shadow-[0_4px_24px_var(--accent-glow)] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />}
+                  {loading ? <ThemedSpinner size="sm" /> : <LogIn className="w-4 h-4" />}
                   <span>Sign In</span>
                 </button>
               </form>

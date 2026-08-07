@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Loader2, UserPlus, BookOpen, ExternalLink, ArrowLeft, Eye, EyeOff } from 'lucide-react'
+import { UserPlus, BookOpen, ExternalLink, ArrowLeft, Eye, EyeOff } from 'lucide-react'
+import { ThemedSpinner } from '../components/common/ThemedLoader'
 import { supabase } from '../lib/supabase'
 
 const INPUT_STYLE: React.CSSProperties = {
@@ -147,20 +148,11 @@ export default function RegisterPage() {
             onClick={handleGoogleLogin}
             disabled={loading || googleLoading}
             style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 10,
-              padding: '12px 0',
-              borderRadius: 14,
-              border: '1px solid var(--border)',
-              background: 'rgba(255, 255, 255, 0.04)',
-              color: 'var(--fg)',
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: loading || googleLoading ? 'not-allowed' : 'pointer',
-              transition: 'all 0.2s ease',
+              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+              padding: '12px 0', borderRadius: 12, border: '1px solid var(--border)',
+              background: 'rgba(255, 255, 255, 0.04)', color: 'var(--fg)', fontSize: 13.5, fontWeight: 700,
+              cursor: loading || googleLoading ? 'not-allowed' : 'pointer', opacity: loading || googleLoading ? 0.6 : 1,
+              transition: 'background 0.15s',
             }}
             onMouseEnter={e => {
               if (!loading && !googleLoading) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'
@@ -170,7 +162,7 @@ export default function RegisterPage() {
             }}
           >
             {googleLoading ? (
-              <Loader2 style={{ width: 18, height: 18 }} className="animate-spin" />
+              <ThemedSpinner size="sm" />
             ) : (
               <GoogleIcon style={{ width: 18, height: 18 }} />
             )}
@@ -243,13 +235,13 @@ export default function RegisterPage() {
             <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
               <div
                 onClick={() => setAgreedToTerms(p => !p)}
-                style={{ width: 18, height: 18, borderRadius: 6, border: `1px solid ${agreedToTerms ? '#dc2626' : 'var(--border)'}`, background: agreedToTerms ? '#dc2626' : 'var(--surface-hover)', flexShrink: 0, marginTop: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                style={{ width: 18, height: 18, borderRadius: 6, border: `1px solid ${agreedToTerms ? 'var(--accent)' : 'var(--border)'}`, background: agreedToTerms ? 'var(--accent)' : 'var(--surface-hover)', flexShrink: 0, marginTop: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
                 {agreedToTerms && <span style={{ color: '#fff', fontSize: 11, fontWeight: 900 }}>✓</span>}
               </div>
               <span style={{ fontSize: 13, color: 'var(--muted2)', lineHeight: 1.6 }}>
                 I agree to the{' '}
-                <Link to="/terms" target="_blank" style={{ color: '#ef4444', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 3 }} onClick={e => e.stopPropagation()}>
+                <Link to="/terms" target="_blank" style={{ color: 'var(--accent)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 3 }} onClick={e => e.stopPropagation()}>
                   Terms of Service <ExternalLink style={{ width: 11, height: 11 }} />
                 </Link>
                 , including the <strong style={{ color: 'var(--fg)' }}>3-device limit</strong>.
@@ -263,8 +255,8 @@ export default function RegisterPage() {
             )}
 
             <button type="submit" disabled={loading || googleLoading || !agreedToTerms} className="btn-primary"
-              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '13px 0', fontSize: 14, boxShadow: '0 4px 24px rgba(220,38,38,0.25)' }}>
-              {loading ? <Loader2 style={{ width: 16, height: 16 }} className="animate-spin" /> : <UserPlus style={{ width: 16, height: 16 }} />}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '13px 0', fontSize: 14, boxShadow: '0 4px 24px var(--accent-glow)' }}>
+              {loading ? <ThemedSpinner size="sm" /> : <UserPlus style={{ width: 16, height: 16 }} />}
               Create Account
             </button>
           </form>

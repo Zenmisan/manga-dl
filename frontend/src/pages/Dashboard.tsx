@@ -7,6 +7,7 @@ import { DashboardCategoryTabs } from '../components/dashboard/DashboardCategory
 import { DashboardSortFilterPanel } from '../components/dashboard/DashboardSortFilterPanel'
 import { DashboardBulkActionBar } from '../components/dashboard/DashboardBulkActionBar'
 import { DashboardMangaCard } from '../components/dashboard/DashboardMangaCard'
+import { ThemedSkeletonGrid } from '../components/common/ThemedLoader'
 import type { LibraryItem } from '../hooks/useDashboardData'
 
 export default function Dashboard() {
@@ -41,12 +42,8 @@ export default function Dashboard() {
     return (
       <div className="min-h-full flex flex-col">
         <div style={{ height: 62, background: 'var(--surface)', borderBottom: '1px solid var(--border)', marginBottom: 0 }} />
-        <div className="px-4 md:px-6 pt-4">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 18 }}>
-            {[...Array(12)].map((_, i) => (
-              <div key={i} style={{ aspectRatio: '2/3', background: 'var(--surface)', borderRadius: 14, border: '1px solid var(--border)' }} className="animate-pulse" />
-            ))}
-          </div>
+        <div className="px-4 md:px-6 pt-6">
+          <ThemedSkeletonGrid count={12} columns="repeat(auto-fill, minmax(150px, 1fr))" />
         </div>
       </div>
     )

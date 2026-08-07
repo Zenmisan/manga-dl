@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { CheckCircle2, LogOut, Loader2, Save, Share2 } from 'lucide-react'
+import { CheckCircle2, LogOut, Save, Share2 } from 'lucide-react'
+import { ThemedSpinner } from '../../components/common/ThemedLoader'
 import { motion } from 'framer-motion'
 import api from '../../lib/api'
 
@@ -259,7 +260,7 @@ export default function TrackerSettings() {
             </div>
           ) : (
             <button onClick={handleMALLogin} disabled={malLoading} className="px-4 py-2 bg-[#2E51A2] text-white font-extrabold text-xs rounded-xl hover:bg-[#2E51A2]/80 transition-all shadow-md flex items-center gap-1.5">
-              {malLoading && <Loader2 style={{ width: 13, height: 13 }} className="animate-spin" />} Connect MyAnimeList
+              {malLoading && <ThemedSpinner size="xs" />} Connect MyAnimeList
             </button>
           )}
         </div>
@@ -319,7 +320,7 @@ export default function TrackerSettings() {
             </div>
           ) : (
             <button onClick={handleKitsuLogin} disabled={kitsuLoading} className="btn-primary" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-              {kitsuLoading && <Loader2 style={{ width: 13, height: 13 }} className="animate-spin" />} Connect
+              {kitsuLoading && <ThemedSpinner size="xs" />} Connect
             </button>
           )}
         </div>

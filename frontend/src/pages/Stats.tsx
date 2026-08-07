@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useLibraryStats } from '../lib/queries'
-import { BarChart2, Flame, Loader2, CheckCircle2, Edit3 } from 'lucide-react'
+import { BarChart2, Flame, CheckCircle2, Edit3 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { getCategories } from '../lib/categories'
+import { ThemedLoadingScreen } from '../components/common/ThemedLoader'
 
 const GOALS_KEY = 'manga-dl-reading-goals'
 
@@ -107,9 +108,10 @@ export default function StatsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-full flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--accent)' }} />
-      </div>
+      <ThemedLoadingScreen
+        message="Loading Statistics..."
+        subMessage="Calculating reading streaks, chapters, and history..."
+      />
     )
   }
 

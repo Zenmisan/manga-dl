@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Shuffle, Loader2, CheckCircle2, LayoutGrid } from 'lucide-react'
+import { Shuffle, CheckCircle2 } from 'lucide-react'
+import { ThemedSpinner } from '../../components/common/ThemedLoader'
 import { motion } from 'framer-motion'
 import api from '../../lib/api'
 
@@ -28,35 +29,39 @@ export default function LibrarySettings() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       <div className="hidden md:block" style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: 26, fontWeight: 900, color: 'var(--fg)', marginBottom: 4 }}>Library</h2>
-        <p style={{ fontSize: 13, color: 'var(--muted2)' }}>Manage and migrate your manga library.</p>
+        <h1 className="page-title" style={{ fontSize: 'clamp(1.25rem,3vw,1.75rem)' }}>Library & Migration</h1>
+        <p style={{ fontSize: 13, color: 'var(--muted2)', marginTop: 2 }}>Manage library layout and migrate manga across sources.</p>
       </div>
 
-      <motion.section className="glass-card" style={{ padding: '22px 20px', marginBottom: 14 }}
-        initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-      >
-        <CardLabel icon={LayoutGrid} title="Source Migration" />
-        <p style={{ fontSize: 12, color: 'var(--muted2)', marginBottom: 18 }}>Move a manga entry from one source to another</p>
+      <motion.section className="glass-card" style={{ padding: '22px 20px', marginBottom: 14 }}>
+        <CardLabel icon={Shuffle} title="Migrate Manga Source" />
+        <p style={{ fontSize: 13, color: 'var(--muted2)', marginBottom: 16 }}>
+          Move a manga from one source provider to another without losing your read history or bookmarks.
+        </p>
 
         {migrationDone && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 12, background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.3)', color: 'rgb(74,222,128)', fontSize: 13, fontWeight: 700, marginBottom: 14 }}>
-            <CheckCircle2 style={{ width: 16, height: 16 }} /> Migration complete!
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 12, background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.25)', color: 'rgb(74,222,128)', fontSize: 13, fontWeight: 700, marginBottom: 14 }}>
+            <CheckCircle2 style={{ width: 16, height: 16 }} /> Migration completed successfully!
           </div>
         )}
 
         <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)', marginBottom: 8 }}>Step 1 — Select manga to migrate</div>
+          <div style={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)', marginBottom: 8 }}>Step 1 — Find the manga to migrate</div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <input value={migrationSearch} onChange={e => setMigrationSearch(e.target.value)} placeholder="Search your library..." style={{ ...INPUT_STYLE, flex: 1, width: 'auto' }} />
+            <input
+              value={migrationSearch}
+              onChange={e => setMigrationSearch(e.target.value)}
+              placeholder="Search library manga..."
+              style={{ ...INPUT_STYLE, flex: 1, width: 'auto' }}
+            />
             <button
               onClick={async () => {
                 if (!migrationSearch.trim()) return
                 setMigrationSearching(true)
                 try {
-                  const res = await api.get('/library/')
+                  const res = await api.get('/manga/subscriptions')
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  const items: any[] = res.data
+                  const items = (res.data?.subscriptions || []) as any[]
                   setMigrationResults(items.filter(i => i.title.toLowerCase().includes(migrationSearch.toLowerCase())).slice(0, 10).map(i => ({ id: i.provider_manga_id, title: i.title, cover_url: i.cover_url, provider: i.provider })))
                 } catch { setMigrationResults([]) }
                 setMigrationSearching(false)
@@ -64,12 +69,12 @@ export default function LibrarySettings() {
               disabled={migrationSearching}
               className="btn-secondary" style={{ flexShrink: 0, fontSize: 12 }}
             >
-              {migrationSearching ? <Loader2 style={{ width: 14, height: 14 }} className="animate-spin" /> : 'Search'}
+              {migrationSearching ? <ThemedSpinner size="xs" /> : 'Search'}
             </button>
           </div>
           {migrationResults.length > 0 && (
             <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {migrationResults.map(r => (
+              {migrationResults.map((r: { id: string; title: string; provider: string }) => (
                 <button key={r.id}
                   onClick={() => { setMigrationSource({ old_provider: r.provider, old_manga_id: r.id, title: r.title }); setMigrationResults([]); setMigrationSearch(r.title); setMigrationTarget(null) }}
                   style={{ textAlign: 'left', padding: '8px 12px', borderRadius: 10, border: '1px solid var(--border)', background: migrationSource?.old_manga_id === r.id ? 'rgba(220,38,38,0.1)' : 'var(--surface)', color: 'var(--fg)', fontSize: 13, cursor: 'pointer' }}
@@ -106,7 +111,7 @@ export default function LibrarySettings() {
                 }}
                 disabled={migrationSearching} className="btn-secondary" style={{ flexShrink: 0, fontSize: 12 }}
               >
-                {migrationSearching ? <Loader2 style={{ width: 14, height: 14 }} className="animate-spin" /> : 'Find'}
+                {migrationSearching ? <ThemedSpinner size="xs" /> : 'Find'}
               </button>
             </div>
             {migrationResults.length > 0 && (
@@ -147,7 +152,7 @@ export default function LibrarySettings() {
             disabled={migrating} className="btn-primary"
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%' }}
           >
-            {migrating ? <Loader2 style={{ width: 14, height: 14 }} className="animate-spin" /> : <Shuffle style={{ width: 14, height: 14 }} />}
+            {migrating ? <ThemedSpinner size="sm" /> : <Shuffle style={{ width: 14, height: 14 }} />}
             {migrating ? 'Migrating…' : 'Confirm Migration'}
           </button>
         )}
