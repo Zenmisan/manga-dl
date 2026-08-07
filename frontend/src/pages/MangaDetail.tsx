@@ -27,8 +27,12 @@ export default function MangaDetail() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-10 h-10 text-red-500 animate-spin" />
+      <div className="flex flex-col items-center justify-center min-h-screen gap-4 bg-[var(--bg)] transition-colors">
+        <div className="relative">
+          <div className="w-14 h-14 rounded-full border-2 border-[var(--accent,#dc2626)]/20 animate-ping absolute inset-0" />
+          <Loader2 className="w-14 h-14 text-[var(--accent,#dc2626)] animate-spin drop-shadow-[0_0_12px_var(--accent-glow)]" />
+        </div>
+        <p className="text-[var(--muted2)] text-xs font-bold uppercase tracking-widest animate-pulse">Loading Details...</p>
       </div>
     )
   }

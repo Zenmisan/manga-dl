@@ -8,16 +8,21 @@ from app.models.manga import MangaRecord
 log = logging.getLogger(__name__)
 
 
-async def list_subscriptions(db: AsyncSession) -> list[dict]:
-    """Return all subscribed manga records."""
-    result = await db.execute(select(MangaRecord).where(MangaRecord.subscribed == True))
+async def list_subscriptions(db: AsyncSession, user_id: str) -> list[dict]:
+    """Return subscribed manga records for a specific user."""
+    result = await db.execute(
+        select(MangaRecord).where(MangaRecord.subscribed == True, MangaRecord.user_id == user_id)
+    )
     records = result.scalars().all()
     return [{"provider_id": r.provider, "manga_id": r.provider_manga_id, "title": r.title, "cover_url": r.cover_url} for r in records]
 
 
-async def fetch_manga_updates(db: AsyncSession) -> list[dict]:
-    """Fetch latest chapters from subscribed manga."""
-    result = await db.execute(select(MangaRecord).where(MangaRecord.subscribed == True))
+async def fetch_manga_updates(db: AsyncSession, user_id: str | None = None) -> list[dict]:
+    """Fetch latest chapters from subscribed manga for a specific user."""
+    query = select(MangaRecord).where(MangaRecord.subscribed == True)
+    if user_id:
+        query = query.where(MangaRecord.user_id == user_id)
+    result = await db.execute(query)
     manga_list = result.scalars().all()
 
     updates = []

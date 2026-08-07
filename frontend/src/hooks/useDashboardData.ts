@@ -60,6 +60,7 @@ export function useDashboardData() {
   const [bannerDismissed, setBannerDismissed] = useState(false)
   const [isDragOver, setIsDragOver] = useState(false)
   const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
 
   const isAdmin = userEmail === 'zenmisan@gmail.com'
 
@@ -74,9 +75,11 @@ export function useDashboardData() {
 
     // Supplement with locally-saved subscription metadata (manga added via "In Library"
     // button that may not have synced to backend yet, or for offline use)
+    // Key is scoped by user ID to prevent cross-user bleed-through on shared browsers
     const backendTitles = new Set(backend.map(i => i.title.toLowerCase().trim()))
+    const scopedMetaKey = `manga-dl-local-sub-meta:${userId ?? 'anon'}`
     const localSubMeta: Record<string, { title: string; cover_url: string | null; provider: string; mangaId: string }> =
-      JSON.parse(localStorage.getItem('manga-dl-local-sub-meta') || '{}')
+      JSON.parse(localStorage.getItem(scopedMetaKey) || '{}')
     const localSubItems: LibraryItem[] = Object.values(localSubMeta)
       .filter(m => !backendTitles.has(m.title.toLowerCase().trim()))
       .map(m => ({
@@ -92,7 +95,7 @@ export function useDashboardData() {
       }))
 
     return [...localItems, ...backend, ...localSubItems]
-  }, [libraryRaw, localItems])
+  }, [libraryRaw, localItems, userId])
 
   const lastReadMap = useMemo<Record<string, LastReadEntry>>(() => {
     const map: Record<string, LastReadEntry> = {}
@@ -226,9 +229,11 @@ export function useDashboardData() {
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUserEmail(session?.user?.email || null)
+      setUserId(session?.user?.id ?? null)
     })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
       setUserEmail(session?.user?.email || null)
+      setUserId(session?.user?.id ?? null)
     })
 
     const interval = setInterval(() => {

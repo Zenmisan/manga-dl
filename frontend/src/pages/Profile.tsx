@@ -178,7 +178,7 @@ export default function ProfilePage() {
 
   const handleSignOut = async () => { try { await supabase.auth.signOut() } catch (e) { console.error(e) } }
 
-  if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}><Loader2 style={{ width: 36, height: 36, color: '#ef4444' }} className="animate-spin" /></div>
+  if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg)' }}><Loader2 style={{ width: 36, height: 36, color: 'var(--accent)' }} className="animate-spin" /></div>
 
   if (!profile) return (
     <div style={{ padding: '48px 24px', textAlign: 'center' }}>

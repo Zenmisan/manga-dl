@@ -196,6 +196,9 @@ async def toggle_pin(manga_title: str, filename: str, request: Request, db: Asyn
     return {"status": "not_found"}
 
 
+MAX_UPLOAD_BYTES = 300 * 1024 * 1024  # 300 MB hard cap
+
+
 @router.post("/upload")
 async def upload_manga(
     request: Request,
@@ -204,6 +207,8 @@ async def upload_manga(
 ):
     """Upload a local ZIP/CBZ file to the cloud library."""
     await _assert_admin(request)
+    if file.size and file.size > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="File exceeds 300 MB upload limit.")
     ext = Path(file.filename).suffix.lower()
     if ext not in ('.zip', '.cbz'):
         raise HTTPException(status_code=400, detail=f"Invalid format: {ext}")

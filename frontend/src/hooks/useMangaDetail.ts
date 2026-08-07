@@ -61,6 +61,7 @@ export function useMangaDetail() {
   const [showQueueLink, setShowQueueLink] = useState(false)
   const [bulkLoading, setBulkLoading] = useState(false)
   const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
 
   const isAdmin = userEmail === 'zenmisan@gmail.com'
   const [subscribed, setSubscribed] = useState(false)
@@ -115,9 +116,11 @@ export function useMangaDetail() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUserEmail(session?.user?.email || null)
+      setUserId(session?.user?.id ?? null)
     })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUserEmail(session?.user?.email || null)
+      setUserId(session?.user?.id ?? null)
     })
     return () => {
       subscription.unsubscribe()
@@ -214,7 +217,8 @@ export function useMangaDetail() {
   useEffect(() => {
     if (!manga || !provider) return
     const key = `${provider}:${manga.id}`
-    const rawLocal = localStorage.getItem('manga-dl-local-subs')
+    const scopedSubsKey = `manga-dl-local-subs:${userId ?? 'anon'}`
+    const rawLocal = localStorage.getItem(scopedSubsKey)
     const localList: string[] = rawLocal ? JSON.parse(rawLocal) : []
     const isLocalSub = localList.includes(key)
 
@@ -228,31 +232,32 @@ export function useMangaDetail() {
       .catch(() => {
         setSubscribed(isLocalSub)
       })
-  }, [manga, provider])
+  }, [manga, provider, userId])
 
   const handleSubscribe = async () => {
     if (!manga || !provider) return
     setSubscribing(true)
     const key = `${provider}:${manga.id}`
-    const rawLocal = localStorage.getItem('manga-dl-local-subs')
+    const scopedSubsKey = `manga-dl-local-subs:${userId ?? 'anon'}`
+    const scopedMetaKey = `manga-dl-local-sub-meta:${userId ?? 'anon'}`
+    const rawLocal = localStorage.getItem(scopedSubsKey)
     let localList: string[] = rawLocal ? JSON.parse(rawLocal) : []
 
     try {
       if (subscribed) {
         localList = localList.filter(k => k !== key)
-        localStorage.setItem('manga-dl-local-subs', JSON.stringify(localList))
-        const metaStore: Record<string, unknown> = JSON.parse(localStorage.getItem('manga-dl-local-sub-meta') || '{}')
+        localStorage.setItem(scopedSubsKey, JSON.stringify(localList))
+        const metaStore: Record<string, unknown> = JSON.parse(localStorage.getItem(scopedMetaKey) || '{}')
         delete metaStore[key]
-        localStorage.setItem('manga-dl-local-sub-meta', JSON.stringify(metaStore))
+        localStorage.setItem(scopedMetaKey, JSON.stringify(metaStore))
         setSubscribed(false)
         await api.delete(`/manga/subscriptions/${provider}/${manga.id}`).catch(() => {})
       } else {
         if (!localList.includes(key)) localList.push(key)
-        localStorage.setItem('manga-dl-local-subs', JSON.stringify(localList))
-        // Save metadata so library can display without a backend round-trip
-        const metaStore: Record<string, { title: string; cover_url: string | null; provider: string; mangaId: string }> = JSON.parse(localStorage.getItem('manga-dl-local-sub-meta') || '{}')
+        localStorage.setItem(scopedSubsKey, JSON.stringify(localList))
+        const metaStore: Record<string, { title: string; cover_url: string | null; provider: string; mangaId: string }> = JSON.parse(localStorage.getItem(scopedMetaKey) || '{}')
         metaStore[key] = { title: manga.title, cover_url: manga.cover_url || null, provider, mangaId: manga.id }
-        localStorage.setItem('manga-dl-local-sub-meta', JSON.stringify(metaStore))
+        localStorage.setItem(scopedMetaKey, JSON.stringify(metaStore))
         setSubscribed(true)
         await api.post('/manga/subscriptions', {
           provider_id: provider,

@@ -73,9 +73,12 @@ async def proxy_image(url: str = Query(...)):
 
 
 @router.get("/updates")
-async def get_manga_updates(db: AsyncSession = Depends(get_db)):
-    """Return latest chapters from all subscribed manga (uses cached chapter data)."""
-    return await fetch_manga_updates(db)
+async def get_manga_updates(
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_current_user),
+):
+    """Return latest chapters from the authenticated user's subscribed manga."""
+    return await fetch_manga_updates(db, user_id)
 
 
 @router.post("/sync")
@@ -88,9 +91,12 @@ async def trigger_sync(request: Request):
 
 
 @router.get("/subscriptions")
-async def get_all_subscriptions(db: AsyncSession = Depends(get_db)):
-    """List all subscribed manga."""
-    return await list_subscriptions(db)
+async def get_all_subscriptions(
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_current_user),
+):
+    """List subscribed manga for the authenticated user."""
+    return await list_subscriptions(db, user_id)
 
 
 @router.post("/subscriptions")

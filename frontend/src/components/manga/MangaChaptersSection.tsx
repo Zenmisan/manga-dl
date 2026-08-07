@@ -407,26 +407,28 @@ export function MangaChaptersSection({
                 onTouchMove={handleTouchMove}
                 onTouchEnd={(e) => handleTouchEnd(e, chapter)}
               >
-                {/* Swipe background action (Mark Read) */}
-                <div
-                  onClick={(e) => { toggleReadStatus(chapter.id, e); setSwipedChapterId(null) }}
-                  className="absolute inset-0 bg-red-600/30 flex items-center justify-end pr-6 text-white font-bold text-xs gap-2 cursor-pointer"
-                >
-                  <Eye className="w-4 h-4" /> {isChRead ? 'Mark Unread' : 'Mark Read'}
-                </div>
+                {/* Swipe background — only rendered while the row is being swiped */}
+                {isSwiped && (
+                  <div
+                    onClick={(e) => { toggleReadStatus(chapter.id, e); setSwipedChapterId(null) }}
+                    className="absolute inset-0 bg-red-600/30 flex items-center justify-end pr-6 text-white font-bold text-xs gap-2 cursor-pointer"
+                  >
+                    <Eye className="w-4 h-4" /> {isChRead ? 'Mark Unread' : 'Mark Read'}
+                  </div>
+                )}
 
-                <div 
+                <div
                   onClick={() => {
                     const targetUrl = buildSmartReadUrl(provider || '', manga.id, chapter.id, manga.title, chapter.title)
                     navigate(targetUrl)
                   }}
                   className={cn(
                     "relative flex items-center justify-between p-4 md:p-5 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl hover:bg-white/[0.08] cursor-pointer group transition-all",
-                    !isChRead ? "border-l-4 border-l-red-500" : "opacity-60 border-l-4 border-l-zinc-700",
+                    isChRead ? "border-l-4 border-l-zinc-700" : "border-l-4 border-l-red-500",
                     isSwiped && "-translate-x-28"
                   )}
                 >
-                  <div className="flex items-center gap-4 min-w-0 pr-4">
+                  <div className={cn("flex items-center gap-4 min-w-0 pr-4", isChRead && "opacity-50")}>
                     {/* Bookmark indicator */}
                     <button
                       onClick={(e) => toggleBookmark(chapter.id, e)}

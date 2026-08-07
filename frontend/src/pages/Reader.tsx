@@ -124,9 +124,9 @@ export default function Reader() {
   if (loading) {
     const isOnline = mangaTitle !== 'local' && (mangaTitle === 'online' || filename?.includes(':') || Boolean(location.search))
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-black text-white">
-        <Loader2 className="w-12 h-12 text-red-500 animate-spin mb-4" />
-        <p className="text-white/40 font-bold uppercase tracking-widest text-xs animate-pulse">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[var(--bg)] text-[var(--fg)] transition-colors">
+        <Loader2 className="w-12 h-12 text-[var(--accent,#dc2626)] animate-spin mb-4 drop-shadow-[0_0_12px_var(--accent-glow)]" />
+        <p className="text-[var(--muted2)] font-bold uppercase tracking-widest text-xs animate-pulse">
           {isOnline ? 'Loading Chapter...' : 'Opening Archive...'}
         </p>
       </div>
@@ -135,8 +135,8 @@ export default function Reader() {
 
   if (pages.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-[#050505] text-white p-6 relative overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 70% 50% at 50% 50%, rgba(220,38,38,.15) 0%, transparent 70%)' }} />
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[var(--bg)] text-[var(--fg)] p-6 relative overflow-hidden transition-colors">
+        <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 70% 50% at 50% 50%, var(--accent-glow, rgba(220,38,38,.15)) 0%, transparent 70%)' }} />
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}

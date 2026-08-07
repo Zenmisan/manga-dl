@@ -12,25 +12,29 @@ log = logging.getLogger(__name__)
 router = APIRouter(prefix="/support", tags=["support"])
 
 
+from pydantic import BaseModel, Field
+
+
 class TicketCreate(BaseModel):
-    name: str | None = None
-    email: str | None = None
-    category: str = "general"
-    message: str
-    user_id: str | None = None
+    name: str | None = Field(default=None, max_length=150)
+    email: str | None = Field(default=None, max_length=255)
+    category: str = Field(default="general", max_length=50)
+    message: str = Field(..., max_length=4000)
+    user_id: str | None = Field(default=None, max_length=100)
 
 
 @router.post("/ticket")
 async def submit_ticket(body: TicketCreate, db: AsyncSession = Depends(get_db)):
     """Submit a support ticket. No auth required."""
-    if not body.message or not body.message.strip():
+    msg = body.message.strip()
+    if not msg:
         raise HTTPException(status_code=422, detail="Message cannot be empty.")
 
     ticket = SupportTicket(
-        name=body.name,
-        email=body.email,
-        category=body.category,
-        message=body.message.strip(),
+        name=body.name.strip() if body.name else None,
+        email=body.email.strip() if body.email else None,
+        category=body.category.strip() if body.category else "general",
+        message=msg,
         user_id=body.user_id,
     )
     db.add(ticket)
@@ -46,12 +50,24 @@ async def submit_ticket(body: TicketCreate, db: AsyncSession = Depends(get_db)):
     return {"id": ticket.id, "status": "received"}
 
 
+def _html_escape(text: str) -> str:
+    return (text
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+        .replace("'", "&#x27;"))
+
+
 async def _notify_email(ticket: SupportTicket, settings):
     """Send email notification via Resend API."""
     try:
         import httpx
-        category_label = ticket.category.title()
-        from_user = f"{ticket.name or 'Anonymous'} <{ticket.email}>" if ticket.email else (ticket.name or "Anonymous")
+        category_label = _html_escape(ticket.category.title())
+        name_safe = _html_escape(ticket.name or "Anonymous")
+        email_safe = _html_escape(ticket.email or "")
+        from_user = f"{name_safe} &lt;{email_safe}&gt;" if email_safe else name_safe
+        message_safe = _html_escape(ticket.message).replace("\n", "<br>")
         async with httpx.AsyncClient() as client:
             await client.post(
                 "https://api.resend.com/emails",
@@ -59,14 +75,14 @@ async def _notify_email(ticket: SupportTicket, settings):
                 json={
                     "from": "manga-dl Support <onboarding@resend.dev>",
                     "to": [settings.SUPPORT_EMAIL],
-                    "subject": f"[{category_label}] New support ticket #{ticket.id}",
+                    "subject": f"[{ticket.category.title()}] New support ticket #{ticket.id}",
                     "html": f"""
                         <h2>New Support Ticket #{ticket.id}</h2>
                         <p><strong>From:</strong> {from_user}</p>
                         <p><strong>Category:</strong> {category_label}</p>
                         <p><strong>Message:</strong></p>
                         <blockquote style="border-left:3px solid #dc2626;padding-left:12px;margin:8px 0;color:#555">
-                            {ticket.message.replace(chr(10), '<br>')}
+                            {message_safe}
                         </blockquote>
                         <p style="color:#888;font-size:12px">View all tickets in Supabase Table Editor → support_tickets</p>
                     """,

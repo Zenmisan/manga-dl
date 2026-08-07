@@ -65,28 +65,60 @@ export function useMangaChaptersFilter(
 
   const displayedChapters = useMemo(() => {
     if (!manga) return []
+
+    // Build index map for stable fallback (backend order = source order)
+    const indexMap = new Map(manga.chapters.map((c, i) => [c.id, i]))
+
+    // Extract chapter number: prefer c.number if non-zero, else parse from title
+    const getNum = (c: { number: number; title: string }) => {
+      if (c.number && c.number !== 0) return c.number
+      const m = c.title.match(/[\d]+(?:\.\d+)?/)
+      return m ? parseFloat(m[0]) : 0
+    }
+
     let list = [...manga.chapters]
     if (chapterSearch.trim()) {
       const q = chapterSearch.toLowerCase()
-      list = list.filter(c => c.title.toLowerCase().includes(q) || String(c.number).includes(q))
+      list = list.filter(c => c.title.toLowerCase().includes(q) || String(getNum(c)).includes(q))
     }
     if (scanlatorFilter !== 'all') {
       list = list.filter(c => c.title.includes(`[${scanlatorFilter}]`) || c.title.includes(`(${scanlatorFilter})`))
     }
     if (readFilter === 'unread') list = list.filter(c => !readChapters.has(c.id))
     if (readFilter === 'read') list = list.filter(c => readChapters.has(c.id))
+
     switch (chapterSort) {
-      case 'newest': list.sort((a, b) => (b.published_at || '').localeCompare(a.published_at || '')); break
-      case 'oldest': list.sort((a, b) => (a.published_at || '').localeCompare(b.published_at || '')); break
-      case 'num-asc': list.sort((a, b) => a.number - b.number); break
-      case 'num-desc': list.sort((a, b) => b.number - a.number); break
+      case 'newest':
+        // published_at if available, else reverse source order (latest = lowest index from provider)
+        list.sort((a, b) => {
+          if (a.published_at && b.published_at) return b.published_at.localeCompare(a.published_at)
+          return (indexMap.get(a.id) ?? 0) - (indexMap.get(b.id) ?? 0)
+        })
+        break
+      case 'oldest':
+        list.sort((a, b) => {
+          if (a.published_at && b.published_at) return a.published_at.localeCompare(b.published_at)
+          return (indexMap.get(b.id) ?? 0) - (indexMap.get(a.id) ?? 0)
+        })
+        break
+      case 'num-asc':
+        list.sort((a, b) => getNum(a) - getNum(b))
+        break
+      case 'num-desc':
+        list.sort((a, b) => getNum(b) - getNum(a))
+        break
     }
     return list
   }, [manga, chapterSort, chapterSearch, readFilter, scanlatorFilter, readChapters])
 
   const resumeTarget = useMemo(() => {
     if (!manga || manga.chapters.length === 0) return null
-    const sorted = [...manga.chapters].sort((a, b) => a.number - b.number)
+    const getNum = (c: { number: number; title: string }) => {
+      if (c.number && c.number !== 0) return c.number
+      const m = c.title.match(/[\d]+(?:\.\d+)?/)
+      return m ? parseFloat(m[0]) : 0
+    }
+    const sorted = [...manga.chapters].sort((a, b) => getNum(a) - getNum(b))
     const firstUnread = sorted.find(c => !readChapters.has(c.id))
     if (firstUnread) {
       return { chapter: firstUnread, label: `Resume Ch. ${firstUnread.number}` }

@@ -14,13 +14,28 @@ log = logging.getLogger(__name__)
 settings = get_settings()
 
 
+def _safe_join(base: Path, *parts: str) -> Path:
+    """Join path parts and reject traversal attempts that escape base."""
+    result = base
+    for part in parts:
+        result = result / part
+    resolved = result.resolve()
+    base_resolved = base.resolve()
+    if not str(resolved).startswith(str(base_resolved) + "/") and resolved != base_resolved:
+        raise HTTPException(status_code=400, detail="Invalid file path.")
+    return result
+
+
 async def ensure_local_file(manga_title: str, filename: str) -> Path:
     """Ensure the target CBZ file exists locally. Fetch from Supabase cache if needed."""
-    local_path = Path(settings.LIBRARY_PATH) / manga_title / filename
+    lib_base = Path(settings.LIBRARY_PATH)
+    cache_base = Path(settings.CACHE_PATH) / "library_cache"
+
+    local_path = _safe_join(lib_base, manga_title, filename)
     if local_path.exists():
         return local_path
 
-    cache_path = Path(settings.CACHE_PATH) / "library_cache" / manga_title / filename
+    cache_path = _safe_join(cache_base, manga_title, filename)
     if cache_path.exists():
         return cache_path
 
