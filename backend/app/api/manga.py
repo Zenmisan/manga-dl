@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.core.supabase_auth import get_current_user, get_current_user_email
+from app.core.supabase_auth import get_current_user_email, require_jwt_user
 from app.config import get_settings
 from app.services.proxy_service import (
     proxy_html_content,
@@ -75,7 +75,7 @@ async def proxy_image(url: str = Query(...)):
 @router.get("/updates")
 async def get_manga_updates(
     db: AsyncSession = Depends(get_db),
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(require_jwt_user),
 ):
     """Return latest chapters from the authenticated user's subscribed manga."""
     return await fetch_manga_updates(db, user_id)
@@ -93,7 +93,7 @@ async def trigger_sync(request: Request):
 @router.get("/subscriptions")
 async def get_all_subscriptions(
     db: AsyncSession = Depends(get_db),
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(require_jwt_user),
 ):
     """List subscribed manga for the authenticated user."""
     return await list_subscriptions(db, user_id)
@@ -103,7 +103,7 @@ async def get_all_subscriptions(
 async def add_subscription(
     request: Request,
     meta: SubscribeMeta = SubscribeMeta(),
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(require_jwt_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Subscribe to a manga. Scoped to the authenticated user."""
@@ -121,7 +121,7 @@ async def add_subscription(
 async def remove_subscription(
     provider_id: str,
     manga_id: str,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(require_jwt_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Unsubscribe from a manga. Scoped to the authenticated user."""
@@ -133,7 +133,7 @@ async def remove_subscription(
 async def get_subscription_status(
     provider_id: str,
     manga_id: str,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(require_jwt_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Get subscription status for this user."""
@@ -150,7 +150,7 @@ async def toggle_subscribe(
     provider_id: str,
     manga_id: str,
     meta: SubscribeMeta = SubscribeMeta(),
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(require_jwt_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Toggle subscription for a manga. Scoped to the authenticated user."""

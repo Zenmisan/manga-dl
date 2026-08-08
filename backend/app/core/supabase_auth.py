@@ -134,6 +134,16 @@ async def get_current_user(request: Request) -> str:
     raise HTTPException(status_code=401, detail="Invalid token.")
 
 
+async def require_jwt_user(request: Request) -> str:
+    """Like get_current_user but refuses API-key-only requests.
+    Use on endpoints that serve user-specific library/subscription data so the
+    shared 'local-api-key-user' sentinel can never leak data across visitors."""
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Sign in required.")
+    return await get_current_user(request)
+
+
 async def get_current_user_email(request: Request) -> str | None:
     """Extract email from Supabase JWT, returns None on any failure."""
     auth = request.headers.get("Authorization", "")

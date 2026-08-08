@@ -12,7 +12,7 @@ from sqlalchemy import select
 from app.config import get_settings
 from app.database import get_db
 from app.models.download import DownloadRecord
-from app.core.supabase_auth import get_current_user
+from app.core.supabase_auth import require_jwt_user
 from app.services.archive_converter import (
     read_cbz_pages,
     extract_cbz_image_bytes,
@@ -54,7 +54,7 @@ async def _assert_admin(request: Request):
 @router.get("", response_model=list[LibraryItem])
 @router.get("/", response_model=list[LibraryItem], include_in_schema=False)
 async def list_library(
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(require_jwt_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Fetch the library for the authenticated user."""
@@ -265,7 +265,7 @@ async def upload_manga(
 @router.get("/stats")
 async def get_library_stats(
     db: AsyncSession = Depends(get_db),
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(require_jwt_user),
 ):
     """Aggregate reading statistics scoped to the authenticated user."""
     return await fetch_library_stats(db, user_id)

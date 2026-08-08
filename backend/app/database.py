@@ -56,7 +56,4 @@ async def _migrate_add_columns():
     async with engine.begin() as conn:
         await _safe_add(conn, "manga", "user_id", "VARCHAR")
         await _safe_add(conn, "downloads", "user_id", "VARCHAR")
-        # Back-fill existing rows so they belong to the local API-key user
-        await conn.execute(text("UPDATE manga SET user_id = 'local-api-key-user' WHERE user_id IS NULL"))
-        await conn.execute(text("UPDATE downloads SET user_id = 'local-api-key-user' WHERE user_id IS NULL"))
     log.info("DB column migration complete")
