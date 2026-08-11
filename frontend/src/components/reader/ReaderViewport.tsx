@@ -1,6 +1,6 @@
 import type React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ArrowLeft, ArrowRight } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { ReaderPageImage } from '../ReaderPageImage'
 
@@ -18,6 +18,8 @@ interface Props {
   setShowControls: React.Dispatch<React.SetStateAction<boolean>>
   nextUnreadChapterId: string | null
   navigateToNextChapter: () => void
+  navigateToPrevChapter: () => void
+  prevChapterId: string | null
   skipReadChapters: boolean
   nextChapterId: string | null
   filename: string | undefined
@@ -33,7 +35,8 @@ export function ReaderViewport({
   pages, currentPage, readingMode, showSpread, spreadPage2Idx,
   getImageUrl, nextPage, prevPage, tapZoneLeft, tapZoneRight,
   setShowControls,
-  nextUnreadChapterId, navigateToNextChapter, skipReadChapters, nextChapterId,
+  nextUnreadChapterId, navigateToNextChapter, navigateToPrevChapter, prevChapterId,
+  skipReadChapters, nextChapterId,
   filename, cropBorders, cropBordersWebtoon, imageScale, webtoonSidePadding,
   cssFilter, handlePageLoad,
 }: Props) {
@@ -104,6 +107,34 @@ export function ReaderViewport({
               </div>
             </motion.div>
           ))}
+
+          {/* Webtoon end-of-chapter panel */}
+          <div className="flex flex-col items-center py-16 px-6 gap-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">End of chapter</p>
+            <p className="font-bold text-sm text-white/60">{filename?.replace('.cbz', '') ?? 'Chapter'}</p>
+            <div className="flex gap-3 flex-wrap justify-center">
+              {prevChapterId && (
+                <button
+                  onClick={navigateToPrevChapter}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/15 text-white/60 hover:text-white hover:bg-white/10 text-xs font-black uppercase tracking-widest transition-all"
+                >
+                  <ArrowLeft className="w-4 h-4" /> Prev Chapter
+                </button>
+              )}
+              {nextUnreadChapterId ? (
+                <button
+                  onClick={navigateToNextChapter}
+                  className="flex items-center gap-2 px-5 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+                >
+                  {skipReadChapters ? 'Next Unread' : 'Next Chapter'} <ArrowRight className="w-4 h-4" />
+                </button>
+              ) : (
+                <p className="text-[10px] text-white/20 font-bold uppercase tracking-widest">
+                  {skipReadChapters && nextChapterId ? 'All caught up!' : 'No next chapter'}
+                </p>
+              )}
+            </div>
+          </div>
         </div>
 
       ) : (
@@ -162,21 +193,31 @@ export function ReaderViewport({
                 exit={{ opacity: 0 }}
                 className="absolute inset-0 z-25 flex flex-col items-center justify-end pb-32 pointer-events-none"
               >
-                <div className="glass-panel px-6 py-4 text-center pointer-events-auto shadow-2xl border-white/10">
+                <div className="pointer-events-auto shadow-2xl text-center" style={{ background: 'rgba(8,8,8,0.90)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '1.25rem', padding: '20px 24px' }}>
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-1">End of chapter</p>
-                  <p className="font-bold text-sm text-white/70 mb-3">{filename?.replace('.cbz', '') ?? 'Chapter'}</p>
-                  {nextUnreadChapterId ? (
-                    <button
-                      onClick={navigateToNextChapter}
-                      className="px-5 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all"
-                    >
-                      {skipReadChapters ? 'Next Unread →' : 'Next Chapter →'}
-                    </button>
-                  ) : (
-                    <p className="text-[10px] text-white/20 font-bold uppercase tracking-widest">
-                      {skipReadChapters && nextChapterId ? 'All caught up!' : 'No next chapter'}
-                    </p>
-                  )}
+                  <p className="font-bold text-sm text-white/70 mb-4">{filename?.replace('.cbz', '') ?? 'Chapter'}</p>
+                  <div className="flex gap-3 justify-center flex-wrap">
+                    {prevChapterId && (
+                      <button
+                        onClick={navigateToPrevChapter}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/15 text-white/60 hover:text-white hover:bg-white/10 text-xs font-black uppercase tracking-widest transition-all"
+                      >
+                        <ArrowLeft className="w-3.5 h-3.5" /> Prev
+                      </button>
+                    )}
+                    {nextUnreadChapterId ? (
+                      <button
+                        onClick={navigateToNextChapter}
+                        className="flex items-center gap-2 px-5 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+                      >
+                        {skipReadChapters ? 'Next Unread' : 'Next Chapter'} <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    ) : (
+                      <p className="text-[10px] text-white/20 font-bold uppercase tracking-widest py-2">
+                        {skipReadChapters && nextChapterId ? 'All caught up!' : 'No next chapter'}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </motion.div>
             )}

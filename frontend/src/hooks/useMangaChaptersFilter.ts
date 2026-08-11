@@ -9,7 +9,7 @@ export function useMangaChaptersFilter(
   readChapters: Set<string>,
   setReadChapters: React.Dispatch<React.SetStateAction<Set<string>>>
 ) {
-  const [chapterSort, setChapterSort] = useState<'default' | 'newest' | 'oldest' | 'num-asc' | 'num-desc'>('default')
+  const [chapterSort, setChapterSort] = useState<'default' | 'newest' | 'oldest' | 'num-asc' | 'num-desc'>('num-asc')
   const [chapterSearch, setChapterSearch] = useState('')
   const [readFilter, setReadFilter] = useState<'all' | 'unread' | 'read'>('all')
   const [scanlatorFilter, setScanlatorFilter] = useState<string>('all')

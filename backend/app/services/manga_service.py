@@ -1,6 +1,7 @@
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import defer
 from fastapi import HTTPException
 
 from app.models.manga import MangaRecord
@@ -11,7 +12,9 @@ log = logging.getLogger(__name__)
 async def list_subscriptions(db: AsyncSession, user_id: str) -> list[dict]:
     """Return subscribed manga records for a specific user."""
     result = await db.execute(
-        select(MangaRecord).where(MangaRecord.subscribed == True, MangaRecord.user_id == user_id)
+        select(MangaRecord)
+        .options(defer(MangaRecord.chapters_json))
+        .where(MangaRecord.subscribed == True, MangaRecord.user_id == user_id)
     )
     records = result.scalars().all()
     return [{"provider_id": r.provider, "manga_id": r.provider_manga_id, "title": r.title, "cover_url": r.cover_url} for r in records]

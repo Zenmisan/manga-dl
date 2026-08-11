@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from sqlalchemy import select
+from sqlalchemy.orm import defer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import AsyncSessionLocal
@@ -56,7 +57,7 @@ async def _sync_once():
     log.info("Running manual sync...")
     try:
         async with AsyncSessionLocal() as db:
-            stmt = select(MangaRecord).where(MangaRecord.subscribed == True)
+            stmt = select(MangaRecord).options(defer(MangaRecord.chapters_json)).where(MangaRecord.subscribed == True)
             result = await db.execute(stmt)
             mangas = result.scalars().all()
             for manga in mangas:
@@ -72,7 +73,7 @@ async def sync_subscribed_manga():
         log.info("Running subscribed manga sync...")
         try:
             async with AsyncSessionLocal() as db:
-                stmt = select(MangaRecord).where(MangaRecord.subscribed == True)
+                stmt = select(MangaRecord).options(defer(MangaRecord.chapters_json)).where(MangaRecord.subscribed == True)
                 result = await db.execute(stmt)
                 mangas = result.scalars().all()
 

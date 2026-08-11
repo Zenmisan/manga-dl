@@ -34,11 +34,12 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
   const [localTitle, setLocalTitle] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [nextChapterId, setNextChapterId] = useState<string | null>(null)
+  const [prevChapterId, setPrevChapterId] = useState<string | null>(null)
 
   const malAutoSyncedRef = useRef(false)
   const progressSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const onlinePartsRef = useRef<OnlineParts | null>(null)
-  const chapterListRef = useRef<{ id: string; number?: number }[]>([])
+  const chapterListRef = useRef<{ id: string; number?: number; title?: string }[]>([])
 
   const getImageUrlForChapter = useCallback((targetFilename: string, pageName: string) => {
     if (!pageName) return ''
@@ -220,7 +221,12 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
             const chapters = detail?.chapters ?? []
             chapterListRef.current = chapters
             const idx = chapters.findIndex(c => c.id === onlineChapterId)
-            if (idx !== -1) setNextChapterId(chapters[idx + 1]?.id ?? null)
+            if (idx !== -1) {
+              // Provider returns chapters newest-first (descending), so:
+              // idx - 1 = next chapter to read (higher number), idx + 1 = previous (lower number)
+              setNextChapterId(idx > 0 ? (chapters[idx - 1]?.id ?? null) : null)
+              setPrevChapterId(chapters[idx + 1]?.id ?? null)
+            }
           } catch { /* non-fatal */ }
 
           const { data: session } = await supabase.auth.getSession()
@@ -287,6 +293,7 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
         const files = libraryRes.data.files
         const currentIdx = files.indexOf(filename)
         if (currentIdx !== -1 && currentIdx < files.length - 1) setNextChapterId(files[currentIdx + 1])
+        if (currentIdx > 0) setPrevChapterId(files[currentIdx - 1])
       } catch (err) {
         setFetchError((err as { message?: string }).message || 'Failed to fetch chapter from backend library server.')
       } finally {
@@ -374,7 +381,7 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
   return {
     pages, loading, fetchError,
     currentPage, setCurrentPage,
-    nextChapterId, localTitle,
+    nextChapterId, prevChapterId, localTitle,
     uploading, handleCloudUpload,
     onlinePartsRef, chapterListRef,
     getImageUrl, getImageUrlForChapter,

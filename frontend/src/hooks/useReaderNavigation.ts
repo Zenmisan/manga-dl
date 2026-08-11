@@ -25,8 +25,10 @@ interface Params {
   hapticFeedback: boolean
   skipReadChapters: boolean
   onlinePartsRef: React.MutableRefObject<OnlineParts | null>
-  chapterListRef: React.MutableRefObject<{ id: string; number?: number }[]>
+  chapterListRef: React.MutableRefObject<{ id: string; number?: number; title?: string }[]>
   nextChapterId: string | null
+  prevChapterId: string | null
+  mangaTitle: string | undefined
   navigate: NavigateFunction
   readerFilters: ReaderFilters
   setReaderFilters: (partial: Partial<ReaderFilters>) => void
@@ -35,7 +37,7 @@ interface Params {
 export function useReaderNavigation({
   pages, currentPage, setCurrentPage,
   readingMode, dualPageSpread, tapZoneLayout, hapticFeedback, skipReadChapters,
-  onlinePartsRef, chapterListRef, nextChapterId, navigate,
+  onlinePartsRef, chapterListRef, nextChapterId, prevChapterId, mangaTitle, navigate,
   readerFilters, setReaderFilters,
 }: Params) {
   const [isLandscape, setIsLandscape] = useState(window.innerWidth > window.innerHeight)
@@ -79,19 +81,37 @@ export function useReaderNavigation({
     const readSet = getReadChapters(parts.provider, parts.mangaId)
     const chapters = chapterListRef.current
     const currentIdx = chapters.findIndex(c => c.id === parts.chapterId)
-    for (let i = currentIdx + 1; i < chapters.length; i++) {
+    // Chapters are newest-first (descending) — next unread = walk toward lower indices
+    for (let i = currentIdx - 1; i >= 0; i--) {
       if (!readSet.has(chapters[i].id)) return chapters[i].id
     }
     return null
   }, [nextChapterId, skipReadChapters, onlinePartsRef, chapterListRef])
 
   const navigateToNextChapter = useCallback(() => {
-    const parts = onlinePartsRef.current
-    if (!parts) return
     const targetId = getNextUnreadChapterId()
     if (!targetId) return
-    navigate(buildSmartReadUrl(parts.provider, parts.mangaId, targetId, parts.mangaTitle ?? 'manga', 'Next Chapter'))
-  }, [navigate, getNextUnreadChapterId, onlinePartsRef])
+    const parts = onlinePartsRef.current
+    if (parts) {
+      const chapters = chapterListRef.current
+      const targetChapter = chapters.find(c => c.id === targetId)
+      navigate(buildSmartReadUrl(parts.provider, parts.mangaId, targetId, parts.mangaTitle ?? 'manga', targetChapter?.title ?? targetId))
+    } else {
+      navigate(`/read/${encodeURIComponent(mangaTitle ?? 'manga')}/${encodeURIComponent(targetId)}`)
+    }
+  }, [navigate, getNextUnreadChapterId, onlinePartsRef, chapterListRef, mangaTitle])
+
+  const navigateToPrevChapter = useCallback(() => {
+    if (!prevChapterId) return
+    const parts = onlinePartsRef.current
+    if (parts) {
+      const chapters = chapterListRef.current
+      const targetChapter = chapters.find(c => c.id === prevChapterId)
+      navigate(buildSmartReadUrl(parts.provider, parts.mangaId, prevChapterId, parts.mangaTitle ?? 'manga', targetChapter?.title ?? prevChapterId))
+    } else {
+      navigate(`/read/${encodeURIComponent(mangaTitle ?? 'manga')}/${encodeURIComponent(prevChapterId)}`)
+    }
+  }, [navigate, prevChapterId, mangaTitle, onlinePartsRef, chapterListRef])
 
   // eslint-disable-next-line react-hooks/refs
   const nextUnreadChapterId = getNextUnreadChapterId()
@@ -110,6 +130,7 @@ export function useReaderNavigation({
     isLandscape,
     nextUnreadChapterId,
     navigateToNextChapter,
+    navigateToPrevChapter,
     volumeKeyMode, setVolumeKeyMode,
   }
 }

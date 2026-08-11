@@ -67,7 +67,7 @@ export function ReaderHeader({
           exit={{ y: -100, opacity: 0 }}
           className="fixed top-0 left-0 right-0 z-50 p-2 sm:p-4 md:p-6"
         >
-          <div className="max-w-5xl mx-auto glass-panel p-2.5 sm:p-4 flex items-center justify-between shadow-2xl border-white/5 gap-2">
+          <div className="max-w-5xl mx-auto glass-panel p-2.5 sm:p-4 flex items-center justify-between shadow-2xl gap-2" style={{ background: 'rgba(8,8,8,0.88)', border: '1px solid rgba(255,255,255,0.09)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)' }}>
             <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
               <button onClick={onBack} className="p-2 sm:p-2.5 hover:bg-white/10 rounded-xl transition-all text-white/60 hover:text-white shrink-0">
                 <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -199,7 +199,8 @@ export function ReaderHeader({
                 initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
-                className="max-w-5xl mx-auto mt-2 glass-panel p-4 shadow-2xl border-white/5"
+                className="max-w-5xl mx-auto mt-2 glass-panel p-4 shadow-2xl"
+              style={{ background: 'rgba(8,8,8,0.92)', border: '1px solid rgba(255,255,255,0.09)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)' }}
                 onClick={e => e.stopPropagation()}
               >
                 <div className="flex flex-wrap gap-6 items-end">

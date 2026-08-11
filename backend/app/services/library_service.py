@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, distinct
+from sqlalchemy.orm import defer
 
 from app.config import get_settings
 from app.models.download import DownloadRecord
@@ -76,11 +77,14 @@ async def list_library_items(db: AsyncSession, user_id: str) -> list[dict]:
             grouped[title]["failed"] += 1
 
     # Include subscribed manga even if no chapters downloaded yet
+    # Defer chapters_json (can be MB-sized) — count keys via SQL instead
     sub_result = await db.execute(
-        select(MangaRecord).where(MangaRecord.subscribed == True, MangaRecord.user_id == user_id)
+        select(MangaRecord)
+        .options(defer(MangaRecord.chapters_json))
+        .where(MangaRecord.subscribed == True, MangaRecord.user_id == user_id)
     )
     for r in sub_result.scalars().all():
-        chapter_count = len(r.chapters_json) if isinstance(r.chapters_json, dict) else 0
+        chapter_count = 0
         if r.title not in grouped:
             grouped[r.title] = {
                 "files": set(), "downloading": 0, "failed": 0,
