@@ -1,6 +1,7 @@
 import re
 import logging
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from curl_cffi import requests
 from app.providers import get_provider
@@ -19,7 +20,7 @@ router = APIRouter(prefix="/sources", tags=["sources"])
 @router.get("/builtins")
 async def list_builtins():
     """Return metadata for all built-in extensions."""
-    return [
+    data = [
         {
             "id": ext_id,
             "name": meta["name"],
@@ -32,6 +33,7 @@ async def list_builtins():
         }
         for ext_id, meta in BUILT_IN_EXTENSIONS.items()
     ]
+    return JSONResponse(content=data, headers={"Cache-Control": "public, max-age=3600"})
 
 
 @router.get("/market")
@@ -82,7 +84,7 @@ async def get_extension_code(pkg_id: str):
     """Return built-in JS extension code, or proxy from Keiyoushi for community extensions."""
     res = get_extension_code_by_pkg(pkg_id)
     if res:
-        return res
+        return JSONResponse(content=res, headers={"Cache-Control": "public, max-age=86400"})
     raise HTTPException(status_code=404, detail="Extension code not found")
 
 

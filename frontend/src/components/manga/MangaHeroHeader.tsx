@@ -46,7 +46,7 @@ export function MangaHeroHeader({ manga, themeColor, showQueueLink, onBack, onQu
             color: '#fff', border: '1px solid rgba(255,255,255,.1)',
             cursor: 'pointer', zIndex: 10,
           }}
-          title="Go Back"
+          aria-label="Go Back"
         >
           <ChevronLeft style={{ width: 20, height: 20 }} />
         </button>

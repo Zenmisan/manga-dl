@@ -32,13 +32,14 @@ interface Params {
   navigate: NavigateFunction
   readerFilters: ReaderFilters
   setReaderFilters: (partial: Partial<ReaderFilters>) => void
+  isWidePage: boolean[]
 }
 
 export function useReaderNavigation({
   pages, currentPage, setCurrentPage,
   readingMode, dualPageSpread, tapZoneLayout, hapticFeedback, skipReadChapters,
   onlinePartsRef, chapterListRef, nextChapterId, prevChapterId, mangaTitle, navigate,
-  readerFilters, setReaderFilters,
+  readerFilters, setReaderFilters, isWidePage,
 }: Params) {
   const [isLandscape, setIsLandscape] = useState(window.innerWidth > window.innerHeight)
   const [volumeKeyMode, setVolumeKeyMode] = useState<'navigation' | 'brightness'>('navigation')
@@ -51,7 +52,10 @@ export function useReaderNavigation({
 
   const spreadActive = dualPageSpread === 'on' || (dualPageSpread === 'auto' && isLandscape)
   const pagerMode = readingMode === 'manga' || readingMode === 'manga-rtl' || readingMode === 'vertical-pager'
-  const showSpread = spreadActive && pagerMode && readingMode !== 'vertical-pager'
+  // Suppress spread if either paired page is a wide/splash image (auto-detected from naturalWidth > naturalHeight)
+  const page1Wide = isWidePage[currentPage - 1] ?? false
+  const page2Wide = isWidePage[currentPage] ?? false
+  const showSpread = spreadActive && pagerMode && readingMode !== 'vertical-pager' && !page1Wide && !page2Wide
   const spreadPage2Idx = showSpread ? currentPage : -1
 
   const tapZoneLeft = tapZoneLayout === 'l-nav' ? 'w-1/2' : tapZoneLayout === 'edge' ? 'w-[15%]' : tapZoneLayout === 'disabled' ? 'w-0' : 'w-1/3'
@@ -96,6 +100,8 @@ export function useReaderNavigation({
       const chapters = chapterListRef.current
       const targetChapter = chapters.find(c => c.id === targetId)
       navigate(buildSmartReadUrl(parts.provider, parts.mangaId, targetId, parts.mangaTitle ?? 'manga', targetChapter?.title ?? targetId))
+    } else if (mangaTitle === 'local') {
+      navigate(`/read/local/${encodeURIComponent(targetId)}`)
     } else {
       navigate(`/read/${encodeURIComponent(mangaTitle ?? 'manga')}/${encodeURIComponent(targetId)}`)
     }
@@ -108,6 +114,8 @@ export function useReaderNavigation({
       const chapters = chapterListRef.current
       const targetChapter = chapters.find(c => c.id === prevChapterId)
       navigate(buildSmartReadUrl(parts.provider, parts.mangaId, prevChapterId, parts.mangaTitle ?? 'manga', targetChapter?.title ?? prevChapterId))
+    } else if (mangaTitle === 'local') {
+      navigate(`/read/local/${encodeURIComponent(prevChapterId)}`)
     } else {
       navigate(`/read/${encodeURIComponent(mangaTitle ?? 'manga')}/${encodeURIComponent(prevChapterId)}`)
     }

@@ -21,27 +21,28 @@ export function useAuthSession() {
       setSession(session)
       setLoadingSession(false)
     })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s)
       setLoadingSession(false)
-      if (event === 'SIGNED_OUT') {
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i)
-          if (key && key.startsWith('sb-')) {
-            localStorage.removeItem(key)
-            i--
-          }
-        }
-        navigate('/')
-        window.location.reload()
-      }
     })
     return () => subscription.unsubscribe()
-  }, [navigate])
+  }, [])
 
   const handleSignOut = useCallback(async () => {
-    try { await supabase.auth.signOut() } catch (e) { console.error(e) }
-  }, [])
+    try {
+      await supabase.auth.signOut()
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key && key.startsWith('sb-')) {
+          localStorage.removeItem(key)
+          i--
+        }
+      }
+      navigate('/login')
+    } catch (e) {
+      console.error(e)
+    }
+  }, [navigate])
 
   return { session, loadingSession, handleSignOut }
 }
@@ -124,7 +125,7 @@ export function useAppLock() {
 }
 
 export function useBackgroundSync() {
-  const { syncWifiOnly, syncChargingOnly } = useAppStore()
+  const { syncWifiOnly, syncChargingOnly, setExtensionUpdateCount } = useAppStore()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -133,6 +134,23 @@ export function useBackgroundSync() {
     syncCategoriesFromCloud().catch(() => {})
     syncMangaNotesFromCloud().catch(() => {})
     syncMetaOverridesFromCloud()
+
+    // Check for extension updates in the background
+    const checkExtUpdates = async () => {
+      try {
+        const res = await api.get('/sources/market')
+        const market: Array<{ id: string; version: string }> = res.data
+        const manager = ExtensionManager.getInstance()
+        const key = (manager as unknown as Record<string, unknown>).storageKey as string
+        const installed: Array<{ id: string; version: string }> = JSON.parse(localStorage.getItem(key) || '[]')
+        const count = installed.filter(inst => {
+          const remote = market.find(m => m.id === inst.id)
+          return remote && remote.version !== inst.version
+        }).length
+        setExtensionUpdateCount(count)
+      } catch { /* non-fatal */ }
+    }
+    setTimeout(checkExtUpdates, 5000)
   }, [])
 
   useEffect(() => {

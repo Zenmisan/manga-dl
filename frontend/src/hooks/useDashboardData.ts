@@ -5,6 +5,7 @@ import { useLibrary, useHistory, QK } from '../lib/queries'
 import api from '../lib/api'
 import { useAppStore } from '../lib/store'
 import { saveLocalManga, getAllLocalManga, deleteLocalManga, type LocalMangaEntry } from '../lib/localLibrary'
+import { inspectArchive } from '../lib/archiveInspector'
 import { getReadCount } from '../lib/readTracking'
 import { getMangaCategoryList, getCategories } from '../lib/categories'
 import { supabase } from '../lib/supabase'
@@ -23,15 +24,33 @@ export interface LibraryItem {
   cover_url?: string | null
 }
 
-function buildLocalMangaEntry(file: File): LocalMangaEntry {
-  const title = file.name.replace(/\.(cbz|zip|epub)$/i, '')
-  return {
-    id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    title,
-    filename: file.name,
-    fileSize: file.size,
-    addedAt: Date.now(),
-    file,
+async function buildLocalMangaEntry(file: File): Promise<LocalMangaEntry> {
+  const id = `local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+  try {
+    const inspection = await inspectArchive(file, file.name)
+    return {
+      id,
+      title: inspection.seriesTitle || file.name.replace(/\.(cbz|zip|epub)$/i, ''),
+      seriesTitle: inspection.seriesTitle,
+      filename: file.name,
+      fileSize: file.size,
+      addedAt: Date.now(),
+      file,
+      chaptersCount: inspection.chapters.length,
+      rangeStart: inspection.rangeStart,
+      rangeEnd: inspection.rangeEnd,
+      chaptersSummary: inspection.chapters.map(c => ({ id: c.id, number: c.chapterNumber, title: c.title })),
+    }
+  } catch {
+    const title = file.name.replace(/\.(cbz|zip|epub)$/i, '')
+    return {
+      id,
+      title,
+      filename: file.name,
+      fileSize: file.size,
+      addedAt: Date.now(),
+      file,
+    }
   }
 }
 
@@ -144,35 +163,37 @@ export function useDashboardData() {
     for (let i = 0; i < fileList.length; i++) {
       const file = fileList[i]
 
-      if (backendDownRef.current) {
-        try {
-          const entry = buildLocalMangaEntry(file)
-          await saveLocalManga(entry)
-          const newItem: LibraryItem = {
-            title: entry.title,
-            files: [entry.filename],
-            chapters_downloading: 0,
-            chapters_failed: 0,
-            isLocal: true,
-            localId: entry.id,
-          }
-          setLocalItems(prev => [newItem, ...prev.filter(x => x.localId !== entry.id)])
-        } catch (err) {
-          alert(`Failed to save ${file.name} locally: ${err instanceof Error ? err.message : String(err)}`)
+      // 1. Always parse and persist to local IndexedDB for instant UI availability
+      try {
+        const entry = await buildLocalMangaEntry(file)
+        await saveLocalManga(entry)
+        const newItem: LibraryItem = {
+          title: entry.title,
+          files: [entry.filename],
+          chapters_downloading: 0,
+          chapters_failed: 0,
+          isLocal: true,
+          localId: entry.id,
+          total_chapters: entry.chaptersCount || 1,
         }
-        continue
+        setLocalItems(prev => [newItem, ...prev.filter(x => x.localId !== entry.id)])
+      } catch (err) {
+        console.warn(`Local save note for ${file.name}:`, err)
       }
 
-      const formData = new FormData()
-      formData.append('file', file)
+      // 2. If backend is online, also sync to backend library
+      if (!backendDownRef.current) {
+        const formData = new FormData()
+        formData.append('file', file)
 
-      try {
-        await api.post('/upload', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        })
-      } catch (err: unknown) {
-        const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-        alert(`Failed to upload ${file.name}: ${msg || 'Check network / server logs.'}`)
+        try {
+          await api.post('/library/upload', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+          })
+        } catch (err: unknown) {
+          const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+          console.warn(`Backend upload notice for ${file.name}: ${msg || 'Using local copy.'}`)
+        }
       }
     }
 
@@ -218,17 +239,26 @@ export function useDashboardData() {
 
     getAllLocalManga().then(localEntries => {
       if (localEntries.length === 0) return
-      const localItemsList: LibraryItem[] = localEntries
-        .sort((a, b) => b.addedAt - a.addedAt)
-        .map(e => ({
-          title: e.title,
-          files: [e.filename],
-          chapters_downloading: 0,
-          chapters_failed: 0,
-          isLocal: true,
-          localId: e.id,
-        }))
-      setLocalItems(localItemsList)
+      const seriesMap = new Map<string, LibraryItem>()
+      for (const e of localEntries.sort((a, b) => b.addedAt - a.addedAt)) {
+        const sTitle = e.seriesTitle || e.title
+        if (!seriesMap.has(sTitle)) {
+          seriesMap.set(sTitle, {
+            title: sTitle,
+            files: [e.filename],
+            chapters_downloading: 0,
+            chapters_failed: 0,
+            isLocal: true,
+            localId: e.id,
+            total_chapters: e.chaptersCount || 1,
+          })
+        } else {
+          const item = seriesMap.get(sTitle)!
+          if (!item.files.includes(e.filename)) item.files.push(e.filename)
+          item.total_chapters = (item.total_chapters || 0) + (e.chaptersCount || 1)
+        }
+      }
+      setLocalItems(Array.from(seriesMap.values()))
     }).catch(() => {})
 
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -243,7 +273,7 @@ export function useDashboardData() {
     const interval = setInterval(() => {
       const hasActive = (queryClient.getQueryData(QK.library) as LibraryItem[] | undefined)
         ?.some(i => i.chapters_downloading > 0)
-      if (hasActive || backendDownRef.current) {
+      if (hasActive) {
         queryClient.invalidateQueries({ queryKey: QK.library })
       }
     }, 5000)
@@ -278,7 +308,7 @@ export function useDashboardData() {
           const { readFile } = await import('@tauri-apps/plugin-fs')
           const bytes = await readFile(fullPath)
           const file = new File([bytes], entry.name, { type: 'application/zip' })
-          const localEntry = buildLocalMangaEntry(file)
+          const localEntry = await buildLocalMangaEntry(file)
           await saveLocalManga(localEntry)
           setLocalItems(prev => [{
             title: localEntry.title,
@@ -287,6 +317,7 @@ export function useDashboardData() {
             chapters_failed: 0,
             isLocal: true,
             localId: localEntry.id,
+            total_chapters: localEntry.chaptersCount || 1,
           }, ...prev])
           importedCount++
         } catch (e) {

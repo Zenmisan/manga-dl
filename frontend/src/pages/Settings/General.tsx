@@ -25,9 +25,9 @@ function CardLabel({ icon: Icon, title }: { icon: React.ElementType; title: stri
 function Toggle({ on, onToggle, disabled }: { on: boolean; onToggle: () => void; disabled?: boolean }) {
   return (
     <button role="switch" aria-checked={on} onClick={onToggle} disabled={disabled}
-      style={{ width: 48, height: 28, borderRadius: 999, background: on ? 'var(--accent)' : 'var(--surface-hover)', border: 'none', position: 'relative', cursor: disabled ? 'not-allowed' : 'pointer', flexShrink: 0, opacity: disabled ? 0.4 : 1, transition: 'background 0.2s' }}
+      style={{ width: 48, height: 24, borderRadius: 999, background: on ? 'var(--accent)' : 'var(--surface-hover)', border: 'none', position: 'relative', cursor: disabled ? 'not-allowed' : 'pointer', flexShrink: 0, opacity: disabled ? 0.4 : 1, transition: 'background 0.2s' }}
     >
-      <span style={{ position: 'absolute', top: 4, width: 20, height: 20, borderRadius: 999, background: '#fff', left: on ? 24 : 4, transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.35)' }} />
+      <span style={{ position: 'absolute', top: 4, width: 16, height: 16, borderRadius: 999, background: '#fff', left: on ? 28 : 4, transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.35)' }} />
     </button>
   )
 }
@@ -134,7 +134,7 @@ export default function GeneralSettings() {
       </div>
 
       <motion.section className="glass-card" style={SECTION}
-        initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }}
         transition={{ delay: 0, duration: 0.4, ease }}
       >
         <CardLabel icon={Palette} title="Appearance" />
@@ -170,7 +170,7 @@ export default function GeneralSettings() {
       </motion.section>
 
       <motion.section className="glass-card" style={SECTION}
-        initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }}
         transition={{ delay: 0.07, duration: 0.4, ease }}
       >
         <CardLabel icon={Plug} title="Connection" />
@@ -219,7 +219,7 @@ export default function GeneralSettings() {
       </motion.section>
 
       <motion.section className="glass-card" style={SECTION}
-        initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }}
         transition={{ delay: 0.14, duration: 0.4, ease }}
       >
         <CardLabel icon={BellRing} title="Notifications" />
@@ -256,7 +256,7 @@ export default function GeneralSettings() {
       </motion.section>
 
       <motion.section className="glass-card" style={SECTION}
-        initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }}
         transition={{ delay: 0.21, duration: 0.4, ease }}
       >
         <CardLabel icon={ShieldCheck} title="Privacy" />

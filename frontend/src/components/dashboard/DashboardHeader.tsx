@@ -48,18 +48,34 @@ export function DashboardHeader({
           <button
             onClick={() => navigate('/search')}
             className="icon-btn"
-            title="Search"
+            aria-label="Search"
           >
             <Search className="w-[18px] h-[18px]" />
           </button>
           <button
-            onClick={() => setShowSortPanel(p => !p)}
+            onClick={() => setView(view === 'grid' ? 'list' : 'grid')}
             className="icon-btn"
-            style={showSortPanel || hasActiveFilters ? { background: 'var(--accent-muted)', color: 'var(--accent)', borderColor: 'var(--accent)' } : {}}
-            title="Filter"
+            aria-label={view === 'grid' ? 'Switch to list view' : 'Switch to grid view'}
           >
-            <SlidersHorizontal className="w-[18px] h-[18px]" />
+            {view === 'grid' ? <List className="w-[18px] h-[18px]" /> : <LayoutGrid className="w-[18px] h-[18px]" />}
           </button>
+          <div className="relative">
+            <button
+              onClick={() => setShowSortPanel(p => !p)}
+              className="icon-btn"
+              style={showSortPanel || hasActiveFilters ? { background: 'var(--accent-muted)', color: 'var(--accent)', borderColor: 'var(--accent)' } : {}}
+              aria-label="Filter and sort"
+            >
+              <SlidersHorizontal className="w-[18px] h-[18px]" />
+            </button>
+            {hasActiveFilters && (
+              <span
+                aria-hidden="true"
+                className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full pointer-events-none"
+                style={{ background: 'var(--accent)' }}
+              />
+            )}
+          </div>
         </div>
       </div>
 
@@ -68,7 +84,7 @@ export function DashboardHeader({
         <div>
           <h1 className="page-title" style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)' }}>Library</h1>
           <p style={{ fontSize: 11, color: 'var(--muted2)', fontWeight: 600, marginTop: 1 }}>
-            {totalCount} {totalCount === 1 ? 'series' : 'series'}
+            {totalCount} {totalCount === 1 ? 'title' : 'titles'}
           </p>
         </div>
 
@@ -77,7 +93,7 @@ export function DashboardHeader({
             onClick={() => refetchLibrary()}
             disabled={refreshing}
             className="icon-btn"
-            title="Refresh library"
+            aria-label="Refresh library"
           >
             <RefreshCw className={cn('w-4 h-4', refreshing && 'animate-spin')} />
           </button>
@@ -88,7 +104,7 @@ export function DashboardHeader({
               disabled={uploading}
               className={cn('icon-btn', uploading && 'opacity-50 pointer-events-none')}
               style={{ color: 'rgb(52 211 153)' }}
-              title="Scan local manga directory"
+              aria-label="Scan local manga directory"
             >
               {uploading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <HardDrive className="w-4 h-4" />}
             </button>
@@ -96,28 +112,37 @@ export function DashboardHeader({
 
           <label
             className={cn('icon-btn cursor-pointer', uploading && 'opacity-50 pointer-events-none')}
-            title="Upload manga archive (.zip, .cbz, .epub)"
+            aria-label="Upload manga archives"
           >
-            <input type="file" className="hidden" accept=".zip,.cbz,.epub" onChange={handleUpload} />
+            <input type="file" multiple className="hidden" accept=".zip,.cbz,.epub" onChange={handleUpload} />
             {uploading ? <RefreshCw className="w-4 h-4 animate-spin" style={{ color: 'var(--accent)' }} /> : <Upload className="w-4 h-4" />}
           </label>
 
           <div style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 2px' }} />
 
-          <button
-            onClick={() => setShowSortPanel(p => !p)}
-            className="icon-btn"
-            style={showSortPanel || hasActiveFilters ? { background: 'var(--accent-muted)', color: 'var(--accent)', borderColor: 'var(--accent)' } : {}}
-            title="Sort & Filter"
-          >
-            <SlidersHorizontal className="w-4 h-4" />
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setShowSortPanel(p => !p)}
+              className="icon-btn"
+              style={showSortPanel || hasActiveFilters ? { background: 'var(--accent-muted)', color: 'var(--accent)', borderColor: 'var(--accent)' } : {}}
+              aria-label="Sort and filter"
+            >
+              <SlidersHorizontal className="w-4 h-4" />
+            </button>
+            {hasActiveFilters && (
+              <span
+                aria-hidden="true"
+                className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full pointer-events-none"
+                style={{ background: 'var(--accent)' }}
+              />
+            )}
+          </div>
 
           <button
             onClick={() => { setSelectMode(p => !p); setSelectedItems(new Set()) }}
             className="icon-btn"
             style={selectMode ? { background: 'var(--accent-muted)', color: 'var(--accent)', borderColor: 'var(--accent)' } : {}}
-            title="Select mode"
+            aria-label={selectMode ? 'Exit select mode' : 'Enter select mode'}
           >
             {selectMode ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
           </button>
@@ -128,7 +153,7 @@ export function DashboardHeader({
             <button
               onClick={() => setDensity(density === 'large' ? 'compact' : 'large')}
               className="icon-btn"
-              title={density === 'large' ? 'Switch to compact' : 'Switch to large'}
+              aria-label={density === 'large' ? 'Switch to compact grid' : 'Switch to large grid'}
             >
               {density === 'large' ? <Grid3X3 className="w-4 h-4" /> : <LayoutGrid className="w-4 h-4" />}
             </button>
@@ -137,7 +162,7 @@ export function DashboardHeader({
           <button
             onClick={() => setView(view === 'grid' ? 'list' : 'grid')}
             className="icon-btn"
-            title={view === 'grid' ? 'List view' : 'Grid view'}
+            aria-label={view === 'grid' ? 'Switch to list view' : 'Switch to grid view'}
           >
             {view === 'grid' ? <List className="w-4 h-4" /> : <LayoutGrid className="w-4 h-4" />}
           </button>

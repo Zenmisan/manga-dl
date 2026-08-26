@@ -1,0 +1,122 @@
+{
+  "runs": [
+    {
+      "date": "2026-08-26",
+      "verb": "redesign",
+      "target": "frontend/src/pages/Onboarding.tsx",
+      "genre": "atmospheric",
+      "macrostructure": "center-wizard",
+      "theme": "app tokens",
+      "scores": { "P": 5, "H": 5, "E": 5, "S": 4, "R": 5, "V": 4 },
+      "changes": [
+        "Onboarding.tsx: all step transitions y:24-slide → fade-only (FADE const, atmospheric rule)",
+        "Onboarding.tsx: done step scale:0.9 entrance → fade-only",
+        "Onboarding.tsx: Server icon color blue → var(--accent) (consistent with accent system)",
+        "Onboarding.tsx: all feature card icons inline hex → var(--accent)",
+        "Onboarding.tsx: progress track inline hex → var(--accent)",
+        "Onboarding.tsx: all buttons — focus-visible ring + disabled:opacity-40 + active:scale-[0.98]",
+        "Onboarding.tsx: connectionError + usernameError divs — added role=alert",
+        "Onboarding.tsx: skip button — added aria-label",
+        "Onboarding.tsx: progress bar — role=progressbar + aria-valuenow/min/max/label",
+        "Onboarding.tsx: eyebrow labels (Welcome / Step 2 / Step 3 / Ready) above each heading",
+        "Onboarding.tsx: heading font sizes → clamp() for responsive scaling",
+        "Onboarding.tsx: overflow-wrap + min-width:0 on all display headings"
+      ]
+    },
+    {
+      "date": "2026-08-26",
+      "verb": "redesign",
+      "target": "frontend/src/pages/Search.tsx",
+      "genre": "atmospheric",
+      "macrostructure": "app-page",
+      "theme": "app tokens",
+      "informed-by": ["S2-comix.to", "S3-AsuraScans"],
+      "scores": { "P": 5, "H": 4, "E": 5, "S": 4, "R": 5, "V": 4 },
+      "changes": [
+        "Search.tsx: MangaCard entrance — scale-fade → fade-only (atmospheric rule)",
+        "Search.tsx: page heading motion — y:8 → fade-only",
+        "Search.tsx: search bar motion — y:4 → fade-only",
+        "Search.tsx: mode tabs — role=tablist + role=tab + aria-selected on each",
+        "Search.tsx: Manage Sources button — title= → aria-label=",
+        "Search.tsx: View Switcher button — title= → aria-label=",
+        "Search.tsx: Filter Panel button — added aria-label='Search filters'",
+        "Search.tsx: source filter pills — added aria-pressed",
+        "Search.tsx: subscribe button — title= → aria-label= (contextual, includes manga title)",
+        "Search.tsx: result count — aria-live polite count paragraph above results"
+      ]
+    },
+    {
+      "date": "2026-08-26",
+      "verb": "redesign",
+      "target": "frontend/src/pages/MangaDetail.tsx",
+      "genre": "atmospheric",
+      "macrostructure": "sidebar-detail (comix.to model)",
+      "theme": "app tokens",
+      "informed-by": ["S1-MangaDex", "S2-comix.to", "S3-AsuraScans"],
+      "scores": { "P": 5, "H": 5, "E": 4, "S": 5, "R": 5, "V": 4 },
+      "changes": [
+        "MangaDetail.tsx: layout → left sidebar (cover + 3-stat-bar + actions + genres + details + synopsis + rating-notes) + right (chapters)",
+        "MangaDetail.tsx: 3-stat bar (Rating | Chapters | Status) with colored dot/icon",
+        "MangaDetail.tsx: eyebrow labels on GENRES / DETAILS / SYNOPSIS sections",
+        "MangaDetail.tsx: all action buttons get focus-visible rings + disabled states",
+        "MangaDetail.tsx: title= → aria-label= on edit button",
+        "MangaHeroHeader.tsx: title= → aria-label= on back button",
+        "MangaChaptersSection.tsx: motion y:40 → fade-only (atmospheric rule)",
+        "MangaChaptersSection.tsx: all title= → aria-label= on icon-only buttons"
+      ]
+    },
+    {
+      "date": "2026-08-26",
+      "verb": "redesign",
+      "target": "frontend/src/pages/Dashboard.tsx + dashboard/*",
+      "genre": "atmospheric",
+      "macrostructure": "app-page (no macrostructure)",
+      "theme": "existing app tokens (var(--surface) etc.)",
+      "scores": { "P": 4, "H": 4, "E": 4, "S": 5, "R": 5, "V": 4 },
+      "changes": [
+        "Dashboard.tsx: empty state → left-aligned atmospheric (bloom + decorative cover grid)",
+        "DashboardCategoryTabs: role=tablist/tab + aria-selected",
+        "DashboardMangaCard: title= → aria-label= on Pin/Delete (list view)",
+        "DashboardSortFilterPanel: aria-pressed on filter chips + aria-label on select"
+      ]
+    },
+    {
+      "date": "2026-08-26",
+      "verb": "redesign",
+      "target": "frontend/src/pages/Landing.tsx",
+      "genre": "atmospheric",
+      "macrostructure": "15-split-studio",
+      "theme": "Midnight",
+      "nav": "N5-floating-pill",
+      "footer": "Ft5-statement",
+      "enrichment": "none",
+      "scores": { "P": 5, "H": 4, "E": 4, "S": 5, "R": 5, "V": 5 }
+    },
+    {
+      "date": "2026-08-26",
+      "verb": "redesign",
+      "target": "frontend/src/pages/Login.tsx + Register.tsx",
+      "genre": "atmospheric",
+      "macrostructure": "centered-card",
+      "theme": "app tokens",
+      "scores": { "P": 4, "H": 4, "E": 4, "S": 4, "R": 4, "V": 4 },
+      "changes": [
+        "Login.tsx: FADE const + BTN_BASE const added",
+        "Login.tsx: container entrance y:20 → fade-only",
+        "Login.tsx: back button — added aria-label + BTN_BASE focus ring",
+        "Login.tsx: eyebrow label 'Sign In' above heading",
+        "Login.tsx: error div — added role=alert",
+        "Login.tsx: password toggle button — BTN_BASE focus ring",
+        "Register.tsx: FADE const + BTN_BASE const added",
+        "Register.tsx: success screen entrance scale:0.95 → fade-only",
+        "Register.tsx: success screen icon color rgb(74,222,128) → var(--accent)",
+        "Register.tsx: success screen bg rgba(74,222,128,...) → rgba(220,38,38,...) (accent-consistent)",
+        "Register.tsx: main container entrance y:24 → fade-only",
+        "Register.tsx: back button — added aria-label + BTN_BASE class",
+        "Register.tsx: eyebrow label 'Get Started' above heading",
+        "Register.tsx: error div — added role=alert",
+        "Stats.tsx: all y:/x: motion values stripped (9 violations → 0), atmospheric rule"
+      ]
+    }
+  ]
+}

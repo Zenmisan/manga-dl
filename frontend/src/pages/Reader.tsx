@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Loader2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react'
@@ -10,7 +10,11 @@ import { useAndroidFeatures } from '../hooks/useAndroidFeatures'
 import { useReaderNavigation } from '../hooks/useReaderNavigation'
 import { ReaderHeader } from '../components/reader/ReaderHeader'
 import { ReaderViewport } from '../components/reader/ReaderViewport'
+import { PageScrubber } from '../components/reader/PageScrubber'
 import { ShortcutOverlay } from '../components/reader/ShortcutOverlay'
+import { ReaderSettingsSheet } from '../components/reader/ReaderSettingsSheet'
+import { startSession, endSession } from '../lib/readingSession'
+import { buildSmartReadUrl } from '../lib/smartUrl'
 
 const fac = new FastAverageColor()
 
@@ -33,12 +37,12 @@ export default function Reader() {
   } = useAppStore()
 
   const [showControls, setShowControls] = useState(true)
-  const [showFilterPanel, setShowFilterPanel] = useState(false)
+  const [showSettingsSheet, setShowSettingsSheet] = useState(false)
   const [ambilightColor, setAmbilightColor] = useState('rgba(0,0,0,0)')
   const [ambilightEnabled, setAmbilightEnabled] = useState(true)
-  const [showShortcutOverlay, setShowShortcutOverlay] = useState(() =>
-    typeof localStorage !== 'undefined' && localStorage.getItem('manga-reader-shortcut-shown') !== 'true'
-  )
+  const [showShortcutOverlay, setShowShortcutOverlay] = useState(() => {
+    try { return localStorage.getItem('manga-reader-shortcut-shown') !== 'true' } catch { return false }
+  })
 
   useEffect(() => {
     if (!localStorage.getItem('onboarded')) {
@@ -52,7 +56,7 @@ export default function Reader() {
     nextChapterId, prevChapterId, localTitle,
     uploading, handleCloudUpload,
     onlinePartsRef, chapterListRef,
-    getImageUrl,
+    getImageUrl, isWidePage,
   } = useReaderData({ mangaTitle, filename, location, readingMode, incognitoMode, upscaling, setShowControls })
 
   useAndroidFeatures({ navigate, ambilightColor })
@@ -62,13 +66,31 @@ export default function Reader() {
     tapZoneLeft, tapZoneRight,
     showSpread, spreadPage2Idx,
     nextUnreadChapterId, navigateToNextChapter, navigateToPrevChapter,
-    volumeKeyMode, setVolumeKeyMode,
   } = useReaderNavigation({
     pages, currentPage, setCurrentPage,
     readingMode, dualPageSpread, tapZoneLayout, hapticFeedback, skipReadChapters,
     onlinePartsRef, chapterListRef, nextChapterId, prevChapterId, mangaTitle, navigate,
-    readerFilters, setReaderFilters,
+    readerFilters, setReaderFilters, isWidePage,
   })
+
+  // Keep a live ref to currentPage so the session cleanup can read the final page reached
+  const currentPageRef = useRef(currentPage)
+  useEffect(() => { currentPageRef.current = currentPage }, [currentPage])
+
+  // Reading session tracking — start when pages arrive, end on unmount / chapter change
+  const sessionTokenRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!pages.length || !onlinePartsRef.current) return
+    const parts = onlinePartsRef.current
+    sessionTokenRef.current = startSession(parts.provider, parts.mangaId, parts.chapterId, parts.mangaTitle || parts.mangaId)
+    return () => {
+      if (sessionTokenRef.current) {
+        endSession(sessionTokenRef.current, currentPageRef.current)
+        sessionTokenRef.current = null
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pages.length])
 
   const handlePageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     if (!ambilightEnabled) return
@@ -138,8 +160,8 @@ export default function Reader() {
       <div className="flex flex-col items-center justify-center min-h-screen bg-[var(--bg)] text-[var(--fg)] p-6 relative overflow-hidden transition-colors">
         <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 70% 50% at 50% 50%, var(--accent-glow, rgba(220,38,38,.15)) 0%, transparent 70%)' }} />
         <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
           className="max-w-md w-full glass-panel p-8 text-center border-red-500/20 relative z-10"
         >
           <div className="w-16 h-16 bg-red-500/10 rounded-2xl border border-red-500/20 flex items-center justify-center mx-auto mb-6">
@@ -159,7 +181,7 @@ export default function Reader() {
   }
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white overflow-x-hidden select-none">
+    <div className="min-h-screen text-white overflow-x-hidden select-none" style={{ background: 'var(--bg, #050505)' }}>
       {/* Ambilight */}
       <div
         className="fixed inset-0 pointer-events-none z-0 transition-all duration-700"
@@ -178,29 +200,26 @@ export default function Reader() {
         mangaTitle={mangaTitle}
         filename={filename}
         localTitle={localTitle}
-        readingMode={readingMode}
-        setReadingMode={setReadingMode}
-        imageScale={imageScale}
-        setImageScale={setImageScale}
-        upscaling={upscaling}
-        setUpscaling={setUpscaling}
+        currentChapterId={onlinePartsRef.current?.chapterId}
+        chapters={chapterListRef.current}
+        onChapterSelect={(chapterId) => {
+          const parts = onlinePartsRef.current
+          if (!parts) return
+          const ch = chapterListRef.current.find(c => c.id === chapterId)
+          const url = buildSmartReadUrl(parts.provider, parts.mangaId, chapterId, parts.mangaTitle || '', ch?.title)
+          navigate(url)
+        }}
         ambilightEnabled={ambilightEnabled}
         setAmbilightEnabled={setAmbilightEnabled}
+        upscaling={upscaling}
+        setUpscaling={setUpscaling}
         uploading={uploading}
         handleCloudUpload={handleCloudUpload}
         handleDownload={handleDownloadChapter}
         handleConvertToPdf={() => openLibraryUrl('library/pdf')}
         handleConvertToEpub={() => openLibraryUrl('library/epub')}
-        showFilterPanel={showFilterPanel}
-        setShowFilterPanel={setShowFilterPanel}
-        readerFilters={readerFilters}
-        setReaderFilters={setReaderFilters}
-        resetReaderFilters={resetReaderFilters}
-        volumeKeyMode={volumeKeyMode}
-        setVolumeKeyMode={setVolumeKeyMode}
-        skipReadChapters={skipReadChapters}
-        setSkipReadChapters={setSkipReadChapters}
         onBack={() => navigate(-1)}
+        onOpenSettings={() => setShowSettingsSheet(true)}
       />
 
       <ReaderViewport
@@ -230,12 +249,22 @@ export default function Reader() {
         handlePageLoad={handlePageLoad}
       />
 
+      <PageScrubber
+        pages={pages}
+        currentPage={currentPage}
+        setCurrentPage={setCurrentPage}
+        getImageUrl={getImageUrl}
+        show={showControls}
+        readingMode={readingMode}
+      />
+
       <footer className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
         <div className="glass-panel px-3 py-2 flex items-center gap-2" style={{ background: 'rgba(8,8,8,0.85)', border: '1px solid rgba(255,255,255,0.08)' }}>
           {prevChapterId ? (
             <button
               onClick={navigateToPrevChapter}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all border border-white/10 hover:border-white/20"
+              aria-label="Previous chapter"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all border border-white/10 hover:border-white/20 focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-black"
             >
               <ChevronLeft className="w-3 h-3" />
               <span className="hidden sm:inline">Prev Ch</span>
@@ -244,7 +273,7 @@ export default function Reader() {
             <div className="w-[70px] hidden sm:block" />
           )}
 
-          <span className="text-[10px] font-bold tracking-[0.15em] text-white/30 uppercase px-2 whitespace-nowrap">
+          <span aria-live="polite" aria-atomic="true" className="text-[10px] font-bold tracking-[0.15em] text-white/30 uppercase px-2 whitespace-nowrap">
             {showSpread && spreadPage2Idx < pages.length
               ? `${currentPage}–${spreadPage2Idx + 1} / ${pages.length}`
               : `${currentPage} / ${pages.length}`}
@@ -253,7 +282,8 @@ export default function Reader() {
           {nextUnreadChapterId ? (
             <button
               onClick={navigateToNextChapter}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all border border-white/10 hover:border-white/20"
+              aria-label="Next chapter"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all border border-white/10 hover:border-white/20 focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-black"
             >
               <span className="hidden sm:inline">Next Ch</span>
               <ChevronRight className="w-3 h-3" />
@@ -270,6 +300,21 @@ export default function Reader() {
           localStorage.setItem('manga-reader-shortcut-shown', 'true')
           setShowShortcutOverlay(false)
         }}
+      />
+
+      <ReaderSettingsSheet
+        open={showSettingsSheet}
+        onClose={() => setShowSettingsSheet(false)}
+        readingMode={readingMode}
+        setReadingMode={setReadingMode}
+        imageScale={imageScale}
+        setImageScale={setImageScale}
+        readerFilters={readerFilters}
+        setReaderFilters={setReaderFilters}
+        resetReaderFilters={resetReaderFilters}
+        skipReadChapters={skipReadChapters}
+        setSkipReadChapters={setSkipReadChapters}
+        isOnline={mangaTitle !== 'local'}
       />
     </div>
   )

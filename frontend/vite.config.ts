@@ -16,42 +16,62 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+      includeAssets: ['Manga-dl1.png', 'favicon.svg'],
       manifest: {
-        name: 'Manga DL',
-        short_name: 'MangaDL',
-        description: 'Read and download manga from multiple sources',
-        theme_color: '#0a0a0a',
-        background_color: '#0a0a0a',
+        name: 'manga-dl',
+        short_name: 'manga-dl',
+        description: 'Read and download manga from 50+ sources — offline, free.',
+        theme_color: '#09090b',
+        background_color: '#09090b',
         display: 'standalone',
         orientation: 'portrait',
         scope: '/',
         start_url: '/',
         icons: [
-          { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
-          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
-          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+          { src: 'Manga-dl1.png', sizes: '192x192', type: 'image/png' },
+          { src: 'Manga-dl1.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
         ],
       },
       workbox: {
-        navigateFallbackDenylist: [/^\/sitemap\.xml$/, /^\/robots\.txt$/, /^\/api\//],
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,xml,txt}'],
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/sitemap\.xml$/, /^\/robots\.txt$/],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
           {
-            urlPattern: /^https?:\/\/.*\/api\//,
-            handler: 'NetworkFirst',
+            // Manga page images served via the backend image-proxy endpoint
+            urlPattern: /\/manga\/image-proxy(\?|$)/,
+            handler: 'CacheFirst',
             options: {
-              cacheName: 'api-cache',
-              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 },
-              networkTimeoutSeconds: 10,
+              cacheName: 'manga-images',
+              expiration: { maxEntries: 2000, maxAgeSeconds: 60 * 60 * 24 * 30 },
             },
           },
           {
-            urlPattern: /^https?:\/\/.*\.(jpg|jpeg|png|gif|webp)/,
+            // DRM-descrambled images (comixto etc.)
+            urlPattern: /\/manga\/descramble-proxy(\?|$)/,
             handler: 'CacheFirst',
             options: {
-              cacheName: 'image-cache',
-              expiration: { maxEntries: 500, maxAgeSeconds: 60 * 60 * 24 * 30 },
+              cacheName: 'manga-images',
+              expiration: { maxEntries: 500, maxAgeSeconds: 60 * 60 * 24 * 7 },
+            },
+          },
+          {
+            // Downloaded chapter images from backend library
+            urlPattern: /\/library\/image\//,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'library-images',
+              expiration: { maxEntries: 5000, maxAgeSeconds: 60 * 60 * 24 * 90 },
+            },
+          },
+          {
+            // API metadata calls (manga detail, library list, sources, users)
+            urlPattern: /\/(manga|library|users|sources|downloads)\//,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'api-cache',
+              expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 },
+              networkTimeoutSeconds: 8,
             },
           },
         ],

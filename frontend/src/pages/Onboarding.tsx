@@ -1,3 +1,6 @@
+/* Hallmark · genre: atmospheric · macrostructure: center-wizard · theme: app tokens · step: 4
+ * pre-emit critique: P5 H5 E5 S4 R5 V4
+ */
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -7,11 +10,20 @@ import api, { resolveBaseURL } from '../lib/api'
 const STEPS = ['welcome', 'backend', 'username', 'done'] as const
 type Step = typeof STEPS[number]
 
+const FADE = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  exit: { opacity: 0 },
+  transition: { duration: 0.45, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] },
+}
+
 const INPUT_STYLE: React.CSSProperties = {
   width: '100%', padding: '12px 14px', borderRadius: 12,
   border: '1px solid var(--border)', background: 'var(--bg)',
   fontSize: 14, color: 'var(--fg)', outline: 'none', boxSizing: 'border-box',
 }
+
+const BTN_BASE = 'focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-black disabled:opacity-40 disabled:pointer-events-none active:scale-[0.98] transition-all'
 
 export default function OnboardingPage() {
   const navigate = useNavigate()
@@ -79,53 +91,63 @@ export default function OnboardingPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 16px', position: 'relative', overflow: 'hidden' }}>
+      {/* Ambient bloom */}
       <div style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%,-50%)', width: 600, height: 600, background: 'radial-gradient(circle, rgba(220,38,38,0.07) 0%, transparent 70%)', pointerEvents: 'none' }} />
 
-      {/* Progress dots */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 40 }}>
+      {/* Progress track */}
+      <div role="progressbar" aria-valuenow={stepIdx + 1} aria-valuemin={1} aria-valuemax={STEPS.length} aria-label={`Step ${stepIdx + 1} of ${STEPS.length}`} style={{ display: 'flex', gap: 6, marginBottom: 40 }}>
         {STEPS.map((s, i) => (
-          <div key={s} style={{ height: 4, borderRadius: 2, background: i <= stepIdx ? '#dc2626' : 'var(--surface-hover)', width: i <= stepIdx ? 32 : 16, transition: 'all 0.3s' }} />
+          <div key={s} style={{ height: 4, borderRadius: 2, background: i <= stepIdx ? 'var(--accent)' : 'var(--surface-hover)', width: i <= stepIdx ? 32 : 16, transition: 'all 0.35s cubic-bezier(0.16,1,0.3,1)' }} />
         ))}
       </div>
 
       <AnimatePresence mode="wait">
+
+        {/* ── Welcome ── */}
         {step === 'welcome' && (
-          <motion.div key="welcome" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -24 }}
-            style={{ maxWidth: 400, width: '100%', textAlign: 'center' }}>
+          <motion.div key="welcome" {...FADE} style={{ maxWidth: 400, width: '100%', textAlign: 'center' }}>
             <div style={{ width: 80, height: 80, margin: '0 auto 28px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <img src="/Manga-dl1.png" alt="manga-dl" style={{ width: '100%', height: '100%', objectFit: 'contain', filter: 'drop-shadow(0 0 16px rgba(220,38,38,0.3))' }} />
             </div>
-            <h1 className="page-title" style={{ fontSize: 30, marginBottom: 12 }}>Welcome to manga-dl</h1>
-            <p style={{ fontSize: 13, color: 'var(--muted2)', marginBottom: 32, lineHeight: 1.7, maxWidth: 320, margin: '0 auto 32px' }}>
-              Your cloud-connected manga reader. Search, download, and read across 500+ sources — on web, desktop, and mobile.
+
+            <p style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 10 }}>Welcome</p>
+            <h1 style={{ fontSize: 'clamp(24px,5vw,32px)', fontWeight: 800, color: 'var(--fg)', lineHeight: 1.15, marginBottom: 12, overflowWrap: 'anywhere', minWidth: 0 }}>Your manga, everywhere.</h1>
+            <p style={{ fontSize: 13, color: 'var(--muted2)', marginBottom: 32, lineHeight: 1.7, maxWidth: 300, margin: '0 auto 32px' }}>
+              Search, download, and read across 50+ sources — on web, desktop, and Android.
             </p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 32 }}>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 10, marginBottom: 32 }}>
               {[
                 { icon: Book, label: 'Library', desc: 'Cloud + local' },
                 { icon: Sparkles, label: 'AI Upscale', desc: 'Sharper pages' },
                 { icon: Server, label: 'Self-host', desc: 'Your server' },
               ].map(item => (
                 <div key={item.label} style={{ padding: '14px 10px', borderRadius: 16, border: '1px solid var(--border)', background: 'var(--surface)', textAlign: 'center' }}>
-                  <item.icon style={{ width: 20, height: 20, color: '#ef4444', margin: '0 auto 8px' }} />
+                  <item.icon style={{ width: 20, height: 20, color: 'var(--accent)', margin: '0 auto 8px' }} />
                   <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--fg)' }}>{item.label}</div>
                   <div style={{ fontSize: 10, color: 'var(--muted3)', marginTop: 2 }}>{item.desc}</div>
                 </div>
               ))}
             </div>
-            <button onClick={() => setStep('backend')} className="btn-primary"
-              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px 0', fontSize: 14, boxShadow: '0 4px 24px rgba(220,38,38,0.25)' }}>
+
+            <button
+              onClick={() => setStep('backend')}
+              className={`btn-primary ${BTN_BASE}`}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px 0', fontSize: 14, boxShadow: '0 4px 24px rgba(220,38,38,0.25)' }}
+            >
               Get Started <ChevronRight style={{ width: 18, height: 18 }} />
             </button>
           </motion.div>
         )}
 
+        {/* ── Backend ── */}
         {step === 'backend' && (
-          <motion.div key="backend" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -24 }}
-            style={{ maxWidth: 400, width: '100%' }}>
-            <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
-              <Server style={{ width: 24, height: 24, color: 'rgb(56,189,248)' }} />
+          <motion.div key="backend" {...FADE} style={{ maxWidth: 400, width: '100%' }}>
+            <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
+              <Server style={{ width: 24, height: 24, color: 'var(--accent)' }} />
             </div>
-            <h2 className="page-title" style={{ fontSize: 24, marginBottom: 8 }}>Connect to backend</h2>
+            <p style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 8 }}>Step 2</p>
+            <h2 style={{ fontSize: 'clamp(20px,4vw,26px)', fontWeight: 800, color: 'var(--fg)', marginBottom: 8, overflowWrap: 'anywhere', minWidth: 0 }}>Connect to backend</h2>
             <p style={{ fontSize: 13, color: 'var(--muted2)', marginBottom: 28, lineHeight: 1.6 }}>
               The app needs an API key to talk to the server. The default key works for the hosted version.
             </p>
@@ -148,14 +170,14 @@ export default function OnboardingPage() {
             </div>
 
             {connectionError && (
-              <div style={{ marginTop: 16, padding: '10px 14px', borderRadius: 10, background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.2)', fontSize: 12, color: '#f87171' }}>
+              <div role="alert" style={{ marginTop: 16, padding: '10px 14px', borderRadius: 10, background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.2)', fontSize: 12, color: '#f87171' }}>
                 {connectionError}
               </div>
             )}
 
             <div style={{ display: 'flex', gap: 10, marginTop: 28 }}>
-              <button onClick={() => setStep('welcome')} disabled={testingConnection} className="btn-secondary" style={{ flex: 1 }}>Back</button>
-              <button onClick={handleConnect} disabled={testingConnection} className="btn-primary"
+              <button onClick={() => setStep('welcome')} disabled={testingConnection} className={`btn-secondary ${BTN_BASE}`} style={{ flex: 1 }}>Back</button>
+              <button onClick={handleConnect} disabled={testingConnection} className={`btn-primary ${BTN_BASE}`}
                 style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                 {testingConnection ? <><Loader2 style={{ width: 15, height: 15 }} className="animate-spin" /> Connecting…</> : <>Continue <ChevronRight style={{ width: 15, height: 15 }} /></>}
               </button>
@@ -163,13 +185,14 @@ export default function OnboardingPage() {
           </motion.div>
         )}
 
+        {/* ── Username ── */}
         {step === 'username' && (
-          <motion.div key="username" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -24 }}
-            style={{ maxWidth: 400, width: '100%' }}>
+          <motion.div key="username" {...FADE} style={{ maxWidth: 400, width: '100%' }}>
             <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
-              <AtSign style={{ width: 24, height: 24, color: '#ef4444' }} />
+              <AtSign style={{ width: 24, height: 24, color: 'var(--accent)' }} />
             </div>
-            <h2 className="page-title" style={{ fontSize: 24, marginBottom: 8 }}>Choose a username</h2>
+            <p style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 8 }}>Step 3</p>
+            <h2 style={{ fontSize: 'clamp(20px,4vw,26px)', fontWeight: 800, color: 'var(--fg)', marginBottom: 8, overflowWrap: 'anywhere', minWidth: 0 }}>Choose a username</h2>
             <p style={{ fontSize: 13, color: 'var(--muted2)', marginBottom: 20, lineHeight: 1.6 }}>
               Your unique identifier on manga-dl. Keeps your library separate from every other user.
             </p>
@@ -197,25 +220,28 @@ export default function OnboardingPage() {
             </div>
 
             {usernameError && (
-              <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.2)', fontSize: 12, color: '#f87171', marginBottom: 12 }}>
+              <div role="alert" style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.2)', fontSize: 12, color: '#f87171', marginBottom: 12 }}>
                 {usernameError}
               </div>
             )}
 
             <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-              <button onClick={() => setStep('backend')} disabled={usernameLoading} className="btn-secondary" style={{ flex: 1 }}>Back</button>
+              <button onClick={() => setStep('backend')} disabled={usernameLoading} className={`btn-secondary ${BTN_BASE}`} style={{ flex: 1 }}>Back</button>
               <button
                 onClick={handleUsernameSubmit}
                 disabled={usernameLoading || username.trim().length < 3}
-                className="btn-primary"
+                className={`btn-primary ${BTN_BASE}`}
                 style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
               >
                 {usernameLoading ? <><Loader2 style={{ width: 15, height: 15 }} className="animate-spin" /> Setting…</> : <>Set Username <ChevronRight style={{ width: 15, height: 15 }} /></>}
               </button>
             </div>
+
             <button
               onClick={() => setStep('done')}
               disabled={usernameLoading}
+              aria-label="Skip username setup"
+              className={`${BTN_BASE}`}
               style={{ marginTop: 14, width: '100%', fontSize: 12, color: 'var(--muted3)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
             >
               Skip for now
@@ -223,22 +249,27 @@ export default function OnboardingPage() {
           </motion.div>
         )}
 
+        {/* ── Done ── */}
         {step === 'done' && (
-          <motion.div key="done" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
-            style={{ maxWidth: 400, width: '100%', textAlign: 'center' }}>
-            <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 28px' }}>
+          <motion.div key="done" {...FADE} style={{ maxWidth: 400, width: '100%', textAlign: 'center' }}>
+            <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 28px' }}>
               <Check style={{ width: 36, height: 36, color: 'rgb(74,222,128)' }} />
             </div>
-            <h2 className="page-title" style={{ fontSize: 28, marginBottom: 12 }}>You're all set!</h2>
+            <p style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 10 }}>Ready</p>
+            <h2 style={{ fontSize: 'clamp(22px,5vw,30px)', fontWeight: 800, color: 'var(--fg)', marginBottom: 12, overflowWrap: 'anywhere', minWidth: 0 }}>You're all set.</h2>
             <p style={{ fontSize: 13, color: 'var(--muted2)', marginBottom: 36, lineHeight: 1.6 }}>
               Search for manga, subscribe to series, download chapters and read anywhere.
             </p>
-            <button onClick={finish} className="btn-primary"
-              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px 0', fontSize: 14, boxShadow: '0 4px 24px rgba(220,38,38,0.25)' }}>
+            <button
+              onClick={finish}
+              className={`btn-primary ${BTN_BASE}`}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px 0', fontSize: 14, boxShadow: '0 4px 24px rgba(220,38,38,0.25)' }}
+            >
               Open Library <ChevronRight style={{ width: 18, height: 18 }} />
             </button>
           </motion.div>
         )}
+
       </AnimatePresence>
     </div>
   )

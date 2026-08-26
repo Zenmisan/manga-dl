@@ -4,6 +4,7 @@ import { BarChart2, Flame, CheckCircle2, Edit3 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { getCategories } from '../lib/categories'
 import { ThemedLoadingScreen } from '../components/common/ThemedLoader'
+import { getTodayReadingSecs, getAvgSessionSecs, getReadingSpeedPagesPerMin } from '../lib/readingSession'
 
 const GOALS_KEY = 'manga-dl-reading-goals'
 
@@ -136,6 +137,10 @@ export default function StatsPage() {
   const maxDaily = Math.max(...daily.map(d => d.count), 1)
   const heatmapCols = buildHeatmapGrid(yearlyDownloads)
 
+  const todayReadSecs = getTodayReadingSecs()
+  const avgSessionSecs = getAvgSessionSecs()
+  const readingSpeedPpm = getReadingSpeedPagesPerMin()
+
   const totalReadSecs = stats.total_pages * 45
   const readHours = Math.floor(totalReadSecs / 3600)
   const readMins = Math.floor((totalReadSecs % 3600) / 60)
@@ -185,8 +190,8 @@ export default function StatsPage() {
           return (
           <motion.div
             key={card.label}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             transition={{ delay: i * 0.05 }}
             style={{ padding: '18px 18px', borderRadius: 16, border: '1px solid var(--border)', background: 'var(--surface)' }}
           >
@@ -210,8 +215,8 @@ export default function StatsPage() {
       {/* Streak */}
       {stats.streak_days > 0 && (
         <motion.div
-          initial={{ opacity: 0, x: -10 }}
-          animate={{ opacity: 1, x: 0 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
           style={{ display: 'flex', alignItems: 'center', gap: 14, ...CARD_STYLE, borderColor: 'rgba(251,146,60,0.25)', background: 'rgba(251,146,60,0.06)' }}
         >
           <div style={{ width: 44, height: 44, borderRadius: 14, background: 'rgba(251,146,60,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -226,8 +231,8 @@ export default function StatsPage() {
 
       {/* Activity Chart */}
       <motion.section
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
         transition={{ delay: 0.1 }}
         style={CARD_STYLE}
       >
@@ -263,8 +268,8 @@ export default function StatsPage() {
       {/* Reading Heatmap */}
       {heatmapCols.length > 0 && (
         <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
           transition={{ delay: 0.15 }}
           style={CARD_STYLE}
         >
@@ -289,8 +294,8 @@ export default function StatsPage() {
 
       {/* Reading Goals */}
       <motion.section
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
         transition={{ delay: 0.2 }}
         style={CARD_STYLE}
       >
@@ -370,8 +375,8 @@ export default function StatsPage() {
       {/* Provider Breakdown */}
       {stats.provider_breakdown.length > 0 && (
         <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
           transition={{ delay: 0.25 }}
           style={CARD_STYLE}
         >
@@ -396,8 +401,8 @@ export default function StatsPage() {
       {/* Per-Category Breakdown */}
       {categoryStats.length > 0 && (
         <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
           transition={{ delay: 0.3 }}
           style={CARD_STYLE}
         >
@@ -421,8 +426,8 @@ export default function StatsPage() {
 
       {/* Reading Pace */}
       <motion.section
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
         transition={{ delay: 0.35 }}
         style={CARD_STYLE}
       >
@@ -440,6 +445,30 @@ export default function StatsPage() {
           ))}
         </div>
       </motion.section>
+
+      {/* Session Stats — only show if any sessions recorded */}
+      {(todayReadSecs > 0 || avgSessionSecs > 0 || readingSpeedPpm > 0) && (
+        <motion.section
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4 }}
+          style={CARD_STYLE}
+        >
+          <div style={{ fontSize: 12, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)', marginBottom: 16 }}>Session Stats</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 16, textAlign: 'center' }}>
+            {[
+              { val: todayReadSecs > 0 ? (todayReadSecs >= 3600 ? `${Math.floor(todayReadSecs / 3600)}h ${Math.floor((todayReadSecs % 3600) / 60)}m` : `${Math.floor(todayReadSecs / 60)}m`) : '—', label: 'Today' },
+              { val: avgSessionSecs > 0 ? `${Math.floor(avgSessionSecs / 60)}m` : '—', label: 'Avg Session' },
+              { val: readingSpeedPpm > 0 ? `${readingSpeedPpm} p/m` : '—', label: 'Read Speed' },
+            ].map(item => (
+              <div key={item.label}>
+                <div style={{ fontSize: 24, fontWeight: 900, fontFamily: 'Anton, sans-serif', color: 'var(--accent)', lineHeight: 1 }}>{item.val}</div>
+                <div style={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted3)', marginTop: 6 }}>{item.label}</div>
+              </div>
+            ))}
+          </div>
+        </motion.section>
+      )}
 
       </div>
     </div>

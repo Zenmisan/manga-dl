@@ -53,14 +53,24 @@ export function ReaderViewport({
     >
       {readingMode === 'vertical-pager' ? (
         <div className="relative w-full h-full flex items-center justify-center">
-          <div className={`absolute inset-y-0 left-0 ${tapZoneLeft} z-20 cursor-pointer`} onClick={!disabled ? prevPage : undefined} />
-          <div className={`absolute inset-y-0 right-0 ${tapZoneRight} z-20 cursor-pointer`} onClick={!disabled ? nextPage : undefined} />
+          <div
+            role="button" tabIndex={disabled ? -1 : 0} aria-label="Previous page"
+            className={`absolute inset-y-0 left-0 ${tapZoneLeft} z-20 cursor-pointer`}
+            onClick={!disabled ? prevPage : undefined}
+            onKeyDown={!disabled ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); prevPage() } } : undefined}
+          />
+          <div
+            role="button" tabIndex={disabled ? -1 : 0} aria-label="Next page"
+            className={`absolute inset-y-0 right-0 ${tapZoneRight} z-20 cursor-pointer`}
+            onClick={!disabled ? nextPage : undefined}
+            onKeyDown={!disabled ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); nextPage() } } : undefined}
+          />
           <AnimatePresence mode="wait">
             <motion.div
               key={currentPage}
-              initial={{ opacity: 0, y: 40 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -40 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               transition={{ duration: 0.18 }}
               className="h-full w-full flex items-center justify-center p-4"
             >
@@ -102,7 +112,7 @@ export function ReaderViewport({
                 onLoad={idx === 0 ? handlePageLoad : undefined}
                 style={filterStyle}
               />
-              <div className="absolute bottom-4 right-4 px-2 py-1 bg-black/40 backdrop-blur-md rounded text-[10px] font-mono text-white/40">
+              <div aria-live="polite" aria-atomic="true" className="absolute bottom-4 right-4 px-2 py-1 bg-black/40 backdrop-blur-md rounded text-[10px] font-mono text-white/40">
                 {idx + 1} / {pages.length}
               </div>
             </motion.div>
@@ -141,12 +151,18 @@ export function ReaderViewport({
         /* Paged mode: LTR / RTL */
         <div className="relative w-full h-full flex items-center justify-center">
           <div
+            role="button" tabIndex={disabled ? -1 : 0}
+            aria-label={readingMode === 'manga' ? 'Previous page' : 'Next page'}
             className={`absolute inset-y-0 left-0 ${tapZoneLeft} z-20 cursor-pointer`}
             onClick={!disabled ? (readingMode === 'manga' ? prevPage : nextPage) : undefined}
+            onKeyDown={!disabled ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (readingMode === 'manga') prevPage(); else nextPage() } } : undefined}
           />
           <div
+            role="button" tabIndex={disabled ? -1 : 0}
+            aria-label={readingMode === 'manga' ? 'Next page' : 'Previous page'}
             className={`absolute inset-y-0 right-0 ${tapZoneRight} z-20 cursor-pointer`}
             onClick={!disabled ? (readingMode === 'manga' ? nextPage : prevPage) : undefined}
+            onKeyDown={!disabled ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (readingMode === 'manga') nextPage(); else prevPage() } } : undefined}
           />
 
           <AnimatePresence mode="wait">
@@ -191,16 +207,26 @@ export function ReaderViewport({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute inset-0 z-25 flex flex-col items-center justify-end pb-32 pointer-events-none"
+                transition={{ duration: 0.4 }}
+                className="fixed inset-0 z-[45] flex items-center justify-center"
+                style={{ background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
+                onClick={e => e.stopPropagation()}
               >
-                <div className="pointer-events-auto shadow-2xl text-center" style={{ background: 'rgba(8,8,8,0.90)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '1.25rem', padding: '20px 24px' }}>
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-1">End of chapter</p>
-                  <p className="font-bold text-sm text-white/70 mb-4">{filename?.replace('.cbz', '') ?? 'Chapter'}</p>
+                <div
+                  className="text-center mx-4 w-full max-w-sm"
+                  style={{ background: 'rgba(12,12,12,0.96)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: '1.5rem', padding: '32px 28px' }}
+                >
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-2">
+                    End of chapter
+                  </p>
+                  <p className="font-bold text-base text-white/80 mb-8">
+                    {filename?.replace('.cbz', '') ?? 'Chapter'}
+                  </p>
                   <div className="flex gap-3 justify-center flex-wrap">
                     {prevChapterId && (
                       <button
                         onClick={navigateToPrevChapter}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/15 text-white/60 hover:text-white hover:bg-white/10 text-xs font-black uppercase tracking-widest transition-all"
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/15 text-white/60 hover:text-white hover:bg-white/10 text-xs font-black uppercase tracking-widest transition-all focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-black"
                       >
                         <ArrowLeft className="w-3.5 h-3.5" /> Prev
                       </button>
@@ -208,12 +234,13 @@ export function ReaderViewport({
                     {nextUnreadChapterId ? (
                       <button
                         onClick={navigateToNextChapter}
-                        className="flex items-center gap-2 px-5 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+                        className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-black"
+                        style={{ background: '#dc2626', color: '#fff', boxShadow: '0 0 20px rgba(220,38,38,0.35)' }}
                       >
                         {skipReadChapters ? 'Next Unread' : 'Next Chapter'} <ArrowRight className="w-3.5 h-3.5" />
                       </button>
                     ) : (
-                      <p className="text-[10px] text-white/20 font-bold uppercase tracking-widest py-2">
+                      <p className="text-[10px] text-white/20 font-bold uppercase tracking-widest py-2.5">
                         {skipReadChapters && nextChapterId ? 'All caught up!' : 'No next chapter'}
                       </p>
                     )}
@@ -226,13 +253,15 @@ export function ReaderViewport({
           <div className="absolute bottom-10 right-10 flex gap-4 z-30">
             <button
               onClick={readingMode === 'manga' ? prevPage : nextPage}
-              className={cn("p-4 glass-panel hover:bg-white/10 transition-all", ((readingMode === 'manga' && currentPage === 1) || (readingMode === 'manga-rtl' && currentPage === pages.length)) && "opacity-0 pointer-events-none")}
+              aria-label={readingMode === 'manga' ? 'Previous page' : 'Next page'}
+              className={cn("p-4 glass-panel hover:bg-white/10 transition-all focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-black", ((readingMode === 'manga' && currentPage === 1) || (readingMode === 'manga-rtl' && currentPage === pages.length)) && "opacity-0 pointer-events-none")}
             >
               <ChevronLeft className="w-6 h-6" />
             </button>
             <button
               onClick={readingMode === 'manga' ? nextPage : prevPage}
-              className={cn("p-4 glass-panel hover:bg-white/10 transition-all", ((readingMode === 'manga' && currentPage === pages.length) || (readingMode === 'manga-rtl' && currentPage === 1)) && "opacity-0 pointer-events-none")}
+              aria-label={readingMode === 'manga' ? 'Next page' : 'Previous page'}
+              className={cn("p-4 glass-panel hover:bg-white/10 transition-all focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-black", ((readingMode === 'manga' && currentPage === pages.length) || (readingMode === 'manga-rtl' && currentPage === 1)) && "opacity-0 pointer-events-none")}
             >
               <ChevronRight className="w-6 h-6" />
             </button>

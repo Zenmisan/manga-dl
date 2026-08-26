@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { Book, Sparkles, Upload } from 'lucide-react'
 import { useDashboardData } from '../hooks/useDashboardData'
@@ -20,7 +20,14 @@ export default function Dashboard() {
     pinnedFiles,
   } = useDashboardData()
 
-  const [density, setDensity] = useState<'large' | 'compact'>('large')
+  const [density, setDensity] = useState<'large' | 'compact'>(() =>
+    (localStorage.getItem('manga-dl-library-density') as 'large' | 'compact') ?? 'large'
+  )
+
+  const handleSetDensity = useCallback((d: 'large' | 'compact') => {
+    localStorage.setItem('manga-dl-library-density', d)
+    setDensity(d)
+  }, [])
 
   const handleToggleSelect = (title: string, e: React.MouseEvent) => {
     e.stopPropagation()
@@ -34,7 +41,7 @@ export default function Dashboard() {
 
   const gridStyle = view === 'grid' ? {
     display: 'grid' as const,
-    gridTemplateColumns: `repeat(auto-fill, minmax(${density === 'large' ? 160 : 110}px, 1fr))`,
+    gridTemplateColumns: `repeat(auto-fill, minmax(${density === 'large' ? 140 : 100}px, 1fr))`,
     gap: density === 'large' ? 18 : 10,
   } : undefined
 
@@ -69,7 +76,7 @@ export default function Dashboard() {
         view={view}
         setView={setView}
         density={density}
-        setDensity={setDensity}
+        setDensity={handleSetDensity}
         totalCount={displayedItems.length}
       />
 
@@ -89,29 +96,73 @@ export default function Dashboard() {
         />
 
         {displayedItems.length === 0 ? (
+          /* Hallmark · genre: atmospheric · empty state redesign · R2 Dashboard */
           <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="glass-card"
-            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '48px 24px', maxWidth: 360, margin: '48px auto 0' }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+            className="relative mt-10"
+            style={{ maxWidth: 680 }}
           >
-            <div style={{ width: 64, height: 64, borderRadius: 20, background: 'var(--surface)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
-              <Book style={{ width: 28, height: 28, color: 'var(--muted3)' }} />
-            </div>
-            <h2 style={{ fontSize: 16, fontWeight: 800, color: 'var(--fg)', margin: '0 0 8px' }}>No manga in this category</h2>
-            <p style={{ fontSize: 12.5, color: 'var(--muted2)', lineHeight: 1.6, margin: '0 0 24px' }}>
-              Search the catalog or upload local archives (.zip, .cbz, .epub) to get started.
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
-              <button onClick={() => navigate('/search')} className="btn-primary" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 12 }}>
-                <Sparkles style={{ width: 14, height: 14 }} />
-                Browse Catalog
-              </button>
-              <label className="btn-secondary" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', fontSize: 12 }}>
-                <input type="file" className="hidden" accept=".zip,.cbz,.epub" onChange={handleUpload} />
-                <Upload style={{ width: 14, height: 14 }} />
-                Upload Local Archive (.zip, .cbz)
-              </label>
+            {/* Atmospheric bloom */}
+            <div
+              className="absolute pointer-events-none select-none"
+              aria-hidden="true"
+              style={{
+                top: -80, left: -60, width: 380, height: 320,
+                background: 'radial-gradient(ellipse at center, var(--accent-muted) 0%, transparent 70%)',
+                opacity: 0.35,
+              }}
+            />
+
+            <div className="relative z-10 flex flex-col md:flex-row gap-10 items-start">
+              {/* Left: text + actions */}
+              <div className="flex-1 min-w-0">
+                <div style={{ width: 52, height: 52, borderRadius: 14, background: 'var(--surface)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 18 }}>
+                  <Book style={{ width: 22, height: 22, color: 'var(--muted3)' }} />
+                </div>
+                <h2 style={{ fontSize: 26, fontWeight: 900, color: 'var(--fg)', margin: '0 0 10px', lineHeight: 1.2, letterSpacing: '-0.015em' }}>
+                  Nothing here yet.
+                </h2>
+                <p style={{ fontSize: 13, color: 'var(--muted2)', lineHeight: 1.7, margin: '0 0 26px', maxWidth: 320 }}>
+                  Search 50+ manga sources or drop your local CBZ archives to build your library.
+                </p>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => navigate('/search')}
+                    className="btn-primary"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12 }}
+                  >
+                    <Sparkles style={{ width: 14, height: 14 }} aria-hidden="true" />
+                    Browse Sources
+                  </button>
+                  <label
+                    className="btn-secondary"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12 }}
+                  >
+                    <input type="file" multiple className="hidden" accept=".zip,.cbz,.epub" onChange={handleUpload} aria-label="Upload manga archives" />
+                    <Upload style={{ width: 14, height: 14 }} aria-hidden="true" />
+                    Upload Archives
+                  </label>
+                </div>
+              </div>
+
+              {/* Right: decorative placeholder covers (desktop only) */}
+              <div className="hidden md:grid grid-cols-3 gap-2 shrink-0 pt-2" aria-hidden="true">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      width: 76,
+                      height: 108,
+                      borderRadius: 8,
+                      background: 'var(--surface)',
+                      border: '1px solid var(--border)',
+                      opacity: Math.max(0.08, 0.28 - i * 0.04),
+                    }}
+                  />
+                ))}
+              </div>
             </div>
           </motion.div>
         ) : (

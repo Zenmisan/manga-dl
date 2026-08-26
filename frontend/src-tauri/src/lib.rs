@@ -306,6 +306,16 @@ fn kill_backend(app: &tauri::AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(target_os = "linux")]
+    {
+        // Fix WebKitGTK 2.40+ blank white/black window bug on Wayland/Hyprland/Arch Linux
+        if std::env::var("WEBKIT_DISABLE_DMABUF_RENDERER").is_err() {
+            unsafe {
+                std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+            }
+        }
+    }
+
     let backend_child = start_backend();
 
     tauri::Builder::default()

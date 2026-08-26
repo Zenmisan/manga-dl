@@ -43,7 +43,7 @@ export default function SettingsLayout() {
 
       {/* ── Desktop: 2-col ── */}
       <div className="hidden md:flex flex-1" style={{ minHeight: '100vh' }}>
-        <nav style={{ width: 220, flexShrink: 0, borderRight: '1px solid var(--border)', padding: '32px 0', display: 'flex', flexDirection: 'column' }}>
+        <nav style={{ width: 240, flexShrink: 0, borderRight: '1px solid var(--border)', padding: '32px 0', display: 'flex', flexDirection: 'column' }}>
           <div style={{ padding: '0 20px 28px', fontFamily: "'Anton', sans-serif", fontSize: 24, fontWeight: 400, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--fg)' }}>
             Settings
           </div>

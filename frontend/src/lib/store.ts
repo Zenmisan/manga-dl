@@ -107,6 +107,10 @@ interface AppState {
   // App lock
   appLockEnabled: boolean
   setAppLockEnabled: (val: boolean) => void
+
+  // Extension update alerts
+  extensionUpdateCount: number
+  setExtensionUpdateCount: (n: number) => void
 }
 
 const defaultFilters: ReaderFilters = {
@@ -193,6 +197,9 @@ export const useAppStore = create<AppState>()(
 
       appLockEnabled: false,
       setAppLockEnabled: (val) => set({ appLockEnabled: val }),
+
+      extensionUpdateCount: 0,
+      setExtensionUpdateCount: (n) => set({ extensionUpdateCount: n }),
     }),
     {
       name: 'manga-dl-prefs',

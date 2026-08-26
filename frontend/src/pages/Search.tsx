@@ -2,12 +2,16 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../lib/api'
 import { ExtensionManager } from '../lib/extensions'
-import { Search as SearchIcon, Globe, BookOpen, BookMarked, Check, SlidersHorizontal, X, TrendingUp, Clock } from 'lucide-react'
+import { Search as SearchIcon, Globe, BookOpen, BookMarked, Check, SlidersHorizontal, X, TrendingUp, Clock, LayoutGrid, LayoutList, Layers } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
 import { useAppStore } from '../lib/store'
 import { buildSmartMangaUrl } from '../lib/smartUrl'
 import { ThemedSpinner, ThemedSkeletonGrid } from '../components/common/ThemedLoader'
+import { SourceSwimlane } from '../components/search/SourceSwimlane'
+import { SourceToggleModal } from '../components/search/SourceToggleModal'
+import { getEnabledSources } from '../lib/sourceManager'
+import { sortResultsByRelevance } from '../lib/relevanceScorer'
 
 interface MangaResult {
   id: string
@@ -42,10 +46,10 @@ function MangaCard({ r, idx, onSubscribe, subscribed, subscribing, navigate }: {
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, scale: 0.96 }}
-      animate={{ opacity: 1, scale: 1 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ delay: Math.min(idx * 0.03, 0.3) }}
+      transition={{ duration: 0.4, delay: Math.min(idx * 0.03, 0.3) }}
       onClick={() => navigate(buildSmartMangaUrl(r.provider, r.id, r.title))}
       className="group cursor-pointer"
     >
@@ -82,7 +86,7 @@ function MangaCard({ r, idx, onSubscribe, subscribed, subscribing, navigate }: {
               ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-400 hover:bg-red-500/20 hover:border-red-500/30 hover:text-red-400"
               : "bg-white/10 border-white/15 hover:bg-white/20 text-white"
           )}
-          title={isSubscribed ? "In Library (tap to remove)" : "Add to Library"}
+          aria-label={isSubscribed ? `Remove ${r.title} from library` : `Add ${r.title} to library`}
         >
           {isSubscribing ? (
             <ThemedSpinner size="xs" />
@@ -124,6 +128,14 @@ export default function SearchPage() {
   const [subscribed, setSubscribed] = useState<string[]>([])
   const [extCount, setExtCount] = useState(0)
   const [showFilterPanel, setShowFilterPanel] = useState(false)
+  const [showSourceModal, setShowSourceModal] = useState(false)
+  const [searchViewMode, setSearchViewMode] = useState<'lanes' | 'grid'>(() => {
+    return (localStorage.getItem('manga-dl-search-view') as 'lanes' | 'grid') || 'lanes'
+  })
+
+  const [enabledSources, setEnabledSources] = useState<string[]>(() => {
+    return getEnabledSources(PROVIDERS.map(p => p.id))
+  })
 
   const [filterStatus, setFilterStatus] = useState<string>('any')
   const [filterRating, setFilterRating] = useState<string[]>(['safe'])
@@ -152,8 +164,20 @@ export default function SearchPage() {
     if (activeProviders.length > 0) {
       if (selectedProvider && !activeProviders.some(p => p.id === selectedProvider)) setSelectedProvider(null)
       if (browseProvider && !activeProviders.some(p => p.id === browseProvider)) setBrowseProvider(activeProviders[0]?.id || 'mangadex')
+      
+      setEnabledSources(prev => {
+        const availableIds = activeProviders.map(p => p.id)
+        const valid = prev.filter(id => availableIds.includes(id))
+        return valid.length > 0 ? valid : getEnabledSources(availableIds)
+      })
     }
   }, [activeProviders, selectedProvider, browseProvider, setSelectedProvider, setBrowseProvider])
+
+  const handleToggleViewMode = () => {
+    const next = searchViewMode === 'lanes' ? 'grid' : 'lanes'
+    setSearchViewMode(next)
+    localStorage.setItem('manga-dl-search-view', next)
+  }
 
   const handleSubscribe = async (e: React.MouseEvent, result: MangaResult) => {
     e.stopPropagation()
@@ -180,28 +204,33 @@ export default function SearchPage() {
       if (selectedProvider) {
         const ext = manager.extensions.get(selectedProvider)
         const results = ext ? await ext.search(query, 1) as MangaResult[] : []
-        setSearchResults(results)
+        const ranked = sortResultsByRelevance(results, query)
+        setSearchResults(ranked)
       } else {
         const allExts = Array.from(manager.extensions.values())
-        const settled = await Promise.allSettled(allExts.map(ext => ext.search(query, 1) as Promise<MangaResult[]>))
-        settled.forEach((r, i) => { if (r.status === 'rejected') console.error(`[Search] ${allExts[i].name} failed:`, r.reason) })
+        const targetExts = allExts.filter(ext => enabledSources.includes(ext.id))
+        const finalExts = targetExts.length > 0 ? targetExts : allExts
+
+        const settled = await Promise.allSettled(finalExts.map(ext => ext.search(query, 1) as Promise<MangaResult[]>))
+        settled.forEach((r, i) => { if (r.status === 'rejected') console.error(`[Search] ${finalExts[i].name} failed:`, r.reason) })
         const merged = settled.flatMap(r => r.status === 'fulfilled' ? r.value : [])
         if (merged.length === 0 && settled.some(r => r.status === 'rejected')) {
           const firstError = settled.find(r => r.status === 'rejected') as PromiseRejectedResult
           if (String(firstError?.reason).includes('403')) alert('Search failed (403 Forbidden). Is your API Key correct in Settings?')
         }
-        setSearchResults(merged)
+        const ranked = sortResultsByRelevance(merged, query)
+        setSearchResults(ranked)
       }
       setHasSearched(true)
     } catch (err) { console.error(err) }
     finally { setLoading(false) }
-  }, [selectedProvider, setSearchResults, setHasSearched])
+  }, [selectedProvider, enabledSources, setSearchResults, setHasSearched])
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (searchQuery.trim() && tab === 'search') performSearch(searchQuery.trim())
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedProvider])
+  }, [selectedProvider, enabledSources])
 
   const fetchBrowse = useCallback(async (provider: string, page: number, endpoint: 'popular' | 'latest') => {
     setBrowseLoading(true)
@@ -271,15 +300,16 @@ export default function SearchPage() {
       <div className="px-4 md:px-6 pt-5 pb-28 flex-1">
 
         {/* Page heading */}
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} style={{ marginBottom: 16 }}>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }} style={{ marginBottom: 16 }}>
           <h1 style={{ fontSize: 'clamp(22px, 4vw, 34px)', fontWeight: 800, color: 'var(--fg)', lineHeight: 1.15, marginBottom: 3 }}>Discover Manga</h1>
           <p className="hidden md:block" style={{ fontSize: 13, color: 'var(--muted2)' }}>Search across multiple sources to find your next read.</p>
         </motion.div>
 
         {/* Mode tabs */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
+        <div role="tablist" style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
           {TABS.map(({ id, label, Icon }) => (
-            <button key={id} onClick={() => setTab(id as typeof tab)}
+            <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id as typeof tab)}
+              className="focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-black"
               style={{
                 display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 999,
                 border: `1px solid ${tab === id ? 'var(--accent)' : 'var(--border)'}`,
@@ -296,7 +326,7 @@ export default function SearchPage() {
 
         {/* Search bar (shown on search tab) */}
         {tab === 'search' && (
-          <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} style={{ marginBottom: 12 }}>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }} style={{ marginBottom: 12 }}>
             <form onSubmit={(e) => { e.preventDefault(); performSearch(searchQuery.trim()) }}
               style={{ display: 'flex', gap: 8, alignItems: 'center' }}
             >
@@ -311,12 +341,38 @@ export default function SearchPage() {
                 />
               </div>
               <button type="submit" disabled={loading} className="btn-primary"
-                style={{ flexShrink: 0, padding: '11px 22px', borderRadius: 14, fontSize: 13.5, fontWeight: 900, display: 'flex', alignItems: 'center', gap: 7 }}
+                style={{ flexShrink: 0, padding: '11px 20px', borderRadius: 14, fontSize: 13.5, fontWeight: 900, display: 'flex', alignItems: 'center', gap: 7 }}
               >
                 {loading ? <ThemedSpinner size="sm" /> : null}
                 Search
               </button>
-              <button type="button" onClick={() => setShowFilterPanel(true)}
+
+              {/* Manage Sources Button */}
+              <button
+                type="button"
+                onClick={() => setShowSourceModal(true)}
+                aria-label="Manage Search Sources"
+                style={{ flexShrink: 0, padding: '0 12px', height: 44, borderRadius: 14, border: '1px solid var(--border)', background: 'var(--surface)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, color: 'var(--fg)' }}
+              >
+                <Layers style={{ width: 15, height: 15, color: 'var(--accent)' }} />
+                <span className="text-xs font-bold hidden sm:inline">Sources</span>
+                <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded-full bg-[var(--surface2)] text-[var(--accent)] border border-[var(--accent)]/30">
+                  {enabledSources.length}
+                </span>
+              </button>
+
+              {/* View Switcher Button (Swimlanes vs Unified Grid) */}
+              <button
+                type="button"
+                onClick={handleToggleViewMode}
+                aria-label={searchViewMode === 'lanes' ? 'Switch to Grid View' : 'Switch to Swimlane View'}
+                style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 14, border: '1px solid var(--border)', background: 'var(--surface)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted2)' }}
+              >
+                {searchViewMode === 'lanes' ? <LayoutGrid style={{ width: 15, height: 15 }} /> : <LayoutList style={{ width: 15, height: 15 }} />}
+              </button>
+
+              {/* Filter Panel Button */}
+              <button type="button" onClick={() => setShowFilterPanel(true)} aria-label="Search filters"
                 style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 14, border: '1px solid var(--border)', background: 'var(--surface)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: hasSearchFilters ? 'var(--accent)' : 'var(--muted2)' }}
               >
                 <SlidersHorizontal style={{ width: 15, height: 15 }} />
@@ -326,9 +382,9 @@ export default function SearchPage() {
             {/* Source filter pills — only show if providers are loaded */}
             {activeProviders.length > 0 && (
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
-                <button onClick={() => setSelectedProvider(null)} className={cn('filter-pill', !selectedProvider && 'active')}>All</button>
+                <button onClick={() => setSelectedProvider(null)} aria-pressed={!selectedProvider} className={cn('filter-pill', !selectedProvider && 'active')}>All</button>
                 {activeProviders.map(p => (
-                  <button key={p.id} onClick={() => setSelectedProvider(p.id)} className={cn('filter-pill', selectedProvider === p.id && 'active')} style={{ textTransform: 'uppercase', fontSize: 11 }}>
+                  <button key={p.id} onClick={() => setSelectedProvider(p.id)} aria-pressed={selectedProvider === p.id} className={cn('filter-pill', selectedProvider === p.id && 'active')} style={{ textTransform: 'uppercase', fontSize: 11 }}>
                     {p.name}
                   </button>
                 ))}
@@ -351,10 +407,15 @@ export default function SearchPage() {
         {/* ── Search results ── */}
         {tab === 'search' && (
           <>
+            {hasSearched && !loading && searchResults.length > 0 && (
+              <p aria-live="polite" aria-atomic="true" style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted2)', marginBottom: 12, letterSpacing: '0.04em' }}>
+                {searchResults.length} results
+              </p>
+            )}
             {loading ? (
               <ThemedSkeletonGrid count={12} />
             ) : searchResults.length > 0 ? (
-              selectedProvider ? (
+              selectedProvider || searchViewMode === 'grid' ? (
                 <div style={GRID_STYLE}>
                   <AnimatePresence mode="popLayout">
                     {searchResults.map((r, idx) => (
@@ -363,24 +424,39 @@ export default function SearchPage() {
                   </AnimatePresence>
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+                <div className="flex flex-col">
+                  {/* Top Matches Hero Swimlane (across all active sources) */}
+                  {Object.keys(searchResults.reduce<Record<string, MangaResult[]>>((acc, r) => { ;(acc[r.provider] ??= []).push(r); return acc }, {})).length > 1 && (
+                    <SourceSwimlane
+                      title="Top Matches"
+                      isTopMatches
+                      count={Math.min(searchResults.length, 10)}
+                    >
+                      {searchResults.slice(0, 10).map((r, idx) => (
+                        <div key={'top-' + r.id + r.provider} className="w-[140px] sm:w-[155px] min-w-[140px] sm:min-w-[155px] shrink-0 snap-start">
+                          <MangaCard r={r} idx={idx} onSubscribe={handleSubscribe} subscribed={subscribed} subscribing={subscribing} navigate={navigate} />
+                        </div>
+                      ))}
+                    </SourceSwimlane>
+                  )}
+
+                  {/* Horizontal per-source swimlanes with clickable desktop navigation */}
                   {Object.entries(searchResults.reduce<Record<string, MangaResult[]>>((acc, r) => { ;(acc[r.provider] ??= []).push(r); return acc }, {}))
                     .filter(([, results]) => results.length > 0)
                     .map(([provider, results]) => (
-                      <div key={provider}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-                          <span style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)' }}>{provider}</span>
-                          <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-                          <span style={{ fontSize: 11, color: 'var(--muted3)' }}>{results.length}</span>
-                        </div>
-                        <div style={GRID_STYLE}>
-                          <AnimatePresence mode="popLayout">
-                            {results.map((r, idx) => (
-                              <MangaCard key={r.id + r.provider} r={r} idx={idx} onSubscribe={handleSubscribe} subscribed={subscribed} subscribing={subscribing} navigate={navigate} />
-                            ))}
-                          </AnimatePresence>
-                        </div>
-                      </div>
+                      <SourceSwimlane
+                        key={provider}
+                        title={PROVIDERS.find(p => p.id === provider)?.name || provider}
+                        providerId={provider}
+                        count={results.length}
+                        onViewAll={() => setSelectedProvider(provider)}
+                      >
+                        {results.map((r, idx) => (
+                          <div key={r.id + r.provider} className="w-[140px] sm:w-[155px] min-w-[140px] sm:min-w-[155px] shrink-0 snap-start">
+                            <MangaCard r={r} idx={idx} onSubscribe={handleSubscribe} subscribed={subscribed} subscribing={subscribing} navigate={navigate} />
+                          </div>
+                        ))}
+                      </SourceSwimlane>
                     ))}
                 </div>
               )
@@ -506,6 +582,15 @@ export default function SearchPage() {
           </>
         )}
       </AnimatePresence>
+
+      {/* ── Source Toggle Modal ── */}
+      <SourceToggleModal
+        isOpen={showSourceModal}
+        onClose={() => setShowSourceModal(false)}
+        availableSources={activeProviders}
+        enabledSources={enabledSources}
+        onSourcesChange={(updated) => setEnabledSources(updated)}
+      />
     </div>
   )
 }

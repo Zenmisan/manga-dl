@@ -230,9 +230,9 @@ export function MangaChaptersSection({
 
   return (
     <motion.div 
-      initial={{ opacity: 0, y: 40 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.2 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.6, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
       className="mt-8 lg:mt-0 flex-1 relative"
       onClick={() => setContextMenu(null)}
     >
@@ -257,7 +257,7 @@ export function MangaChaptersSection({
               <button
                 onClick={handleMALSync}
                 disabled={malSyncing}
-                title="Mark as Reading on MAL"
+                aria-label="Mark as Reading on MAL"
                 className="p-2.5 rounded-full transition-all border bg-blue-500/10 border-blue-500/20 text-blue-400 hover:bg-blue-500/20 disabled:opacity-50"
               >
                 {malSyncing ? <ThemedSpinner size="sm" /> : <ListPlus className="w-4 h-4" />}
@@ -267,7 +267,7 @@ export function MangaChaptersSection({
               <button
                 onClick={handleSubscribe}
                 disabled={subscribing}
-                title={subscribed ? 'Unsubscribe from new chapters' : 'Subscribe to auto-download new chapters'}
+                aria-label={subscribed ? 'Unsubscribe from new chapters' : 'Subscribe to auto-download new chapters'}
                 className={cn(
                   "p-2.5 rounded-full transition-all border text-xs font-bold flex items-center gap-2 disabled:opacity-50",
                   subscribed
@@ -287,7 +287,7 @@ export function MangaChaptersSection({
             {isAdmin && subscribed && (
               <button
                 onClick={toggleNotif}
-                title={notifEnabled ? 'Mute notifications for this manga' : 'Unmute notifications for this manga'}
+                aria-label={notifEnabled ? 'Mute notifications for this manga' : 'Unmute notifications for this manga'}
                 className={cn(
                   "p-2.5 rounded-full transition-all border text-xs font-bold disabled:opacity-50",
                   notifEnabled
@@ -438,7 +438,7 @@ export function MangaChaptersSection({
                         "p-1.5 rounded-lg transition-colors shrink-0",
                         isBookmarked ? "text-amber-400" : "text-zinc-600 hover:text-zinc-300"
                       )}
-                      title={isBookmarked ? 'Remove bookmark' : 'Bookmark chapter'}
+                      aria-label={isBookmarked ? 'Remove bookmark' : 'Bookmark chapter'}
                     >
                       {isBookmarked ? <BookmarkCheck className="w-4 h-4 fill-amber-400" /> : <Bookmark className="w-4 h-4" />}
                     </button>
@@ -477,7 +477,7 @@ export function MangaChaptersSection({
                           "p-2.5 rounded-xl transition-all border border-white/10 bg-white/5 hover:bg-white/10 text-zinc-300",
                           isDownloading && "border-red-500/40 text-red-400 bg-red-500/10"
                         )}
-                        title="Download Chapter"
+                        aria-label="Download Chapter"
                       >
                         {isDownloading ? (
                           <ThemedSpinner size="sm" />
@@ -496,7 +496,7 @@ export function MangaChaptersSection({
                           navigate(targetUrl)
                         }}
                         className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-zinc-200 font-extrabold text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer border border-white/10"
-                        title="Re-read Chapter"
+                        aria-label="Re-read Chapter"
                       >
                         <RotateCcw className="w-3.5 h-3.5 text-zinc-400" />
                         <span>Re-read</span>
@@ -510,7 +510,7 @@ export function MangaChaptersSection({
                           navigate(targetUrl)
                         }}
                         className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-extrabold text-xs uppercase tracking-wider shadow-[0_4px_16px_rgba(220,38,38,0.3)] transition-all flex items-center gap-1.5 cursor-pointer"
-                        title="Read Chapter"
+                        aria-label="Read Chapter"
                       >
                         <Play className="w-3.5 h-3.5 fill-current" />
                         <span>Read</span>

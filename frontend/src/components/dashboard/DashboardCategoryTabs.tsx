@@ -8,18 +8,24 @@ interface Props {
 
 export function DashboardCategoryTabs({ categories, activeCategory, setActiveCategory }: Props) {
   return (
-    <div className="flex gap-2 overflow-x-auto pb-3 mb-4 no-scrollbar">
+    <div role="tablist" aria-label="Library categories" className="flex gap-2 overflow-x-auto pb-3 mb-4 no-scrollbar">
       <button
+        role="tab"
+        aria-selected={!activeCategory}
         onClick={() => setActiveCategory(null)}
         className={cn('filter-pill', !activeCategory && 'active')}
+        style={!activeCategory ? { boxShadow: '0 0 15px rgba(220,38,38,0.3)' } : undefined}
       >
         All
       </button>
       {categories.map(cat => (
         <button
           key={cat}
+          role="tab"
+          aria-selected={activeCategory === cat}
           onClick={() => setActiveCategory(cat === activeCategory ? null : cat)}
           className={cn('filter-pill', activeCategory === cat && 'active')}
+          style={activeCategory === cat ? { boxShadow: '0 0 15px rgba(220,38,38,0.3)' } : undefined}
         >
           {cat}
         </button>

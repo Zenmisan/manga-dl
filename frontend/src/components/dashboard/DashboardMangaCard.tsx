@@ -1,5 +1,5 @@
 import type React from 'react'
-import { useState, memo } from 'react'
+import { useState, memo, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import {
   Book, Pin, PinOff, Trash2, BookOpen, HardDrive, WifiOff, CheckSquare, Square, Download,
@@ -30,6 +30,8 @@ export const DashboardMangaCard = memo(function DashboardMangaCard({
   onToggleSelect, onTogglePin, onDelete,
 }: Props) {
   const [coverError, setCoverError] = useState(false)
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null)
+  const ctxMenuRef = useRef<HTMLDivElement>(null)
   const isCloudOnly = !item.isLocal && item.files.length === 0
   const isCompact = view === 'grid' && density === 'compact'
   const chapterCount = item.total_chapters || item.files.length
@@ -37,6 +39,19 @@ export const DashboardMangaCard = memo(function DashboardMangaCard({
     ? getReadCount(item.provider, item.provider_manga_id)
     : 0
   const unreadCount = !item.isLocal && chapterCount > 0 ? Math.max(0, chapterCount - readCount) : 0
+
+  useEffect(() => {
+    if (!ctxMenu) return
+    const close = () => setCtxMenu(null)
+    document.addEventListener('click', close)
+    return () => document.removeEventListener('click', close)
+  }, [ctxMenu])
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    if (selectMode) return
+    e.preventDefault()
+    setCtxMenu({ x: e.clientX, y: e.clientY })
+  }
 
   const handleClick = (e: React.MouseEvent) => {
     if (selectMode) {
@@ -57,11 +72,15 @@ export const DashboardMangaCard = memo(function DashboardMangaCard({
   if (view === 'list') {
     return (
       <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: idx * 0.025 }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: Math.min(idx * 0.025, 0.3) }}
         onClick={handleClick}
-        className="group cursor-pointer"
+        onContextMenu={handleContextMenu}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick(e as unknown as React.MouseEvent) } }}
+        role="button"
+        tabIndex={0}
+        className="group cursor-pointer focus-visible:ring-2 focus-visible:ring-red-500 rounded-[14px] outline-none"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -130,7 +149,8 @@ export const DashboardMangaCard = memo(function DashboardMangaCard({
             onClick={(e) => onTogglePin(item.title, e)}
             className="icon-btn"
             style={isPinned ? { background: 'rgba(245,158,11,0.15)', color: 'rgb(245,158,11)', borderColor: 'rgba(245,158,11,0.3)' } : {}}
-            title={isPinned ? 'Unpin' : 'Pin to top'}
+            aria-label={isPinned ? `Unpin ${item.title} from top` : `Pin ${item.title} to top`}
+            aria-pressed={isPinned}
           >
             {isPinned ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 h-3.5" />}
           </button>
@@ -138,7 +158,7 @@ export const DashboardMangaCard = memo(function DashboardMangaCard({
             onClick={(e) => onDelete(item, e)}
             className="icon-btn"
             style={{ color: 'var(--muted3)' }}
-            title="Delete series"
+            aria-label={`Delete ${item.title}`}
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -149,11 +169,15 @@ export const DashboardMangaCard = memo(function DashboardMangaCard({
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.96 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ delay: idx * 0.03 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ delay: Math.min(idx * 0.03, 0.3) }}
       onClick={handleClick}
-      className="group cursor-pointer active:scale-[0.98] transition-transform"
+      onContextMenu={handleContextMenu}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick(e as unknown as React.MouseEvent) } }}
+      role="button"
+      tabIndex={0}
+      className="group cursor-pointer active:scale-[0.98] transition-transform focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 rounded-lg outline-none"
     >
       {/* Cover */}
       <div
@@ -165,7 +189,7 @@ export const DashboardMangaCard = memo(function DashboardMangaCard({
             src={coverSrc}
             alt={item.title}
             style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s ease', display: 'block' }}
-            className="group-hover:scale-105"
+            className="group-hover:brightness-105"
             onError={() => setCoverError(true)}
           />
         ) : (
@@ -207,7 +231,7 @@ export const DashboardMangaCard = memo(function DashboardMangaCard({
         )}
 
         {/* Unread badge top-left — red pill with count */}
-        {unreadCount > 0 && item.chapters_downloading === 0 && (
+        {unreadCount > 0 && item.chapters_downloading === 0 && !selectMode && (
           <div style={{ position: 'absolute', top: 6, left: 6, background: 'var(--accent)', borderRadius: 6, padding: '2px 7px', fontSize: 9, fontWeight: 900, color: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.5)' }}>
             {unreadCount}
           </div>
@@ -242,6 +266,57 @@ export const DashboardMangaCard = memo(function DashboardMangaCard({
               Continue
             </button>
           )}
+        </div>
+      )}
+
+      {/* Desktop right-click context menu */}
+      {ctxMenu && (
+        <div
+          ref={ctxMenuRef}
+          onClick={(e) => e.stopPropagation()}
+          className="fixed z-[200] hidden md:block"
+          style={{
+            top: ctxMenu.y,
+            left: ctxMenu.x,
+            background: 'rgba(12,12,12,0.97)',
+            border: '1px solid rgba(255,255,255,0.10)',
+            borderRadius: 12,
+            padding: '4px',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            minWidth: 180,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+          }}
+        >
+          {[
+            { label: 'Mark as Read', action: () => { /* TODO: mark all chapters read */ setCtxMenu(null) } },
+            { label: 'Download All', action: () => { navigate(`/downloads?manga=${encodeURIComponent(item.title)}`); setCtxMenu(null) } },
+            { label: 'Remove from Library', action: (e: React.MouseEvent) => { onDelete(item, e); setCtxMenu(null) }, danger: true },
+          ].map((row) => (
+            <button
+              key={row.label}
+              onClick={(e) => row.action(e)}
+              style={{
+                display: 'flex',
+                width: '100%',
+                alignItems: 'center',
+                padding: '10px 14px',
+                borderRadius: 8,
+                fontSize: 13,
+                fontWeight: 700,
+                color: (row as { danger?: boolean }).danger ? 'var(--accent)' : 'var(--fg)',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                minHeight: 44,
+                textAlign: 'left',
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)' }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+            >
+              {row.label}
+            </button>
+          ))}
         </div>
       )}
     </motion.div>

@@ -9,6 +9,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "tauri": "tauri",
+    "build:desktop": "APPIMAGE_EXTRACT_AND_RUN=1 tauri build",
+    "build:appimage": "APPIMAGE_EXTRACT_AND_RUN=1 tauri build -b appimage",
+    "build:deb": "tauri build -b deb",
     "android:sync": "cap sync android",
     "android:open": "cap open android"
   },

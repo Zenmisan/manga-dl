@@ -72,6 +72,27 @@ async def proxy_image(url: str = Query(...)):
     return await proxy_image_response(url)
 
 
+@router.get("/descramble-proxy")
+async def descramble_proxy(
+    url: str = Query(...),
+    seed: str | None = Query(default=None),
+    algo: str | None = Query(default=None),
+    enc_seed: str | None = Query(default=None, alias="encSeed"),
+    enc_len: str | None = Query(default=None, alias="encLen"),
+    enc_algo: str | None = Query(default=None, alias="encAlgo"),
+):
+    """Fetch a Comix.to scrambled image, apply XOR + grid descrambling, return clean JPEG."""
+    from app.services.comixto_descrambler import descramble_image_response
+    return await descramble_image_response(
+        url=url,
+        scramble_seed=int(seed) if seed else None,
+        scramble_algo=algo,
+        enc_seed=int(enc_seed) if enc_seed else None,
+        enc_len=int(enc_len) if enc_len else None,
+        enc_algo=enc_algo,
+    )
+
+
 @router.get("/updates")
 async def get_manga_updates(
     db: AsyncSession = Depends(get_db),

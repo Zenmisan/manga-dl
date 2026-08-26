@@ -25,9 +25,11 @@ export function DashboardSortFilterPanel({ show, sort, setSort, filter, setFilte
           <ArrowUpDown className="w-4 h-4 text-white/40" />
           <span className="text-xs font-black uppercase tracking-widest text-white/40">Sort By</span>
           <select
+            id="sort-select"
             value={sort}
             onChange={e => setSort(e.target.value as typeof sort)}
             className="select-styled text-xs"
+            aria-label="Sort by"
           >
             <option value="default">Default</option>
             <option value="title-asc">Title (A-Z)</option>
@@ -43,6 +45,7 @@ export function DashboardSortFilterPanel({ show, sort, setSort, filter, setFilte
             <button
               key={f}
               onClick={() => setFilter(f)}
+              aria-pressed={filter === f}
               className={cn(
                 "px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all cursor-pointer",
                 filter === f ? "bg-white/10 border-white/20 text-white" : "border-white/5 text-white/30 hover:border-white/10"

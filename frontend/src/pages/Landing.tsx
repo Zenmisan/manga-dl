@@ -3,24 +3,68 @@ import { Link, useNavigate } from 'react-router-dom'
 import { motion, useInView } from 'framer-motion'
 import {
   Globe, Wifi, Star, Layers, Zap,
-  ChevronDown, ArrowRight, Monitor, Smartphone,
+  ArrowRight, Monitor, Smartphone,
   Shield, Send,
 } from 'lucide-react'
 import api from '../lib/api'
 
+/*
+ * Hallmark · genre: atmospheric · macrostructure: Split Studio (15)
+ * theme: Midnight · nav: N5 Floating Pill · footer: Ft5 Statement
+ * enrichment: none (typography only — real source/tracker names as proof)
+ * P5 H4 E4 S5 R5 V5
+ */
+
 const GRAIN = `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`
+const GRID = `repeating-linear-gradient(90deg,rgba(255,255,255,.02) 0px,transparent 1px,transparent 140px),repeating-linear-gradient(rgba(255,255,255,.02) 0px,transparent 1px,transparent 140px)`
 
-const GRID = `repeating-linear-gradient(90deg,rgba(255,255,255,.025) 0px,transparent 1px,transparent 140px),repeating-linear-gradient(rgba(255,255,255,.025) 0px,transparent 1px,transparent 140px)`
+const MIDNIGHT_TOKENS = `
+  :root {
+    --color-paper:         oklch(9%  0.008 245);
+    --color-paper-2:       oklch(13% 0.009 245);
+    --color-paper-3:       oklch(18% 0.010 245);
+    --color-ink:           oklch(94% 0.006 220);
+    --color-ink-2:         oklch(65% 0.010 235);
+    --color-ink-3:         oklch(38% 0.010 240);
+    --color-accent:        oklch(50% 0.230  27);
+    --color-accent-glow:   oklch(50% 0.230  27 / 0.20);
+    --color-accent-subtle: oklch(18% 0.100  27);
+    --color-rule:          oklch(20% 0.009 240);
+    --color-focus:         oklch(50% 0.230  27);
 
-function FadeUp({ children, delay = 0, className = '' }: { children: React.ReactNode; delay?: number; className?: string }) {
+    --font-display: 'Anton', sans-serif;
+    --font-body:    'Inter', system-ui, sans-serif;
+
+    --space-3xs: 0.25rem;   --space-2xs: 0.5rem;    --space-xs: 0.75rem;
+    --space-sm:  1rem;      --space-md:  1.5rem;    --space-lg: 2.5rem;
+    --space-xl:  4rem;      --space-2xl: 6rem;      --space-3xl: 9rem;
+
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --dur-short: 220ms;
+
+    --radius-pill:  999px;
+    --radius-card:  1rem;
+    --radius-input: 0.75rem;
+  }
+`
+
+function FadeIn({
+  children,
+  delay = 0,
+  className = '',
+}: {
+  children: React.ReactNode
+  delay?: number
+  className?: string
+}) {
   const ref = useRef<HTMLDivElement>(null)
-  const inView = useInView(ref, { once: true, margin: '-80px' })
+  const inView = useInView(ref, { once: true, margin: '-60px' })
   return (
     <motion.div
       ref={ref}
-      initial={{ opacity: 0, y: 28 }}
-      animate={inView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.65, delay, ease: [0.21, 1.02, 0.73, 1] }}
+      initial={{ opacity: 0 }}
+      animate={inView ? { opacity: 1 } : {}}
+      transition={{ duration: 0.7, delay, ease: [0.16, 1, 0.3, 1] }}
       className={className}
     >
       {children}
@@ -29,12 +73,12 @@ function FadeUp({ children, delay = 0, className = '' }: { children: React.React
 }
 
 const FEATURES = [
-  { icon: Wifi, title: 'Read Offline', desc: 'Download entire series as CBZ or EPUB. Read anywhere, no connection required.' },
-  { icon: Globe, title: '50+ Sources', desc: 'MangaDex, MangaKatana, Komga, Suwayomi, and many more — all in one interface.' },
-  { icon: Layers, title: 'Cross-Device Sync', desc: 'Progress, categories, and notes sync across all devices via encrypted cloud storage.' },
-  { icon: Star, title: 'Tracker Integration', desc: 'AniList, MAL, Kitsu, MangaUpdates, Shikimori, Bangumi. Mark as read, automatically.' },
-  { icon: Zap, title: '3 Platforms', desc: 'Web PWA, native desktop via Tauri, and a native Android APK. One library everywhere.' },
-  { icon: Shield, title: 'No Ads. No DRM.', desc: 'Open source, zero paywalls. Your data stays yours, forever.' },
+  { icon: Wifi,    title: 'Read Offline',        desc: 'Download entire series as CBZ or EPUB. Read anywhere, no connection required.' },
+  { icon: Globe,   title: '50+ Sources',          desc: 'MangaDex, MangaKatana, Komga, Suwayomi, and many more — all in one interface.' },
+  { icon: Layers,  title: 'Cross-Device Sync',    desc: 'Progress, categories, and notes sync across all devices via encrypted cloud storage.' },
+  { icon: Star,    title: 'Tracker Integration',  desc: 'AniList, MAL, Kitsu, MangaUpdates, Shikimori, Bangumi. Mark as read, automatically.' },
+  { icon: Zap,     title: '3 Platforms',          desc: 'Web PWA, native desktop via Tauri, and a native Android APK. One library everywhere.' },
+  { icon: Shield,  title: 'No Ads. No DRM.',      desc: 'Open source, zero paywalls. Your data stays yours, forever.' },
 ]
 
 const STEPS = [
@@ -66,7 +110,7 @@ const PLATFORMS = [
     icon: Smartphone,
     name: 'Android',
     badge: 'Native APK',
-    desc: 'Volume key page-turn, biometric lock, and background chapter syncing.',
+    desc: 'Biometric lock, background chapter syncing, and native reading controls.',
     cta: 'Download APK',
     href: 'https://gyivwfweldwvzccbpgoz.supabase.co/storage/v1/object/public/manga-library/releases/MangaOS.apk',
     internal: false,
@@ -81,18 +125,24 @@ const TAGLINES = [
 
 const CATEGORIES = ['general', 'bug', 'feature', 'question']
 
+const SOURCE_NAMES = [
+  'MangaDex', 'Komga', 'MangaKatana', 'Suwayomi',
+  'Webtoons', 'Bato.to', 'MangaPlus', 'MangaHere',
+  'TCBScans', 'MangaPill', 'AsuraScans', 'MangaFire',
+]
+
+const TRACKER_NAMES = ['AniList', 'MyAnimeList', 'Kitsu', 'MangaUpdates', 'Shikimori', 'Bangumi']
+
 export default function LandingPage() {
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
-
-  // Rotating footer tagline
   const [taglineIdx, setTaglineIdx] = useState(0)
+
   useEffect(() => {
     const id = setInterval(() => setTaglineIdx(i => (i + 1) % TAGLINES.length), 4000)
     return () => clearInterval(id)
   }, [])
 
-  // Contact form state
   const [ctName, setCtName] = useState('')
   const [ctEmail, setCtEmail] = useState('')
   const [ctCategory, setCtCategory] = useState('general')
@@ -128,339 +178,577 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen text-[#fafafa]" style={{ background: 'var(--bg)', fontFamily: "'Inter', sans-serif" }}>
+    <div
+      className="min-h-screen overflow-x-hidden"
+      style={{ background: 'var(--color-paper)', color: 'var(--color-ink)', fontFamily: 'var(--font-body)' }}
+    >
+      <style>{MIDNIGHT_TOKENS}</style>
 
-      {/* ── HERO ────────────────────────────────────────────── */}
-      <section className="relative min-h-[100dvh] flex flex-col overflow-hidden">
-
-        {/* Background layers */}
-        <div className="absolute inset-0 pointer-events-none select-none">
-          <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse 90% 60% at 50% -10%, rgba(220,38,38,.28) 0%, transparent 65%)' }} />
-          <div className="absolute inset-0" style={{ backgroundImage: GRID }} />
-          <div className="absolute inset-0 opacity-[.035] mix-blend-overlay" style={{ backgroundImage: GRAIN, backgroundRepeat: 'repeat' }} />
-          <div className="absolute bottom-0 left-0 right-0 h-48" style={{ background: 'linear-gradient(to bottom, transparent, var(--bg))' }} />
-        </div>
-
-        {/* Nav */}
-        <nav className="relative z-10 flex items-center justify-between px-6 py-6 md:px-12">
-          <Link to="/" className="flex items-center gap-2.5 group">
-            <img src="/Manga-dl1.png" alt="manga-dl logo" className="w-9 h-9 object-contain group-hover:rotate-6 transition-transform duration-300" />
-            <span className="font-black text-lg tracking-tight hidden sm:block">manga-dl</span>
+      {/* ── N5 FLOATING PILL NAV ─────────────────────────────── */}
+      <nav
+        className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex items-center justify-between gap-6 px-4 py-2.5"
+        style={{
+          width: 'min(92%, 640px)',
+          borderRadius: 'var(--radius-pill)',
+          background: 'oklch(9% 0.008 245 / 0.82)',
+          border: '1px solid var(--color-rule)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          boxShadow: '0 4px 24px oklch(0% 0 0 / 0.4)',
+        }}
+      >
+        <Link to="/" className="flex items-center gap-2 shrink-0" aria-label="manga-dl home">
+          <img src="/Manga-dl1.png" alt="" className="w-7 h-7 object-contain" />
+          <span className="font-black text-sm tracking-tight hidden sm:block" style={{ color: 'var(--color-ink)' }}>
+            manga-dl
+          </span>
+        </Link>
+        <div className="flex items-center gap-1 flex-1 justify-center">
+          <Link
+            to="/r"
+            className="px-3 py-1.5 text-xs font-bold rounded-lg transition-colors"
+            style={{ color: 'var(--color-ink-2)' }}
+            onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-ink)')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-ink-2)')}
+          >
+            Library
           </Link>
-          <div className="flex items-center gap-2">
-            <Link to="/login" className="px-4 py-2 text-sm font-bold text-white/50 hover:text-white transition-colors">
-              Sign In
-            </Link>
-            <Link to="/r" className="px-4 py-2 text-sm font-black bg-red-600 hover:bg-red-500 rounded-xl transition-all shadow-lg shadow-red-600/20 hover:-translate-y-px">
-              Open App
-            </Link>
-          </div>
-        </nav>
-
-        {/* Hero content */}
-        <div className="relative z-10 flex-1 flex flex-col items-center justify-center text-center px-6 pb-28">
-
-          {/* Badge */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/10 bg-white/[.04] text-[10px] font-black uppercase tracking-[.2em] text-white/40 mb-8"
+          <Link
+            to="/help"
+            className="px-3 py-1.5 text-xs font-bold rounded-lg transition-colors"
+            style={{ color: 'var(--color-ink-2)' }}
+            onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-ink)')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-ink-2)')}
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-            Web · Desktop · Android
-          </motion.div>
-
-          {/* Headline */}
-          <div className="overflow-hidden mb-2">
-            <motion.div
-              initial={{ y: '105%' }}
-              animate={{ y: 0 }}
-              transition={{ duration: 0.75, delay: 0.2, ease: [0.21, 1.02, 0.73, 1] }}
-            >
-              <h1
-                className="text-[clamp(2.75rem,15vw,12rem)] leading-none font-normal uppercase tracking-wider"
-                style={{ fontFamily: "'Anton', sans-serif" }}
-              >
-                Read
-              </h1>
-            </motion.div>
-          </div>
-          <div className="overflow-hidden mb-6">
-            <motion.div
-              initial={{ y: '105%' }}
-              animate={{ y: 0 }}
-              transition={{ duration: 0.75, delay: 0.3, ease: [0.21, 1.02, 0.73, 1] }}
-            >
-              <h1
-                className="text-[clamp(2.75rem,15vw,12rem)] leading-none font-normal uppercase tracking-wider text-red-500"
-                style={{ fontFamily: "'Anton', sans-serif" }}
-              >
-                Everything.
-              </h1>
-            </motion.div>
-          </div>
-
-          <motion.p
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.52 }}
-            className="text-[clamp(1rem,2.5vw,1.25rem)] text-white/45 max-w-lg leading-relaxed mb-10"
+            Help
+          </Link>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Link
+            to="/login"
+            className="px-3 py-1.5 text-xs font-bold rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-black"
+            style={{ color: 'var(--color-ink-3)' }}
+            onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-ink)')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-ink-3)')}
           >
-            50+ sources. Offline reading. AniList sync.{' '}
-            <span className="text-white/80 font-semibold">Free, forever.</span>
-          </motion.p>
-
-          {/* CTAs */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.65 }}
-            className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto max-w-xs sm:max-w-none"
+            Sign In
+          </Link>
+          <Link
+            to="/r"
+            className="px-4 py-1.5 text-xs font-black rounded-xl transition-all hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-black"
+            style={{
+              background: 'var(--color-accent)',
+              color: 'var(--color-ink)',
+              boxShadow: '0 2px 12px var(--color-accent-glow)',
+            }}
           >
-            <Link
-              to="/r"
-              className="group flex items-center justify-center gap-2 w-full sm:w-auto px-8 py-4 bg-red-600 hover:bg-red-500 rounded-2xl font-black text-[.9375rem] transition-all shadow-xl shadow-red-600/25 hover:shadow-red-500/35 hover:-translate-y-0.5"
-            >
-              Start Reading
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </Link>
-            <Link
-              to="/login"
-              className="flex items-center justify-center gap-2 w-full sm:w-auto px-8 py-4 rounded-2xl font-bold text-[.9375rem] border border-white/10 hover:border-white/20 bg-white/[.04] hover:bg-white/[.08] transition-all text-white/60 hover:text-white"
-            >
-              Sign In
-            </Link>
-          </motion.div>
+            Open App
+          </Link>
+        </div>
+      </nav>
+
+      {/* ── HERO — left text / right stat column ─────────────── */}
+      <section className="relative min-h-[100dvh] flex items-center" style={{ paddingTop: '5rem' }}>
+        {/* Atmospheric background */}
+        <div className="absolute inset-0 pointer-events-none select-none" aria-hidden="true">
+          <div
+            className="absolute inset-0"
+            style={{ background: 'radial-gradient(ellipse 80% 55% at 30% -5%, var(--color-accent-glow) 0%, transparent 65%)' }}
+          />
+          <div className="absolute inset-0" style={{ backgroundImage: GRID }} />
+          <div className="absolute inset-0 mix-blend-overlay" style={{ backgroundImage: GRAIN, backgroundRepeat: 'repeat', opacity: 0.03 }} />
+          <div className="absolute bottom-0 left-0 right-0 h-40" style={{ background: 'linear-gradient(to bottom, transparent, var(--color-paper))' }} />
         </div>
 
-        {/* Scroll cue */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.3 }}
-          className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-white/20 pointer-events-none"
-        >
-          <span className="text-[9px] font-black uppercase tracking-[.25em]">Scroll</span>
-          <motion.div animate={{ y: [0, 5, 0] }} transition={{ repeat: Infinity, duration: 1.9, ease: 'easeInOut' }}>
-            <ChevronDown className="w-4 h-4" />
-          </motion.div>
-        </motion.div>
-      </section>
+        <div className="relative z-10 w-full max-w-6xl mx-auto px-6 md:px-12 py-20">
+          <div className="grid md:grid-cols-[3fr_2fr] gap-12 md:gap-16 items-center">
 
-      {/* ── STATS STRIP ─────────────────────────────────────── */}
-      <FadeUp>
-        <section className="border-y border-white/5 py-12 px-6">
-          <div className="max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-            {[
-              { val: '50+', label: 'Sources' },
-              { val: '3', label: 'Platforms' },
-              { val: '∞', label: 'Chapters' },
-              { val: '$0', label: 'Forever' },
-            ].map(({ val, label }) => (
-              <div key={label}>
-                <div
-                  className="text-[clamp(2rem,6vw,4rem)] leading-none font-normal text-red-500 mb-1.5"
-                  style={{ fontFamily: "'Anton', sans-serif" }}
+            {/* Left — declaration */}
+            <div>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5, delay: 0.1 }}
+                className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[.2em] mb-8"
+                style={{
+                  border: '1px solid var(--color-rule)',
+                  background: 'var(--color-paper-2)',
+                  color: 'var(--color-ink-3)',
+                }}
+              >
+                <span
+                  className="w-1.5 h-1.5 rounded-full animate-pulse"
+                  style={{ background: 'var(--color-accent)' }}
+                />
+                Web · Desktop · Android
+              </motion.div>
+
+              <motion.h1
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.8, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                className="leading-none uppercase tracking-wide font-normal"
+                style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: 'clamp(3.5rem, 13vw, 10rem)',
+                  overflow: 'hidden',
+                  overflowWrap: 'anywhere',
+                  minWidth: 0,
+                }}
+              >
+                Read<br />
+                <span style={{ color: 'var(--color-accent)' }}>Everything.</span>
+              </motion.h1>
+
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.6, delay: 0.45 }}
+                className="mt-6 text-base leading-relaxed max-w-md"
+                style={{ color: 'var(--color-ink-2)' }}
+              >
+                50+ sources. Offline reading. AniList sync.{' '}
+                <span style={{ color: 'var(--color-ink)', fontWeight: 600 }}>Free, forever.</span>
+              </motion.p>
+
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.6, delay: 0.6 }}
+                className="mt-8 flex flex-wrap items-center gap-3"
+              >
+                <Link
+                  to="/r"
+                  className="group inline-flex items-center gap-2 px-7 py-3.5 font-black text-sm rounded-2xl transition-all hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+                  style={{
+                    background: 'var(--color-accent)',
+                    color: 'var(--color-ink)',
+                    boxShadow: '0 8px 28px var(--color-accent-glow)',
+                  }}
                 >
-                  {val}
-                </div>
-                <div className="text-[10px] font-black uppercase tracking-[.2em] text-white/25">{label}</div>
-              </div>
-            ))}
-          </div>
-        </section>
-      </FadeUp>
+                  Start Reading
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" aria-hidden="true" />
+                </Link>
+                <Link
+                  to="/login"
+                  className="inline-flex items-center gap-2 px-7 py-3.5 font-bold text-sm rounded-2xl transition-all focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+                  style={{
+                    border: '1px solid var(--color-rule)',
+                    background: 'var(--color-paper-2)',
+                    color: 'var(--color-ink-2)',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-ink)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-ink-2)')}
+                >
+                  Sign In
+                </Link>
+              </motion.div>
+            </div>
 
-      {/* ── FEATURES ────────────────────────────────────────── */}
-      <section className="py-28 px-6">
-        <div className="max-w-5xl mx-auto">
-          <FadeUp className="text-center mb-16">
-            <h2
-              className="text-[clamp(2rem,7vw,5rem)] font-normal uppercase tracking-wide mb-3"
-              style={{ fontFamily: "'Anton', sans-serif" }}
+            {/* Right — stat column */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.7, delay: 0.55 }}
+              className="hidden md:block"
+              aria-label="Key statistics"
             >
-              Built Different
-            </h2>
-            <p className="text-white/35 max-w-sm mx-auto text-sm">
-              Everything a manga reader needs. Nothing it doesn't.
-            </p>
-          </FadeUp>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {FEATURES.map((f, i) => (
-              <FadeUp key={f.title} delay={i * 0.07}>
-                <div className="group p-6 rounded-2xl border border-white/[.06] bg-white/[.02] hover:bg-white/[.05] hover:border-red-500/25 transition-all duration-300 h-full cursor-default">
-                  <div className="w-10 h-10 rounded-xl bg-red-600/10 border border-red-600/20 flex items-center justify-center mb-4 group-hover:bg-red-600/20 transition-colors">
-                    <f.icon className="w-5 h-5 text-red-400" />
-                  </div>
-                  <h3 className="font-black text-base mb-2">{f.title}</h3>
-                  <p className="text-sm text-white/38 leading-relaxed">{f.desc}</p>
-                </div>
-              </FadeUp>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── HOW IT WORKS ────────────────────────────────────── */}
-      <section className="py-28 px-6 border-y border-white/[.04]" style={{ background: 'linear-gradient(to bottom, rgba(255,255,255,.01), transparent)' }}>
-        <div className="max-w-5xl mx-auto">
-          <FadeUp className="text-center mb-16">
-            <h2
-              className="text-[clamp(2rem,7vw,5rem)] font-normal uppercase tracking-wide mb-3"
-              style={{ fontFamily: "'Anton', sans-serif" }}
-            >
-              How It Works
-            </h2>
-            <p className="text-white/35 max-w-sm mx-auto text-sm">From zero to reading in under a minute.</p>
-          </FadeUp>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
-            {STEPS.map((s, i) => (
-              <FadeUp key={s.n} delay={i * 0.1}>
-                <div className="flex flex-col gap-5">
-                  <div className="flex items-center gap-4">
-                    <div
-                      className="w-14 h-14 rounded-2xl bg-red-600 flex items-center justify-center font-normal text-2xl shadow-xl shadow-red-600/25 flex-shrink-0"
-                      style={{ fontFamily: "'Anton', sans-serif" }}
+              <div
+                className="rounded-2xl overflow-hidden"
+                style={{ border: '1px solid var(--color-rule)', background: 'var(--color-paper-2)' }}
+              >
+                {[
+                  { val: '50+', label: 'Sources' },
+                  { val: '3',   label: 'Platforms' },
+                  { val: '6+',  label: 'Trackers' },
+                  { val: '$0',  label: 'Always' },
+                ].map(({ val, label }, i) => (
+                  <div
+                    key={label}
+                    className="flex items-center justify-between px-6 py-4"
+                    style={{
+                      borderBottom: i < 3 ? '1px solid var(--color-rule)' : undefined,
+                    }}
+                  >
+                    <span
+                      className="font-normal text-4xl leading-none"
+                      style={{ fontFamily: 'var(--font-display)', color: 'var(--color-accent)' }}
                     >
-                      {s.n}
-                    </div>
-                    {i < STEPS.length - 1 && (
-                      <div className="hidden md:block flex-1 h-px" style={{ background: 'linear-gradient(to right, rgba(220,38,38,.4), transparent)' }} />
-                    )}
+                      {val}
+                    </span>
+                    <span
+                      className="text-[10px] font-black uppercase tracking-[.2em]"
+                      style={{ color: 'var(--color-ink-3)' }}
+                    >
+                      {label}
+                    </span>
                   </div>
-                  <h3 className="font-black text-xl">{s.title}</h3>
-                  <p className="text-sm text-white/38 leading-relaxed">{s.desc}</p>
-                </div>
-              </FadeUp>
-            ))}
+                ))}
+              </div>
+            </motion.div>
+
           </div>
         </div>
       </section>
 
-      {/* ── PLATFORMS ───────────────────────────────────────── */}
-      <section className="py-28 px-6">
-        <div className="max-w-5xl mx-auto">
-          <FadeUp className="text-center mb-16">
-            <h2
-              className="text-[clamp(2rem,7vw,5rem)] font-normal uppercase tracking-wide mb-3"
-              style={{ fontFamily: "'Anton', sans-serif" }}
+      {/* ── FEATURES — Split Studio alternating ──────────────── */}
+      <section className="px-6 md:px-12 py-24" aria-label="Features">
+        <div className="max-w-6xl mx-auto">
+
+          {/* Section eyebrow — left-aligned, NOT centered */}
+          <FadeIn className="mb-16">
+            <p
+              className="text-[10px] font-black uppercase tracking-[.25em] mb-3"
+              style={{ color: 'var(--color-accent)' }}
             >
-              Every Platform
+              What it does
+            </p>
+            <h2
+              className="text-4xl md:text-6xl font-normal uppercase leading-none"
+              style={{ fontFamily: 'var(--font-display)' }}
+            >
+              Built different.
             </h2>
-            <p className="text-white/35 max-w-sm mx-auto text-sm">One library, synced across all your devices.</p>
-          </FadeUp>
+          </FadeIn>
+
+          {/* Split row 1 — Offline Reading: text left, format proof right */}
+          <FadeIn>
+            <div className="grid md:grid-cols-2 gap-12 md:gap-20 items-center py-12" style={{ borderTop: '1px solid var(--color-rule)' }}>
+              <div>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-5" style={{ background: 'var(--color-accent-subtle)', border: '1px solid var(--color-accent-glow)' }}>
+                  <Wifi className="w-5 h-5" style={{ color: 'var(--color-accent)' }} aria-hidden="true" />
+                </div>
+                <h3 className="text-2xl font-black mb-3" style={{ color: 'var(--color-ink)' }}>Read Offline</h3>
+                <p className="text-sm leading-relaxed" style={{ color: 'var(--color-ink-2)' }}>
+                  Download entire series as CBZ or EPUB. Read anywhere, no connection required.
+                </p>
+              </div>
+              <div className="flex flex-col gap-3">
+                <p className="text-[10px] font-black uppercase tracking-widest mb-1" style={{ color: 'var(--color-ink-3)' }}>Supported formats</p>
+                {[
+                  { fmt: 'CBZ', note: 'Comic Book Archive — universal reader support' },
+                  { fmt: 'EPUB', note: 'Reflowable — works in Kindle, Apple Books' },
+                  { fmt: 'PDF', note: 'Fixed layout — print-ready' },
+                ].map(({ fmt, note }) => (
+                  <div
+                    key={fmt}
+                    className="flex items-center gap-4 px-4 py-3 rounded-xl"
+                    style={{ background: 'var(--color-paper-2)', border: '1px solid var(--color-rule)' }}
+                  >
+                    <span className="text-sm font-black w-12 shrink-0" style={{ fontFamily: 'var(--font-display)', color: 'var(--color-accent)' }}>{fmt}</span>
+                    <span className="text-xs" style={{ color: 'var(--color-ink-3)' }}>{note}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </FadeIn>
+
+          {/* Split row 2 — 50+ Sources: proof left, text right */}
+          <FadeIn>
+            <div className="grid md:grid-cols-2 gap-12 md:gap-20 items-center py-12" style={{ borderTop: '1px solid var(--color-rule)' }}>
+              <div className="order-2 md:order-1 flex flex-col gap-2">
+                <p className="text-[10px] font-black uppercase tracking-widest mb-1" style={{ color: 'var(--color-ink-3)' }}>Available sources</p>
+                <div className="flex flex-wrap gap-2">
+                  {SOURCE_NAMES.map(name => (
+                    <span
+                      key={name}
+                      className="px-3 py-1 text-xs font-bold rounded-full"
+                      style={{ background: 'var(--color-paper-2)', border: '1px solid var(--color-rule)', color: 'var(--color-ink-2)' }}
+                    >
+                      {name}
+                    </span>
+                  ))}
+                  <span
+                    className="px-3 py-1 text-xs font-bold rounded-full"
+                    style={{ background: 'var(--color-accent-subtle)', border: '1px solid var(--color-accent-glow)', color: 'var(--color-accent)' }}
+                  >
+                    + 38 more
+                  </span>
+                </div>
+              </div>
+              <div className="order-1 md:order-2">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-5" style={{ background: 'var(--color-accent-subtle)', border: '1px solid var(--color-accent-glow)' }}>
+                  <Globe className="w-5 h-5" style={{ color: 'var(--color-accent)' }} aria-hidden="true" />
+                </div>
+                <h3 className="text-2xl font-black mb-3" style={{ color: 'var(--color-ink)' }}>50+ Sources</h3>
+                <p className="text-sm leading-relaxed" style={{ color: 'var(--color-ink-2)' }}>
+                  MangaDex, MangaKatana, Komga, Suwayomi, and many more — all in one interface. One search, every source.
+                </p>
+              </div>
+            </div>
+          </FadeIn>
+
+          {/* Split row 3 — Tracker Sync: text left, tracker pill list right */}
+          <FadeIn>
+            <div className="grid md:grid-cols-2 gap-12 md:gap-20 items-center py-12" style={{ borderTop: '1px solid var(--color-rule)' }}>
+              <div>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-5" style={{ background: 'var(--color-accent-subtle)', border: '1px solid var(--color-accent-glow)' }}>
+                  <Star className="w-5 h-5" style={{ color: 'var(--color-accent)' }} aria-hidden="true" />
+                </div>
+                <h3 className="text-2xl font-black mb-3" style={{ color: 'var(--color-ink)' }}>Tracker Integration</h3>
+                <p className="text-sm leading-relaxed" style={{ color: 'var(--color-ink-2)' }}>
+                  Mark as read, automatically. All six major trackers. No manual updates, ever.
+                </p>
+              </div>
+              <div className="flex flex-col gap-2">
+                <p className="text-[10px] font-black uppercase tracking-widest mb-1" style={{ color: 'var(--color-ink-3)' }}>Supported trackers</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {TRACKER_NAMES.map(name => (
+                    <div
+                      key={name}
+                      className="px-4 py-2.5 rounded-lg text-sm font-bold"
+                      style={{ background: 'var(--color-paper-2)', border: '1px solid var(--color-rule)', color: 'var(--color-ink-2)' }}
+                    >
+                      {name}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </FadeIn>
+
+          {/* Compact strip for remaining 3 features */}
+          <FadeIn>
+            <div
+              className="grid grid-cols-1 sm:grid-cols-3 gap-4 py-10 mt-4"
+              style={{ borderTop: '1px solid var(--color-rule)' }}
+            >
+              {FEATURES.slice(2, 3).concat(FEATURES.slice(4)).map(f => (
+                <div
+                  key={f.title}
+                  className="flex items-start gap-3 px-5 py-4 rounded-xl"
+                  style={{ background: 'var(--color-paper-2)', border: '1px solid var(--color-rule)' }}
+                >
+                  <f.icon className="w-4 h-4 mt-0.5 shrink-0" style={{ color: 'var(--color-accent)' }} aria-hidden="true" />
+                  <div>
+                    <div className="text-sm font-black mb-0.5" style={{ color: 'var(--color-ink)' }}>{f.title}</div>
+                    <div className="text-xs leading-relaxed" style={{ color: 'var(--color-ink-3)' }}>{f.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </FadeIn>
+        </div>
+      </section>
+
+      {/* ── HOW IT WORKS — vertical step sequence ─────────────── */}
+      <section className="px-6 md:px-12 py-24" style={{ borderTop: '1px solid var(--color-rule)' }} aria-label="How it works">
+        <div className="max-w-6xl mx-auto">
+          <FadeIn className="mb-16">
+            <p className="text-[10px] font-black uppercase tracking-[.25em] mb-3" style={{ color: 'var(--color-accent)' }}>
+              Getting started
+            </p>
+            <h2
+              className="text-4xl md:text-6xl font-normal uppercase leading-none"
+              style={{ fontFamily: 'var(--font-display)' }}
+            >
+              Zero to reading<br />in one minute.
+            </h2>
+          </FadeIn>
+
+          <ol className="flex flex-col" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+            {STEPS.map((s, i) => (
+              <FadeIn key={s.n} delay={i * 0.08}>
+                <li className="grid md:grid-cols-[5rem_1fr] gap-6 md:gap-12 items-start py-10" style={{ borderTop: '1px solid var(--color-rule)' }}>
+                  <span
+                    className="text-6xl leading-none font-normal"
+                    aria-hidden="true"
+                    style={{ fontFamily: 'var(--font-display)', color: 'var(--color-ink-3)' }}
+                  >
+                    {s.n}
+                  </span>
+                  <div>
+                    <h3 className="text-2xl font-black mb-3" style={{ color: 'var(--color-ink)' }}>{s.title}</h3>
+                    <p className="text-sm leading-relaxed" style={{ color: 'var(--color-ink-2)' }}>{s.desc}</p>
+                  </div>
+                </li>
+              </FadeIn>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      {/* ── PLATFORMS ─────────────────────────────────────────── */}
+      <section className="px-6 md:px-12 py-24" aria-label="Available platforms">
+        <div className="max-w-6xl mx-auto">
+          <FadeIn className="mb-12">
+            <p className="text-[10px] font-black uppercase tracking-[.25em] mb-3" style={{ color: 'var(--color-accent)' }}>
+              Every device
+            </p>
+            <h2
+              className="text-4xl md:text-6xl font-normal uppercase leading-none"
+              style={{ fontFamily: 'var(--font-display)' }}
+            >
+              One library,<br />everywhere.
+            </h2>
+          </FadeIn>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {PLATFORMS.map((p, i) => (
-              <FadeUp key={p.name} delay={i * 0.08}>
-                <div className="group p-7 rounded-2xl border border-white/[.06] bg-white/[.02] hover:border-red-500/25 transition-all duration-300 flex flex-col gap-5 h-full">
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-white/[.04] border border-white/[.06] flex items-center justify-center flex-shrink-0">
-                      <p.icon className="w-6 h-6 text-white/50" />
+              <FadeIn key={p.name} delay={i * 0.07}>
+                <div
+                  className="group flex flex-col gap-4 p-6 rounded-2xl transition-all h-full"
+                  style={{
+                    background: 'var(--color-paper-2)',
+                    border: '1px solid var(--color-rule)',
+                  }}
+                >
+                  <div className="flex items-start gap-3">
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                      style={{ background: 'var(--color-paper-3)', border: '1px solid var(--color-rule)' }}
+                    >
+                      <p.icon className="w-5 h-5" style={{ color: 'var(--color-ink-2)' }} aria-hidden="true" />
                     </div>
                     <div>
-                      <div className="font-black text-lg leading-tight">{p.name}</div>
-                      <div className="text-[10px] text-red-400/80 font-black uppercase tracking-widest mt-0.5">{p.badge}</div>
+                      <div className="font-black text-base leading-tight" style={{ color: 'var(--color-ink)' }}>{p.name}</div>
+                      <div className="text-[10px] font-black uppercase tracking-widest mt-0.5" style={{ color: 'var(--color-accent)' }}>{p.badge}</div>
                     </div>
                   </div>
-                  <p className="text-sm text-white/38 leading-relaxed flex-1">{p.desc}</p>
+                  <p className="text-sm leading-relaxed flex-1" style={{ color: 'var(--color-ink-2)' }}>{p.desc}</p>
                   {p.internal ? (
                     <Link
                       to={p.href}
-                      className="text-sm font-bold text-red-400 hover:text-red-300 flex items-center gap-1.5 transition-colors group-hover:gap-2.5"
+                      className="inline-flex items-center gap-1.5 text-sm font-bold transition-colors focus-visible:ring-2 focus-visible:ring-red-500 rounded"
+                      style={{ color: 'var(--color-accent)' }}
+                      onMouseEnter={e => (e.currentTarget.style.opacity = '0.8')}
+                      onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
                     >
-                      {p.cta} <ArrowRight className="w-3.5 h-3.5" />
+                      {p.cta} <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
                     </Link>
                   ) : (
                     <a
                       href={p.href}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-sm font-bold text-red-400 hover:text-red-300 flex items-center gap-1.5 transition-colors group-hover:gap-2.5"
+                      className="inline-flex items-center gap-1.5 text-sm font-bold transition-colors focus-visible:ring-2 focus-visible:ring-red-500 rounded"
+                      style={{ color: 'var(--color-accent)' }}
+                      onMouseEnter={e => (e.currentTarget.style.opacity = '0.8')}
+                      onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
                     >
-                      {p.cta} <ArrowRight className="w-3.5 h-3.5" />
+                      {p.cta} <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
                     </a>
                   )}
                 </div>
-              </FadeUp>
+              </FadeIn>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── FINAL CTA ───────────────────────────────────────── */}
-      <FadeUp>
-        <section className="py-20 px-6">
-          <div className="max-w-2xl mx-auto">
-            <div className="relative rounded-3xl border border-red-500/20 p-10 md:p-14 text-center overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(220,38,38,.07) 0%, transparent 60%)' }}>
-              <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 80% 60% at 50% 0%, rgba(220,38,38,.12) 0%, transparent 70%)' }} />
-              <div className="relative">
-                <h2
-                  className="text-[clamp(1.75rem,6vw,3.5rem)] font-normal uppercase tracking-wide leading-none mb-3"
-                  style={{ fontFamily: "'Anton', sans-serif" }}
+      {/* ── CTA — left-aligned statement form ─────────────────── */}
+      <FadeIn>
+        <section className="px-6 md:px-12 py-24" style={{ borderTop: '1px solid var(--color-rule)' }} aria-label="Sign up">
+          <div className="max-w-6xl mx-auto grid md:grid-cols-[1fr_auto] gap-12 items-center">
+            <div>
+              <h2
+                className="font-normal uppercase leading-none mb-4"
+                style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: 'clamp(2rem, 6vw, 5rem)',
+                  overflowWrap: 'anywhere',
+                }}
+              >
+                Start your library<br />
+                <span style={{ color: 'var(--color-accent)' }}>in 30 seconds.</span>
+              </h2>
+              <p className="text-sm" style={{ color: 'var(--color-ink-3)' }}>No credit card. No ads. Just manga.</p>
+            </div>
+            <div className="flex flex-col gap-3 w-full md:w-72">
+              <form onSubmit={handleCTA} className="flex flex-col gap-2.5">
+                <label htmlFor="cta-email" className="sr-only">Email address</label>
+                <input
+                  id="cta-email"
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="your@email.com"
+                  className="w-full px-4 py-3 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-black"
+                  style={{
+                    background: 'var(--color-paper-2)',
+                    border: '1px solid var(--color-rule)',
+                    borderRadius: 'var(--radius-input)',
+                    color: 'var(--color-ink)',
+                  }}
+                />
+                <button
+                  type="submit"
+                  className="w-full px-6 py-3 font-black text-sm transition-all hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-black"
+                  style={{
+                    background: 'var(--color-accent)',
+                    color: 'var(--color-ink)',
+                    borderRadius: 'var(--radius-input)',
+                    boxShadow: '0 4px 16px var(--color-accent-glow)',
+                  }}
                 >
-                  Start your library<br />
-                  <span className="text-red-500">in 30 seconds.</span>
-                </h2>
-                <p className="text-white/35 mb-8 text-sm">No credit card. No ads. Just manga.</p>
-                <form onSubmit={handleCTA} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    placeholder="your@email.com"
-                    className="flex-1 bg-white/[.05] border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-red-500/40 placeholder:text-white/18 transition-colors"
-                  />
-                  <button
-                    type="submit"
-                    className="px-6 py-3 bg-red-600 hover:bg-red-500 rounded-xl font-black text-sm transition-all shadow-lg shadow-red-600/20 hover:-translate-y-px whitespace-nowrap"
-                  >
-                    Get Started
-                  </button>
-                </form>
-                <p className="mt-5 text-[11px] text-white/20 font-bold uppercase tracking-wider">
-                  Or{' '}
-                  <Link to="/r" className="text-white/35 hover:text-white/60 transition-colors underline underline-offset-2">
-                    jump straight into the app
-                  </Link>
-                </p>
-              </div>
+                  Get Started
+                </button>
+              </form>
+              <p className="text-[11px] text-center" style={{ color: 'var(--color-ink-3)' }}>
+                Or{' '}
+                <Link
+                  to="/r"
+                  className="underline underline-offset-2 transition-colors"
+                  style={{ color: 'var(--color-ink-2)' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-ink)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-ink-2)')}
+                >
+                  jump straight into the app
+                </Link>
+              </p>
             </div>
           </div>
         </section>
-      </FadeUp>
+      </FadeIn>
 
-      {/* ── CONTACT / SUPPORT ───────────────────────────────── */}
-      <FadeUp>
-        <section className="py-28 px-6 border-t border-white/[.04]">
-          <div className="max-w-xl mx-auto">
-            <div className="text-center mb-12">
+      {/* ── CONTACT — split: description left, form right ─────── */}
+      <FadeIn>
+        <section className="px-6 md:px-12 py-24" style={{ borderTop: '1px solid var(--color-rule)' }} aria-label="Contact and support">
+          <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-12 md:gap-20">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[.25em] mb-4" style={{ color: 'var(--color-accent)' }}>Get in touch</p>
               <h2
-                className="text-[clamp(2rem,7vw,4rem)] font-normal uppercase tracking-wide mb-3"
-                style={{ fontFamily: "'Anton', sans-serif" }}
+                className="text-3xl md:text-5xl font-normal uppercase leading-none mb-5"
+                style={{ fontFamily: 'var(--font-display)' }}
               >
-                Get in Touch
+                Bug? Feature?<br />Just hi?
               </h2>
-              <p className="text-white/38 text-sm max-w-sm mx-auto leading-relaxed">
-                Bug? Feature idea? Just wanna say hi? Drop a message — it lands straight in the dashboard.
+              <p className="text-sm leading-relaxed" style={{ color: 'var(--color-ink-2)' }}>
+                Drop a message — it lands straight in the dashboard.
+                Or open an issue on{' '}
+                <a
+                  href="https://github.com/zenmisan/manga-dl"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline underline-offset-2 transition-colors"
+                  style={{ color: 'var(--color-ink-2)' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-ink)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-ink-2)')}
+                >
+                  GitHub
+                </a>
+                .
               </p>
             </div>
 
             {ctDone ? (
-              <div className="text-center py-16 flex flex-col items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-green-600/10 border border-green-600/20 flex items-center justify-center">
-                  <svg className="w-8 h-8 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="flex flex-col items-start gap-4 py-8">
+                <div
+                  className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                  style={{ background: 'oklch(35% 0.15 145 / 0.15)', border: '1px solid oklch(55% 0.15 145 / 0.25)' }}
+                >
+                  <svg className="w-7 h-7" style={{ color: 'oklch(70% 0.15 145)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <p className="font-black text-lg">Message sent!</p>
-                <p className="text-white/38 text-sm">We'll get back to you if you left an email.</p>
+                <p className="font-black text-lg" style={{ color: 'var(--color-ink)' }}>Message sent!</p>
+                <p className="text-sm" style={{ color: 'var(--color-ink-2)' }}>We'll get back to you if you left an email.</p>
                 <button
                   onClick={() => setCtDone(false)}
-                  className="mt-2 text-sm text-white/30 hover:text-white/60 transition-colors underline underline-offset-2"
+                  className="text-sm underline underline-offset-2 transition-colors focus-visible:ring-2 focus-visible:ring-red-500 rounded"
+                  style={{ color: 'var(--color-ink-3)' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-ink-2)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-ink-3)')}
                 >
                   Send another
                 </button>
@@ -469,37 +757,63 @@ export default function LandingPage() {
               <form onSubmit={handleSubmitTicket} className="flex flex-col gap-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-white/30">Name (optional)</label>
+                    <label htmlFor="ct-name" className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--color-ink-3)' }}>
+                      Name (optional)
+                    </label>
                     <input
+                      id="ct-name"
                       type="text"
                       value={ctName}
                       onChange={e => setCtName(e.target.value)}
                       placeholder="Your name"
-                      className="bg-white/[.04] border border-white/[.08] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-red-500/40 placeholder:text-white/18 transition-colors"
+                      className="px-4 py-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-black transition-colors"
+                      style={{
+                        background: 'var(--color-paper-2)',
+                        border: '1px solid var(--color-rule)',
+                        borderRadius: 'var(--radius-input)',
+                        color: 'var(--color-ink)',
+                      }}
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-white/30">Email (optional)</label>
+                    <label htmlFor="ct-email" className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--color-ink-3)' }}>
+                      Email (optional)
+                    </label>
                     <input
+                      id="ct-email"
                       type="email"
                       value={ctEmail}
                       onChange={e => setCtEmail(e.target.value)}
                       placeholder="for a reply"
-                      className="bg-white/[.04] border border-white/[.08] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-red-500/40 placeholder:text-white/18 transition-colors"
+                      className="px-4 py-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-black transition-colors"
+                      style={{
+                        background: 'var(--color-paper-2)',
+                        border: '1px solid var(--color-rule)',
+                        borderRadius: 'var(--radius-input)',
+                        color: 'var(--color-ink)',
+                      }}
                     />
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-white/30">Category</label>
+                  <label htmlFor="ct-category" className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--color-ink-3)' }}>
+                    Category
+                  </label>
                   <select
+                    id="ct-category"
                     value={ctCategory}
                     onChange={e => setCtCategory(e.target.value)}
-                    className="bg-white/[.04] border border-white/[.08] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-red-500/40 transition-colors appearance-none cursor-pointer"
-                    style={{ background: 'rgba(255,255,255,0.04)' }}
+                    className="px-4 py-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-black transition-colors appearance-none cursor-pointer"
+                    style={{
+                      background: 'var(--color-paper-2)',
+                      border: '1px solid var(--color-rule)',
+                      borderRadius: 'var(--radius-input)',
+                      color: 'var(--color-ink)',
+                    }}
                   >
                     {CATEGORIES.map(c => (
-                      <option key={c} value={c} style={{ background: '#1a1a1a' }}>
+                      <option key={c} value={c} style={{ background: 'oklch(13% 0.009 245)' }}>
                         {c.charAt(0).toUpperCase() + c.slice(1)}
                       </option>
                     ))}
@@ -507,71 +821,133 @@ export default function LandingPage() {
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-white/30">Message <span className="text-red-500">*</span></label>
+                  <label htmlFor="ct-message" className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--color-ink-3)' }}>
+                    Message <span style={{ color: 'var(--color-accent)' }} aria-label="required">*</span>
+                  </label>
                   <textarea
+                    id="ct-message"
                     value={ctMessage}
                     onChange={e => setCtMessage(e.target.value)}
                     placeholder="What's on your mind?"
                     rows={5}
                     required
-                    className="bg-white/[.04] border border-white/[.08] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-red-500/40 placeholder:text-white/18 transition-colors resize-none"
+                    aria-required="true"
+                    className="px-4 py-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-black transition-colors resize-none"
+                    style={{
+                      background: 'var(--color-paper-2)',
+                      border: '1px solid var(--color-rule)',
+                      borderRadius: 'var(--radius-input)',
+                      color: 'var(--color-ink)',
+                    }}
                   />
                 </div>
 
                 {ctError && (
-                  <p className="text-red-400 text-xs font-bold">{ctError}</p>
+                  <p className="text-xs font-bold" role="alert" style={{ color: 'var(--color-accent)' }}>{ctError}</p>
                 )}
 
                 <button
                   type="submit"
                   disabled={ctSending || !ctMessage.trim()}
-                  className="flex items-center justify-center gap-2 px-6 py-3.5 bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:pointer-events-none rounded-xl font-black text-sm transition-all shadow-lg shadow-red-600/20 hover:-translate-y-px"
+                  className="flex items-center justify-center gap-2 px-6 py-3.5 font-black text-sm transition-all hover:-translate-y-0.5 disabled:opacity-40 disabled:pointer-events-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-black"
+                  style={{
+                    background: 'var(--color-accent)',
+                    color: 'var(--color-ink)',
+                    borderRadius: 'var(--radius-input)',
+                    boxShadow: '0 4px 16px var(--color-accent-glow)',
+                  }}
                 >
-                  <Send className="w-4 h-4" />
+                  <Send className="w-4 h-4" aria-hidden="true" />
                   {ctSending ? 'Sending…' : 'Send Message'}
                 </button>
-
-                <p className="text-[11px] text-white/20 text-center">
-                  Or open an issue on{' '}
-                  <a href="https://github.com/zenmisan/manga-dl" target="_blank" rel="noreferrer" className="underline text-white/30 hover:text-white/50 transition-colors">
-                    GitHub
-                  </a>
-                </p>
               </form>
             )}
           </div>
         </section>
-      </FadeUp>
+      </FadeIn>
 
-      {/* ── FOOTER ──────────────────────────────────────────── */}
-      <footer className="border-t border-white/[.05] py-10 px-6">
-        <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <Link to="/" className="flex items-center gap-2">
-            <img src="/Manga-dl1.png" alt="manga-dl logo" className="w-7 h-7 object-contain" />
-            <span className="font-black text-sm tracking-tight">manga-dl</span>
-          </Link>
-          <div className="flex items-center gap-5 text-sm text-white/28">
-            <Link to="/r" className="hover:text-white transition-colors">Library</Link>
-            <Link to="/login" className="hover:text-white transition-colors">Sign In</Link>
-            <Link to="/help" className="hover:text-white transition-colors">Help</Link>
-            <a href="mailto:zenmisan@gmail.com" className="hover:text-white transition-colors">Contact</a>
-            <a href="https://github.com/zenmisan/manga-dl" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">GitHub</a>
-          </div>
-          <div className="flex flex-col items-center md:items-end gap-1">
-            <motion.p
-              key={taglineIdx}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.4 }}
-              className="text-[11px] text-white/22 font-bold tracking-wide text-center md:text-right"
-            >
-              {TAGLINES[taglineIdx]}
-            </motion.p>
-            <p className="text-white/14 text-[10px]">© {new Date().getFullYear()} manga-dl</p>
+      {/* ── Ft5 STATEMENT FOOTER ──────────────────────────────── */}
+      <footer style={{ borderTop: '1px solid var(--color-rule)' }}>
+        <div className="max-w-6xl mx-auto px-6 md:px-12 pt-20 pb-10">
+          {/* Statement */}
+          <p
+            className="font-normal uppercase leading-none mb-12"
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 'clamp(2.5rem, 8vw, 7rem)',
+              color: 'var(--color-ink)',
+              overflowWrap: 'anywhere',
+            }}
+          >
+            Read more.<br />
+            <span style={{ color: 'var(--color-ink-3)' }}>Spend less.</span>
+          </p>
+
+          {/* Lower bar */}
+          <div
+            className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 pt-8"
+            style={{ borderTop: '1px solid var(--color-rule)' }}
+          >
+            <Link to="/" className="flex items-center gap-2" aria-label="manga-dl home">
+              <img src="/Manga-dl1.png" alt="" className="w-6 h-6 object-contain" />
+              <span className="font-black text-sm tracking-tight" style={{ color: 'var(--color-ink)' }}>manga-dl</span>
+            </Link>
+
+            <nav className="flex flex-wrap items-center gap-4" aria-label="Footer navigation">
+              {[
+                { label: 'Library', to: '/r', internal: true },
+                { label: 'Sign In', to: '/login', internal: true },
+                { label: 'Help', to: '/help', internal: true },
+                { label: 'Contact', href: 'mailto:zenmisan@gmail.com' },
+                { label: 'GitHub', href: 'https://github.com/zenmisan/manga-dl' },
+              ].map(link => (
+                'to' in link ? (
+                  <Link
+                    key={link.label}
+                    to={link.to!}
+                    className="text-sm font-bold transition-colors"
+                    style={{ color: 'var(--color-ink-3)' }}
+                    onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-ink)')}
+                    onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-ink-3)')}
+                  >
+                    {link.label}
+                  </Link>
+                ) : (
+                  <a
+                    key={link.label}
+                    href={link.href}
+                    target={link.href?.startsWith('http') ? '_blank' : undefined}
+                    rel={link.href?.startsWith('http') ? 'noreferrer' : undefined}
+                    className="text-sm font-bold transition-colors"
+                    style={{ color: 'var(--color-ink-3)' }}
+                    onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-ink)')}
+                    onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-ink-3)')}
+                  >
+                    {link.label}
+                  </a>
+                )
+              ))}
+            </nav>
+
+            <div className="flex flex-col items-start md:items-end gap-1">
+              <motion.p
+                key={taglineIdx}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.4 }}
+                className="text-[11px] font-bold"
+                style={{ color: 'var(--color-ink-3)' }}
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                {TAGLINES[taglineIdx]}
+              </motion.p>
+              <p className="text-[10px]" style={{ color: 'oklch(25% 0.009 240)' }}>© {new Date().getFullYear()} manga-dl</p>
+            </div>
           </div>
         </div>
       </footer>
+
     </div>
   )
 }

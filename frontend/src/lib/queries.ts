@@ -35,8 +35,24 @@ const STALE = {
 export function useLibrary() {
   return useQuery<unknown>({
     queryKey: QK.library,
-    queryFn: () => api.get('/library').then(r => r.data),
+    queryFn: async () => {
+      try {
+        const res = await api.get('/library')
+        return res.data
+      } catch (err: unknown) {
+        if ((err as { response?: { status?: number } })?.response?.status === 401) {
+          return []
+        }
+        throw err
+      }
+    },
     staleTime: STALE.library,
+    retry: (failureCount, error: unknown) => {
+      if ((error as { response?: { status?: number } })?.response?.status === 401) {
+        return false
+      }
+      return failureCount < 1
+    },
   })
 }
 

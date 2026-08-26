@@ -1,14 +1,18 @@
 import React, { useRef, useCallback, Suspense, useEffect } from 'react'
 import {
   Library, Search, Globe, BarChart2, Clock, Bell,
-  Download, Settings, Sparkles, PanelLeftClose, PanelLeftOpen, LogOut,
+  Download, Settings, Sparkles, PanelLeftClose, PanelLeftOpen, LogOut, LogIn, MonitorDown, WifiOff, MoreHorizontal,
 } from 'lucide-react'
+import { usePwaInstall } from './hooks/usePwaInstall'
+import { useOnlineStatus } from './hooks/useOnlineStatus'
 import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from './lib/utils'
+import { useAppStore } from './lib/store'
 import { useAuthSession, useThemeEffects, useAppLock, useBackgroundSync } from './hooks/useAppSetup'
 import LandingPage from './pages/Landing'
 import MorePage from './pages/More'
+import NotificationsPage from './pages/Notifications'
 import Dashboard from './pages/Dashboard'
 import SplashScreen from './components/SplashScreen'
 import { Titlebar } from './components/Titlebar'
@@ -100,14 +104,14 @@ function useGlobalNotifications() {
 
 // ── Nav config ───────────────────────────────────────────────
 const SIDEBAR_ITEMS = [
-  { icon: Library,   label: 'Library',   path: '/r' },
-  { icon: Search,    label: 'Search',    path: '/search' },
-  { icon: Globe,     label: 'Sources',   path: '/sources' },
-  { icon: Bell,      label: 'Updates',   path: '/updates' },
-  { icon: Clock,     label: 'History',   path: '/history' },
-  { icon: BarChart2, label: 'Stats',     path: '/stats' },
-  { icon: Download,  label: 'Downloads', path: '/downloads' },
-  { icon: Settings,  label: 'Settings',  path: '/settings' },
+  { icon: Library,   label: 'Library',       path: '/r' },
+  { icon: Search,    label: 'Search',        path: '/search' },
+  { icon: Globe,     label: 'Sources',       path: '/sources' },
+  { icon: Bell,      label: 'Notifications', path: '/notifications' },
+  { icon: Clock,     label: 'History',       path: '/history' },
+  { icon: BarChart2, label: 'Stats',         path: '/stats' },
+  { icon: Download,  label: 'Downloads',     path: '/downloads' },
+  { icon: Settings,  label: 'Settings',      path: '/settings' },
 ]
 
 // ── Sidebar ──────────────────────────────────────────────────
@@ -120,6 +124,8 @@ function Sidebar({ session, onSignOut, isTauri }: {
   const [isCollapsed, setIsCollapsed] = React.useState<boolean>(() => {
     return localStorage.getItem('manga-dl-sidebar-collapsed') === 'true'
   })
+  const { canInstall, triggerInstall } = usePwaInstall()
+  const { extensionUpdateCount } = useAppStore()
 
   const toggleCollapse = () => {
     setIsCollapsed(prev => {
@@ -177,7 +183,14 @@ function Sidebar({ session, onSignOut, isTauri }: {
                   : 'text-zinc-400 hover:text-white hover:bg-white/5'
               )}
             >
-              <item.icon className="w-4 h-4 shrink-0" />
+              <div className="relative shrink-0">
+                <item.icon className="w-4 h-4" />
+                {item.path === '/sources' && extensionUpdateCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] px-[3px] rounded-full bg-red-500 text-white text-[9px] font-black flex items-center justify-center leading-none">
+                    {extensionUpdateCount > 9 ? '9+' : extensionUpdateCount}
+                  </span>
+                )}
+              </div>
               {!isCollapsed && <span>{item.label}</span>}
             </Link>
           )
@@ -211,6 +224,21 @@ function Sidebar({ session, onSignOut, isTauri }: {
             <Link to="/help" className="hover:text-zinc-300 transition-colors">Help</Link>
             <a href="https://github.com/Zenmisan/manga-dl" target="_blank" rel="noreferrer" className="hover:text-zinc-300 transition-colors">GitHub</a>
           </div>
+        )}
+
+        {canInstall && (
+          <button
+            onClick={triggerInstall}
+            aria-label="Install manga-dl app"
+            title={isCollapsed ? 'Install App' : undefined}
+            className={cn(
+              'rounded-xl text-xs font-bold text-zinc-300 hover:text-white hover:bg-white/8 border border-white/10 hover:border-white/20 transition-all flex items-center gap-2',
+              isCollapsed ? 'p-2 justify-center mb-1' : 'w-full px-3 py-2 mb-1'
+            )}
+          >
+            <MonitorDown className="w-4 h-4 text-red-400 shrink-0" />
+            {!isCollapsed && <span>Install App</span>}
+          </button>
         )}
 
         {session ? (
@@ -249,7 +277,7 @@ function Sidebar({ session, onSignOut, isTauri }: {
                 isCollapsed ? 'p-2' : 'w-full text-center py-2'
               )}
             >
-              {isCollapsed ? <Sparkles className="w-4 h-4" /> : 'Sign In'}
+              {isCollapsed ? <LogIn className="w-4 h-4" /> : 'Sign In'}
             </Link>
           </div>
         )}
@@ -261,13 +289,14 @@ function Sidebar({ session, onSignOut, isTauri }: {
 // ── Bottom Nav ───────────────────────────────────────────────
 function BottomNav() {
   const location = useLocation()
+  const { extensionUpdateCount } = useAppStore()
 
   const navItems = [
-    { icon: Library, label: 'Library', path: '/r' },
-    { icon: Search, label: 'Search', path: '/search' },
-    { icon: Clock, label: 'History', path: '/history' },
-    { icon: Bell, label: 'Updates', path: '/updates' },
-    { icon: Settings, label: 'Settings', path: '/settings' },
+    { icon: Library,  label: 'Library',   path: '/r' },
+    { icon: Search,   label: 'Search',    path: '/search' },
+    { icon: Globe,    label: 'Sources',   path: '/sources' },
+    { icon: Download, label: 'Downloads', path: '/downloads' },
+    { icon: MoreHorizontal, label: 'More', path: '/more' },
   ]
 
   return (
@@ -288,15 +317,37 @@ function BottomNav() {
           <Link
             key={item.label}
             to={item.path}
-            className="flex flex-col items-center gap-0.5 flex-1 py-1"
+            className="flex flex-col items-center gap-0.5 flex-1 py-1 relative"
             style={{ color: active ? 'var(--accent-light)' : 'var(--muted3)' }}
           >
-            <item.icon className="w-[22px] h-[22px]" />
+            <div className="relative">
+              <item.icon className="w-[22px] h-[22px]" />
+              {item.path === '/sources' && extensionUpdateCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500" />
+              )}
+            </div>
             <span className="text-[10px] font-black">{item.label}</span>
           </Link>
         )
       })}
     </nav>
+  )
+}
+
+// ── Offline Banner ───────────────────────────────────────────
+function OfflineBanner() {
+  const isOnline = useOnlineStatus()
+  if (isOnline) return null
+  return (
+    <div
+      role="alert"
+      aria-live="assertive"
+      className="fixed top-0 inset-x-0 z-[9998] flex items-center justify-center gap-2 py-1.5 px-4 text-xs font-black uppercase tracking-wider"
+      style={{ background: 'var(--accent)', color: '#fff' }}
+    >
+      <WifiOff className="w-3.5 h-3.5 shrink-0" />
+      Offline — downloaded chapters still available
+    </div>
   )
 }
 
@@ -401,6 +452,7 @@ function App() {
     <div className="flex min-h-screen" style={{ background: 'var(--bg)', color: 'var(--fg)' }}>
       {isTauri && <Titlebar />}
 
+      <OfflineBanner />
       <Sidebar session={session} onSignOut={handleSignOut} isTauri={isTauri} />
 
       {/* Main content */}
@@ -417,6 +469,7 @@ function App() {
             <Routes location={location}>
               <Route path="/r" element={<Dashboard />} />
               <Route path="/more" element={<MorePage />} />
+              <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/search" element={<SearchPage />} />
               <Route path="/stats" element={<StatsPage />} />
               <Route path="/sources" element={<SourcesPage />} />

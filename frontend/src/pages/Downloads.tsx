@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
 import api from '../lib/api'
-import { Download as DownloadIcon, CheckCircle2, XCircle, Pause, Play, Trash2, FolderOpen, X, RotateCcw, HardDrive } from 'lucide-react'
+import { Download as DownloadIcon, CheckCircle2, XCircle, Pause, Play, Trash2, FolderOpen, X, RotateCcw, HardDrive, WifiOff } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Capacitor } from '@capacitor/core'
 import { fetchCbzAsBase64, saveToDeviceStorage, getCbzUrl } from '../lib/nativeDownload'
-import { supabase } from '../lib/supabase'
-import { ThemedLoadingScreen, ThemedSpinner } from '../components/common/ThemedLoader'
+import { ThemedSpinner } from '../components/common/ThemedLoader'
+import { preCacheChapter, outputPathToParts, isChapterCached } from '../lib/offlineCache'
 
 
 interface DownloadItem {
@@ -58,41 +58,23 @@ export default function DownloadsPage() {
   const [tab, setTab] = useState<Tab>('active')
   const [retrying, setRetrying] = useState<Set<string>>(new Set())
   const [savingToDevice, setSavingToDevice] = useState<Set<string>>(new Set())
-  const [userEmail, setUserEmail] = useState<string | null>(null)
-  const [loadingSession, setLoadingSession] = useState(true)
-
-  const isAdmin = userEmail === 'zenmisan@gmail.com'
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUserEmail(session?.user?.email || null)
-      setLoadingSession(false)
-    })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
-      setUserEmail(session?.user?.email || null)
-      setLoadingSession(false)
-    })
-    return () => subscription.unsubscribe()
-  }, [])
-
-  useEffect(() => {
-    if (loadingSession || !isAdmin) return
-
     const fetchData = async () => {
       try {
         const [activeRes, historyRes] = await Promise.all([
           api.get('/downloads/active'),
           api.get('/downloads/history')
         ])
-        setActive(activeRes.data)
-        setHistory(historyRes.data)
+        setActive(activeRes.data || [])
+        setHistory(historyRes.data || [])
       } catch (err) {
         console.error(err)
       }
     }
 
     fetchData()
-    api.get('/downloads/queue-status').then(res => setPaused(res.data.paused)).catch(() => {})
+    api.get('/downloads/queue-status').then(res => setPaused(res.data?.paused ?? false)).catch(() => {})
 
     let ws: WebSocket | null = null
     let closed = false
@@ -137,6 +119,11 @@ export default function DownloadsPage() {
             if (prev.some(i => i.id === data.download.id)) return prev
             return [data.download, ...prev].slice(0, 100)
           })
+          // Pre-cache all images for offline reading
+          if (data.download.output_path) {
+            const parts = outputPathToParts(data.download.output_path)
+            if (parts) preCacheChapter(parts.mangaTitle, parts.filename).catch(() => {})
+          }
           if (isNative) {
             import('@capacitor/local-notifications').then(({ LocalNotifications }) => {
               LocalNotifications.requestPermissions().then(({ display }) => {
@@ -163,33 +150,7 @@ export default function DownloadsPage() {
       closed = true
       ws?.close()
     }
-  }, [loadingSession, isAdmin])
-
-  if (loadingSession) {
-    return (
-      <ThemedLoadingScreen
-        message="Loading Queue..."
-        subMessage="Connecting to download workers and sync session..."
-      />
-    )
-  }
-
-  if (!isAdmin) {
-    return (
-      <div className="min-h-full flex flex-col">
-        <header className="sticky-header border-b px-4 md:px-6 py-3" style={{ borderColor: 'var(--border)' }}>
-          <h1 className="page-title" style={{ fontSize: 'clamp(1.25rem,3vw,1.75rem)' }}>Downloads</h1>
-        </header>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '64px 24px', gap: 16 }}>
-          <div style={{ width: 64, height: 64, borderRadius: 20, background: 'var(--surface)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <XCircle style={{ width: 28, height: 28, color: 'var(--accent)' }} />
-          </div>
-          <p style={{ fontSize: 15, fontWeight: 800, color: 'var(--fg)' }}>Access Denied</p>
-          <p style={{ fontSize: 13, color: 'var(--muted2)' }}>Download management is restricted to the administrator.</p>
-        </div>
-      </div>
-    )
-  }
+  }, [])
 
   const completed = history.filter(i => i.status === 'done')
   const failed = history.filter(i => i.status === 'failed')
@@ -287,7 +248,17 @@ export default function DownloadsPage() {
           </button>
         )}
         {item.status === 'done' && (
-          <CheckCircle2 style={{ width: 16, height: 16, color: 'rgb(74,222,128)', flexShrink: 0, margin: '7px 4px' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+            <CheckCircle2 style={{ width: 16, height: 16, color: 'rgb(74,222,128)', margin: '7px 4px' }} />
+            {item.output_path && (() => {
+              const parts = outputPathToParts(item.output_path)
+              return parts && isChapterCached(parts.mangaTitle, parts.filename) ? (
+                <span title="Available offline" style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 9, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted3)', padding: '2px 6px', borderRadius: 6, border: '1px solid var(--border)' }}>
+                  <WifiOff style={{ width: 9, height: 9 }} /> offline
+                </span>
+              ) : null
+            })()}
+          </div>
         )}
       </div>
     </motion.div>
@@ -295,6 +266,12 @@ export default function DownloadsPage() {
 
   return (
     <div className="min-h-full flex flex-col">
+      <style>{`
+        @keyframes dl-stripe {
+          from { background-position: 0 0; }
+          to { background-position: 28px 0; }
+        }
+      `}</style>
       <header className="sticky-header border-b px-4 md:px-6 py-3 flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
         <div>
           <h1 className="page-title" style={{ fontSize: 'clamp(1.25rem,3vw,1.75rem)' }}>Downloads</h1>
@@ -333,26 +310,27 @@ export default function DownloadsPage() {
 
       <div className="px-4 md:px-6 pt-4 pb-28 flex-1" style={{ maxWidth: 720 }}>
         {/* Tab bar */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
+        <div style={{ display: 'flex', gap: 4, padding: 4, borderRadius: 999, background: 'rgba(255,255,255,0.05)', marginBottom: 20, width: 'fit-content' }}>
           {TABS.map(t => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 6,
-                padding: '7px 14px', borderRadius: 10,
-                border: `1px solid ${tab === t.id ? 'var(--accent)' : 'var(--border)'}`,
-                background: tab === t.id ? 'var(--accent-muted, rgba(220,38,38,0.1))' : 'none',
-                fontSize: 12, fontWeight: 700,
-                color: tab === t.id ? 'var(--accent)' : 'var(--muted2)',
-                cursor: 'pointer', transition: 'all 0.15s',
+                padding: '7px 16px', borderRadius: 999,
+                border: 'none',
+                background: tab === t.id ? 'var(--accent)' : 'transparent',
+                boxShadow: tab === t.id ? '0 0 12px rgba(220,38,38,0.3)' : 'none',
+                fontSize: 12, fontWeight: 800,
+                color: tab === t.id ? '#fff' : 'var(--muted2)',
+                cursor: 'pointer', transition: 'all 0.18s',
               }}
             >
               {t.label}
               {t.count > 0 && (
                 <span style={{
                   minWidth: 18, height: 18, borderRadius: 999, padding: '0 5px',
-                  background: tab === t.id ? 'var(--accent)' : 'var(--surface-hover)',
+                  background: tab === t.id ? 'rgba(255,255,255,0.25)' : 'var(--surface-hover)',
                   color: tab === t.id ? '#fff' : 'var(--muted2)',
                   fontSize: 10, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
@@ -383,8 +361,8 @@ export default function DownloadsPage() {
                     <motion.div
                       key={item.id}
                       layout
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
                       style={{ padding: '14px 16px', borderRadius: 16, border: '1px solid var(--border)', background: 'var(--surface)' }}
                     >
@@ -412,13 +390,24 @@ export default function DownloadsPage() {
                               </button>
                             </div>
                           </div>
-                          <div style={{ height: 5, borderRadius: 4, background: 'var(--surface-hover)', overflow: 'hidden' }}>
+                          <div style={{ height: 6, borderRadius: 4, background: 'rgba(255,255,255,0.1)', overflow: 'hidden' }}>
                             <motion.div
-                              style={{ height: '100%', background: 'var(--accent)', borderRadius: 4 }}
+                              style={{
+                                height: '100%', borderRadius: 4, background: '#dc2626', position: 'relative', overflow: 'hidden',
+                              }}
                               initial={{ width: 0 }}
                               animate={{ width: `${item.progress}%` }}
                               transition={{ type: 'spring', bounce: 0, duration: 0.5 }}
-                            />
+                            >
+                              {item.status === 'downloading' && (
+                                <div style={{
+                                  position: 'absolute', inset: 0,
+                                  background: 'repeating-linear-gradient(45deg, rgba(255,255,255,0.1) 0px, rgba(255,255,255,0.1) 10px, transparent 10px, transparent 20px)',
+                                  backgroundSize: '28px 100%',
+                                  animation: 'dl-stripe 0.6s linear infinite',
+                                }} />
+                              )}
+                            </motion.div>
                           </div>
                           <div style={{ fontSize: 10.5, color: 'var(--muted3)', marginTop: 5 }}>{item.downloaded_pages} / {item.total_pages} pages</div>
                         </div>

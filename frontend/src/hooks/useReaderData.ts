@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import type { Location } from 'react-router-dom'
-import { loadLocalMangaIntoSession } from '../lib/localLibrary'
+import { loadLocalMangaIntoSession, type LocalMangaSession } from '../lib/localLibrary'
 import api from '../lib/api'
 import { supabase } from '../lib/supabase'
 import { markRead } from '../lib/readTracking'
@@ -35,6 +35,7 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
   const [uploading, setUploading] = useState(false)
   const [nextChapterId, setNextChapterId] = useState<string | null>(null)
   const [prevChapterId, setPrevChapterId] = useState<string | null>(null)
+  const [isWidePage, setIsWidePage] = useState<boolean[]>([])
 
   const malAutoSyncedRef = useRef(false)
   const progressSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -199,7 +200,14 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
           const skipProxy = (ext as unknown as { skipProxy?: boolean })?.skipProxy ?? false
           const proxyPages: string[] = skipProxy
             ? rawPages
-            : rawPages.map((url: string) => `${base}/manga/image-proxy?url=${encodeURIComponent(url)}&api_key=${apiKey}`)
+            : rawPages.map((url: string) => {
+                // comixto://img? URLs carry DRM params — proxy through descramble endpoint
+                if (url.startsWith('comixto://img?')) {
+                  const params = url.slice('comixto://img?'.length)
+                  return `${base}/manga/descramble-proxy?${params}&api_key=${apiKey}`
+                }
+                return `${base}/manga/image-proxy?url=${encodeURIComponent(url)}&api_key=${apiKey}`
+              })
           setPages(proxyPages)
           setLocalTitle(`Online — Ch. ${onlineChapterId}`)
           if (!incognitoMode) markRead(onlineProvider, onlineMangaId, onlineChapterId)
@@ -248,27 +256,49 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
       }
 
       if (mangaTitle === 'local') {
-        let session = (window as unknown as Record<string, unknown>).__LOCAL_MANGA_SESSION__
-        if (!session && filename) {
-          const ok = await loadLocalMangaIntoSession(filename)
-          if (ok) session = (window as unknown as Record<string, unknown>).__LOCAL_MANGA_SESSION__
+        const queryParams = new URLSearchParams(location.search)
+        let chParam = queryParams.get('ch')
+        let targetId = filename || ''
+
+        if (targetId.includes(':')) {
+          const parts = targetId.split(':')
+          targetId = parts[0]
+          chParam = parts[1]
+        } else if (targetId.startsWith('ch-')) {
+          chParam = targetId
+          const existingSession = (window as unknown as Record<string, unknown>).__LOCAL_MANGA_SESSION__ as LocalMangaSession | undefined
+          if (existingSession?.localId) {
+            targetId = existingSession.localId
+          }
         }
-        if (session) {
-          const s = session as { title: string; pages: string[] }
-          setLocalTitle(s.title)
-          setPages(s.pages)
+
+        const ok = await loadLocalMangaIntoSession(targetId, chParam || undefined)
+        const session = (window as unknown as Record<string, unknown>).__LOCAL_MANGA_SESSION__ as LocalMangaSession | undefined
+
+        if (ok && session) {
+          setLocalTitle(`${session.title} — ${session.chapterTitle || 'Chapter ' + session.currentChapterNumber}`)
+          setPages(session.pages)
           setLoading(false)
-          if (!incognitoMode && filename) {
+
+          const chapters = session.chapters || []
+          chapterListRef.current = chapters.map(c => ({ id: c.id, number: c.number, title: c.title }))
+          const currentIdx = chapters.findIndex(c => c.id === session.currentChapterId || c.number === session.currentChapterNumber)
+          if (currentIdx !== -1) {
+            setNextChapterId(currentIdx < chapters.length - 1 ? (chapters[currentIdx + 1]?.id ?? null) : null)
+            setPrevChapterId(currentIdx > 0 ? (chapters[currentIdx - 1]?.id ?? null) : null)
+          }
+
+          if (!incognitoMode) {
             saveLocalHistoryEntry({
               provider: 'local',
-              manga_id: filename,
-              chapter_id: filename,
-              manga_title: s.title || filename,
-              chapter_title: 'Local Reader',
+              manga_id: session.localId || targetId,
+              chapter_id: session.currentChapterId || 'ch-1',
+              manga_title: session.title,
+              chapter_title: session.chapterTitle || `Chapter ${session.currentChapterNumber}`,
               last_page: 1,
               updated_at: new Date().toISOString(),
             })
-            markRead('local', filename, filename)
+            markRead('local', session.localId || targetId, session.currentChapterId || 'ch-1')
           }
           return
         }
@@ -315,6 +345,22 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mangaTitle, filename, readingMode])
+
+  // Spread auto-detection — probe each page's aspect ratio after load
+  useEffect(() => {
+    if (!pages.length) { setIsWidePage([]); return }
+    const results: boolean[] = new Array(pages.length).fill(false)
+    let settled = 0
+    const done = () => { if (++settled === pages.length) setIsWidePage([...results]) }
+    pages.forEach((pageName, i) => {
+      const url = getImageUrl(pageName)
+      if (!url) { done(); return }
+      const img = new Image()
+      img.onload = () => { results[i] = img.naturalWidth > img.naturalHeight; done() }
+      img.onerror = done
+      img.src = url
+    })
+  }, [pages, getImageUrl])
 
   // Next chapter prefetch
   useEffect(() => {
@@ -385,5 +431,6 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
     uploading, handleCloudUpload,
     onlinePartsRef, chapterListRef,
     getImageUrl, getImageUrlForChapter,
+    isWidePage,
   }
 }

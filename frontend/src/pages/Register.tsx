@@ -1,9 +1,13 @@
+/* Hallmark · pre-emit critique: P4 H4 E4 S4 R4 V4 */
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { UserPlus, BookOpen, ExternalLink, ArrowLeft, Eye, EyeOff } from 'lucide-react'
 import { ThemedSpinner } from '../components/common/ThemedLoader'
 import { supabase } from '../lib/supabase'
+
+const FADE = { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.45, ease: [0.16, 1, 0.3, 1] as [number,number,number,number] } }
+const BTN_BASE = 'focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-black disabled:opacity-40 disabled:pointer-events-none active:scale-[0.98] transition-all'
 
 const INPUT_STYLE: React.CSSProperties = {
   width: '100%', padding: '12px 14px', borderRadius: 12,
@@ -33,6 +37,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
   const [agreedToTerms, setAgreedToTerms] = useState(false)
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
@@ -82,10 +87,10 @@ export default function RegisterPage() {
   if (success) {
     return (
       <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+        <motion.div {...FADE}
           style={{ maxWidth: 400, width: '100%', padding: '36px 32px', borderRadius: 24, border: '1px solid var(--border)', background: 'var(--surface)', textAlign: 'center' }}>
-          <div style={{ width: 64, height: 64, borderRadius: 20, background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
-            <UserPlus style={{ width: 28, height: 28, color: 'rgb(74,222,128)' }} />
+          <div style={{ width: 64, height: 64, borderRadius: 20, background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+            <UserPlus style={{ width: 28, height: 28, color: 'var(--accent)' }} />
           </div>
           <h2 className="page-title" style={{ fontSize: 22, marginBottom: 10 }}>Check your email</h2>
           <p style={{ fontSize: 13, color: 'var(--muted2)', marginBottom: 24 }}>
@@ -103,6 +108,8 @@ export default function RegisterPage() {
       <button
         type="button"
         onClick={() => navigate('/r')}
+        aria-label="Go back to app"
+        className={BTN_BASE}
         style={{
           position: 'absolute',
           top: 24,
@@ -120,7 +127,6 @@ export default function RegisterPage() {
           cursor: 'pointer',
           zIndex: 20,
           backdropFilter: 'blur(16px)',
-          transition: 'all 0.2s ease',
         }}
         onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-hover)')}
         onMouseLeave={e => (e.currentTarget.style.background = 'var(--surface)')}
@@ -130,7 +136,7 @@ export default function RegisterPage() {
       </button>
       <div style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%,-50%)', width: 600, height: 600, background: 'radial-gradient(circle, rgba(220,38,38,0.08) 0%, transparent 70%)', pointerEvents: 'none' }} />
 
-      <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} style={{ width: '100%', maxWidth: 400, position: 'relative' }}>
+      <motion.div {...FADE} style={{ width: '100%', maxWidth: 400, position: 'relative' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 32 }}>
           <div style={{ padding: 10, background: 'rgba(220,38,38,0.12)', borderRadius: 16, border: '1px solid rgba(220,38,38,0.2)' }}>
             <BookOpen style={{ width: 24, height: 24, color: '#ef4444' }} />
@@ -139,6 +145,7 @@ export default function RegisterPage() {
         </div>
 
         <div style={{ padding: '36px 32px', borderRadius: 24, border: '1px solid var(--border)', background: 'var(--surface)', backdropFilter: 'blur(24px)' }}>
+          <p style={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--accent)', marginBottom: 6 }}>Get Started</p>
           <h1 className="page-title" style={{ fontSize: 26, marginBottom: 4 }}>Create Account</h1>
           <p style={{ fontSize: 13, color: 'var(--muted2)', marginBottom: 28 }}>Sync your library across up to 3 devices.</p>
 
@@ -147,19 +154,7 @@ export default function RegisterPage() {
             type="button"
             onClick={handleGoogleLogin}
             disabled={loading || googleLoading}
-            style={{
-              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-              padding: '12px 0', borderRadius: 12, border: '1px solid var(--border)',
-              background: 'rgba(255, 255, 255, 0.04)', color: 'var(--fg)', fontSize: 13.5, fontWeight: 700,
-              cursor: loading || googleLoading ? 'not-allowed' : 'pointer', opacity: loading || googleLoading ? 0.6 : 1,
-              transition: 'background 0.15s',
-            }}
-            onMouseEnter={e => {
-              if (!loading && !googleLoading) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'
-            }}
-            onMouseLeave={e => {
-              if (!loading && !googleLoading) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)'
-            }}
+            className="w-full flex items-center justify-center gap-2.5 py-3 rounded-xl border border-[var(--border)] bg-white/[.04] hover:bg-white/[.08] text-[var(--fg)] text-sm font-bold transition-colors disabled:opacity-60 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-red-500"
           >
             {googleLoading ? (
               <ThemedSpinner size="sm" />
@@ -178,19 +173,21 @@ export default function RegisterPage() {
 
           <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>
-              <label style={LABEL_STYLE}>Email</label>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} required style={INPUT_STYLE} placeholder="you@example.com" />
+              <label htmlFor="reg-email" style={LABEL_STYLE}>Email</label>
+              <input id="reg-email" type="email" value={email} onChange={e => setEmail(e.target.value)} required style={INPUT_STYLE} placeholder="you@example.com" className="focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1" />
             </div>
             <div>
-              <label style={LABEL_STYLE}>Password</label>
+              <label htmlFor="reg-password" style={LABEL_STYLE}>Password</label>
               <div style={{ position: 'relative' }}>
                 <input
+                  id="reg-password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   required
                   style={{ ...INPUT_STYLE, paddingRight: 42 }}
                   placeholder="Min. 8 characters"
+                  className="focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1"
                 />
                 <button
                   type="button"
@@ -200,45 +197,48 @@ export default function RegisterPage() {
                     background: 'none', border: 'none', color: 'var(--muted2)', cursor: 'pointer',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 4,
                   }}
-                  title={showPassword ? 'Hide password' : 'Show password'}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? <EyeOff style={{ width: 16, height: 16 }} /> : <Eye style={{ width: 16, height: 16 }} />}
                 </button>
               </div>
             </div>
             <div>
-              <label style={LABEL_STYLE}>Confirm Password</label>
+              <label htmlFor="reg-confirm" style={LABEL_STYLE}>Confirm Password</label>
               <div style={{ position: 'relative' }}>
                 <input
-                  type={showPassword ? 'text' : 'password'}
+                  id="reg-confirm"
+                  type={showConfirm ? 'text' : 'password'}
                   value={confirm}
                   onChange={e => setConfirm(e.target.value)}
                   required
                   style={{ ...INPUT_STYLE, paddingRight: 42 }}
                   placeholder="••••••••"
+                  className="focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1"
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
+                  onClick={() => setShowConfirm(!showConfirm)}
                   style={{
                     position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
                     background: 'none', border: 'none', color: 'var(--muted2)', cursor: 'pointer',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 4,
                   }}
-                  title={showPassword ? 'Hide password' : 'Show password'}
+                  aria-label={showConfirm ? 'Hide confirm password' : 'Show confirm password'}
                 >
-                  {showPassword ? <EyeOff style={{ width: 16, height: 16 }} /> : <Eye style={{ width: 16, height: 16 }} />}
+                  {showConfirm ? <EyeOff style={{ width: 16, height: 16 }} /> : <Eye style={{ width: 16, height: 16 }} />}
                 </button>
               </div>
             </div>
 
             <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
-              <div
-                onClick={() => setAgreedToTerms(p => !p)}
-                style={{ width: 18, height: 18, borderRadius: 6, border: `1px solid ${agreedToTerms ? 'var(--accent)' : 'var(--border)'}`, background: agreedToTerms ? 'var(--accent)' : 'var(--surface-hover)', flexShrink: 0, marginTop: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              >
-                {agreedToTerms && <span style={{ color: '#fff', fontSize: 11, fontWeight: 900 }}>✓</span>}
-              </div>
+              <input
+                type="checkbox"
+                checked={agreedToTerms}
+                onChange={e => setAgreedToTerms(e.target.checked)}
+                className="accent-red-600 cursor-pointer flex-shrink-0 focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1"
+                style={{ width: 18, height: 18, marginTop: 2 }}
+              />
               <span style={{ fontSize: 13, color: 'var(--muted2)', lineHeight: 1.6 }}>
                 I agree to the{' '}
                 <Link to="/terms" target="_blank" style={{ color: 'var(--accent)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 3 }} onClick={e => e.stopPropagation()}>
@@ -249,7 +249,7 @@ export default function RegisterPage() {
             </label>
 
             {error && (
-              <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.2)', fontSize: 13, color: '#f87171' }}>
+              <div role="alert" style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.2)', fontSize: 13, color: '#f87171' }}>
                 {error}
               </div>
             )}
