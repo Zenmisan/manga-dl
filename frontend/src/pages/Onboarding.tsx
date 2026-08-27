@@ -4,7 +4,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Book, Server, Key, ChevronRight, Check, Sparkles, Loader2, AtSign, AlertTriangle } from 'lucide-react'
+import { Book, Server, Key, ChevronRight, Check, Sparkles, Loader2, AtSign, AlertTriangle, Dices } from 'lucide-react'
 import api, { resolveBaseURL } from '../lib/api'
 
 const STEPS = ['welcome', 'backend', 'username', 'done'] as const
@@ -35,6 +35,39 @@ export default function OnboardingPage() {
   const [username, setUsername] = useState('')
   const [usernameLoading, setUsernameLoading] = useState(false)
   const [usernameError, setUsernameError] = useState<string | null>(null)
+  const [generatingUsername, setGeneratingUsername] = useState(false)
+
+  const generateUsername = async () => {
+    setGeneratingUsername(true)
+    setUsernameError(null)
+    try {
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_GROQ_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'llama-3.1-8b-instant',
+          messages: [{ role: 'user', content: 'Generate one creative manga/anime themed username. Rules: 3-20 characters, only lowercase letters, numbers, underscores allowed. No spaces or special characters. Reply with ONLY the username, nothing else.' }],
+          max_tokens: 20,
+          temperature: 1.2,
+        }),
+      })
+      const data = await res.json()
+      const raw = data.choices?.[0]?.message?.content?.trim() || ''
+      const cleaned = raw.toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 24)
+      if (cleaned.length >= 3) {
+        setUsername(cleaned)
+      } else {
+        setUsernameError('Could not generate a valid username. Try again.')
+      }
+    } catch {
+      setUsernameError('Username generation failed. Try again.')
+    } finally {
+      setGeneratingUsername(false)
+    }
+  }
 
   const handleConnect = async () => {
     setTestingConnection(true)
@@ -208,15 +241,31 @@ export default function OnboardingPage() {
               <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)', marginBottom: 8 }}>
                 <AtSign style={{ width: 12, height: 12 }} /> Username
               </label>
-              <input
-                type="text"
-                value={username}
-                onChange={e => { setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '')); setUsernameError(null) }}
-                placeholder="e.g. mangafan_23"
-                maxLength={24}
-                style={INPUT_STYLE}
-              />
-              <p style={{ marginTop: 6, fontSize: 11, color: 'var(--muted3)' }}>3–24 characters. Letters, numbers, underscores only.</p>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={e => { setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '')); setUsernameError(null) }}
+                  placeholder="e.g. mangafan_23"
+                  maxLength={24}
+                  style={{ ...INPUT_STYLE, paddingRight: 44 }}
+                />
+                <button
+                  type="button"
+                  onClick={generateUsername}
+                  disabled={generatingUsername || usernameLoading}
+                  title="Generate a random username"
+                  className={BTN_BASE}
+                  style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted2)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 4, borderRadius: 8 }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--muted2)')}
+                >
+                  {generatingUsername
+                    ? <Loader2 style={{ width: 18, height: 18 }} className="animate-spin" />
+                    : <Dices style={{ width: 18, height: 18 }} />}
+                </button>
+              </div>
+              <p style={{ marginTop: 6, fontSize: 11, color: 'var(--muted3)' }}>3–24 characters. Letters, numbers, underscores only. Hit 🎲 to generate one.</p>
             </div>
 
             {usernameError && (
@@ -229,7 +278,7 @@ export default function OnboardingPage() {
               <button onClick={() => setStep('backend')} disabled={usernameLoading} className={`btn-secondary ${BTN_BASE}`} style={{ flex: 1 }}>Back</button>
               <button
                 onClick={handleUsernameSubmit}
-                disabled={usernameLoading || username.trim().length < 3}
+                disabled={usernameLoading || generatingUsername || username.trim().length < 3}
                 className={`btn-primary ${BTN_BASE}`}
                 style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
               >
