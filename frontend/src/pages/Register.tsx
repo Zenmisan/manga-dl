@@ -66,20 +66,19 @@ export default function RegisterPage() {
     setError(null)
     setGoogleLoading(true)
     try {
-      const { error: authError } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/r`,
-        },
-      })
-      if (authError) throw authError
+      const { GoogleAuthProvider, signInWithPopup } = await import('firebase/auth')
+      const { firebaseAuth } = await import('../lib/firebase')
+      const provider = new GoogleAuthProvider()
+      const result = await signInWithPopup(firebaseAuth, provider)
+      const credential = GoogleAuthProvider.credentialFromResult(result)
+      const idToken = credential?.idToken
+      if (!idToken) throw new Error('No ID token returned from Google.')
+      const { error: sbError } = await supabase.auth.signInWithIdToken({ provider: 'google', token: idToken })
+      if (sbError) throw sbError
+      navigate('/r')
     } catch (err: unknown) {
-      const msg = (err as { message?: string; msg?: string }).message || (err as { msg?: string }).msg || ''
-      if (msg.includes('provider is not enabled') || msg.includes('validation_failed')) {
-        setError('Google Sign-In is not enabled yet in your Supabase project. Enable Google in Supabase Dashboard -> Authentication -> Providers.')
-      } else {
-        setError(msg || 'Google sign-in failed.')
-      }
+      const msg = (err as { message?: string }).message || 'Google sign-in failed.'
+      setError(msg)
       setGoogleLoading(false)
     }
   }

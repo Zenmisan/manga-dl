@@ -5,6 +5,8 @@ import { motion } from 'framer-motion'
 import { LogIn, BookOpen, ArrowLeft, Key, Eye, EyeOff, Mail, Lock } from 'lucide-react'
 import { ThemedSpinner } from '../components/common/ThemedLoader'
 import { supabase } from '../lib/supabase'
+import { firebaseAuth } from '../lib/firebase'
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
 
 const FADE = { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.45, ease: [0.16, 1, 0.3, 1] as [number,number,number,number] } }
 const BTN_BASE = 'focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-black disabled:opacity-40 disabled:pointer-events-none active:scale-[0.98] transition-all'
@@ -64,24 +66,21 @@ export default function LoginPage() {
   }
 
   const handleGoogleLogin = async () => {
-    if (!hasSupabase) { navigate('/r'); return }
     setError(null)
     setGoogleLoading(true)
     try {
-      const { error: authError } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/r`,
-        },
-      })
-      if (authError) throw authError
+      const provider = new GoogleAuthProvider()
+      const result = await signInWithPopup(firebaseAuth, provider)
+      const credential = GoogleAuthProvider.credentialFromResult(result)
+      const idToken = credential?.idToken
+      if (!idToken) throw new Error('No ID token returned from Google.')
+      // Exchange Google ID token for a Supabase session — keeps all table data working
+      const { error: sbError } = await supabase.auth.signInWithIdToken({ provider: 'google', token: idToken })
+      if (sbError) throw sbError
+      navigate('/r')
     } catch (err: unknown) {
-      const msg = (err as { message?: string; msg?: string }).message || (err as { msg?: string }).msg || ''
-      if (msg.includes('provider is not enabled') || msg.includes('validation_failed')) {
-        setError('Google Sign-In is not enabled yet in your Supabase project. Enable Google in Supabase Dashboard -> Authentication -> Providers.')
-      } else {
-        setError(msg || 'Google sign-in failed.')
-      }
+      const msg = (err as { message?: string }).message || 'Google sign-in failed.'
+      setError(msg)
       setGoogleLoading(false)
     }
   }
