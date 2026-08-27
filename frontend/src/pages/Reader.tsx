@@ -14,6 +14,7 @@ import { PageScrubber } from '../components/reader/PageScrubber'
 import { ShortcutOverlay } from '../components/reader/ShortcutOverlay'
 import { ReaderSettingsSheet } from '../components/reader/ReaderSettingsSheet'
 import { startSession, endSession } from '../lib/readingSession'
+import { markRead } from '../lib/readTracking'
 import { buildSmartReadUrl } from '../lib/smartUrl'
 
 const fac = new FastAverageColor()
@@ -91,6 +92,17 @@ export default function Reader() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pages.length])
+
+  // Mark chapter as read only after reaching 80% of pages
+  useEffect(() => {
+    if (incognitoMode || !pages.length || currentPage < Math.ceil(pages.length * 0.8)) return
+    const parts = onlinePartsRef.current
+    if (parts) {
+      markRead(parts.provider, parts.mangaId, parts.chapterId)
+    } else if (mangaTitle === 'local' && filename) {
+      markRead('local', filename, filename)
+    }
+  }, [currentPage, pages.length, incognitoMode, mangaTitle, filename])
 
   const handlePageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     if (!ambilightEnabled) return

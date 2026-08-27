@@ -734,27 +734,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "desktop"
-version = "3.1.0"
-dependencies = [
- "discord-rich-presence",
- "reqwest 0.12.28",
- "semver",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-autostart",
- "tauri-plugin-dialog",
- "tauri-plugin-fs",
- "tauri-plugin-notification",
- "tauri-plugin-opener",
- "tauri-plugin-process",
- "tauri-plugin-updater",
- "tokio",
-]
-
-[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2178,6 +2157,27 @@ dependencies = [
  "objc2-foundation",
  "time",
  "uuid 1.23.2",
+]
+
+[[package]]
+name = "manga-dl"
+version = "3.1.0"
+dependencies = [
+ "discord-rich-presence",
+ "reqwest 0.12.28",
+ "semver",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-autostart",
+ "tauri-plugin-dialog",
+ "tauri-plugin-fs",
+ "tauri-plugin-notification",
+ "tauri-plugin-opener",
+ "tauri-plugin-process",
+ "tauri-plugin-updater",
+ "tokio",
 ]
 
 [[package]]

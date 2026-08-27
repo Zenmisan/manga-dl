@@ -24,7 +24,8 @@ interface MangaResult {
   anilist_url?: string
 }
 
-const PROVIDERS = [
+// Fallback for initial render before extensions load
+const FALLBACK_PROVIDERS = [
   { id: 'mangadex', name: 'MangaDex' },
   { id: 'asurascans', name: 'Asura Scans' },
   { id: 'mangakatana', name: 'MangaKatana' },
@@ -134,7 +135,11 @@ export default function SearchPage() {
   })
 
   const [enabledSources, setEnabledSources] = useState<string[]>(() => {
-    return getEnabledSources(PROVIDERS.map(p => p.id))
+    const manager = ExtensionManager.getInstance()
+    const allIds = manager.extensions.size > 0
+      ? Array.from(manager.extensions.keys())
+      : FALLBACK_PROVIDERS.map(p => p.id)
+    return getEnabledSources(allIds)
   })
 
   const [filterStatus, setFilterStatus] = useState<string>('any')
@@ -157,7 +162,8 @@ export default function SearchPage() {
 
   const activeProviders = useMemo(() => {
     const manager = ExtensionManager.getInstance()
-    return PROVIDERS.filter(p => manager.extensions.has(p.id))
+    if (manager.extensions.size === 0) return FALLBACK_PROVIDERS
+    return Array.from(manager.extensions.values()).map(ext => ({ id: ext.id, name: ext.name }))
   }, [extCount])
 
   useEffect(() => {

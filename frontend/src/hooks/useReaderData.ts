@@ -70,7 +70,13 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
         last_page: page,
         updated_at: new Date().toISOString(),
       })
-      markRead(parts.provider, parts.mangaId, parts.chapterId)
+      // localStorage fallback for page progress (used when Supabase auth unavailable)
+      try {
+        localStorage.setItem(
+          `manga-dl-pg:${parts.provider}:${parts.mangaId}:${parts.chapterId}`,
+          String(page)
+        )
+      } catch { /* quota */ }
 
       const { data } = await supabase.auth.getSession()
       if (!data.session) return
@@ -210,7 +216,6 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
               })
           setPages(proxyPages)
           setLocalTitle(`Online — Ch. ${onlineChapterId}`)
-          if (!incognitoMode) markRead(onlineProvider, onlineMangaId, onlineChapterId)
 
           if ('__TAURI_INTERNALS__' in window) {
             import('@tauri-apps/api/core').then(({ invoke }) => {
@@ -228,15 +233,23 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
               : null
             const chapters = detail?.chapters ?? []
             chapterListRef.current = chapters
-            const idx = chapters.findIndex(c => c.id === onlineChapterId)
-            if (idx !== -1) {
-              // Provider returns chapters newest-first (descending), so:
-              // idx - 1 = next chapter to read (higher number), idx + 1 = previous (lower number)
-              setNextChapterId(idx > 0 ? (chapters[idx - 1]?.id ?? null) : null)
-              setPrevChapterId(chapters[idx + 1]?.id ?? null)
+            // Sort ascending by chapter number so prev/next are correct regardless of provider sort order
+            const sorted = [...chapters].sort((a, b) => (a.number ?? 0) - (b.number ?? 0))
+            const sortedIdx = sorted.findIndex(c => c.id === onlineChapterId)
+            if (sortedIdx !== -1) {
+              setNextChapterId(sortedIdx < sorted.length - 1 ? (sorted[sortedIdx + 1]?.id ?? null) : null)
+              setPrevChapterId(sortedIdx > 0 ? (sorted[sortedIdx - 1]?.id ?? null) : null)
             }
           } catch { /* non-fatal */ }
 
+          // Restore page from localStorage fallback first (works offline / no auth)
+          const localKey = `manga-dl-pg:${onlineProvider}:${onlineMangaId}:${onlineChapterId}`
+          try {
+            const localPage = parseInt(localStorage.getItem(localKey) || '1', 10)
+            if (localPage > 1) setCurrentPage(localPage)
+          } catch { /* private browsing */ }
+
+          // Override with Supabase cloud progress if available
           const { data: session } = await supabase.auth.getSession()
           if (session.session) {
             try {
@@ -298,7 +311,7 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
               last_page: 1,
               updated_at: new Date().toISOString(),
             })
-            markRead('local', session.localId || targetId, session.currentChapterId || 'ch-1')
+            // markRead moved to Reader.tsx — triggers at 80% completion, not on open
           }
           return
         }
