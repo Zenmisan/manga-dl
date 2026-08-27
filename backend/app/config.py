@@ -25,8 +25,9 @@ class Settings(BaseSettings):
         "capacitor://localhost",
     ]
     API_KEY: str | None = None
-    RESEND_API_KEY: str | None = None       # optional — set to get email pings on new tickets
-    SUPPORT_EMAIL: str = "zenmisan@gmail.com"  # where notification emails go
+    RESEND_API_KEY: str | None = None
+    RESEND_FROM_EMAIL: str = "manga-dl <onboarding@resend.dev>"  # swap for verified domain email in prod
+    SUPPORT_EMAIL: str = "zenmisan@gmail.com"  # where support ticket notifications go
     
     # Supabase Storage Configuration
     SUPABASE_URL: str | None = None

@@ -1,6 +1,7 @@
 """
 Device session management and user reading progress / profile API.
 """
+import asyncio
 import logging
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, Request, Depends, Query
@@ -12,7 +13,7 @@ from app.database import get_db
 from app.models.device import UserDevice
 from app.models.reading_progress import ReadingProgress
 from app.models.profiles import UserProfile
-from app.core.supabase_auth import get_current_user
+from app.core.supabase_auth import get_current_user, get_current_user_email
 from app.services.device_service import register_user_device, forfeit_user_device
 from app.services.user_service import (
     upsert_user_reading_progress,
@@ -21,6 +22,7 @@ from app.services.user_service import (
     fetch_user_reading_stats,
     fetch_public_user_profile,
 )
+from app.services.email_service import send_email, welcome_email
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/users", tags=["users"])
@@ -152,6 +154,7 @@ async def list_devices(
 @router.post("/profile/setup")
 async def setup_profile(
     body: ProfileSetup,
+    request: Request,
     user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -161,12 +164,10 @@ async def setup_profile(
     if not re.match(r'^[a-z0-9_]{3,24}$', username):
         raise HTTPException(status_code=422, detail="Username must be 3–24 characters: letters, numbers, underscores only.")
 
-    # Check user doesn't already have a profile
     existing = (await db.execute(select(UserProfile).where(UserProfile.user_id == user_id))).scalar_one_or_none()
     if existing:
         raise HTTPException(status_code=409, detail="Profile already set up. Username cannot be changed.")
 
-    # Check username not taken
     taken = (await db.execute(select(UserProfile).where(UserProfile.username == username))).scalar_one_or_none()
     if taken:
         raise HTTPException(status_code=409, detail="Username already taken.")
@@ -174,6 +175,12 @@ async def setup_profile(
     profile = UserProfile(user_id=user_id, username=username)
     db.add(profile)
     await db.commit()
+
+    user_email = await get_current_user_email(request)
+    if user_email:
+        subject, html = welcome_email(username)
+        asyncio.create_task(send_email(user_email, subject, html))
+
     return {"username": username}
 
 
