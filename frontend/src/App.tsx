@@ -410,7 +410,7 @@ function App() {
   }
 
   const appRoute = !['/', '/login', '/register', '/terms', '/onboarding'].includes(location.pathname)
-  if (appRoute && !localStorage.getItem('onboarded') && !isNative) {
+  if (appRoute && !localStorage.getItem('onboarded')) {
     return <Navigate to={`/onboarding?redirect=${encodeURIComponent(location.pathname)}`} replace />
   }
 

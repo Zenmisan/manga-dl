@@ -452,7 +452,7 @@ export default function SearchPage() {
                     .map(([provider, results]) => (
                       <SourceSwimlane
                         key={provider}
-                        title={PROVIDERS.find(p => p.id === provider)?.name || provider}
+                        title={activeProviders.find((p: { id: string; name: string }) => p.id === provider)?.name || provider}
                         providerId={provider}
                         count={results.length}
                         onViewAll={() => setSelectedProvider(provider)}
