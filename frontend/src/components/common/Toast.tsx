@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react'
+import { createContext, useContext, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, CheckCircle2, AlertCircle, Info, AlertTriangle } from 'lucide-react'
 import { cn } from '../../lib/utils'
@@ -187,7 +187,6 @@ function ConfirmDialog({
                   fontSize: 13, fontWeight: 800,
                   background: opts.danger ? 'rgba(220,38,38,0.9)' : 'var(--accent)',
                   color: '#fff',
-                  focusVisibleRing: opts.danger ? '#dc2626' : 'var(--accent)',
                 }}
               >
                 {opts.confirmLabel ?? 'Confirm'}

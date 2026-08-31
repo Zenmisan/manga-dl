@@ -13,12 +13,16 @@ export function resolveBaseURL(): string {
   // Tauri desktop: backend is auto-started on localhost
   if (isTauri) return 'http://127.0.0.1:8000/api'
 
-  // Capacitor mobile: default to production backend
-  // User can override via Settings if self-hosting
-  if (isCapacitor) return 'https://manga-dl.onrender.com/api'
+  const configuredBackend = import.meta.env.VITE_BACKEND_URL
+    ? import.meta.env.VITE_BACKEND_URL.replace(/\/$/, '') + '/api'
+    : 'https://manga-dl.onrender.com/api'
 
-  // Web: prod hits Render backend directly, dev uses Vite proxy
-  return isProd ? 'https://manga-dl.onrender.com/api' : '/api'
+  // Capacitor mobile: default to configured backend
+  // User can override via Settings if self-hosting
+  if (isCapacitor) return configuredBackend
+
+  // Web: prod hits backend directly, dev uses Vite proxy
+  return isProd ? configuredBackend : '/api'
 }
 
 const api = axios.create({

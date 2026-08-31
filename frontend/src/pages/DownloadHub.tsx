@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Download, Monitor, Smartphone, Globe, Check, Sparkles, ArrowRight, ShieldCheck, Zap, HardDrive, Cpu, Terminal, ArrowLeft } from 'lucide-react'
 
-type OSType = 'windows' | 'mac' | 'linux' | 'android' | 'ios' | 'web'
+type OSType = 'desktop' | 'windows' | 'mac' | 'linux' | 'android' | 'ios' | 'web'
 
 const SUPABASE_RELEASES_URL = "https://gyivwfweldwvzccbpgoz.supabase.co/storage/v1/object/public/manga-library/releases"
 
@@ -19,9 +19,24 @@ interface OSConfig {
   format: string
   arch: string
   alternativeFormats: Array<{ label: string; url: string; size: string }>
+  inDevelopment?: boolean
 }
 
 const OS_DATA: Record<OSType, OSConfig> = {
+  desktop: {
+    id: 'desktop',
+    name: 'Desktop',
+    icon: Monitor,
+    badge: 'Windows · macOS · Linux',
+    tagline: 'Native desktop client with background sync, offline CBZ storage, custom keybindings, and system-tray support — built with Tauri.',
+    primaryLabel: 'Download Desktop App',
+    primaryUrl: '',
+    fileSize: 'Coming Soon',
+    format: 'Native (Tauri)',
+    arch: 'x64 / ARM64',
+    alternativeFormats: [],
+    inDevelopment: true,
+  },
   windows: {
     id: 'windows',
     name: 'Windows',
@@ -37,6 +52,7 @@ const OS_DATA: Record<OSType, OSConfig> = {
       { label: 'Windows Installer (.msi)', url: `${SUPABASE_RELEASES_URL}/MangaOS.msi`, size: '42.5 MB' },
       { label: 'Portable Zip (.zip)', url: `${SUPABASE_RELEASES_URL}/MangaOS-win-x64.zip`, size: '39.8 MB' },
     ],
+    inDevelopment: true,
   },
   mac: {
     id: 'mac',
@@ -52,6 +68,7 @@ const OS_DATA: Record<OSType, OSConfig> = {
     alternativeFormats: [
       { label: 'Apple Silicon & Intel DMG (.dmg)', url: `${SUPABASE_RELEASES_URL}/MangaOS.dmg`, size: '48.1 MB' },
     ],
+    inDevelopment: true,
   },
   linux: {
     id: 'linux',
@@ -68,6 +85,7 @@ const OS_DATA: Record<OSType, OSConfig> = {
       { label: 'Universal AppImage (.AppImage)', url: `${SUPABASE_RELEASES_URL}/MangaOS.AppImage`, size: '46.3 MB' },
       { label: 'Debian / Ubuntu Package (.deb)', url: `${SUPABASE_RELEASES_URL}/manga-os_amd64.deb`, size: '41.2 MB' },
     ],
+    inDevelopment: true,
   },
   android: {
     id: 'android',
@@ -113,25 +131,23 @@ const OS_DATA: Record<OSType, OSConfig> = {
 }
 
 export default function DownloadHub() {
-  const [detectedOS, setDetectedOS] = useState<OSType>('windows')
-  const [selectedOS, setSelectedOS] = useState<OSType>('windows')
+  const [detectedOS, setDetectedOS] = useState<OSType>('desktop')
+  const [selectedOS, setSelectedOS] = useState<OSType>('desktop')
 
   useEffect(() => {
     const ua = window.navigator.userAgent.toLowerCase()
-    let detected: OSType = 'windows'
+    let detected: OSType = 'desktop'
 
     if (ua.includes('android')) detected = 'android'
     else if (ua.includes('iphone') || ua.includes('ipad')) detected = 'ios'
-    else if (ua.includes('mac')) detected = 'mac'
-    else if (ua.includes('linux')) detected = 'linux'
 
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setDetectedOS(detected)
-     
+
     setSelectedOS(detected)
   }, [])
 
-  const current = OS_DATA[selectedOS] || OS_DATA.windows
+  const current = OS_DATA[selectedOS] || OS_DATA.desktop
   const Icon = current.icon
 
   return (
@@ -172,7 +188,7 @@ export default function DownloadHub() {
 
         {/* OS Selector Tabs */}
         <div className="flex items-center justify-center gap-2 overflow-x-auto pb-2 flex-wrap">
-          {(['windows', 'mac', 'linux', 'android', 'web'] as OSType[]).map((osId) => {
+          {(['desktop', 'android', 'web'] as OSType[]).map((osId) => {
             const isDetected = detectedOS === osId
             const isSelected = selectedOS === osId
             const config = OS_DATA[osId]
@@ -244,7 +260,18 @@ export default function DownloadHub() {
 
             {/* Download CTA Column */}
             <div className="w-full lg:w-80 flex flex-col gap-3 shrink-0">
-              {current.id === 'web' || current.id === 'ios' ? (
+              {current.inDevelopment ? (
+                <div className="flex flex-col gap-3">
+                  <div className="w-full py-4 rounded-xl font-black text-sm flex items-center justify-center gap-2 border border-dashed border-zinc-700 text-zinc-500 cursor-not-allowed select-none" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                    <Sparkles className="w-4 h-4 text-amber-500/70" />
+                    In Development
+                  </div>
+                  <p className="text-center text-xs text-zinc-500 leading-relaxed">
+                    The native desktop client is actively being built.<br />
+                    Use the <Link to="/r" className="text-red-400 hover:text-red-300 font-bold">web app</Link> in the meantime — it works great on desktop too.
+                  </p>
+                </div>
+              ) : current.id === 'web' || current.id === 'ios' ? (
                 <Link
                   to="/r"
                   className="btn-primary w-full py-4 rounded-xl font-black text-sm flex items-center justify-center gap-2 shadow-xl hover:scale-[1.02] transition-transform"
@@ -265,8 +292,8 @@ export default function DownloadHub() {
                 </a>
               )}
 
-              {/* Alternative Format Links */}
-              {current.alternativeFormats.length > 1 && (
+              {/* Alternative Format Links — hidden when in development */}
+              {!current.inDevelopment && current.alternativeFormats.length > 1 && (
                 <div className="flex flex-col gap-1.5 mt-2 pt-3 border-t border-zinc-800">
                   <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500 text-center">Other Formats</span>
                   {current.alternativeFormats.map((alt) => (
