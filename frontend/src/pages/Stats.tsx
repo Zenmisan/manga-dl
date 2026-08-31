@@ -301,7 +301,7 @@ export default function StatsPage() {
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <div style={{ fontSize: 12, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)' }}>Reading Goals</div>
-          <button onClick={() => setEditGoals(e => !e)} className="icon-btn" style={{ width: 30, height: 30, borderRadius: 8 }}>
+          <button onClick={() => setEditGoals(e => !e)} className="icon-btn" style={{ width: 44, height: 44, borderRadius: 10 }}>
             <Edit3 className="w-3.5 h-3.5" />
           </button>
         </div>

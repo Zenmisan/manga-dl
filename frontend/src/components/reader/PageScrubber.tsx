@@ -29,32 +29,30 @@ export const PageScrubber = memo(function PageScrubber({
     return () => mq.removeEventListener('change', handler)
   }, [])
 
-  // Webtoon: no discrete pages, no scrubber
-  if (readingMode === 'webtoon') return null
-
   const useFilmstrip = isDesktop && pages.length <= 60
 
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   const getPageFromClientX = useCallback((clientX: number): number => {
     const rail = railRef.current
     if (!rail) return currentPage
     const rect = rail.getBoundingClientRect()
     const relX = clientX - rect.left + rail.scrollLeft
-    // Each slot is roughly THUMB_W + gap(4)
     const slotW = THUMB_W + 4
     const idx = Math.floor(relX / slotW)
     return Math.max(1, Math.min(pages.length, idx + 1))
   }, [currentPage, pages.length])
 
   // Auto-scroll so current thumb stays centred in the rail
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
+    if (readingMode === 'webtoon') return
     const rail = railRef.current
     if (!rail) return
     const slotW = THUMB_W + 4
     const target = (currentPage - 1) * slotW - rail.clientWidth / 2 + THUMB_W / 2
     rail.scrollTo({ left: Math.max(0, target), behavior: 'smooth' })
-  }, [currentPage])
+  }, [currentPage, readingMode])
+
+  // Webtoon: no discrete pages, no scrubber
+  if (readingMode === 'webtoon') return null
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     isDragging.current = true

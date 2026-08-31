@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useToast } from '../components/common/Toast'
 import { useQueryClient } from '@tanstack/react-query'
 import api from '../lib/api'
 import { supabase } from '../lib/supabase'
@@ -69,6 +70,7 @@ const COVER_GRADIENTS = [
 export default function HistoryPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { confirm } = useToast()
   const { incognitoMode } = useAppStore()
   const [authed, setAuthed] = useState(false)
   const [clearing, setClearing] = useState(false)
@@ -118,7 +120,8 @@ export default function HistoryPage() {
   }, [filtered])
 
   const handleClearAll = async () => {
-    if (!confirm('Clear all reading history?')) return
+    const ok = await confirm({ message: 'Clear all reading history?', confirmLabel: 'Clear All', danger: true })
+    if (!ok) return
     setClearing(true)
     clearLocalHistory()
     if (authed) {
@@ -281,7 +284,7 @@ export default function HistoryPage() {
                                 title="Remove"
                                 disabled={clearingMangaId === entry.manga_id}
                                 className="icon-btn"
-                                style={{ width: 30, height: 30, borderRadius: 8 }}
+                                style={{ width: 44, height: 44, borderRadius: 10 }}
                               >
                                 {clearingMangaId === entry.manga_id
                                   ? <ThemedSpinner size="xs" />

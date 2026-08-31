@@ -67,7 +67,7 @@ export function MangaInfoCard({ manga, themeColor, imgRef }: Props) {
             <div key={label} style={{ padding: '10px 12px', borderRadius: 14, border: '1px solid var(--border)', background: 'var(--surface)', textAlign: 'center' }}>
               <Icon style={{ width: 14, height: 14, color: 'var(--muted3)', margin: '0 auto 4px' }} />
               <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{val}</div>
-              <div style={{ fontSize: 9, fontWeight: 900, textTransform: 'uppercase', color: 'var(--muted3)', letterSpacing: '0.08em' }}>{label}</div>
+              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted2)', letterSpacing: '0.06em' }}>{label}</div>
             </div>
           ))}
         </div>
@@ -79,10 +79,10 @@ export function MangaInfoCard({ manga, themeColor, imgRef }: Props) {
               <Info style={{ width: 12, height: 12 }} /> Synopsis
             </div>
             <p
-              style={{ fontSize: 13, color: 'var(--muted1)', lineHeight: 1.65, whiteSpace: 'pre-line' }}
+              style={{ fontSize: 14, color: 'var(--fg)', lineHeight: 1.7 }}
               className={!expanded && isLong ? 'line-clamp-4' : ''}
             >
-              {manga.description}
+              {manga.description.replace(/\n{3,}/g, '\n\n').trim()}
             </p>
             {isLong && (
               <button

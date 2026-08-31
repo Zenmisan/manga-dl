@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { LogIn, BookOpen, ArrowLeft, Key, Eye, EyeOff, Mail, Lock } from 'lucide-react'
 import { ThemedSpinner } from '../components/common/ThemedLoader'
 import { supabase } from '../lib/supabase'
+import api from '../lib/api'
 import { firebaseAuth } from '../lib/firebase'
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
 
@@ -74,10 +75,18 @@ export default function LoginPage() {
       const credential = GoogleAuthProvider.credentialFromResult(result)
       const idToken = credential?.idToken
       if (!idToken) throw new Error('No ID token returned from Google.')
-      // Exchange Google ID token for a Supabase session — keeps all table data working
       const { error: sbError } = await supabase.auth.signInWithIdToken({ provider: 'google', token: idToken })
       if (sbError) throw sbError
-      navigate('/r')
+      // Check if user has completed onboarding (has a profile/username set)
+      const { data } = await api.get('/users/me').catch(() => ({ data: null }))
+      if (data?.profile_set) {
+        localStorage.setItem('onboarded', '1')
+        navigate('/r')
+      } else {
+        // New user — must go through onboarding to set username
+        localStorage.removeItem('onboarded')
+        navigate('/onboarding')
+      }
     } catch (err: unknown) {
       const msg = (err as { message?: string }).message || 'Google sign-in failed.'
       setError(msg)

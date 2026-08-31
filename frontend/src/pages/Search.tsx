@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useToast } from '../components/common/Toast'
 import api from '../lib/api'
 import { ExtensionManager } from '../lib/extensions'
 import { Search as SearchIcon, Globe, BookOpen, BookMarked, Check, SlidersHorizontal, X, TrendingUp, Clock, LayoutGrid, LayoutList, Layers } from 'lucide-react'
@@ -110,6 +111,7 @@ function MangaCard({ r, idx, onSubscribe, subscribed, subscribing, navigate }: {
 
 export default function SearchPage() {
   const navigate = useNavigate()
+  const { show: toast } = useToast()
   const {
     searchQuery, setSearchQuery,
     searchResults, setSearchResults,
@@ -194,7 +196,7 @@ export default function SearchPage() {
     try {
       await api.post(`/manga/subscribe/${provider}/${encodeURIComponent(mangaId)}`, { title, cover_url })
       setSubscribed(prev => [...prev, key])
-    } catch { alert('Could not add to library.') }
+    } catch { toast('Could not add to library.', 'error') }
     finally { setSubscribing(prev => prev.filter(k => k !== key)) }
   }
 
@@ -205,7 +207,7 @@ export default function SearchPage() {
     try {
       const manager = ExtensionManager.getInstance()
       if (manager.extensions.size === 0) await manager.init()
-      if (manager.extensions.size === 0) { alert('No sources loaded. Please check your API Key in Settings.'); setLoading(false); return }
+      if (manager.extensions.size === 0) { toast('No sources loaded. Check your API Key in Settings.', 'warning'); setLoading(false); return }
 
       if (selectedProvider) {
         const ext = manager.extensions.get(selectedProvider)
@@ -222,7 +224,7 @@ export default function SearchPage() {
         const merged = settled.flatMap(r => r.status === 'fulfilled' ? r.value : [])
         if (merged.length === 0 && settled.some(r => r.status === 'rejected')) {
           const firstError = settled.find(r => r.status === 'rejected') as PromiseRejectedResult
-          if (String(firstError?.reason).includes('403')) alert('Search failed (403 Forbidden). Is your API Key correct in Settings?')
+          if (String(firstError?.reason).includes('403')) toast('Search failed (403). Check your API Key in Settings.', 'error')
         }
         const ranked = sortResultsByRelevance(merged, query)
         setSearchResults(ranked)
@@ -378,37 +380,64 @@ export default function SearchPage() {
               </button>
 
               {/* Filter Panel Button */}
-              <button type="button" onClick={() => setShowFilterPanel(true)} aria-label="Search filters"
+              <button type="button" onClick={() => setShowFilterPanel(true)} aria-label="Search filters" aria-expanded={showFilterPanel} aria-haspopup="dialog"
                 style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 14, border: '1px solid var(--border)', background: 'var(--surface)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: hasSearchFilters ? 'var(--accent)' : 'var(--muted2)' }}
               >
                 <SlidersHorizontal style={{ width: 15, height: 15 }} />
               </button>
             </form>
 
-            {/* Source filter pills — only show if providers are loaded */}
-            {activeProviders.length > 0 && (
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
-                <button onClick={() => setSelectedProvider(null)} aria-pressed={!selectedProvider} className={cn('filter-pill', !selectedProvider && 'active')}>All</button>
-                {activeProviders.map(p => (
-                  <button key={p.id} onClick={() => setSelectedProvider(p.id)} aria-pressed={selectedProvider === p.id} className={cn('filter-pill', selectedProvider === p.id && 'active')} style={{ textTransform: 'uppercase', fontSize: 11 }}>
-                    {p.name}
-                  </button>
-                ))}
-              </div>
-            )}
+            {/* Source filter pills — only show enabled sources, max 2 rows */}
+            {activeProviders.length > 0 && (() => {
+              const visibleProviders = activeProviders.filter(p => enabledSources.includes(p.id))
+              const MAX_PILLS = 8
+              const shown = visibleProviders.slice(0, MAX_PILLS)
+              const overflow = visibleProviders.slice(MAX_PILLS)
+              return (
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
+                  <button onClick={() => setSelectedProvider(null)} aria-pressed={!selectedProvider} className={cn('filter-pill', !selectedProvider && 'active')}>All</button>
+                  {shown.map(p => (
+                    <button key={p.id} onClick={() => setSelectedProvider(p.id)} aria-pressed={selectedProvider === p.id} className={cn('filter-pill', selectedProvider === p.id && 'active')} style={{ textTransform: 'uppercase', fontSize: 11 }}>
+                      {p.name}
+                    </button>
+                  ))}
+                  {overflow.length > 0 && (
+                    <button onClick={() => setShowSourceModal(true)} className="filter-pill" style={{ fontSize: 11, fontWeight: 800 }}>
+                      +{overflow.length} more
+                    </button>
+                  )}
+                </div>
+              )
+            })()}
           </motion.div>
         )}
 
-        {/* Browse tab source pills */}
-        {(tab === 'popular' || tab === 'latest') && activeProviders.length > 0 && (
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
-            {activeProviders.map(p => (
-              <button key={p.id} onClick={() => selectBrowseProvider(p.id)} className={cn('filter-pill', browseProvider === p.id && 'active')} style={{ textTransform: 'uppercase', fontSize: 11 }}>
-                {p.name}
-              </button>
-            ))}
-          </div>
-        )}
+        {/* Browse tab source pills — show all providers (browse is not restricted to enabled sources) */}
+        {(tab === 'popular' || tab === 'latest') && activeProviders.length > 0 && (() => {
+          const MAX_BROWSE = 8
+          const shownBrowse = activeProviders.slice(0, MAX_BROWSE)
+          const overflowBrowse = activeProviders.slice(MAX_BROWSE)
+          return (
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
+              {shownBrowse.map(p => (
+                <button key={p.id} onClick={() => selectBrowseProvider(p.id)} className={cn('filter-pill', browseProvider === p.id && 'active')} style={{ textTransform: 'uppercase', fontSize: 11 }}>
+                  {p.name}
+                </button>
+              ))}
+              {overflowBrowse.length > 0 && (
+                <button
+                  onClick={() => { const next = overflowBrowse.find(p => p.id !== browseProvider) || overflowBrowse[0]; if (next) selectBrowseProvider(next.id) }}
+                  className={cn('filter-pill', overflowBrowse.some(p => p.id === browseProvider) && 'active')}
+                  style={{ fontSize: 11, fontWeight: 800 }}
+                >
+                  {overflowBrowse.some(p => p.id === browseProvider)
+                    ? activeProviders.find(p => p.id === browseProvider)?.name || `+${overflowBrowse.length} more`
+                    : `+${overflowBrowse.length} more`}
+                </button>
+              )}
+            </div>
+          )
+        })()}
 
         {/* ── Search results ── */}
         {tab === 'search' && (

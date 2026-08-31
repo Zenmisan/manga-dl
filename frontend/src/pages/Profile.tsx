@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useToast } from '../components/common/Toast'
 import api from '../lib/api'
 import { supabase } from '../lib/supabase'
 import { useAppStore } from '../lib/store'
@@ -49,6 +50,7 @@ const SEC_TITLE: React.CSSProperties = { fontSize: 12, fontWeight: 900, textTran
 export default function ProfilePage() {
   const { userId } = useParams<{ userId: string }>()
   const navigate = useNavigate()
+  const { confirm } = useToast()
   const { readingMode, imageScale } = useAppStore()
   const [profile, setProfile] = useState<ProfileData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -218,19 +220,8 @@ export default function ProfilePage() {
             <h1 className="page-title" style={{ fontSize: 20 }}>Profile</h1>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            {isOwnProfile && (
-              <>
-                <button
-                  onClick={handleOpenEdit}
-                  className="px-3 py-1.5 rounded-xl bg-white/10 border border-white/15 hover:bg-white/20 text-white font-extrabold text-xs flex items-center gap-1.5 transition-all"
-                >
-                  <Pencil className="w-3.5 h-3.5" /> Edit Profile
-                </button>
-                <button onClick={handleSignOut} style={{ padding: '6px 12px', borderRadius: 10, background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.2)', color: '#ef4444', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', cursor: 'pointer' }}>Sign Out</button>
-              </>
-            )}
             <button onClick={handleShare} className="icon-btn" style={{ width: 34, height: 34, borderRadius: 10 }} title="Share Profile">
-              <Share2 style={{ width: 14, height: 14 }} />
+              {copied ? <Check style={{ width: 14, height: 14, color: 'rgb(74,222,128)' }} /> : <Share2 style={{ width: 14, height: 14 }} />}
             </button>
           </div>
         </div>
@@ -240,8 +231,8 @@ export default function ProfilePage() {
 
         {/* Hero card */}
         <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
           className="glass-card"
           style={{ padding: '24px 22px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 18 }}
         >
@@ -253,19 +244,29 @@ export default function ProfilePage() {
             </div>
           )}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--fg)', marginBottom: 2 }}>{finalDisplayName}</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+              <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--fg)', margin: 0 }}>{finalDisplayName}</h2>
+              {isOwnProfile && (
+                <button
+                  onClick={handleOpenEdit}
+                  title="Edit profile"
+                  style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 8, background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)', color: 'var(--muted2)', cursor: 'pointer' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = 'var(--fg)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = 'var(--muted2)' }}
+                >
+                  <Pencil style={{ width: 12, height: 12 }} />
+                </button>
+              )}
+            </div>
             <div className="flex items-center gap-1.5 mb-2">
               <span className="text-xs font-mono font-bold text-red-400">{handleTag}</span>
               <span title="Usernames are permanent and cannot be changed"><Lock className="w-3 h-3 text-zinc-500" /></span>
             </div>
-            {meta.bio && <p className="text-xs text-zinc-300 italic mb-2 leading-relaxed">{meta.bio}</p>}
+            {meta.bio && <p className="text-xs text-zinc-300 mb-2 leading-relaxed">{meta.bio}</p>}
             {currentEmail && <div style={{ fontSize: 11, color: 'var(--muted2)', marginBottom: 6 }}>{currentEmail}</div>}
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {isOwnProfile && (
-                <span style={{ fontSize: 9, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgb(74,222,128)', background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.2)', padding: '2px 8px', borderRadius: 6 }}>You</span>
-              )}
-              {copied && <span style={{ fontSize: 11, color: 'var(--muted2)' }}>Profile link copied!</span>}
-            </div>
+            {isOwnProfile && (
+              <span style={{ fontSize: 9, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgb(74,222,128)', background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.2)', padding: '2px 8px', borderRadius: 6, display: 'inline-block' }}>You</span>
+            )}
           </div>
         </motion.div>
 
@@ -278,7 +279,7 @@ export default function ProfilePage() {
               { icon: BarChart2, label: 'Manga Followed', value: profile.manga_count, color: 'rgb(56,189,248)' },
               { icon: Calendar, label: 'Days Active', value: profile.streak_days, color: 'rgb(251,146,60)' },
             ].map((s, i) => (
-              <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+              <motion.div key={s.label} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.05 }}
                 style={{ padding: '16px 12px', borderRadius: 16, border: '1px solid var(--border)', background: 'var(--surface)', textAlign: 'center' }}>
                 <s.icon style={{ width: 16, height: 16, color: s.color, margin: '0 auto 8px' }} />
                 <div style={{ fontSize: 22, fontWeight: 900, fontFamily: 'monospace', color: s.color }}>{s.value.toLocaleString()}</div>
@@ -289,7 +290,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Linked Integrations */}
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} style={SEC}>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }} style={SEC}>
           <div style={SEC_TITLE}>Linked Integrations</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             {[
@@ -312,7 +313,7 @@ export default function ProfilePage() {
         </motion.div>
 
         {/* Reader Preferences */}
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} style={SEC}>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }} style={SEC}>
           <div style={SEC_TITLE}>Reader Preferences</div>
           {[
             { label: 'Reading Mode', value: modeLabel[readingMode] || readingMode },
@@ -332,7 +333,7 @@ export default function ProfilePage() {
 
         {/* Recent Activity */}
         {profile.recent_activity.length > 0 && (
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} style={SEC}>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} style={SEC}>
             <div style={SEC_TITLE}>Recent Activity</div>
             {profile.recent_activity.map((a, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: i > 0 ? '10px 0' : '0 0 10px', borderTop: i > 0 ? '1px solid var(--border)' : 'none' }}>
@@ -348,19 +349,40 @@ export default function ProfilePage() {
 
         {/* Danger Zone */}
         {isOwnProfile && (
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }}>
             <div style={{ padding: '18px 20px', borderRadius: 20, borderLeft: '4px solid #dc2626', border: '1px solid rgba(220,38,38,0.2)', background: 'rgba(220,38,38,0.04)', marginBottom: 12 }}>
               <div style={{ fontSize: 12, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#dc2626', marginBottom: 12 }}>Danger Zone</div>
+
+              {/* Sign Out */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, paddingBottom: 14, marginBottom: 14, borderBottom: '1px solid rgba(220,38,38,0.12)' }}>
+                <div>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--fg)' }}>Sign Out</div>
+                  <div style={{ fontSize: 11.5, color: 'var(--muted2)', marginTop: 2 }}>Sign out of your account on this device</div>
+                </div>
+                <button
+                  onClick={handleSignOut}
+                  style={{ padding: '7px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', fontSize: 12, fontWeight: 700, color: 'var(--fg)', cursor: 'pointer', flexShrink: 0 }}
+                >
+                  Sign Out
+                </button>
+              </div>
+
+              {/* Delete Account */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
                 <div>
                   <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--fg)' }}>Delete Account</div>
                   <div style={{ fontSize: 11.5, color: 'var(--muted2)', marginTop: 2 }}>Permanently delete your account and all data</div>
                 </div>
                 <button
-                  onClick={() => {
-                    if (confirm('Delete your account permanently? This cannot be undone.')) {
-                      supabase.auth.signOut().then(() => navigate('/'))
-                    }
+                  onClick={async () => {
+                    const ok = await confirm({
+                      title: 'Delete Account',
+                      message: 'Permanently delete your account and all data? This cannot be undone.',
+                      confirmLabel: 'Delete Account',
+                      cancelLabel: 'Keep Account',
+                      danger: true,
+                    })
+                    if (ok) supabase.auth.signOut().then(() => navigate('/'))
                   }}
                   style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 10, border: '1px solid rgba(220,38,38,0.3)', background: 'rgba(220,38,38,0.1)', fontSize: 12, fontWeight: 700, color: '#ef4444', cursor: 'pointer', flexShrink: 0 }}
                 >

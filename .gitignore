@@ -37,11 +37,26 @@ logs/
 .claude/*
 .agents/*
 .kiro/*
+CLAUDE.md
 
-# Archive artifact
-Suwayomi-Server-master.zip
+# QA testing artifacts
+*.cbz
+insomniacs-after-school_c001\ _\ c010.zip
+qa_audit.py
+qa_screenshots/
+qa_report.json
 
 # Folders
 UI/
 stitch/
 
+# Databases & SQLite
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+backend/*.db
+
+# Caches
+.firebase/
+**/.firebase/

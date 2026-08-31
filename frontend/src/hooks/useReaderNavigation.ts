@@ -96,12 +96,17 @@ export function useReaderNavigation({
     const targetId = getNextUnreadChapterId()
     if (!targetId) return
     const parts = onlinePartsRef.current
-    if (parts) {
+    if (parts && parts.provider !== 'local') {
       const chapters = chapterListRef.current
       const targetChapter = chapters.find(c => c.id === targetId)
       navigate(buildSmartReadUrl(parts.provider, parts.mangaId, targetId, parts.mangaTitle ?? 'manga', targetChapter?.title ?? targetId))
-    } else if (mangaTitle === 'local') {
-      navigate(`/read/local/${encodeURIComponent(targetId)}`)
+    } else if (mangaTitle === 'local' || parts?.provider === 'local') {
+      // Compound IDs (archiveId:chapterId) navigate directly; simple IDs get the current archive prefixed
+      if (targetId.includes(':')) {
+        navigate(`/read/local/${targetId}`)
+      } else {
+        navigate(`/read/local/${parts?.mangaId ?? encodeURIComponent(targetId)}:${targetId}`)
+      }
     } else {
       navigate(`/read/${encodeURIComponent(mangaTitle ?? 'manga')}/${encodeURIComponent(targetId)}`)
     }
@@ -110,12 +115,16 @@ export function useReaderNavigation({
   const navigateToPrevChapter = useCallback(() => {
     if (!prevChapterId) return
     const parts = onlinePartsRef.current
-    if (parts) {
+    if (parts && parts.provider !== 'local') {
       const chapters = chapterListRef.current
       const targetChapter = chapters.find(c => c.id === prevChapterId)
       navigate(buildSmartReadUrl(parts.provider, parts.mangaId, prevChapterId, parts.mangaTitle ?? 'manga', targetChapter?.title ?? prevChapterId))
-    } else if (mangaTitle === 'local') {
-      navigate(`/read/local/${encodeURIComponent(prevChapterId)}`)
+    } else if (mangaTitle === 'local' || parts?.provider === 'local') {
+      if (prevChapterId.includes(':')) {
+        navigate(`/read/local/${prevChapterId}`)
+      } else {
+        navigate(`/read/local/${parts?.mangaId ?? encodeURIComponent(prevChapterId)}:${prevChapterId}`)
+      }
     } else {
       navigate(`/read/${encodeURIComponent(mangaTitle ?? 'manga')}/${encodeURIComponent(prevChapterId)}`)
     }

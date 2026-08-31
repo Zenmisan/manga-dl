@@ -240,7 +240,7 @@ export function useDashboardData() {
     getAllLocalManga().then(localEntries => {
       if (localEntries.length === 0) return
       const seriesMap = new Map<string, LibraryItem>()
-      for (const e of localEntries.sort((a, b) => b.addedAt - a.addedAt)) {
+      for (const e of localEntries.sort((a, b) => a.addedAt - b.addedAt)) {
         const sTitle = e.seriesTitle || e.title
         if (!seriesMap.has(sTitle)) {
           seriesMap.set(sTitle, {

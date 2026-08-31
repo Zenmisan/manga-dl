@@ -152,7 +152,7 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
 
   // Debounced cloud save
   useEffect(() => {
-    if (mangaTitle !== 'online' || pages.length === 0) return
+    if (mangaTitle === 'local' || pages.length === 0) return
     if (progressSaveTimerRef.current) clearTimeout(progressSaveTimerRef.current)
     progressSaveTimerRef.current = setTimeout(() => saveOnlineProgress(currentPage), 1500)
     return () => {
@@ -216,6 +216,7 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
               })
           setPages(proxyPages)
           setLocalTitle(`Online — Ch. ${onlineChapterId}`)
+          try { localStorage.setItem(`manga-dl-last-chapter:${onlineProvider}:${onlineMangaId}`, onlineChapterId) } catch { /* private browsing */ }
 
           if ('__TAURI_INTERNALS__' in window) {
             import('@tauri-apps/api/core').then(({ invoke }) => {
@@ -232,9 +233,9 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
               ? await extForChapters.getMangaDetail(onlineMangaId) as { chapters?: { id: string; number: number }[] }
               : null
             const chapters = detail?.chapters ?? []
-            chapterListRef.current = chapters
-            // Sort ascending by chapter number so prev/next are correct regardless of provider sort order
+            // Sort ascending by chapter number for both the dropdown and prev/next logic
             const sorted = [...chapters].sort((a, b) => (a.number ?? 0) - (b.number ?? 0))
+            chapterListRef.current = sorted
             const sortedIdx = sorted.findIndex(c => c.id === onlineChapterId)
             if (sortedIdx !== -1) {
               setNextChapterId(sortedIdx < sorted.length - 1 ? (sorted[sortedIdx + 1]?.id ?? null) : null)
@@ -285,14 +286,20 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
           }
         }
 
+        // Restore last-read chapter if no specific chapter was requested
+        if (!chParam) {
+          try {
+            const saved = localStorage.getItem(`manga-dl-last-chapter:local:${targetId}`)
+            if (saved) chParam = saved
+          } catch { /* private browsing */ }
+        }
+
         const ok = await loadLocalMangaIntoSession(targetId, chParam || undefined)
         const session = (window as unknown as Record<string, unknown>).__LOCAL_MANGA_SESSION__ as LocalMangaSession | undefined
 
         if (ok && session) {
-          setLocalTitle(`${session.title} — ${session.chapterTitle || 'Chapter ' + session.currentChapterNumber}`)
-          setPages(session.pages)
-          setLoading(false)
-
+          // Populate refs BEFORE setLoading(false) so the re-render sees them
+          onlinePartsRef.current = { provider: 'local', mangaId: session.localId || targetId, chapterId: session.currentChapterId || 'ch-1', mangaTitle: session.title, chapterTitle: session.chapterTitle || '' }
           const chapters = session.chapters || []
           chapterListRef.current = chapters.map(c => ({ id: c.id, number: c.number, title: c.title }))
           const currentIdx = chapters.findIndex(c => c.id === session.currentChapterId || c.number === session.currentChapterNumber)
@@ -300,6 +307,18 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
             setNextChapterId(currentIdx < chapters.length - 1 ? (chapters[currentIdx + 1]?.id ?? null) : null)
             setPrevChapterId(currentIdx > 0 ? (chapters[currentIdx - 1]?.id ?? null) : null)
           }
+
+          setLocalTitle(`${session.title} — ${session.chapterTitle || 'Chapter ' + session.currentChapterNumber}`)
+          setPages(session.pages)
+          // Restore saved page position for this chapter
+          try {
+            const pgKey = `manga-dl-pg:local:${session.localId || targetId}:${session.currentChapterId || 'ch-1'}`
+            const savedPage = parseInt(localStorage.getItem(pgKey) || '1', 10)
+            if (savedPage > 1) setCurrentPage(savedPage)
+          } catch { /* private browsing */ }
+          // Save last-read chapter for resume
+          try { localStorage.setItem(`manga-dl-last-chapter:local:${session.localId || targetId}`, session.currentChapterId || 'ch-1') } catch { /* private browsing */ }
+          setLoading(false)
 
           if (!incognitoMode) {
             saveLocalHistoryEntry({
@@ -357,7 +376,7 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mangaTitle, filename, readingMode])
+  }, [mangaTitle, filename, location.search])
 
   // Spread auto-detection — probe each page's aspect ratio after load
   useEffect(() => {

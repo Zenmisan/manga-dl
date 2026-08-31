@@ -113,6 +113,14 @@ export function useMangaChaptersFilter(
 
   const resumeTarget = useMemo(() => {
     if (!manga || manga.chapters.length === 0) return null
+    // Check last-read chapter saved by reader
+    try {
+      const lastChapterId = localStorage.getItem(`manga-dl-last-chapter:${provider}:${mangaId}`)
+      if (lastChapterId) {
+        const lastChapter = manga.chapters.find(c => c.id === lastChapterId)
+        if (lastChapter) return { chapter: lastChapter, label: `Continue Ch. ${lastChapter.number}` }
+      }
+    } catch { /* private browsing */ }
     const getNum = (c: { number: number; title: string }) => {
       if (c.number && c.number !== 0) return c.number
       const m = c.title.match(/[\d]+(?:\.\d+)?/)
@@ -125,7 +133,7 @@ export function useMangaChaptersFilter(
     }
     const last = sorted[sorted.length - 1]
     return { chapter: last, label: `Re-read Ch. ${last.number}` }
-  }, [manga, readChapters])
+  }, [manga, readChapters, provider, mangaId])
 
   return {
     chapterSort, setChapterSort, chapterSearch, setChapterSearch,

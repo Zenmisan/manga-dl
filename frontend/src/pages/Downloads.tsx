@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import api from '../lib/api'
+import { useToast } from '../components/common/Toast'
 import { Download as DownloadIcon, CheckCircle2, XCircle, Pause, Play, Trash2, FolderOpen, X, RotateCcw, HardDrive, WifiOff } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Capacitor } from '@capacitor/core'
@@ -52,6 +53,7 @@ function coverGradient(title: string): string {
 type Tab = 'active' | 'completed' | 'failed'
 
 export default function DownloadsPage() {
+  const { show: toast, confirm } = useToast()
   const [active, setActive] = useState<DownloadItem[]>([])
   const [history, setHistory] = useState<DownloadItem[]>([])
   const [paused, setPaused] = useState(false)
@@ -200,7 +202,7 @@ export default function DownloadsPage() {
               disabled={retrying.has(item.id)}
               title="Retry"
               className="icon-btn"
-              style={{ width: 30, height: 30, borderRadius: 8 }}
+              style={{ width: 44, height: 44, borderRadius: 10 }}
             >
               {retrying.has(item.id) ? <ThemedSpinner size="xs" /> : <RotateCcw className="w-3 h-3" />}
             </button>
@@ -208,7 +210,7 @@ export default function DownloadsPage() {
               onClick={() => setHistory(prev => prev.filter(i => i.id !== item.id))}
               title="Remove"
               className="icon-btn"
-              style={{ width: 30, height: 30, borderRadius: 8 }}
+              style={{ width: 44, height: 44, borderRadius: 10 }}
             >
               <Trash2 className="w-3 h-3" />
             </button>
@@ -222,9 +224,9 @@ export default function DownloadsPage() {
                 const url = getCbzUrl(item.manga_title, item.chapter_title + '.cbz')
                 const b64 = await fetchCbzAsBase64(url)
                 await saveToDeviceStorage(item.manga_title, item.chapter_title + '.cbz', b64)
-                alert('Saved to Documents/manga-dl/')
+                toast('Saved to Documents/manga-dl/', 'success')
               } catch (e) {
-                alert('Save failed: ' + (e as Error).message)
+                toast('Save failed: ' + (e as Error).message, 'error')
               } finally {
                 setSavingToDevice(prev => { const s = new Set(prev); s.delete(item.id); return s })
               }
@@ -232,7 +234,7 @@ export default function DownloadsPage() {
             disabled={savingToDevice.has(item.id)}
             title="Save to device"
             className="icon-btn"
-            style={{ width: 30, height: 30, borderRadius: 8 }}
+            style={{ width: 44, height: 44, borderRadius: 10 }}
           >
             <HardDrive className="w-3 h-3" />
           </button>
@@ -242,7 +244,7 @@ export default function DownloadsPage() {
             onClick={() => revealFile(item.output_path)}
             title="Reveal in file manager"
             className="icon-btn"
-            style={{ width: 30, height: 30, borderRadius: 8 }}
+            style={{ width: 44, height: 44, borderRadius: 10 }}
           >
             <FolderOpen className="w-3 h-3" />
           </button>
@@ -294,7 +296,8 @@ export default function DownloadsPage() {
           </button>
           <button
             onClick={async () => {
-              if (!confirm('Cancel all queued downloads and clear history?')) return
+              const ok = await confirm({ message: 'Cancel all queued downloads and clear history?', confirmLabel: 'Clear All', danger: true })
+              if (!ok) return
               await Promise.allSettled(active.map(i => api.post(`/downloads/cancel/${i.id}`)))
               await api.delete('/downloads/history')
               setActive([])
@@ -384,7 +387,7 @@ export default function DownloadsPage() {
                                 }}
                                 title="Cancel"
                                 className="icon-btn"
-                                style={{ width: 28, height: 28, borderRadius: 8 }}
+                                style={{ width: 44, height: 44, borderRadius: 10 }}
                               >
                                 <X className="w-3.5 h-3.5" />
                               </button>

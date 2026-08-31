@@ -31,7 +31,7 @@ const icons: LegendItem[] = [
   // Reader
   { icon: CL,         label: 'Back',           description: 'Return to previous page', location: 'Reader header' },
   { icon: Tv2,        label: 'Ambilight',      description: 'Toggle ambient glow effect that colours the background to match the page', location: 'Reader header' },
-  { icon: Sparkles,   label: 'Enhance',        description: 'Enable AI upscaling — makes low-res pages sharper (beta)', location: 'Reader header' },
+  { icon: Sparkles,   label: 'Enhance',        description: 'Sharpen local CBZ/ZIP pages — has no effect on online sources', location: 'Reader header' },
   { icon: CloudUpload,label: 'Save to Cloud',  description: 'Upload a local CBZ file to your Supabase cloud library', location: 'Reader header (local files only)' },
   { icon: FileText,   label: 'Export PDF',     description: 'Convert current chapter to PDF and download it', location: 'Reader header' },
   { icon: BookOpen,   label: 'Export EPUB',    description: 'Convert current chapter to EPUB3 and download it', location: 'Reader header' },

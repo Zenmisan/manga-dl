@@ -101,13 +101,13 @@ export default function MangaDetail() {
                 <span className="text-xs font-black text-white leading-none mb-0.5">
                   {userRating > 0 ? `${userRating}.0` : '—'}
                 </span>
-                <span className="text-[8px] font-bold uppercase tracking-wider text-zinc-500">Rating</span>
+                <span className="text-[10px] font-bold uppercase tracking-wide text-zinc-400">Rating</span>
               </div>
               <div className="flex flex-col items-center py-2.5 px-1 rounded-xl bg-white/5 border border-white/10">
                 <span className="text-xs font-black text-white leading-none mb-0.5 mt-px">
                   {manga.chapters.length}
                 </span>
-                <span className="text-[8px] font-bold uppercase tracking-wider text-zinc-500 mt-[3px]">Chapters</span>
+                <span className="text-[10px] font-bold uppercase tracking-wide text-zinc-400 mt-[3px]">Chapters</span>
               </div>
               <div className="flex flex-col items-center py-2.5 px-1 rounded-xl bg-white/5 border border-white/10">
                 <span
@@ -116,7 +116,7 @@ export default function MangaDetail() {
                     statusIsOngoing ? 'bg-emerald-400' : 'bg-zinc-500'
                   )}
                 />
-                <span className="text-[8px] font-bold uppercase tracking-wider text-zinc-500 text-center capitalize leading-tight">
+                <span className="text-[10px] font-bold uppercase tracking-wide text-zinc-400 text-center capitalize leading-tight">
                   {manga.status || 'Ongoing'}
                 </span>
               </div>
@@ -200,7 +200,7 @@ export default function MangaDetail() {
             {/* GENRES */}
             {manga.genres.length > 0 && (
               <div className="mb-5">
-                <div className="text-[10px] font-black uppercase tracking-[.2em] text-[var(--accent,#dc2626)] mb-2">
+                <div className="text-[10px] font-black uppercase tracking-[.15em] text-[var(--accent,#dc2626)] mb-2">
                   Genres
                 </div>
                 <div className="flex flex-wrap gap-1.5">
@@ -218,7 +218,7 @@ export default function MangaDetail() {
 
             {/* DETAILS */}
             <div className="mb-5">
-              <div className="text-[10px] font-black uppercase tracking-[.2em] text-[var(--accent,#dc2626)] mb-2">
+              <div className="text-[10px] font-black uppercase tracking-[.15em] text-[var(--accent,#dc2626)] mb-2">
                 Details
               </div>
               <div className="space-y-2 text-xs">
@@ -238,11 +238,11 @@ export default function MangaDetail() {
             {/* SYNOPSIS */}
             {manga.description && (
               <div className="mb-5">
-                <div className="text-[10px] font-black uppercase tracking-[.2em] text-[var(--accent,#dc2626)] mb-2">
+                <div className="text-[10px] font-black uppercase tracking-[.15em] text-[var(--accent,#dc2626)] mb-2">
                   Synopsis
                 </div>
-                <p className="text-xs leading-relaxed text-zinc-400 whitespace-pre-line">
-                  {manga.description}
+                <p className="text-sm leading-relaxed text-zinc-300">
+                  {manga.description.replace(/\n{3,}/g, '\n\n').trim()}
                 </p>
               </div>
             )}

@@ -94,7 +94,7 @@ export function ReaderHeader({
               {chapters.length > 0 && onChapterSelect ? (
                 <button
                   onClick={() => setShowChapterDrop(p => !p)}
-                  className="hidden md:inline-flex items-center gap-1 text-[10px] font-bold text-white/30 hover:text-white/60 uppercase tracking-tight truncate transition-colors"
+                  className="inline-flex items-center gap-1 text-[10px] font-bold text-white/30 hover:text-white/60 uppercase tracking-tight truncate transition-colors"
                 >
                   {displayChapter}
                   <ChevronDown className={cn('w-3 h-3 transition-transform', showChapterDrop && 'rotate-180')} />
@@ -160,7 +160,7 @@ export function ReaderHeader({
 
               <button
                 onClick={(e) => { e.stopPropagation(); setUpscaling(!upscaling) }}
-                aria-label={upscaling ? 'Disable AI enhance' : 'Enable AI enhance (beta)'}
+                aria-label={upscaling ? 'Disable enhance' : 'Enhance local scans'}
                 aria-pressed={upscaling}
                 className={cn(
                   'p-2.5 rounded-xl transition-all border',

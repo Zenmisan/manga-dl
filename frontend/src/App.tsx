@@ -1,12 +1,13 @@
 import React, { useRef, useCallback, Suspense, useEffect } from 'react'
 import {
   Library, Search, Globe, BarChart2, Clock, Bell,
-  Download, Settings, Sparkles, PanelLeftClose, PanelLeftOpen, LogOut, LogIn, MonitorDown, WifiOff, MoreHorizontal,
+  Download, Settings, Sparkles, PanelLeftClose, PanelLeftOpen, LogOut, LogIn, MonitorDown, MoreHorizontal,
 } from 'lucide-react'
 import { usePwaInstall } from './hooks/usePwaInstall'
 import { useOnlineStatus } from './hooks/useOnlineStatus'
 import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, MotionConfig } from 'framer-motion'
+import { useToast } from './components/common/Toast'
 import { cn } from './lib/utils'
 import { useAppStore } from './lib/store'
 import { useAuthSession, useThemeEffects, useAppLock, useBackgroundSync } from './hooks/useAppSetup'
@@ -40,6 +41,7 @@ import UpdatesPage from './pages/Updates'
 import OnboardingPage from './pages/Onboarding'
 import ProfilePage from './pages/Profile'
 import ImportGuide from './pages/ImportGuide'
+import LocalMangaDetail from './pages/LocalMangaDetail'
 import { ThemedLoadingScreen } from './components/common/ThemedLoader'
 import type { Session } from '@supabase/supabase-js'
 
@@ -334,21 +336,31 @@ function BottomNav() {
   )
 }
 
-// ── Offline Banner ───────────────────────────────────────────
-function OfflineBanner() {
+// ── Offline Status Effect ─────────────────────────────────────
+function OfflineStatusEffect() {
   const isOnline = useOnlineStatus()
-  if (isOnline) return null
-  return (
-    <div
-      role="alert"
-      aria-live="assertive"
-      className="fixed top-0 inset-x-0 z-[9998] flex items-center justify-center gap-2 py-1.5 px-4 text-xs font-black uppercase tracking-wider"
-      style={{ background: 'var(--accent)', color: '#fff' }}
-    >
-      <WifiOff className="w-3.5 h-3.5 shrink-0" />
-      Offline — downloaded chapters still available
-    </div>
-  )
+  const { show, dismiss } = useToast()
+  const offlineId = useRef<string | null>(null)
+  const prevOnline = useRef<boolean | null>(null)
+
+  useEffect(() => {
+    if (prevOnline.current === null) {
+      prevOnline.current = isOnline
+      if (!isOnline) {
+        offlineId.current = show('Offline — downloaded chapters still available', 'warning', 0)
+      }
+      return
+    }
+    if (!isOnline && prevOnline.current) {
+      offlineId.current = show('Offline — downloaded chapters still available', 'warning', 0)
+    } else if (isOnline && !prevOnline.current) {
+      if (offlineId.current) { dismiss(offlineId.current); offlineId.current = null }
+      show('Back online', 'success', 3000)
+    }
+    prevOnline.current = isOnline
+  }, [isOnline, show, dismiss])
+
+  return null
 }
 
 // ── App ──────────────────────────────────────────────────────
@@ -419,6 +431,7 @@ function App() {
 
   if (noShell) {
     return (
+      <MotionConfig reducedMotion="user">
       <div className="flex flex-col min-h-screen overflow-hidden" style={{ background: 'var(--bg)' }}>
         {isTauri && <Titlebar />}
         <div className="flex-1 overflow-auto">
@@ -443,16 +456,18 @@ function App() {
           </AnimatePresence>
         </div>
       </div>
+      </MotionConfig>
     )
   }
 
   if (showSplash) return <SplashScreen onDone={handleSplashDone} />
 
   return (
+    <MotionConfig reducedMotion="user">
     <div className="flex min-h-screen" style={{ background: 'var(--bg)', color: 'var(--fg)' }}>
       {isTauri && <Titlebar />}
 
-      <OfflineBanner />
+      <OfflineStatusEffect />
       <Sidebar session={session} onSignOut={handleSignOut} isTauri={isTauri} />
 
       {/* Main content */}
@@ -486,6 +501,7 @@ function App() {
               </Route>
               <Route path="/manga/:provider/*" element={<MangaDetail />} />
               <Route path="/read/:mangaTitle/:filename" element={<Reader />} />
+              <Route path="/local/:localId" element={<LocalMangaDetail />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/terms" element={<TermsPage />} />
@@ -504,6 +520,7 @@ function App() {
       {/* Mobile bottom nav — hidden in reader */}
       {!isReader && <BottomNav />}
     </div>
+    </MotionConfig>
   )
 }
 

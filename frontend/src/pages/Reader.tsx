@@ -217,6 +217,15 @@ export default function Reader() {
         onChapterSelect={(chapterId) => {
           const parts = onlinePartsRef.current
           if (!parts) return
+          if (mangaTitle === 'local' || parts.provider === 'local') {
+            // Compound IDs (archiveId:chapterId) navigate directly
+            if (chapterId.includes(':')) {
+              navigate(`/read/local/${chapterId}`)
+            } else {
+              navigate(`/read/local/${parts.mangaId}:${chapterId}`)
+            }
+            return
+          }
           const ch = chapterListRef.current.find(c => c.id === chapterId)
           const url = buildSmartReadUrl(parts.provider, parts.mangaId, chapterId, parts.mangaTitle || '', ch?.title)
           navigate(url)

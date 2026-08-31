@@ -151,9 +151,14 @@ export function toChapterSlug(chapterId: string, chapterTitle?: string): string 
   if (chapterTitle && /^ch(apter)?\s*\d+/i.test(chapterTitle)) {
     return toSlug(chapterTitle)
   }
-  const cleanId = chapterId.replace(/^.*[/:=]/, '')
+  // Strip trailing slash before extracting the last path segment
+  const normalized = chapterId.replace(/\/+$/, '')
+  const cleanId = normalized.replace(/^.*[/:=]/, '')
   if (/^\d+(\.\d+)?$/.test(cleanId)) return `ch-${cleanId}`
-  return toSlug(cleanId) || 'ch-1'
+  // Extract any chapter number embedded in the segment as a fallback
+  const numMatch = cleanId.match(/(\d+(?:\.\d+)?)/)
+  if (numMatch) return `ch-${numMatch[1]}`
+  return toSlug(cleanId) || `ch-${Date.now()}`
 }
 
 /**

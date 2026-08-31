@@ -49,6 +49,8 @@ function CustomGlassSelect<T extends string>({
     <div ref={containerRef} className={cn("relative inline-block text-left", className)}>
       <button
         type="button"
+        aria-expanded={open}
+        aria-haspopup="listbox"
         onClick={() => setOpen(!open)}
         className={cn(
           "w-full flex items-center justify-between gap-3 px-4 py-2.5 rounded-full text-xs font-extrabold transition-all border cursor-pointer shadow-lg",

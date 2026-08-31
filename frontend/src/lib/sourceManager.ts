@@ -1,13 +1,13 @@
 const STORAGE_KEY = 'manga-dl-enabled-sources'
+const DEFAULT_SOURCES = ['mangakatana', 'mangadex', 'asurascans', 'omegascans']
 
-/**
- * Retrieves the list of currently enabled source IDs.
- * If none are saved, all available sources default to enabled.
- */
 export function getEnabledSources(allAvailableSourceIds: string[]): string[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return allAvailableSourceIds
+    if (!raw) {
+      const defaults = DEFAULT_SOURCES.filter(id => allAvailableSourceIds.includes(id))
+      return defaults.length > 0 ? defaults : allAvailableSourceIds
+    }
     const parsed = JSON.parse(raw)
     if (Array.isArray(parsed) && parsed.length > 0) {
       // Filter against valid available sources

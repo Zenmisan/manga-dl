@@ -49,21 +49,29 @@ export default function OnboardingPage() {
         },
         body: JSON.stringify({
           model: 'llama-3.1-8b-instant',
-          messages: [{ role: 'user', content: 'Generate one creative manga/anime themed username. Rules: 3-20 characters, only lowercase letters, numbers, underscores allowed. No spaces or special characters. Reply with ONLY the username, nothing else.' }],
-          max_tokens: 20,
-          temperature: 1.2,
+          messages: [{
+            role: 'user',
+            content: 'Output ONLY a single manga/anime themed username. No explanation, no quotes, no punctuation. Use only lowercase letters, numbers, underscores. 5–20 characters. Examples: shadow_blade42, neon_samurai, void_reader99, ronin_scroll',
+          }],
+          max_tokens: 25,
+          temperature: 1.0,
         }),
       })
+      if (!res.ok) throw new Error(`Groq API error ${res.status}`)
       const data = await res.json()
-      const raw = data.choices?.[0]?.message?.content?.trim() || ''
-      const cleaned = raw.toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 24)
+      const raw = (data.choices?.[0]?.message?.content ?? '').trim()
+      // Extract first valid username token — handles noisy model output
+      const match = raw.match(/[a-z][a-z0-9_]{2,23}/i)
+      const cleaned = match
+        ? match[0].toLowerCase().slice(0, 24)
+        : raw.toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 24)
       if (cleaned.length >= 3) {
         setUsername(cleaned)
       } else {
         setUsernameError('Could not generate a valid username. Try again.')
       }
     } catch {
-      setUsernameError('Username generation failed. Try again.')
+      setUsernameError('Generation failed. Check your connection and try again.')
     } finally {
       setGeneratingUsername(false)
     }
@@ -152,7 +160,7 @@ export default function OnboardingPage() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 10, marginBottom: 32 }}>
               {[
                 { icon: Book, label: 'Library', desc: 'Cloud + local' },
-                { icon: Sparkles, label: 'AI Upscale', desc: 'Sharper pages' },
+                { icon: Sparkles, label: 'Enhance', desc: 'Sharper local scans' },
                 { icon: Server, label: 'Self-host', desc: 'Your server' },
               ].map(item => (
                 <div key={item.label} style={{ padding: '14px 10px', borderRadius: 16, border: '1px solid var(--border)', background: 'var(--surface)', textAlign: 'center' }}>

@@ -59,7 +59,7 @@ export const DashboardMangaCard = memo(function DashboardMangaCard({
       return
     }
     if (item.isLocal) {
-      navigate(`/read/local/${encodeURIComponent(item.title)}`)
+      navigate(`/local/${encodeURIComponent(item.localId || item.title)}`)
     } else if (item.provider && item.provider_manga_id) {
       navigate(buildSmartMangaUrl(item.provider, item.provider_manga_id, item.title))
     }

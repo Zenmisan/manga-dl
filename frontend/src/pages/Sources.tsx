@@ -464,7 +464,7 @@ export default function SourcesPage() {
                                     onClick={() => setConfirmUninstall(null)}
                                     aria-label="Cancel uninstall"
                                     className="icon-btn focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1"
-                                    style={{ width: 30, height: 30, borderRadius: 8 }}
+                                    style={{ width: 44, height: 44, borderRadius: 10 }}
                                   >
                                     <X style={{ width: 13, height: 13 }} />
                                   </button>
@@ -496,7 +496,7 @@ export default function SourcesPage() {
                                     disabled={uninstalling.includes(s.id)}
                                     aria-label={`Uninstall ${s.name}`}
                                     className="icon-btn focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1"
-                                    style={{ width: 30, height: 30, borderRadius: 8 }}
+                                    style={{ width: 44, height: 44, borderRadius: 10 }}
                                   >
                                     {uninstalling.includes(s.id) ? <ThemedSpinner size="xs" /> : <Trash2 style={{ width: 13, height: 13 }} />}
                                   </button>
@@ -564,7 +564,7 @@ export default function SourcesPage() {
                           onClick={() => removeCustomRepo(repo.url)}
                           aria-label={`Remove repo ${repo.name}`}
                           className="icon-btn focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1"
-                          style={{ width: 28, height: 28, borderRadius: 8 }}
+                          style={{ width: 44, height: 44, borderRadius: 10 }}
                         >
                           <X style={{ width: 13, height: 13 }} />
                         </button>

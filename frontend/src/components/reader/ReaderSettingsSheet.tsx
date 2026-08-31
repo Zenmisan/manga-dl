@@ -69,6 +69,7 @@ export function ReaderSettingsSheet({
             transition={{ duration: 0.2 }}
             className="fixed inset-0 z-[55] bg-black/50 backdrop-blur-sm"
             onClick={onClose}
+            onKeyDown={e => e.stopPropagation()}
             aria-hidden="true"
           />
 
@@ -93,6 +94,7 @@ export function ReaderSettingsSheet({
             aria-label="Reader settings"
             aria-modal="true"
             onClick={e => e.stopPropagation()}
+            onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); onClose() } }}
           >
             {/* Drag handle */}
             <div className="flex justify-center mb-5" aria-hidden="true">

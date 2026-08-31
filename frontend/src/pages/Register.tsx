@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { UserPlus, BookOpen, ExternalLink, ArrowLeft, Eye, EyeOff } from 'lucide-react'
 import { ThemedSpinner } from '../components/common/ThemedLoader'
 import { supabase } from '../lib/supabase'
+import api from '../lib/api'
 
 const FADE = { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.45, ease: [0.16, 1, 0.3, 1] as [number,number,number,number] } }
 const BTN_BASE = 'focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-black disabled:opacity-40 disabled:pointer-events-none active:scale-[0.98] transition-all'
@@ -75,7 +76,16 @@ export default function RegisterPage() {
       if (!idToken) throw new Error('No ID token returned from Google.')
       const { error: sbError } = await supabase.auth.signInWithIdToken({ provider: 'google', token: idToken })
       if (sbError) throw sbError
-      navigate('/r')
+      // Check if user has completed onboarding (has a profile/username set)
+      const { data } = await api.get('/users/me').catch(() => ({ data: null }))
+      if (data?.profile_set) {
+        localStorage.setItem('onboarded', '1')
+        navigate('/r')
+      } else {
+        // New user — must go through onboarding to set username
+        localStorage.removeItem('onboarded')
+        navigate('/onboarding')
+      }
     } catch (err: unknown) {
       const msg = (err as { message?: string }).message || 'Google sign-in failed.'
       setError(msg)
