@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.mangadl.app',
+  appId: 'com.zenmisan.mangadl',
   appName: 'manga-dl',
   webDir: 'dist',
   server: {

@@ -23,6 +23,15 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            if (variant.buildType.name == "release") {
+                outputFileName = "manga-dl-v${variant.versionName}.apk"
+            } else {
+                outputFileName = "manga-dl-v${variant.versionName}-debug.apk"
+            }
+        }
+    }
 }
 
 repositories {

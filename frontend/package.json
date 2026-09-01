@@ -13,7 +13,7 @@
     "build:appimage": "NO_STRIP=true APPIMAGE_EXTRACT_AND_RUN=1 tauri build -b appimage",
     "build:deb": "tauri build -b deb",
     "android:sync": "cap sync android",
-    "android:open": "cap open android"
+    "android:open": "CAPACITOR_ANDROID_STUDIO_PATH=/opt/android-studio/bin/studio.sh cap open android"
   },
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "^10.0.0",
