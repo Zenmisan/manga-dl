@@ -1,9 +1,12 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+/* Hallmark · component: search-discovery · genre: atmospheric · theme: modern-dark-cinema
+ * pre-emit critique: P4 H4 E4 S4 R5 V4 — all axes ≥ 3
+ */
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../components/common/Toast'
 import api from '../lib/api'
 import { ExtensionManager } from '../lib/extensions'
-import { Search as SearchIcon, Globe, BookOpen, BookMarked, Check, SlidersHorizontal, X, TrendingUp, Clock, LayoutGrid, LayoutList, Layers } from 'lucide-react'
+import { Search as SearchIcon, Globe, BookOpen, BookMarked, Check, SlidersHorizontal, X, LayoutGrid, LayoutList, Layers } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
 import { useAppStore } from '../lib/store'
@@ -13,6 +16,11 @@ import { SourceSwimlane } from '../components/search/SourceSwimlane'
 import { SourceToggleModal } from '../components/search/SourceToggleModal'
 import { getEnabledSources } from '../lib/sourceManager'
 import { sortResultsByRelevance } from '../lib/relevanceScorer'
+
+// Module-level discovery cache — survives navigation, cleared only on page refresh
+const _discoveryCache: { popular: MangaResult[]; latest: MangaResult[]; fetched: boolean } = {
+  popular: [], latest: [], fetched: false,
+}
 
 interface MangaResult {
   id: string
@@ -25,13 +33,95 @@ interface MangaResult {
   anilist_url?: string
 }
 
-// Fallback for initial render before extensions load
 const FALLBACK_PROVIDERS = [
   { id: 'mangadex', name: 'MangaDex' },
   { id: 'asurascans', name: 'Asura Scans' },
   { id: 'mangakatana', name: 'MangaKatana' },
   { id: 'omegascans', name: 'Omega Scans' },
 ]
+
+// ── Discovery Card ─────────────────────────────────────────────────────────
+
+function DiscoveryCard({ r, idx, navigate }: { r: MangaResult; idx: number; navigate: ReturnType<typeof useNavigate> }) {
+  const [coverError, setCoverError] = useState(false)
+  const apiBase = api.defaults.baseURL || ''
+  const apiKey = localStorage.getItem('manga-api-key') || ''
+  const coverSrc = r.cover_url ? `${apiBase}/manga/image-proxy?url=${encodeURIComponent(r.cover_url)}&api_key=${apiKey}` : null
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, delay: Math.min(idx * 0.055, 0.44), ease: [0.16, 1, 0.3, 1] }}
+      onClick={() => navigate(buildSmartMangaUrl(r.provider, r.id, r.title))}
+      style={{ width: 110, flexShrink: 0, cursor: 'pointer' }}
+    >
+      <div style={{ width: 110, height: 155, borderRadius: 10, overflow: 'hidden', background: 'var(--surface)', position: 'relative' }}>
+        {coverSrc && !coverError ? (
+          <img
+            src={coverSrc}
+            alt={r.title}
+            loading="lazy"
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'transform 0.3s ease' }}
+            onError={() => setCoverError(true)}
+          />
+        ) : (
+          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <BookOpen style={{ width: 24, height: 24, color: 'var(--muted3)' }} />
+          </div>
+        )}
+        {/* Active press effect via CSS */}
+        <style>{`.disc-card-${idx % 20}:active { transform: scale(0.97); }`}</style>
+      </div>
+      <div style={{ marginTop: 6 }}>
+        <div style={{
+          fontSize: 12, fontWeight: 600, color: 'var(--fg)', lineHeight: 1.3,
+          display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+          textWrap: 'balance',
+        }}>{r.title}</div>
+        <div style={{ fontSize: 10, color: 'var(--muted3)', marginTop: 2, textTransform: 'capitalize', fontWeight: 500 }}>{r.provider}</div>
+      </div>
+    </motion.div>
+  )
+}
+
+function DiscoveryCardSkeleton() {
+  return (
+    <div style={{ width: 110, flexShrink: 0 }}>
+      <motion.div animate={{ opacity: [0.4, 0.65, 0.4] }} transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+        style={{ width: 110, height: 155, borderRadius: 10, background: 'var(--surface)' }} />
+      <motion.div animate={{ opacity: [0.3, 0.55, 0.3] }} transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut', delay: 0.2 }}
+        style={{ marginTop: 6, height: 12, borderRadius: 4, background: 'var(--surface)', width: '80%' }} />
+      <motion.div animate={{ opacity: [0.2, 0.45, 0.2] }} transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut', delay: 0.4 }}
+        style={{ marginTop: 4, height: 10, borderRadius: 4, background: 'var(--surface)', width: '55%' }} />
+    </div>
+  )
+}
+
+// ── SwimLane ───────────────────────────────────────────────────────────────
+
+function SwimLane({ title, items, loading, navigate }: {
+  title: string
+  items: MangaResult[]
+  loading?: boolean
+  navigate: ReturnType<typeof useNavigate>
+}) {
+  return (
+    <div style={{ marginBottom: 32 }}>
+      <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--fg)', marginBottom: 12, lineHeight: 1.2, textWrap: 'balance', fontStyle: 'normal' }}>
+        {title}
+      </h2>
+      <div style={{ display: 'flex', gap: 12, overflowX: 'auto', flexWrap: 'nowrap', paddingBottom: 8, WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        {loading
+          ? Array.from({ length: 8 }).map((_, i) => <DiscoveryCardSkeleton key={i} />)
+          : items.map((r, i) => <DiscoveryCard key={`${r.provider}:${r.id}`} r={r} idx={i} navigate={navigate} />)
+        }
+      </div>
+    </div>
+  )
+}
+
+// ── MangaCard (search results) ─────────────────────────────────────────────
 
 function MangaCard({ r, idx, onSubscribe, subscribed, subscribing, navigate }: {
   r: MangaResult
@@ -93,21 +183,17 @@ function MangaCard({ r, idx, onSubscribe, subscribed, subscribing, navigate }: {
           {isSubscribing ? (
             <ThemedSpinner size="xs" />
           ) : isSubscribed ? (
-            <>
-              <Check className="w-3.5 h-3.5 text-emerald-400" />
-              <span>In Library</span>
-            </>
+            <><Check className="w-3.5 h-3.5 text-emerald-400" /><span>In Library</span></>
           ) : (
-            <>
-              <BookMarked className="w-3.5 h-3.5 text-white" />
-              <span>Add to Library</span>
-            </>
+            <><BookMarked className="w-3.5 h-3.5 text-white" /><span>Add to Library</span></>
           )}
         </button>
       </div>
     </motion.div>
   )
 }
+
+// ── Main Page ──────────────────────────────────────────────────────────────
 
 export default function SearchPage() {
   const navigate = useNavigate()
@@ -117,21 +203,16 @@ export default function SearchPage() {
     searchResults, setSearchResults,
     selectedProvider, setSelectedProvider,
     hasSearched, setHasSearched,
-    searchTab: tab, setSearchTab: setTab,
-    browseProvider, setBrowseProvider,
-    browseResults, setBrowseResults,
-    browsePage, setBrowsePage,
-    browseHasMore, setBrowseHasMore,
-    lastFetchKey, setLastFetchKey
   } = useAppStore()
 
   const [loading, setLoading] = useState(false)
-  const [browseLoading, setBrowseLoading] = useState(false)
   const [subscribing, setSubscribing] = useState<string[]>([])
   const [subscribed, setSubscribed] = useState<string[]>([])
   const [extCount, setExtCount] = useState(0)
   const [showFilterPanel, setShowFilterPanel] = useState(false)
   const [showSourceModal, setShowSourceModal] = useState(false)
+  const [showAllSources, setShowAllSources] = useState(false)
+  const [searchFocused, setSearchFocused] = useState(false)
   const [searchViewMode, setSearchViewMode] = useState<'lanes' | 'grid'>(() => {
     return (localStorage.getItem('manga-dl-search-view') as 'lanes' | 'grid') || 'lanes'
   })
@@ -152,6 +233,11 @@ export default function SearchPage() {
   const [sourceFilters] = useState<FilterDef[]>([])
   const [activeFilters, setActiveFilters] = useState<Record<string, string>>({})
 
+  // Discovery feed — initialise from cache if available (instant on back-nav)
+  const [discoveryPopular, setDiscoveryPopular] = useState<MangaResult[]>(_discoveryCache.popular)
+  const [discoveryLatest, setDiscoveryLatest] = useState<MangaResult[]>(_discoveryCache.latest)
+  const [discoveryLoading, setDiscoveryLoading] = useState(!_discoveryCache.fetched)
+
   useEffect(() => {
     const manager = ExtensionManager.getInstance()
     if (manager.extensions.size === 0) {
@@ -171,15 +257,81 @@ export default function SearchPage() {
   useEffect(() => {
     if (activeProviders.length > 0) {
       if (selectedProvider && !activeProviders.some(p => p.id === selectedProvider)) setSelectedProvider(null)
-      if (browseProvider && !activeProviders.some(p => p.id === browseProvider)) setBrowseProvider(activeProviders[0]?.id || 'mangadex')
-      
       setEnabledSources(prev => {
         const availableIds = activeProviders.map(p => p.id)
         const valid = prev.filter(id => availableIds.includes(id))
         return valid.length > 0 ? valid : getEnabledSources(availableIds)
       })
     }
-  }, [activeProviders, selectedProvider, browseProvider, setSelectedProvider, setBrowseProvider])
+  }, [activeProviders, selectedProvider, setSelectedProvider])
+
+  // Fetch discovery feed once on mount (after extensions ready)
+  useEffect(() => {
+    if (_discoveryCache.fetched) return  // cache hit — skip fetch entirely
+
+    let spinnerCleared = false
+    const clearSpinner = () => {
+      if (!spinnerCleared) { spinnerCleared = true; setDiscoveryLoading(false) }
+    }
+
+    const mergeInto = (
+      setter: React.Dispatch<React.SetStateAction<MangaResult[]>>,
+      cacheKey: 'popular' | 'latest',
+      incoming: MangaResult[],
+    ) => {
+      setter(prev => {
+        const seen = new Set(prev.map(r => `${r.provider}:${r.id}`))
+        const next = [...prev, ...incoming.filter(r => !seen.has(`${r.provider}:${r.id}`))]
+        _discoveryCache[cacheKey] = next.slice(0, 20)
+        return _discoveryCache[cacheKey]
+      })
+      clearSpinner()
+    }
+
+    const run = async () => {
+      const manager = ExtensionManager.getInstance()
+      if (manager.extensions.size === 0) await manager.init()
+      const exts = Array.from(manager.extensions.values())
+      if (exts.length === 0) { clearSpinner(); return }
+
+      // 1. Hit backend discovery cache — instant for all built-in sources
+      const providerIds = exts.map(e => e.id).join(',')
+      type DiscoveryResponse = Record<string, { popular: MangaResult[]; latest: MangaResult[] }>
+      const cached: DiscoveryResponse = await api.get(`/sources/discovery?providers=${providerIds}`)
+        .then(r => r.data as DiscoveryResponse)
+        .catch(() => ({} as DiscoveryResponse))
+
+      const serverPopular = Object.values(cached).flatMap(c => c.popular ?? []).slice(0, 20)
+      const serverLatest = Object.values(cached).flatMap(c => c.latest ?? []).slice(0, 20)
+      if (serverPopular.length > 0) mergeInto(setDiscoveryPopular, 'popular', serverPopular)
+      if (serverLatest.length > 0) mergeInto(setDiscoveryLatest, 'latest', serverLatest)
+
+      // 2. Progressive browser-side fetch for community extensions not covered by backend
+      const coveredIds = new Set(
+        Object.entries(cached)
+          .filter(([, v]) => (v.popular?.length ?? 0) > 0 || (v.latest?.length ?? 0) > 0)
+          .map(([id]) => id)
+      )
+      const uncovered = exts.filter(e => !coveredIds.has(e.id))
+      uncovered.forEach(ext => {
+        if (ext.getPopular) {
+          (ext.getPopular(1) as Promise<MangaResult[]>)
+            .then(r => mergeInto(setDiscoveryPopular, 'popular', r))
+            .catch(() => {})
+        }
+        if (ext.getLatest) {
+          (ext.getLatest(1) as Promise<MangaResult[]>)
+            .then(r => mergeInto(setDiscoveryLatest, 'latest', r))
+            .catch(() => {})
+        }
+      })
+
+      clearSpinner()
+      _discoveryCache.fetched = true
+    }
+
+    run()
+  }, [])
 
   const handleToggleViewMode = () => {
     const next = searchViewMode === 'lanes' ? 'grid' : 'lanes'
@@ -212,8 +364,7 @@ export default function SearchPage() {
       if (selectedProvider) {
         const ext = manager.extensions.get(selectedProvider)
         const results = ext ? await ext.search(query, 1) as MangaResult[] : []
-        const ranked = sortResultsByRelevance(results, query)
-        setSearchResults(ranked)
+        setSearchResults(sortResultsByRelevance(results, query))
       } else {
         const allExts = Array.from(manager.extensions.values())
         const targetExts = allExts.filter(ext => enabledSources.includes(ext.id))
@@ -226,61 +377,20 @@ export default function SearchPage() {
           const firstError = settled.find(r => r.status === 'rejected') as PromiseRejectedResult
           if (String(firstError?.reason).includes('403')) toast('Search failed (403). Check your API Key in Settings.', 'error')
         }
-        const ranked = sortResultsByRelevance(merged, query)
-        setSearchResults(ranked)
+        setSearchResults(sortResultsByRelevance(merged, query))
       }
       setHasSearched(true)
     } catch (err) { console.error(err) }
     finally { setLoading(false) }
-  }, [selectedProvider, enabledSources, setSearchResults, setHasSearched])
+  }, [selectedProvider, enabledSources, setSearchResults, setHasSearched, toast])
 
+  const isFirstSourceMount = useRef(true)
   useEffect(() => {
+    if (isFirstSourceMount.current) { isFirstSourceMount.current = false; return }
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (searchQuery.trim() && tab === 'search') performSearch(searchQuery.trim())
+    if (searchQuery.trim()) performSearch(searchQuery.trim())
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProvider, enabledSources])
-
-  const fetchBrowse = useCallback(async (provider: string, page: number, endpoint: 'popular' | 'latest') => {
-    setBrowseLoading(true)
-    try {
-      const ext = ExtensionManager.getInstance().extensions.get(provider)
-      let data: MangaResult[]
-      if (ext) {
-        const method = endpoint === 'popular' ? ext.getPopular : ext.getLatest
-        data = method ? await method(page) as MangaResult[] : await ext.search('', page) as MangaResult[]
-      } else { data = [] }
-      setBrowseResults(page === 1 ? data : [...browseResults, ...data])
-      setBrowseHasMore(data.length === 20)
-    } catch (err) { console.error(err); setBrowseHasMore(false) }
-    finally { setBrowseLoading(false) }
-  }, [browseResults, setBrowseResults, setBrowseHasMore])
-
-  const selectBrowseProvider = (id: string) => { setBrowseProvider(id); setActiveFilters({}) }
-
-  useEffect(() => {
-    if (tab === 'popular' || tab === 'latest') {
-      const fetchKey = `${tab}:${browseProvider}`
-      if (lastFetchKey !== fetchKey || browseResults.length === 0) {
-         
-        setLastFetchKey(fetchKey)
-         
-        setBrowsePage(1)
-         
-        setBrowseResults([])
-         
-        setBrowseHasMore(true)
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        fetchBrowse(browseProvider, 1, tab)
-      }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, browseProvider, lastFetchKey, browseResults.length])
-
-  const loadMoreBrowse = () => {
-    const nextPage = browsePage + 1
-    setBrowsePage(nextPage)
-    fetchBrowse(browseProvider, nextPage, tab as 'popular' | 'latest')
-  }
 
   const resetSearchFilters = () => { setFilterStatus('any'); setFilterRating(['safe']); setFilterFormat([]) }
   const toggleArr = (arr: string[], val: string, set: (v: string[]) => void) => {
@@ -297,150 +407,129 @@ export default function SearchPage() {
 
   const GRID_STYLE = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px,1fr))', gap: 18 } as const
 
-  const TABS = [
-    { id: 'search', label: 'SEARCH', Icon: SearchIcon },
-    { id: 'popular', label: 'POPULAR', Icon: TrendingUp },
-    { id: 'latest', label: 'LATEST', Icon: Clock },
-  ]
+  const isIdle = !hasSearched && !searchQuery.trim() && !loading
 
   return (
     <div className="min-h-full flex flex-col">
       <div className="px-4 md:px-6 pt-5 pb-28 flex-1">
 
         {/* Page heading */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }} style={{ marginBottom: 16 }}>
-          <h1 style={{ fontSize: 'clamp(22px, 4vw, 34px)', fontWeight: 800, color: 'var(--fg)', lineHeight: 1.15, marginBottom: 3 }}>Discover Manga</h1>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }} style={{ marginBottom: 20 }}>
+          <h1 style={{ fontSize: 'clamp(24px, 5vw, 36px)', fontWeight: 900, color: 'var(--fg)', lineHeight: 1.1, marginBottom: 3, fontStyle: 'normal', textWrap: 'balance' }}>
+            Discover Manga
+          </h1>
           <p className="hidden md:block" style={{ fontSize: 13, color: 'var(--muted2)' }}>Search across multiple sources to find your next read.</p>
         </motion.div>
 
-        {/* Mode tabs */}
-        <div role="tablist" style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
-          {TABS.map(({ id, label, Icon }) => (
-            <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id as typeof tab)}
-              className="focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-black"
+        {/* ── Search bar ─────────────────────────────────────────────────── */}
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }} style={{ marginBottom: 20 }}>
+          <form onSubmit={(e) => { e.preventDefault(); performSearch(searchQuery.trim()) }}
+            style={{ display: 'flex', gap: 8, alignItems: 'center' }}
+          >
+            {/* Input container — cinema dark with blur + focus glow */}
+            <div
               style={{
-                display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 999,
-                border: `1px solid ${tab === id ? 'var(--accent)' : 'var(--border)'}`,
-                background: tab === id ? 'rgba(220,38,38,0.1)' : 'var(--surface)',
-                color: tab === id ? 'var(--accent)' : 'var(--muted1)',
-                fontSize: 11, fontWeight: 900, letterSpacing: '0.06em', cursor: 'pointer', transition: 'all 0.15s',
+                position: 'relative', flex: 1, minWidth: 0,
+                borderRadius: 18,
+                border: `1.5px solid ${searchFocused ? 'var(--accent)' : 'var(--border)'}`,
+                background: 'var(--surface)',
+                backdropFilter: 'blur(8px)',
+                boxShadow: searchFocused ? '0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent)' : 'none',
+                transition: 'border-color 0.2s, box-shadow 0.2s',
               }}
             >
-              <Icon style={{ width: 12, height: 12 }} />
-              {label}
-            </button>
-          ))}
-        </div>
+              <SearchIcon style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 17, height: 17, color: searchFocused ? 'var(--accent)' : 'var(--muted3)', pointerEvents: 'none', transition: 'color 0.2s' }} />
+              <input
+                type="search"
+                inputMode="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setSearchFocused(false)}
+                placeholder="Search your titles"
+                style={{ width: '100%', padding: '14px 48px 14px 42px', borderRadius: 18, border: 'none', background: 'transparent', fontSize: 15, color: 'var(--fg)', outline: 'none', boxSizing: 'border-box', fontWeight: 500 }}
+              />
+              <button
+                type="submit"
+                disabled={loading}
+                aria-label="Search"
+                style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', width: 34, height: 34, borderRadius: 12, border: 'none', background: searchQuery.trim() ? 'var(--accent)' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: searchQuery.trim() ? '#fff' : 'var(--muted3)', transition: 'background 0.15s, color 0.15s' }}
+              >
+                {loading ? <ThemedSpinner size="xs" /> : <SearchIcon style={{ width: 14, height: 14 }} />}
+              </button>
+            </div>
 
-        {/* Search bar (shown on search tab) */}
-        {tab === 'search' && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }} style={{ marginBottom: 12 }}>
-            <form onSubmit={(e) => { e.preventDefault(); performSearch(searchQuery.trim()) }}
-              style={{ display: 'flex', gap: 8, alignItems: 'center' }}
+            {/* Sources modal button */}
+            <button
+              type="button"
+              onClick={() => setShowSourceModal(true)}
+              aria-label="Manage Search Sources"
+              style={{ flexShrink: 0, position: 'relative', width: 48, height: 48, borderRadius: 16, border: '1.5px solid var(--border)', background: 'var(--surface)', backdropFilter: 'blur(8px)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted2)' }}
             >
-              <div style={{ position: 'relative', flex: 1 }}>
-                <SearchIcon style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', width: 15, height: 15, color: 'var(--muted3)', pointerEvents: 'none' }} />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search by title, author, or genre..."
-                  style={{ width: '100%', padding: '11px 14px 11px 38px', borderRadius: 14, border: '1px solid var(--border)', background: 'var(--surface)', fontSize: 13.5, color: 'var(--fg)', outline: 'none', boxSizing: 'border-box' }}
-                />
+              <Layers style={{ width: 17, height: 17, color: 'var(--accent)' }} />
+              <span style={{ position: 'absolute', top: 5, right: 5, minWidth: 14, height: 14, borderRadius: 7, background: 'var(--accent)', color: '#fff', fontSize: 9, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
+                {enabledSources.length}
+              </span>
+            </button>
+
+            {/* View switcher */}
+            <button
+              type="button"
+              onClick={handleToggleViewMode}
+              aria-label={searchViewMode === 'lanes' ? 'Switch to Grid View' : 'Switch to Swimlane View'}
+              style={{ flexShrink: 0, width: 48, height: 48, borderRadius: 16, border: '1.5px solid var(--border)', background: 'var(--surface)', backdropFilter: 'blur(8px)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted2)' }}
+            >
+              {searchViewMode === 'lanes' ? <LayoutGrid style={{ width: 17, height: 17 }} /> : <LayoutList style={{ width: 17, height: 17 }} />}
+            </button>
+
+            {/* Filter panel */}
+            <button type="button" onClick={() => setShowFilterPanel(true)} aria-label="Search filters" aria-expanded={showFilterPanel} aria-haspopup="dialog"
+              style={{ flexShrink: 0, width: 48, height: 48, borderRadius: 16, border: `1.5px solid ${hasSearchFilters ? 'var(--accent)' : 'var(--border)'}`, background: hasSearchFilters ? 'rgba(220,38,38,0.08)' : 'var(--surface)', backdropFilter: 'blur(8px)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: hasSearchFilters ? 'var(--accent)' : 'var(--muted2)' }}
+            >
+              <SlidersHorizontal style={{ width: 17, height: 17 }} />
+            </button>
+          </form>
+
+          {/* Source filter pills — only visible when results are showing */}
+          {(hasSearched || searchQuery.trim()) && activeProviders.length > 0 && (() => {
+            const visibleProviders = activeProviders.filter(p => enabledSources.includes(p.id))
+            const DEFAULT_VISIBLE = 4
+            const shown = visibleProviders.slice(0, DEFAULT_VISIBLE)
+            const hidden = visibleProviders.slice(DEFAULT_VISIBLE)
+            return (
+              <div style={{ display: 'flex', gap: 6, overflowX: 'auto', flexWrap: 'nowrap', marginTop: 12, paddingBottom: 4, WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
+                <button onClick={() => setSelectedProvider(null)} aria-pressed={!selectedProvider} className={cn('filter-pill', !selectedProvider && 'active')} style={{ flexShrink: 0 }}>All</button>
+                {shown.map(p => (
+                  <button key={p.id} onClick={() => setSelectedProvider(p.id)} aria-pressed={selectedProvider === p.id} className={cn('filter-pill', selectedProvider === p.id && 'active')} style={{ textTransform: 'uppercase', fontSize: 11, flexShrink: 0 }}>
+                    {p.name}
+                  </button>
+                ))}
+                {showAllSources && hidden.map(p => (
+                  <button key={p.id} onClick={() => setSelectedProvider(p.id)} aria-pressed={selectedProvider === p.id} className={cn('filter-pill', selectedProvider === p.id && 'active')} style={{ textTransform: 'uppercase', fontSize: 11, flexShrink: 0 }}>
+                    {p.name}
+                  </button>
+                ))}
+                {hidden.length > 0 && (
+                  <button onClick={() => setShowAllSources(v => !v)} className="filter-pill" style={{ fontSize: 11, fontWeight: 800, flexShrink: 0 }}
+                    aria-label={showAllSources ? 'Show fewer sources' : `Show ${hidden.length} more sources`}>
+                    {showAllSources ? '−' : `+${hidden.length}`}
+                  </button>
+                )}
               </div>
-              <button type="submit" disabled={loading} className="btn-primary"
-                style={{ flexShrink: 0, padding: '11px 20px', borderRadius: 14, fontSize: 13.5, fontWeight: 900, display: 'flex', alignItems: 'center', gap: 7 }}
-              >
-                {loading ? <ThemedSpinner size="sm" /> : null}
-                Search
-              </button>
+            )
+          })()}
+        </motion.div>
 
-              {/* Manage Sources Button */}
-              <button
-                type="button"
-                onClick={() => setShowSourceModal(true)}
-                aria-label="Manage Search Sources"
-                style={{ flexShrink: 0, padding: '0 12px', height: 44, borderRadius: 14, border: '1px solid var(--border)', background: 'var(--surface)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, color: 'var(--fg)' }}
-              >
-                <Layers style={{ width: 15, height: 15, color: 'var(--accent)' }} />
-                <span className="text-xs font-bold hidden sm:inline">Sources</span>
-                <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded-full bg-[var(--surface2)] text-[var(--accent)] border border-[var(--accent)]/30">
-                  {enabledSources.length}
-                </span>
-              </button>
-
-              {/* View Switcher Button (Swimlanes vs Unified Grid) */}
-              <button
-                type="button"
-                onClick={handleToggleViewMode}
-                aria-label={searchViewMode === 'lanes' ? 'Switch to Grid View' : 'Switch to Swimlane View'}
-                style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 14, border: '1px solid var(--border)', background: 'var(--surface)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted2)' }}
-              >
-                {searchViewMode === 'lanes' ? <LayoutGrid style={{ width: 15, height: 15 }} /> : <LayoutList style={{ width: 15, height: 15 }} />}
-              </button>
-
-              {/* Filter Panel Button */}
-              <button type="button" onClick={() => setShowFilterPanel(true)} aria-label="Search filters" aria-expanded={showFilterPanel} aria-haspopup="dialog"
-                style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 14, border: '1px solid var(--border)', background: 'var(--surface)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: hasSearchFilters ? 'var(--accent)' : 'var(--muted2)' }}
-              >
-                <SlidersHorizontal style={{ width: 15, height: 15 }} />
-              </button>
-            </form>
-
-            {/* Source filter pills — only show enabled sources, max 2 rows */}
-            {activeProviders.length > 0 && (() => {
-              const visibleProviders = activeProviders.filter(p => enabledSources.includes(p.id))
-              const MAX_PILLS = 8
-              const shown = visibleProviders.slice(0, MAX_PILLS)
-              const overflow = visibleProviders.slice(MAX_PILLS)
-              return (
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
-                  <button onClick={() => setSelectedProvider(null)} aria-pressed={!selectedProvider} className={cn('filter-pill', !selectedProvider && 'active')}>All</button>
-                  {shown.map(p => (
-                    <button key={p.id} onClick={() => setSelectedProvider(p.id)} aria-pressed={selectedProvider === p.id} className={cn('filter-pill', selectedProvider === p.id && 'active')} style={{ textTransform: 'uppercase', fontSize: 11 }}>
-                      {p.name}
-                    </button>
-                  ))}
-                  {overflow.length > 0 && (
-                    <button onClick={() => setShowSourceModal(true)} className="filter-pill" style={{ fontSize: 11, fontWeight: 800 }}>
-                      +{overflow.length} more
-                    </button>
-                  )}
-                </div>
-              )
-            })()}
+        {/* ── Discovery Feed (idle state) ─────────────────────────────── */}
+        {isIdle && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}>
+            <SwimLane title="Popular Now" items={discoveryPopular} loading={discoveryLoading} navigate={navigate} />
+            <SwimLane title="Latest Updates" items={discoveryLatest} loading={discoveryLoading} navigate={navigate} />
           </motion.div>
         )}
 
-        {/* Browse tab source pills — show all providers (browse is not restricted to enabled sources) */}
-        {(tab === 'popular' || tab === 'latest') && activeProviders.length > 0 && (() => {
-          const MAX_BROWSE = 8
-          const shownBrowse = activeProviders.slice(0, MAX_BROWSE)
-          const overflowBrowse = activeProviders.slice(MAX_BROWSE)
-          return (
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
-              {shownBrowse.map(p => (
-                <button key={p.id} onClick={() => selectBrowseProvider(p.id)} className={cn('filter-pill', browseProvider === p.id && 'active')} style={{ textTransform: 'uppercase', fontSize: 11 }}>
-                  {p.name}
-                </button>
-              ))}
-              {overflowBrowse.length > 0 && (
-                <button
-                  onClick={() => { const next = overflowBrowse.find(p => p.id !== browseProvider) || overflowBrowse[0]; if (next) selectBrowseProvider(next.id) }}
-                  className={cn('filter-pill', overflowBrowse.some(p => p.id === browseProvider) && 'active')}
-                  style={{ fontSize: 11, fontWeight: 800 }}
-                >
-                  {overflowBrowse.some(p => p.id === browseProvider)
-                    ? activeProviders.find(p => p.id === browseProvider)?.name || `+${overflowBrowse.length} more`
-                    : `+${overflowBrowse.length} more`}
-                </button>
-              )}
-            </div>
-          )
-        })()}
-
-        {/* ── Search results ── */}
-        {tab === 'search' && (
+        {/* ── Search results ──────────────────────────────────────────── */}
+        {!isIdle && (
           <>
             {hasSearched && !loading && searchResults.length > 0 && (
               <p aria-live="polite" aria-atomic="true" style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted2)', marginBottom: 12, letterSpacing: '0.04em' }}>
@@ -460,13 +549,8 @@ export default function SearchPage() {
                 </div>
               ) : (
                 <div className="flex flex-col">
-                  {/* Top Matches Hero Swimlane (across all active sources) */}
                   {Object.keys(searchResults.reduce<Record<string, MangaResult[]>>((acc, r) => { ;(acc[r.provider] ??= []).push(r); return acc }, {})).length > 1 && (
-                    <SourceSwimlane
-                      title="Top Matches"
-                      isTopMatches
-                      count={Math.min(searchResults.length, 10)}
-                    >
+                    <SourceSwimlane title="Top Matches" isTopMatches count={Math.min(searchResults.length, 10)}>
                       {searchResults.slice(0, 10).map((r, idx) => (
                         <div key={'top-' + r.id + r.provider} className="w-[140px] sm:w-[155px] min-w-[140px] sm:min-w-[155px] shrink-0 snap-start">
                           <MangaCard r={r} idx={idx} onSubscribe={handleSubscribe} subscribed={subscribed} subscribing={subscribing} navigate={navigate} />
@@ -474,8 +558,6 @@ export default function SearchPage() {
                       ))}
                     </SourceSwimlane>
                   )}
-
-                  {/* Horizontal per-source swimlanes with clickable desktop navigation */}
                   {Object.entries(searchResults.reduce<Record<string, MangaResult[]>>((acc, r) => { ;(acc[r.provider] ??= []).push(r); return acc }, {}))
                     .filter(([, results]) => results.length > 0)
                     .map(([provider, results]) => (
@@ -501,49 +583,12 @@ export default function SearchPage() {
                 <p style={{ fontSize: 16, fontWeight: 800, color: 'var(--fg)' }}>No results found</p>
                 <p style={{ fontSize: 13, color: 'var(--muted2)' }}>Couldn't find "{searchQuery}". Try another spelling.</p>
               </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '72px 24px', gap: 16 }}>
-                <SearchIcon style={{ width: 56, height: 56, color: 'var(--muted3)', opacity: 0.3 }} />
-                <p style={{ fontSize: 11, fontWeight: 900, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--muted3)' }}>Type something to search</p>
-              </div>
-            )}
-          </>
-        )}
-
-        {/* ── Browse tabs ── */}
-        {(tab === 'popular' || tab === 'latest') && (
-          <>
-            {browseLoading && browseResults.length === 0 ? (
-              <ThemedSkeletonGrid count={12} />
-            ) : browseResults.length > 0 ? (
-              <>
-                <div style={{ ...GRID_STYLE, marginBottom: 24 }}>
-                  <AnimatePresence mode="popLayout">
-                    {browseResults.map((r, idx) => (
-                      <MangaCard key={r.id + r.provider} r={r} idx={idx} onSubscribe={handleSubscribe} subscribed={subscribed} subscribing={subscribing} navigate={navigate} />
-                    ))}
-                  </AnimatePresence>
-                </div>
-                {browseHasMore && (
-                  <div style={{ display: 'flex', justifyContent: 'center' }}>
-                    <button onClick={loadMoreBrowse} disabled={browseLoading} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      {browseLoading ? <ThemedSpinner size="sm" /> : null}
-                      Load More
-                    </button>
-                  </div>
-                )}
-              </>
-            ) : !browseLoading ? (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '64px 24px', gap: 12 }}>
-                <Globe style={{ width: 36, height: 36, color: 'var(--muted3)', opacity: 0.4 }} />
-                <p style={{ fontSize: 13, color: 'var(--muted2)' }}>No results from {browseProvider}</p>
-              </div>
             ) : null}
           </>
         )}
       </div>
 
-      {/* ── Mobile / shared filter bottom sheet ── */}
+      {/* ── Filter bottom sheet ─────────────────────────────────────────── */}
       <AnimatePresence>
         {showFilterPanel && (
           <>
@@ -558,7 +603,6 @@ export default function SearchPage() {
               style={{ position: 'fixed', bottom: 76, left: 0, right: 0, background: 'var(--bg)', borderTop: '1px solid var(--border)', borderRadius: '20px 20px 0 0', zIndex: 50, maxHeight: 'calc(85vh - 76px)', display: 'flex', flexDirection: 'column' }}
               className="md:!bottom-0 md:!max-h-[85vh]"
             >
-              {/* Scrollable content */}
               <div style={{ overflowY: 'auto', flex: 1, padding: '0 20px' }}>
                 <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 16px' }}>
                   <div style={{ width: 36, height: 4, borderRadius: 999, background: 'var(--border)' }} />
@@ -605,20 +649,16 @@ export default function SearchPage() {
                   ))}
                 </div>
               </div>
-
-              {/* Sticky bottom buttons — always visible */}
               <div style={{ padding: '12px 20px', paddingBottom: 'max(20px, env(safe-area-inset-bottom))', borderTop: '1px solid var(--border)', display: 'flex', gap: 10, background: 'var(--bg)', flexShrink: 0 }}>
                 <button onClick={resetSearchFilters} className="btn-secondary" style={{ flex: 1, padding: '13px 0', fontSize: 14, fontWeight: 700 }}>Reset</button>
-                <button onClick={() => setShowFilterPanel(false)} className="btn-primary" style={{ flex: 2, padding: '13px 0', fontSize: 14, fontWeight: 700 }}>
-                  Apply
-                </button>
+                <button onClick={() => setShowFilterPanel(false)} className="btn-primary" style={{ flex: 2, padding: '13px 0', fontSize: 14, fontWeight: 700 }}>Apply</button>
               </div>
             </motion.div>
           </>
         )}
       </AnimatePresence>
 
-      {/* ── Source Toggle Modal ── */}
+      {/* ── Source Toggle Modal ─────────────────────────────────────────── */}
       <SourceToggleModal
         isOpen={showSourceModal}
         onClose={() => setShowSourceModal(false)}

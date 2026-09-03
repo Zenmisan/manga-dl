@@ -57,15 +57,19 @@ async def list_market_sources():
         response = requests.get(KEIYOUSHI_INDEX, impersonate="chrome110", timeout=10)
         if response.status_code == 200:
             data = response.json()
+            _SENTINEL_NAMES = {"outdated app", "update to mihon", "update mihon", "app outdated"}
             builtin_ids = set(BUILT_IN_EXTENSIONS.keys())
             for ext in data:
                 pkg = ext.get("pkg", "")
                 simple_id = pkg.split(".")[-1]
                 if simple_id in builtin_ids:
                     continue
+                display_name = re.sub(r'^Tachiyomi:?\s*', '', ext.get("name", "")).strip()
+                if any(display_name.lower() == s or display_name.lower().startswith(s) for s in _SENTINEL_NAMES):
+                    continue
                 sources.append({
                     "id": pkg,
-                    "name": re.sub(r'^Tachiyomi:?\s*', '', ext.get("name", "")),
+                    "name": display_name,
                     "version": ext.get("version"),
                     "lang": ext.get("lang"),
                     "icon": f"https://raw.githubusercontent.com/keiyoushi/extensions/repo/icon/{pkg}.png",

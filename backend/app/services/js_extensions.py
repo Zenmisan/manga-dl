@@ -284,13 +284,13 @@ BUILT_IN_EXTENSIONS: dict[str, dict] = {
         "nsfw": False,
         "skip_proxy": False,
     },
-    "mangaread": {
-        "template": "madara",
-        "base_url": "https://mangaread.co",
-        "name": "MangaRead",
+    "flamescans": {
+        "template": "mangathemesia",
+        "base_url": "https://flamescans.org",
+        "name": "Flame Scans",
         "lang": "en",
         "version": "1.0.0",
-        "icon": "https://mangaread.co/favicon.ico",
+        "icon": "https://flamescans.org/favicon.ico",
         "nsfw": False,
         "skip_proxy": False,
     },

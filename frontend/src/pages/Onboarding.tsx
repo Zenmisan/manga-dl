@@ -123,9 +123,10 @@ export default function OnboardingPage() {
 
   const finish = () => {
     localStorage.setItem('onboarded', '1')
+    localStorage.setItem('first_launch_tour', '1')
     const params = new URLSearchParams(window.location.search)
     const redirectTo = params.get('redirect')
-    navigate(redirectTo || '/', { replace: true })
+    navigate(redirectTo || '/r', { replace: true })
   }
 
   const stepIdx = STEPS.indexOf(step)

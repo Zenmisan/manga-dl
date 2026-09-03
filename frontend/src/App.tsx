@@ -1,4 +1,4 @@
-import React, { useRef, useCallback, Suspense, useEffect } from 'react'
+import React, { useRef, useCallback, Suspense, useEffect, useState } from 'react'
 import {
   Library, Search, Globe, BarChart2, Clock, Bell,
   Download, Settings, Sparkles, PanelLeftClose, PanelLeftOpen, LogOut, LogIn, MonitorDown, MoreHorizontal,
@@ -43,6 +43,7 @@ import ProfilePage from './pages/Profile'
 import ImportGuide from './pages/ImportGuide'
 import LocalMangaDetail from './pages/LocalMangaDetail'
 import { ThemedLoadingScreen } from './components/common/ThemedLoader'
+import AppTour from './components/common/AppTour'
 import type { Session } from '@supabase/supabase-js'
 
 function PageLoader() {
@@ -315,10 +316,16 @@ function BottomNav() {
       {navItems.map((item) => {
         const active = location.pathname === item.path ||
           (item.path === '/settings' && location.pathname.startsWith('/settings'))
+        const tourId = item.path === '/r' ? 'library'
+          : item.path === '/search' ? 'search'
+          : item.path === '/sources' ? 'sources'
+          : item.path === '/downloads' ? 'downloads'
+          : undefined
         return (
           <Link
             key={item.label}
             to={item.path}
+            data-tour={tourId}
             className="flex flex-col items-center gap-0.5 flex-1 py-1 relative"
             style={{ color: active ? 'var(--accent-light)' : 'var(--muted3)' }}
           >
@@ -379,6 +386,7 @@ function App() {
   const { locked, setLocked } = useAppLock()
   useBackgroundSync()
   useGlobalNotifications()
+  const [showTour, setShowTour] = useState(() => localStorage.getItem('first_launch_tour') === '1')
 
   if (location.pathname === '/sitemap.xml' || location.pathname === '/robots.txt') {
     return <RawStaticViewer path={location.pathname} />
@@ -519,6 +527,9 @@ function App() {
 
       {/* Mobile bottom nav — hidden in reader */}
       {!isReader && <BottomNav />}
+
+      {/* First-launch walkthrough tour */}
+      {showTour && <AppTour onDone={() => setShowTour(false)} />}
     </div>
     </MotionConfig>
   )

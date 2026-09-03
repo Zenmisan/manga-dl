@@ -19,11 +19,14 @@ interface Params {
   prevPage: (e?: React.MouseEvent) => void
   nextPage: (e?: React.MouseEvent) => void
   onExit?: () => void
+  onNextChapter?: () => void
+  onPrevChapter?: () => void
 }
 
 export function useReaderKeybindings({
   readingMode, volumeKeyMode, readerFilters, setReaderFilters,
   pagesLength, setCurrentPage, prevPage, nextPage, onExit,
+  onNextChapter, onPrevChapter,
 }: Params) {
   // Native Volume keys (Android)
   useEffect(() => {
@@ -46,6 +49,12 @@ export function useReaderKeybindings({
       if (e.key === 'Escape') {
         e.preventDefault()
         onExit?.()
+      } else if (e.ctrlKey && e.key === 'ArrowRight') {
+        e.preventDefault()
+        onNextChapter?.()
+      } else if (e.ctrlKey && e.key === 'ArrowLeft') {
+        e.preventDefault()
+        onPrevChapter?.()
       } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
         if (readingMode !== 'webtoon') setCurrentPage(p => Math.min(p + 1, pagesLength))
       } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
@@ -68,5 +77,5 @@ export function useReaderKeybindings({
     }
     window.addEventListener('keydown', handle)
     return () => window.removeEventListener('keydown', handle)
-  }, [readingMode, pagesLength, volumeKeyMode, readerFilters.brightness, setCurrentPage, setReaderFilters, onExit])
+  }, [readingMode, pagesLength, volumeKeyMode, readerFilters.brightness, setCurrentPage, setReaderFilters, onExit, onNextChapter, onPrevChapter])
 }

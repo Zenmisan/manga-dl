@@ -138,6 +138,8 @@ export function useReaderNavigation({
     readingMode, volumeKeyMode, readerFilters, setReaderFilters,
     pagesLength: pages.length, setCurrentPage, prevPage, nextPage,
     onExit: () => navigate(-1),
+    onNextChapter: navigateToNextChapter,
+    onPrevChapter: navigateToPrevChapter,
   })
 
   return {

@@ -11,7 +11,9 @@ from app.config import get_settings
 from app.database import init_db
 from app.core.queue import download_queue
 from app.core.tasks import start_sync_task, stop_sync_task
+from app.core.discovery_cache import start_discovery_refresh, stop_discovery_refresh
 from app.api import manga, downloads, settings as settings_router, library, sources, auth, users, backup, support
+from app.api import discovery as discovery_router_module
 from app.providers import list_providers
 from app.core.security import verify_api_key
 
@@ -37,6 +39,7 @@ async def lifespan(app: FastAPI):
 
     asyncio.create_task(validate_all())
     start_sync_task()
+    start_discovery_refresh()
 
     # Ensure Supabase storage bucket exists (no-op if credentials not set)
     from app.core.storage import ensure_bucket_exists
@@ -45,6 +48,7 @@ async def lifespan(app: FastAPI):
     yield
 
     # Shutdown
+    stop_discovery_refresh()
     stop_sync_task()
     await download_queue.stop()
     for p in list_providers():
@@ -90,6 +94,7 @@ app.include_router(auth.router, prefix="/api", dependencies=api_deps)
 app.include_router(users.router, prefix="/api")  # Uses Supabase JWT auth, not API key
 app.include_router(backup.router, prefix="/api")
 app.include_router(support.router, prefix="/api")  # No auth — public contact form
+app.include_router(discovery_router_module.router, prefix="/api", dependencies=api_deps)
 
 # Serve built frontend in production
 _frontend_dist = Path(__file__).parent.parent.parent / "frontend" / "dist"
