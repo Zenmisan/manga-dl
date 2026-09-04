@@ -18,10 +18,20 @@ log = logging.getLogger(__name__)
 _cache: dict[str, dict[str, list]] = {}
 _task_handle: asyncio.Task | None = None
 
+_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+
 _HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.5",
+    "User-Agent": _UA,
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate, br",
+    "DNT": "1",
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1",
 }
 
 
@@ -117,7 +127,7 @@ def _parse_mangadex(data: dict) -> list[dict]:
 
 async def _warm_mangathemesia(pid: str, base_url: str) -> None:
     try:
-        async with httpx.AsyncClient(timeout=8, follow_redirects=True, headers=_HEADERS) as client:
+        async with httpx.AsyncClient(timeout=8, follow_redirects=True, headers=_site_headers(base_url)) as client:
             pop_r = await client.get(f"{base_url}/manga/", params={"type": "", "status": "", "order": "popular"})
             lat_r = await client.get(f"{base_url}/manga/", params={"type": "", "status": "", "order": "update"})
         _cache[pid] = {
@@ -157,22 +167,18 @@ def _parse_mangathemesia(html: str, provider: str) -> list[dict]:
 
 # ── Madara (WordPress) ────────────────────────────────────────────────────────
 
+def _site_headers(base_url: str) -> dict:
+    return {**_HEADERS, "Referer": base_url + "/", "Origin": base_url}
+
+
 async def _warm_madara(pid: str, base_url: str) -> None:
+    headers = _site_headers(base_url)
     try:
-        ajax_url = f"{base_url}/wp-admin/admin-ajax.php"
-        async with httpx.AsyncClient(timeout=8, follow_redirects=True, headers=_HEADERS) as client:
-            pop_r = await client.post(ajax_url, data={
-                "action": "madara_load_more",
-                "page": "0",
-                "template": "madara-core/content/content-popular",
-                "vars[paged]": "0",
-                "vars[posts_per_page]": "20",
-            })
-            lat_r = await client.post(ajax_url, data={
-                "action": "m_filter",
-                "vars[orderby]": "latest",
-                "vars[posts_per_page]": "20",
-            })
+        async with httpx.AsyncClient(timeout=10, follow_redirects=True, headers=headers) as client:
+            pop_r = await client.get(f"{base_url}/manga/", params={"m_orderby": "trending"})
+            lat_r = await client.get(f"{base_url}/manga/", params={"m_orderby": "latest"})
+        pop_r.raise_for_status()
+        lat_r.raise_for_status()
         _cache[pid] = {
             "popular": _parse_madara_html(pop_r.text, pid),
             "latest": _parse_madara_html(lat_r.text, pid),
@@ -186,20 +192,30 @@ async def _warm_madara(pid: str, base_url: str) -> None:
 def _parse_madara_html(html: str, provider: str) -> list[dict]:
     soup = BeautifulSoup(html, "html.parser")
     results = []
-    for item in soup.select(".page-item-detail, .manga")[:20]:
+    # GET browse pages use .page-item-detail; AJAX responses use .manga
+    items = soup.select(".page-item-detail, .manga-item, .c-image-hover")[:20]
+    if not items:
+        # Some themes wrap items differently
+        items = soup.select("div[class*='manga']")[:20]
+    for item in items:
         a = item.select_one("a[href]")
-        title_el = item.select_one(".post-title h3, .post-title h5, .post-title a")
-        img = item.select_one("img.thumb, img[data-src], img[src]")
+        title_el = item.select_one(".post-title h3, .post-title h5, .post-title a, h3 a, h4 a")
+        img = item.select_one("img")
         if not a:
             continue
         url = a.get("href", "")
+        if not url or "wp-" in url:
+            continue
         cover = None
         if img:
             cover = img.get("data-src") or img.get("data-lazy-src") or img.get("src")
         slug = url.rstrip("/").split("/")[-1]
+        title_text = title_el.get_text(strip=True) if title_el else slug
+        if not title_text:
+            continue
         results.append({
             "id": slug,
-            "title": title_el.get_text(strip=True) if title_el else slug,
+            "title": title_text,
             "cover_url": cover,
             "provider": provider,
             "url": url,
