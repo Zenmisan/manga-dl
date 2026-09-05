@@ -184,7 +184,11 @@ export default function Reader() {
             {fetchError || 'No image pages were found in this chapter or the provider request failed.'}
           </p>
           <div className="flex gap-3">
-            <button onClick={() => navigate(-1)} className="flex-1 btn-secondary text-xs uppercase tracking-widest font-bold py-3">Go Back</button>
+            <button onClick={() => {
+              const parts = onlinePartsRef.current
+              if (parts?.provider && parts?.mangaId) navigate(`/manga/${parts.provider}/${parts.mangaId}`)
+              else navigate(-1)
+            }} className="flex-1 btn-secondary text-xs uppercase tracking-widest font-bold py-3">Go Back</button>
             <button onClick={() => window.location.reload()} className="flex-1 btn-primary text-xs uppercase tracking-widest font-bold py-3">Retry</button>
           </div>
         </motion.div>
@@ -239,7 +243,14 @@ export default function Reader() {
         handleDownload={handleDownloadChapter}
         handleConvertToPdf={() => openLibraryUrl('library/pdf')}
         handleConvertToEpub={() => openLibraryUrl('library/epub')}
-        onBack={() => navigate(-1)}
+        onBack={() => {
+          const parts = onlinePartsRef.current
+          if (parts?.provider && parts?.mangaId) {
+            navigate(`/manga/${parts.provider}/${parts.mangaId}`)
+          } else {
+            navigate(-1)
+          }
+        }}
         onOpenSettings={() => setShowSettingsSheet(true)}
       />
 

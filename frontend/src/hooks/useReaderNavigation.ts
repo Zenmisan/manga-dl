@@ -107,9 +107,8 @@ export function useReaderNavigation({
       } else {
         navigate(`/read/local/${parts?.mangaId ?? encodeURIComponent(targetId)}:${targetId}`)
       }
-    } else {
-      navigate(`/read/${encodeURIComponent(mangaTitle ?? 'manga')}/${encodeURIComponent(targetId)}`)
     }
+    // parts is null and not local — cannot build a valid ctx URL; bail out
   }, [navigate, getNextUnreadChapterId, onlinePartsRef, chapterListRef, mangaTitle])
 
   const navigateToPrevChapter = useCallback(() => {
@@ -125,8 +124,6 @@ export function useReaderNavigation({
       } else {
         navigate(`/read/local/${parts?.mangaId ?? encodeURIComponent(prevChapterId)}:${prevChapterId}`)
       }
-    } else {
-      navigate(`/read/${encodeURIComponent(mangaTitle ?? 'manga')}/${encodeURIComponent(prevChapterId)}`)
     }
   }, [navigate, prevChapterId, mangaTitle, onlinePartsRef, chapterListRef])
 

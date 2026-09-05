@@ -363,9 +363,9 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
       }
     }
 
-    fetchManifest()
     malAutoSyncedRef.current = false
     onlinePartsRef.current = null
+    fetchManifest()
 
     const timer = setTimeout(() => setShowControls(false), 3000)
     return () => {
