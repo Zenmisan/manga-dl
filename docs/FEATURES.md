@@ -179,8 +179,6 @@ Last updated: 2026-09-12
 
 | Feature | Priority | Notes |
 |---------|----------|-------|
-| Biometric / PIN lock | Medium | @capacitor-community/biometric-auth (Android) |
-| WiFi-only / charging-only gates | Low | For auto-download + sync triggers |
 | WebView fallback for Cloudflare sources | Medium | Some sources need JS challenge solving |
 | RAR/CBR archive support | Low | Need native decompressor |
 | Folder import (bulk scan local directory) | Low | Desktop: Tauri readDir + filter |

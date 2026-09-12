@@ -181,6 +181,14 @@ Extracted into purpose-built hooks and components:
 - **Smart Resume Labels**: Intelligent contextual button text (`Start Reading`, `Continue Ch. X`, `Re-read Ch. X`).
 - **Dynamic Page Titles & Rich Previews**: Dynamic `usePageTitle` hook applied across all app routes and Reader; enriched `index.html` with canonical absolute OpenGraph/Twitter image tags and metadata for social link unfurls.
 - **Stale State Remediation**: Used `currentPageRef` in `useReaderData` to prevent stale closure bugs during unmount progress syncing.
+- **Reader Back Navigation**: Simplified back button to `navigate(-1)` to honor original entry history stack; eliminates ping-pong between reader and manga detail.
+- **MangaDetail Hallmark Design Pass**: Removed red left-border wall on unread chapters, switched READ buttons to outline style, adaptive 2/3-column stats grid, tiered genre badges, synopsis Markdown stripping, pencil edit button removal.
+- **CI Workflow Removal**: Deleted Firebase GitHub Actions auto-deploy workflows; hosting is now manual-only.
+
+### Phase 25 ✅ Full Project Documentation (2026-09-12)
+- **CHANGELOG.md**: Complete chronological changelog from `[0.1.0] - 2026-05-30` through `[Unreleased]` covering all 10 versions with detailed Added/Changed/Fixed/Removed/Security entries per version.
+- **docs/PROJECT_STATUS.md**: Updated with Phase 24 full detail and Phase 25 documentation phase.
+- **docs/FEATURES.md**: Removed stale "Not Yet Implemented" rows for Biometric Lock and WiFi/Charging gates (shipped in Phase 16).
 
 ---
 
