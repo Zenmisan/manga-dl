@@ -390,7 +390,7 @@ export function MangaChaptersSection({
       </div>
 
       {/* Chapters list */}
-      <div className="space-y-3">
+      <div className="space-y-2.5">
         {visibleChapters.length === 0 ? (
           <div className="p-8 text-center rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl">
             <p className="text-zinc-400 text-xs font-semibold">No chapters match your search or filters</p>
@@ -401,6 +401,14 @@ export function MangaChaptersSection({
             const isBookmarked = bookmarks.has(chapter.id)
             const isChRead = readChapters.has(chapter.id)
             const isSwiped = swipedChapterId === chapter.id
+            const pgKey = `manga-dl-pg:${provider}:${manga.id}:${chapter.id}`
+            const totalKey = `manga-dl-pg-total:${provider}:${manga.id}:${chapter.id}`
+            let readPct = 0
+            try {
+              const last = parseInt(localStorage.getItem(pgKey) || '0', 10)
+              const total = parseInt(localStorage.getItem(totalKey) || '0', 10)
+              if (last > 0 && total > 0) readPct = Math.min(100, Math.round((last / total) * 100))
+            } catch { /* private browsing */ }
 
             return (
               <div
@@ -427,11 +435,17 @@ export function MangaChaptersSection({
                     navigate(targetUrl)
                   }}
                   className={cn(
-                    "relative flex items-center justify-between p-4 md:p-5 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl hover:bg-white/[0.08] cursor-pointer group transition-all",
-                    isChRead ? "border-l-4 border-l-zinc-700" : "border-l-4 border-l-red-500",
+                    "relative flex items-center justify-between p-5 md:p-6 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl hover:bg-white/[0.08] cursor-pointer group transition-all overflow-hidden",
+                    isChRead && "border-l-4 border-l-zinc-700",
                     isSwiped && "-translate-x-28"
                   )}
                 >
+                  {readPct > 0 && readPct < 100 && (
+                    <div
+                      className="absolute bottom-0 left-0 h-[2px] bg-blue-500/70 transition-all duration-300"
+                      style={{ width: `${readPct}%` }}
+                    />
+                  )}
                   <div className={cn("flex items-center gap-4 min-w-0 pr-4", isChRead && "opacity-50")}>
                     {/* Bookmark indicator */}
                     <button
@@ -447,13 +461,13 @@ export function MangaChaptersSection({
 
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <h3 className="font-bold text-sm md:text-base text-white group-hover:text-red-400 transition-colors truncate">
+                        <h3 className="font-bold text-base md:text-lg text-white group-hover:text-red-400 transition-colors truncate leading-snug">
                           {chapter.title || `Chapter ${chapter.number}`}
                         </h3>
                         {isChRead && <Check className="w-4 h-4 text-emerald-400 shrink-0" />}
                       </div>
-                      <div className="flex items-center gap-3 text-[10px] md:text-xs text-zinc-400 font-medium mt-1">
-                        <span>Chapter {chapter.number}</span>
+                      <div className="flex items-center gap-3 text-xs text-zinc-500 font-medium mt-2">
+                        {chapter.number > 0 && <span>Ch. {chapter.number}</span>}
                         {chapter.scanlator && (
                           <span className="px-2 py-0.5 rounded bg-white/10 text-zinc-300 font-bold text-[10px]">
                             {chapter.scanlator}
@@ -511,7 +525,7 @@ export function MangaChaptersSection({
                           const targetUrl = buildSmartReadUrl(provider || '', manga.id, chapter.id, manga.title, chapter.title)
                           navigate(targetUrl)
                         }}
-                        className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-extrabold text-xs uppercase tracking-wider shadow-[0_4px_16px_rgba(220,38,38,0.3)] transition-all flex items-center gap-1.5 cursor-pointer"
+                        className="px-4 py-2 rounded-xl border border-red-500/50 text-red-400 hover:bg-red-500/10 font-extrabold text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer"
                         aria-label="Read Chapter"
                       >
                         <Play className="w-3.5 h-3.5 fill-current" />

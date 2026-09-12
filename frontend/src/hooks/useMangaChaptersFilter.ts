@@ -113,12 +113,14 @@ export function useMangaChaptersFilter(
 
   const resumeTarget = useMemo(() => {
     if (!manga || manga.chapters.length === 0) return null
+    const chLabel = (c: { number: number; title: string }) =>
+      c.number ? `Ch. ${c.number}` : (c.title || `Ch. ${c.number}`)
     // Check last-read chapter saved by reader
     try {
       const lastChapterId = localStorage.getItem(`manga-dl-last-chapter:${provider}:${mangaId}`)
       if (lastChapterId) {
         const lastChapter = manga.chapters.find(c => c.id === lastChapterId)
-        if (lastChapter) return { chapter: lastChapter, label: `Continue Ch. ${lastChapter.number}` }
+        if (lastChapter) return { chapter: lastChapter, label: `Continue ${chLabel(lastChapter)}` }
       }
     } catch { /* private browsing */ }
     const getNum = (c: { number: number; title: string }) => {
@@ -129,10 +131,10 @@ export function useMangaChaptersFilter(
     const sorted = [...manga.chapters].sort((a, b) => getNum(a) - getNum(b))
     const firstUnread = sorted.find(c => !readChapters.has(c.id))
     if (firstUnread) {
-      return { chapter: firstUnread, label: `Resume Ch. ${firstUnread.number}` }
+      return { chapter: firstUnread, label: `Start Reading` }
     }
     const last = sorted[sorted.length - 1]
-    return { chapter: last, label: `Re-read Ch. ${last.number}` }
+    return { chapter: last, label: `Re-read ${chLabel(last)}` }
   }, [manga, readChapters, provider, mangaId])
 
   return {

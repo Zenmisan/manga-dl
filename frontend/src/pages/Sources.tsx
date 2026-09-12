@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ThemedSpinner } from '../components/common/ThemedLoader'
 import { cn } from '../lib/utils'
 import { ExtensionManager } from '../lib/extensions'
+import { usePageTitle } from '../lib/usePageTitle'
 
 const CUSTOM_REPOS_KEY = 'manga-dl-custom-repos'
 
@@ -45,6 +46,7 @@ function saveInstalledMeta(list: InstalledMeta[]) {
 }
 
 export default function SourcesPage() {
+  usePageTitle('Sources')
   const { data: rawSources = [], isLoading: loading } = useMarketSources()
   const sources = rawSources as Source[]
   const { data: builtinsRaw = [] } = useBuiltinSources()

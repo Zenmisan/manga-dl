@@ -7,6 +7,7 @@ import { Capacitor } from '@capacitor/core'
 import { fetchCbzAsBase64, saveToDeviceStorage, getCbzUrl } from '../lib/nativeDownload'
 import { ThemedSpinner } from '../components/common/ThemedLoader'
 import { preCacheChapter, outputPathToParts, isChapterCached } from '../lib/offlineCache'
+import { usePageTitle } from '../lib/usePageTitle'
 
 
 interface DownloadItem {
@@ -53,6 +54,7 @@ function coverGradient(title: string): string {
 type Tab = 'active' | 'completed' | 'failed'
 
 export default function DownloadsPage() {
+  usePageTitle('Downloads')
   const { show: toast, confirm } = useToast()
   const [active, setActive] = useState<DownloadItem[]>([])
   const [history, setHistory] = useState<DownloadItem[]>([])

@@ -9,8 +9,10 @@ import { DashboardBulkActionBar } from '../components/dashboard/DashboardBulkAct
 import { DashboardMangaCard } from '../components/dashboard/DashboardMangaCard'
 import { ThemedSkeletonGrid } from '../components/common/ThemedLoader'
 import type { LibraryItem } from '../hooks/useDashboardData'
+import { usePageTitle } from '../lib/usePageTitle'
 
 export default function Dashboard() {
+  usePageTitle('Library')
   const {
     navigate, loading, refreshing, refetchLibrary, view, setView,
     uploading, isDesktop, sort, setSort, filter, setFilter, selectMode, setSelectMode,

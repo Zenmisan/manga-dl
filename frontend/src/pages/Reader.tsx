@@ -16,6 +16,7 @@ import { ReaderSettingsSheet } from '../components/reader/ReaderSettingsSheet'
 import { startSession, endSession } from '../lib/readingSession'
 import { markRead } from '../lib/readTracking'
 import { buildSmartReadUrl } from '../lib/smartUrl'
+import { usePageTitle } from '../lib/usePageTitle'
 
 const fac = new FastAverageColor()
 
@@ -60,6 +61,11 @@ export default function Reader() {
     getImageUrl, isWidePage,
   } = useReaderData({ mangaTitle, filename, location, readingMode, incognitoMode, upscaling, setShowControls })
 
+  const readerTitle = pages.length > 0 && onlinePartsRef.current
+    ? `${onlinePartsRef.current.mangaTitle || mangaTitle} · ${onlinePartsRef.current.chapterTitle || filename}`
+    : (localTitle ?? null)
+  usePageTitle(readerTitle)
+
   useAndroidFeatures({ navigate, ambilightColor })
 
   const {
@@ -77,6 +83,29 @@ export default function Reader() {
   // Keep a live ref to currentPage so the session cleanup can read the final page reached
   const currentPageRef = useRef(currentPage)
   useEffect(() => { currentPageRef.current = currentPage }, [currentPage])
+
+  // Webtoon scroll tracker — update currentPage as user scrolls
+  useEffect(() => {
+    if (readingMode !== 'webtoon' || !pages.length) return
+    const onScroll = () => {
+      const target = window.innerHeight * 0.35 // 35% down the viewport
+      let best = 1
+      let bestDist = Infinity
+      for (let i = 0; i < pages.length; i++) {
+        const el = document.getElementById(`page-${i + 1}`)
+        if (!el) continue
+        const rect = el.getBoundingClientRect()
+        const mid = rect.top + rect.height / 2
+        const dist = Math.abs(mid - target)
+        if (dist < bestDist) { bestDist = dist; best = i + 1 }
+      }
+      setCurrentPage(best)
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    // Initial call after images render
+    const timer = setTimeout(onScroll, 200)
+    return () => { window.removeEventListener('scroll', onScroll); clearTimeout(timer) }
+  }, [readingMode, pages, setCurrentPage])
 
   // Reading session tracking — start when pages arrive, end on unmount / chapter change
   const sessionTokenRef = useRef<string | null>(null)
@@ -184,11 +213,7 @@ export default function Reader() {
             {fetchError || 'No image pages were found in this chapter or the provider request failed.'}
           </p>
           <div className="flex gap-3">
-            <button onClick={() => {
-              const parts = onlinePartsRef.current
-              if (parts?.provider && parts?.mangaId) navigate(`/manga/${parts.provider}/${parts.mangaId}`)
-              else navigate(-1)
-            }} className="flex-1 btn-secondary text-xs uppercase tracking-widest font-bold py-3">Go Back</button>
+            <button onClick={() => navigate(-1)} className="flex-1 btn-secondary text-xs uppercase tracking-widest font-bold py-3">Go Back</button>
             <button onClick={() => window.location.reload()} className="flex-1 btn-primary text-xs uppercase tracking-widest font-bold py-3">Retry</button>
           </div>
         </motion.div>
@@ -243,14 +268,7 @@ export default function Reader() {
         handleDownload={handleDownloadChapter}
         handleConvertToPdf={() => openLibraryUrl('library/pdf')}
         handleConvertToEpub={() => openLibraryUrl('library/epub')}
-        onBack={() => {
-          const parts = onlinePartsRef.current
-          if (parts?.provider && parts?.mangaId) {
-            navigate(`/manga/${parts.provider}/${parts.mangaId}`)
-          } else {
-            navigate(-1)
-          }
-        }}
+        onBack={() => navigate(-1)}
         onOpenSettings={() => setShowSettingsSheet(true)}
       />
 

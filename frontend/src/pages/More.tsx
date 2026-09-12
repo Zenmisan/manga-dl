@@ -8,6 +8,7 @@ import { useAppStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
 import { useState, useEffect } from 'react'
 import { checkForUpdate, openUpdateUrl, type ReleaseInfo } from '../lib/updates'
+import { usePageTitle } from '../lib/usePageTitle'
 
 interface NavRow {
   icon: React.ElementType
@@ -18,6 +19,7 @@ interface NavRow {
 }
 
 export default function MorePage() {
+  usePageTitle('More')
   const navigate = useNavigate()
   const { incognitoMode, setIncognitoMode } = useAppStore()
   const [email, setEmail] = useState<string | null>(null)

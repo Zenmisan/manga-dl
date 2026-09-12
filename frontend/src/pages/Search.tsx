@@ -16,6 +16,7 @@ import { SourceSwimlane } from '../components/search/SourceSwimlane'
 import { SourceToggleModal } from '../components/search/SourceToggleModal'
 import { getEnabledSources } from '../lib/sourceManager'
 import { sortResultsByRelevance } from '../lib/relevanceScorer'
+import { usePageTitle } from '../lib/usePageTitle'
 
 // Module-level discovery cache — survives navigation, cleared only on page refresh
 const _discoveryCache: { popular: MangaResult[]; latest: MangaResult[]; fetched: boolean } = {
@@ -196,6 +197,7 @@ function MangaCard({ r, idx, onSubscribe, subscribed, subscribing, navigate }: {
 // ── Main Page ──────────────────────────────────────────────────────────────
 
 export default function SearchPage() {
+  usePageTitle('Browse')
   const navigate = useNavigate()
   const { show: toast } = useToast()
   const {

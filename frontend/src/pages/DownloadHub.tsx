@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Download, Monitor, Smartphone, Globe, Check, Sparkles, ArrowRight, ShieldCheck, Zap, HardDrive, Cpu, Terminal, ArrowLeft } from 'lucide-react'
+import { usePageTitle } from '../lib/usePageTitle'
 
 type OSType = 'desktop' | 'windows' | 'mac' | 'linux' | 'android' | 'ios' | 'web'
 
@@ -131,6 +132,7 @@ const OS_DATA: Record<OSType, OSConfig> = {
 }
 
 export default function DownloadHub() {
+  usePageTitle('Download Hub')
   const [detectedOS, setDetectedOS] = useState<OSType>('desktop')
   const [selectedOS, setSelectedOS] = useState<OSType>('desktop')
 

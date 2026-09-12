@@ -6,6 +6,7 @@ import { Bell, Download, RefreshCw } from 'lucide-react'
 import { ThemedSpinner } from '../components/common/ThemedLoader'
 import { motion } from 'framer-motion'
 import { buildSmartReadUrl, buildSmartMangaUrl } from '../lib/smartUrl'
+import { usePageTitle } from '../lib/usePageTitle'
 
 interface UpdateEntry {
   manga_title: string
@@ -53,6 +54,7 @@ const BUCKET_ORDER_FN = (a: string, b: string) => {
 }
 
 export default function UpdatesPage() {
+  usePageTitle('Updates')
   const navigate = useNavigate()
   const { data: rawUpdates = [], isLoading: loading, isFetching: refreshing, refetch } = useMangaUpdates()
   const updates = rawUpdates as UpdateEntry[]

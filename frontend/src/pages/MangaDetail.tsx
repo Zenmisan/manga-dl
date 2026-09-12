@@ -1,6 +1,6 @@
 /* Hallmark · genre: atmospheric · macrostructure: sidebar-detail (comix.to model) · theme: app tokens · nav: sticky-header */
 import { useState } from 'react'
-import { Play, Bookmark, BookmarkCheck, Download, Star, Pencil } from 'lucide-react'
+import { Play, Bookmark, BookmarkCheck, Download, Star } from 'lucide-react'
 import { useMangaDetail } from '../hooks/useMangaDetail'
 import { MangaHeroHeader } from '../components/manga/MangaHeroHeader'
 import { MangaRatingNotes } from '../components/manga/MangaRatingNotes'
@@ -10,6 +10,7 @@ import { buildSmartReadUrl } from '../lib/smartUrl'
 import { cn } from '../lib/utils'
 import api from '../lib/api'
 import { ThemedLoadingScreen, ThemedSpinner } from '../components/common/ThemedLoader'
+import { usePageTitle } from '../lib/usePageTitle'
 
 export default function MangaDetail() {
   const {
@@ -22,9 +23,10 @@ export default function MangaDetail() {
     userNote, setUserNote, userRating, setUserRating, noteEditing, setNoteEditing,
     noteDraft, setNoteDraft, malToken, themeColor, swipedChapterId, setSwipedChapterId,
     swipeStartX, imgRef, notifEnabled, toggleNotif, editingMeta, setEditingMeta,
-    metaDraft, setMetaDraft, openMetaEdit, saveMetaEdit, scanlators, displayedChapters, resumeTarget,
+    metaDraft, setMetaDraft, saveMetaEdit, scanlators, displayedChapters, resumeTarget,
   } = useMangaDetail()
 
+  usePageTitle(manga?.title ?? null)
   const [imgError, setImgError] = useState(false)
 
   if (loading) {
@@ -94,15 +96,17 @@ export default function MangaDetail() {
               )}
             </div>
 
-            {/* 3-Stat Bar */}
-            <div className="grid grid-cols-3 gap-1.5 mb-4">
+            {/* Stat Bar */}
+            <div className={cn("grid gap-1.5 mb-4", userRating > 0 ? "grid-cols-3" : "grid-cols-2")}>
+              {userRating > 0 && (
               <div className="flex flex-col items-center py-2.5 px-1 rounded-xl bg-white/5 border border-white/10">
                 <Star className="w-3 h-3 text-amber-400 fill-amber-400 mb-1" />
                 <span className="text-xs font-black text-white leading-none mb-0.5">
-                  {userRating > 0 ? `${userRating}.0` : '—'}
+                  {userRating}.0
                 </span>
                 <span className="text-[10px] font-bold uppercase tracking-wide text-zinc-400">Rating</span>
               </div>
+              )}
               <div className="flex flex-col items-center py-2.5 px-1 rounded-xl bg-white/5 border border-white/10">
                 <span className="text-xs font-black text-white leading-none mb-0.5 mt-px">
                   {manga.chapters.length}
@@ -186,13 +190,6 @@ export default function MangaDetail() {
                 >
                   {manga.title}
                 </h1>
-                <button
-                  onClick={openMetaEdit}
-                  aria-label="Edit metadata"
-                  className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-all shrink-0 mt-1 focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-black"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                </button>
               </div>
               <p className="text-xs text-zinc-400 mt-1 font-semibold">{authorText}</p>
             </div>
@@ -204,14 +201,24 @@ export default function MangaDetail() {
                   Genres
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                  {manga.genres.map(g => (
+                  {manga.genres.slice(0, 8).map((g, i) => (
                     <span
                       key={g}
-                      className="px-2.5 py-0.5 rounded-full border border-white/10 bg-white/5 text-[10px] font-bold text-zinc-300"
+                      className={cn(
+                        "px-2.5 py-0.5 rounded-full text-[10px] font-bold",
+                        i < 3
+                          ? "border border-white/20 bg-white/10 text-zinc-200"
+                          : "border border-white/8 bg-white/[0.03] text-zinc-500"
+                      )}
                     >
                       {g}
                     </span>
                   ))}
+                  {manga.genres.length > 8 && (
+                    <span className="px-2.5 py-0.5 rounded-full border border-white/8 bg-white/[0.03] text-[10px] font-bold text-zinc-600">
+                      +{manga.genres.length - 8} more
+                    </span>
+                  )}
                 </div>
               </div>
             )}
@@ -242,7 +249,13 @@ export default function MangaDetail() {
                   Synopsis
                 </div>
                 <p className="text-sm leading-relaxed text-zinc-300">
-                  {manga.description.replace(/\n{3,}/g, '\n\n').trim()}
+                  {manga.description
+                    .replace(/\*\*([^*]+)\*\*/g, '$1')
+                    .replace(/\*([^*]+)\*/g, '$1')
+                    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+                    .replace(/_{2,}/g, '')
+                    .replace(/\n{3,}/g, '\n\n')
+                    .trim()}
                 </p>
               </div>
             )}

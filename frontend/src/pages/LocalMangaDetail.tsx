@@ -5,6 +5,7 @@ import { ChevronLeft, Play, HardDrive, CheckCircle, Circle, CheckCheck } from 'l
 import { getLocalManga, getAllLocalManga, loadLocalMangaIntoSession, type LocalMangaEntry, type LocalChapterMeta, type LocalMangaSession } from '../lib/localLibrary'
 import { getReadChapters, markRead, markUnread, markAllRead } from '../lib/readTracking'
 import { ThemedLoadingScreen } from '../components/common/ThemedLoader'
+import { usePageTitle } from '../lib/usePageTitle'
 
 interface CtxMenu { x: number; y: number; chapter: LocalChapterMeta }
 
@@ -14,6 +15,7 @@ export default function LocalMangaDetail() {
   const id = localId ? decodeURIComponent(localId) : ''
 
   const [entry, setEntry] = useState<LocalMangaEntry | null>(null)
+  usePageTitle(entry ? (entry.seriesTitle || entry.title) : null)
   const [chapters, setChapters] = useState<LocalChapterMeta[]>([])
   const [readChapters, setReadChapters] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
@@ -154,7 +156,7 @@ export default function LocalMangaDetail() {
           }}
         >
           <Play style={{ width: 14, height: 14, fill: 'currentColor' }} />
-          {resumeChapter ? `Continue Ch. ${resumeChapter.number}` : 'Start Reading'}
+          {resumeChapter ? `Continue ${resumeChapter.number ? `Ch. ${resumeChapter.number}` : (resumeChapter.title || `Ch. ${resumeChapter.number}`)}` : 'Start Reading'}
         </button>
         {readCount < chapters.length && (
           <button

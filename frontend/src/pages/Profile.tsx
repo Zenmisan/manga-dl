@@ -7,6 +7,7 @@ import { useAppStore } from '../lib/store'
 import { motion, AnimatePresence } from 'framer-motion'
 import { BookOpen, BarChart2, Share2, ArrowLeft, User, Calendar, Pencil, Lock, Check, X, ExternalLink, Trash2 } from 'lucide-react'
 import { ThemedLoadingScreen } from '../components/common/ThemedLoader'
+import { usePageTitle } from '../lib/usePageTitle'
 
 interface Activity {
   manga_title: string
@@ -74,6 +75,8 @@ export default function ProfilePage() {
     avatarUrl: '',
     usernameLocked: false
   })
+
+  usePageTitle(meta.username ? `@${meta.username}` : null)
 
   // Edit Modal State
   const [isEditing, setIsEditing] = useState(false)

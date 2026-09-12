@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { getCategories } from '../lib/categories'
 import { ThemedLoadingScreen } from '../components/common/ThemedLoader'
 import { getTodayReadingSecs, getAvgSessionSecs, getReadingSpeedPagesPerMin } from '../lib/readingSession'
+import { usePageTitle } from '../lib/usePageTitle'
 
 const GOALS_KEY = 'manga-dl-reading-goals'
 
@@ -101,6 +102,7 @@ const PROVIDER_COLORS: Record<string, string> = {
 }
 
 export default function StatsPage() {
+  usePageTitle('Stats')
   const { data: rawStats, isLoading: loading } = useLibraryStats()
   const stats = rawStats as StatsData | undefined
   const [goals, setGoals] = useState<ReadingGoals>(() => getGoals())

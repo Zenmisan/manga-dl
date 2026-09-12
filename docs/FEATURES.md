@@ -6,7 +6,7 @@ A tri-platform manga reader and downloader.
 **Mobile:** Capacitor Android APK  
 **Backend:** FastAPI + SQLite (local) / Supabase PostgreSQL (prod) on Render
 
-Last updated: 2026-07-22
+Last updated: 2026-09-12
 
 ---
 
@@ -40,6 +40,7 @@ Last updated: 2026-07-22
 
 ### Reader
 - 4 modes: LTR pager, RTL pager, webtoon scroll, vertical pager
+- Webtoon dynamic scroll tracking: continuous viewport observer updating page indicators in real-time
 - Brightness, contrast, grayscale, invert, sepia filters
 - Crop borders (pager + webtoon independently)
 - Webtoon side padding slider (0–80px)
@@ -53,19 +54,38 @@ Last updated: 2026-07-22
 - Shareable chapter link (Web Share API + clipboard)
 - Discord Rich Presence (desktop only)
 
-### Online Reading
+### Manga Detail & Chapter Lists
+- In-chapter read percentage bar: visual progress line showing 0–100% completion per chapter
+- Contextual resume buttons: dynamic labels ("Start Reading", "Continue Ch. X", "Re-read Ch. X")
+- Adaptive stats layout: automatic collapsing to 2-column layout when unrated
+- Clean synopsis rendering: automatic Markdown tag stripping (`**bold**`, `[links]`, etc.)
+- Genre badge pills: high-contrast top-3 genres and `+N more` overflow pill
+
+### Online Reading & Discovery
+- Discovery APIs: `/api/discovery/popular` and `/api/discovery/latest` with file-backed caching
+- Interactive source toggles: `SourceToggleModal` component for toggling active search extensions
 - Stream chapter pages without downloading
 - Image proxy via curl_cffi with Chrome impersonation + correct Referer
 - Cloud reading progress sync (saves page, resumes on next open) — requires login
 - Smart URLs & Clean Paths (`/read/:title-slug-:extCode/:chapterSlug`)
 - Public Library Access: Unlocked for all authenticated users (read, stream, convert PDF/EPUB)
 
-### SEO & Search Engine Optimization
+### SEO & Social Previews
+- Dynamic Page Titles: `usePageTitle` hook managing browser tab titles across all 15 routes and reader
+- Enriched OpenGraph & Twitter Cards: Absolute canonical image tags and dimensions for Discord, Twitter/X, and Telegram unfurls
 - XML Sitemap (`public/sitemap.xml`) covering all core application routes
 - Crawler directives (`public/robots.txt`) allowing Google Search indexing
-- Dynamic route cataloging for snapshot generation
 
-### Mobile & Native Enhancements (Android Capacitor)
+### User Onboarding & Profiles
+- Automated username generation (`/api/users/generate-username`) suggesting unique handles
+- Custom avatar selection and profile management
+- Support ticket submission (`/api/users/support-ticket`)
+- Transactional email service for welcome notifications and support ticket confirmations
+
+### Mobile & Native Packaging
+- Automated local Android SDK toolchain provisioning (`/home/zenmi/Android/Sdk`)
+- Custom Gradle APK naming (`manga-dl-v1.0.apk` / `manga-dl-v1.0-debug.apk`)
+- Linux desktop bundles (AppImage, `.deb`, `.rpm`) using Tauri v2
 - Biometric App Lock session guard preventing infinite re-prompt loops
 - Native volume key navigation (`VolumeKeys` plugin)
 - Automatic bottom navbar hiding inside reader routes (`/read/...`)

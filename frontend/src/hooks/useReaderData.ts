@@ -40,6 +40,7 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
   const malAutoSyncedRef = useRef(false)
   const progressSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const onlinePartsRef = useRef<OnlineParts | null>(null)
+  const currentPageRef = useRef(1)
   const chapterListRef = useRef<{ id: string; number?: number; title?: string }[]>([])
 
   const getImageUrlForChapter = useCallback((targetFilename: string, pageName: string) => {
@@ -150,6 +151,9 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
     autoSync()
   }, [currentPage, pages.length, mangaTitle, filename])
 
+  // Keep ref in sync so cleanup can read current page without stale closure
+  useEffect(() => { currentPageRef.current = currentPage }, [currentPage])
+
   // Debounced cloud save
   useEffect(() => {
     if (mangaTitle === 'local' || pages.length === 0) return
@@ -215,6 +219,7 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
                 return `${base}/manga/image-proxy?url=${encodeURIComponent(url)}&api_key=${apiKey}`
               })
           setPages(proxyPages)
+          try { localStorage.setItem(`manga-dl-pg-total:${onlineProvider}:${onlineMangaId}:${onlineChapterId}`, String(proxyPages.length)) } catch { /* quota */ }
           setLocalTitle(`Online — Ch. ${onlineChapterId}`)
           try { localStorage.setItem(`manga-dl-last-chapter:${onlineProvider}:${onlineMangaId}`, onlineChapterId) } catch { /* private browsing */ }
 
@@ -370,10 +375,8 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
     const timer = setTimeout(() => setShowControls(false), 3000)
     return () => {
       clearTimeout(timer)
-      if (progressSaveTimerRef.current) {
-        clearTimeout(progressSaveTimerRef.current)
-        saveOnlineProgress(currentPage)
-      }
+      if (progressSaveTimerRef.current) clearTimeout(progressSaveTimerRef.current)
+      saveOnlineProgress(currentPageRef.current)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mangaTitle, filename, location.search])

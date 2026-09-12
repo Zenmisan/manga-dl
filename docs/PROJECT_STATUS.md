@@ -1,6 +1,6 @@
 # manga-dl — Project Status
 
-Last updated: 2026-07-22
+Last updated: 2026-09-12
 
 A tri-platform manga reader and downloader.  
 **Web:** PWA · **Desktop:** Tauri v2 · **Mobile:** Capacitor Android · **Backend:** FastAPI (infra-only — see Phase 10)
@@ -154,6 +154,33 @@ Extracted into purpose-built hooks and components:
 - **Android Biometric Lock Fix**: Added session unlock guard (`isUnlockedRef`) in `App.tsx` preventing infinite re-prompt loops on app focus/resume.
 - **SEO & Google Search Indexing**: Added `public/sitemap.xml` and `public/robots.txt` for search engine indexing and route inventory capture.
 - **Reader Mobile Layout**: Hidden main app bottom navbar during reader routes (`/read/...`), fixed "Mark All Read" button overlap on mobile viewports, and updated online streaming loading indicators.
+
+### Phase 21 ✅ User Onboarding, Profile Ecosystem & Auth Hardening (2026-07-31 - 2026-08-07)
+- **Google Sign-In**: Fully integrated Firebase Authentication for Google Sign-In with robust error handling and fallbacks.
+- **Username Generation & Setup**: Added onboarding username generator (`/api/users/generate-username`) suggesting available handles.
+- **Support & Transactional Emails**: Implemented user support ticket submissions (`/api/users/support-ticket`) and automated transactional notifications (welcome email + support receipt) via backend email service.
+- **Strict JWT Protection**: Replaced legacy `get_current_user` with `require_jwt_user` for per-user library isolation on `/api/library` and `/api/manga`.
+- **Profile Polish**: Custom avatar selection, immutable username editing constraints, and seamless tracker configuration in Settings.
+
+### Phase 22 ✅ Discovery Engine, Source Management & UI Overhaul (2026-08-07 - 2026-08-30)
+- **Discovery API & Caching**: Server-side endpoints (`/api/discovery/popular`, `/api/discovery/latest`) with file-backed caching for rapid catalog browsing without hitting third-party source rate limits.
+- **Source Toggle Modal**: Added dynamic `SourceToggleModal` component in search to filter and toggle active providers directly from the search bar.
+- **Extension Reliability**: Purged deprecated/broken providers, upgraded User-Agent impersonation, and tuned scraping selectors.
+- **UI Modernization**: Upgraded loading indicators across all views using `ThemedSpinner` and `ThemedLoadingScreen`, added high-contrast rounded pill filters, glassmorphic dropdowns, and interactive file import guides.
+
+### Phase 23 ✅ Local Android SDK Toolchain & Packaging Automation (2026-08-31 - 2026-09-01)
+- **Local Android SDK Provisioning**: Automated download and setup of official Google `cmdline-tools`, `platforms/android-34`, `build-tools/34.0.0`, and `platform-tools` in `/home/zenmi/Android/Sdk` with license automation.
+- **App ID & Path Synchronizations**: Configured `CAPACITOR_ANDROID_STUDIO_PATH` for Arch Linux and synchronized `appId` (`com.zenmisan.mangadl`) in `capacitor.config.ts` with Gradle `applicationId`.
+- **Custom APK Naming**: Configured Gradle variants to output cleanly versioned release (`manga-dl-v1.0.apk`) and debug (`manga-dl-v1.0-debug.apk`) artifacts.
+- **Secrets Decoupling & Git Hygiene**: Removed hardcoded fallback keys from `firebase.ts` and `supabase.ts`, routed backend resolution to `VITE_BACKEND_URL`, and untracked SQLite `.db` and hosting cache files.
+- **Deploy Boundary Protection**: Added executable ignore rules to `firebase.json` to comply with Spark plan limits while preserving Supabase release pipelines.
+
+### Phase 24 ✅ Real-Time Webtoon Scroll, Reading Milestones & Social Metadata (2026-09-12)
+- **Dynamic Webtoon Scroll Tracking**: Real-time viewport intersection tracker in `Reader.tsx` synchronizing the active page counter and bottom scrubber during smooth vertical reading.
+- **In-Chapter Progress Bar**: Visual blue indicator on chapter cards in `MangaChaptersSection.tsx` displaying exact reading percentage (0–100%).
+- **Smart Resume Labels**: Intelligent contextual button text (`Start Reading`, `Continue Ch. X`, `Re-read Ch. X`).
+- **Dynamic Page Titles & Rich Previews**: Dynamic `usePageTitle` hook applied across all app routes and Reader; enriched `index.html` with canonical absolute OpenGraph/Twitter image tags and metadata for social link unfurls.
+- **Stale State Remediation**: Used `currentPageRef` in `useReaderData` to prevent stale closure bugs during unmount progress syncing.
 
 ---
 

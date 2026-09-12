@@ -12,6 +12,7 @@ import { ThemedSpinner } from '../components/common/ThemedLoader'
 import { useAppStore } from '../lib/store'
 import { cn } from '../lib/utils'
 import { buildSmartReadUrl, buildSmartMangaUrl } from '../lib/smartUrl'
+import { usePageTitle } from '../lib/usePageTitle'
 
 interface HistoryEntry {
   provider: string
@@ -68,6 +69,7 @@ const COVER_GRADIENTS = [
 ]
 
 export default function HistoryPage() {
+  usePageTitle('History')
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { confirm } = useToast()
