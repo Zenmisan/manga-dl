@@ -39,14 +39,14 @@ async function fetchAniListUsername(token: string): Promise<string | null> {
 
 const ease = [0.16, 1, 0.3, 1] as const
 
-const DEFAULT_ANILIST_CLIENT_ID = '51213'
+const DEFAULT_ANILIST_CLIENT_ID = '50135'
 const DEFAULT_MAL_CLIENT_ID = 'f00d5e6690b08489b0b5e2e25d1fdb28'
 
 // Evict any cached client IDs that are wrong:
 // - known stale values from before the app had registered clients
 // - AniList client IDs must be integers; anything else (e.g. a secret) is invalid
 const STALE_MAL_CLIENT_IDS = ['e59d9c72e27606e987c09ff8a3a0e6e7']
-const STALE_ANILIST_CLIENT_IDS = ['50135']
+const STALE_ANILIST_CLIENT_IDS = ['51213']
 
 function evictStaleClients() {
   const mal = localStorage.getItem('mal-client-id')
