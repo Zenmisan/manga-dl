@@ -19,6 +19,30 @@ export interface MangaExtension {
 // Providers whose image CDN is CORS-enabled — no backend proxy needed for images
 export const SKIP_PROXY_PROVIDERS = new Set(['mangadex'])
 
+// Deprecated or defunct manga sources removed from backend
+export const DEPRECATED_EXTENSIONS = new Set([
+  'manhuaplus',
+  'aquamanga',
+  'coffeemanga',
+  'manhuafast',
+  'manhuaus',
+  'manhwajoy',
+  'sleepytranslations',
+  'mangakiss',
+  'epicmanga',
+  'firescans',
+  'kissmangain',
+  'mangaread',
+  'linkmanga',
+  'manhuazonghe',
+  'webtoonscan',
+  'webtoonxyz',
+  'whalemanga',
+  'woopread',
+  'wuxiaworldsite',
+  'drakescans',
+])
+
 export class ExtensionManager {
   private static instance: ExtensionManager
   public extensions: Map<string, MangaExtension> = new Map()
@@ -187,8 +211,14 @@ export class ExtensionManager {
       }
 
       return true
-    } catch (err) {
-      console.error(`[Extensions] Failed to install ${pkgId}:`, err)
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status
+      if (status === 404 || DEPRECATED_EXTENSIONS.has(pkgId)) {
+        console.warn(`[Extensions] Source "${pkgId}" returned 404 or is deprecated. Auto-pruning from localStorage.`)
+        this.pruneFromStorage(pkgId)
+      } else {
+        console.error(`[Extensions] Failed to install ${pkgId}:`, err)
+      }
       return false
     }
   }
@@ -247,9 +277,54 @@ export class ExtensionManager {
     ))
   }
 
+  cleanupDeprecatedExtensions() {
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key && key.startsWith('extensions-')) {
+          const raw = localStorage.getItem(key)
+          if (!raw) continue
+          const parsed = JSON.parse(raw)
+          if (Array.isArray(parsed)) {
+            const filtered = parsed.filter(
+              (e: { id?: string }) => e?.id && !DEPRECATED_EXTENSIONS.has(e.id) && e.id !== 'undefined'
+            )
+            if (filtered.length !== parsed.length) {
+              console.log(`[Extensions] Pruned ${parsed.length - filtered.length} deprecated extensions from ${key}`)
+              localStorage.setItem(key, JSON.stringify(filtered))
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[Extensions] Error cleaning deprecated extensions:', e)
+    }
+  }
+
+  private pruneFromStorage(pkgId: string) {
+    try {
+      this.extensions.delete(pkgId)
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key && key.startsWith('extensions-')) {
+          const raw = localStorage.getItem(key)
+          if (!raw) continue
+          const parsed = JSON.parse(raw)
+          if (Array.isArray(parsed)) {
+            const filtered = parsed.filter((e: { id?: string }) => e && e.id !== pkgId)
+            if (filtered.length !== parsed.length) {
+              localStorage.setItem(key, JSON.stringify(filtered))
+            }
+          }
+        }
+      }
+    } catch { /* ignore */ }
+  }
+
   async loadInstalled() {
+    this.cleanupDeprecatedExtensions()
     const rawInstalled = JSON.parse(localStorage.getItem(this.storageKey) || '[]') as Array<{ id: string; name: string; lang: string; version: string; disabled?: boolean }>
-    const installed = rawInstalled.filter(e => e && e.id && e.id !== 'undefined')
+    const installed = rawInstalled.filter(e => e && e.id && e.id !== 'undefined' && !DEPRECATED_EXTENSIONS.has(e.id))
     if (installed.length !== rawInstalled.length) {
       localStorage.setItem(this.storageKey, JSON.stringify(installed))
     }

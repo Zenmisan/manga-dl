@@ -52,7 +52,10 @@ async def lifespan(app: FastAPI):
     stop_sync_task()
     await download_queue.stop()
     for p in list_providers():
-        await p.close()
+        try:
+            await p.close()
+        except Exception as exc:
+            log.warning("[Shutdown] Provider %s close error: %s", getattr(p, "id", p), exc)
 
 
 app = FastAPI(

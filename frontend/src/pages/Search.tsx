@@ -2,7 +2,7 @@
  * pre-emit critique: P4 H4 E4 S4 R5 V4 — all axes ≥ 3
  */
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useToast } from '../components/common/Toast'
 import api from '../lib/api'
 import { ExtensionManager } from '../lib/extensions'
@@ -13,15 +13,15 @@ import { useAppStore } from '../lib/store'
 import { buildSmartMangaUrl } from '../lib/smartUrl'
 import { ThemedSpinner, ThemedSkeletonGrid } from '../components/common/ThemedLoader'
 import { SourceSwimlane } from '../components/search/SourceSwimlane'
+import { DiscoverySwimlane } from '../components/search/DiscoverySwimlane'
 import { SourceToggleModal } from '../components/search/SourceToggleModal'
 import { getEnabledSources } from '../lib/sourceManager'
 import { sortResultsByRelevance } from '../lib/relevanceScorer'
 import { usePageTitle } from '../lib/usePageTitle'
 
 // Module-level discovery cache — survives navigation, cleared only on page refresh
-const _discoveryCache: { popular: MangaResult[]; latest: MangaResult[]; fetched: boolean } = {
-  popular: [], latest: [], fetched: false,
-}
+const _discoveryBySource: Record<string, { popular: MangaResult[]; latest: MangaResult[] }> = {}
+let _discoveryFetched = false
 
 interface MangaResult {
   id: string
@@ -83,42 +83,6 @@ function DiscoveryCard({ r, idx, navigate }: { r: MangaResult; idx: number; navi
         <div style={{ fontSize: 10, color: 'var(--muted3)', marginTop: 2, textTransform: 'capitalize', fontWeight: 500 }}>{r.provider}</div>
       </div>
     </motion.div>
-  )
-}
-
-function DiscoveryCardSkeleton() {
-  return (
-    <div style={{ width: 110, flexShrink: 0 }}>
-      <motion.div animate={{ opacity: [0.4, 0.65, 0.4] }} transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
-        style={{ width: 110, height: 155, borderRadius: 10, background: 'var(--surface)' }} />
-      <motion.div animate={{ opacity: [0.3, 0.55, 0.3] }} transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut', delay: 0.2 }}
-        style={{ marginTop: 6, height: 12, borderRadius: 4, background: 'var(--surface)', width: '80%' }} />
-      <motion.div animate={{ opacity: [0.2, 0.45, 0.2] }} transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut', delay: 0.4 }}
-        style={{ marginTop: 4, height: 10, borderRadius: 4, background: 'var(--surface)', width: '55%' }} />
-    </div>
-  )
-}
-
-// ── SwimLane ───────────────────────────────────────────────────────────────
-
-function SwimLane({ title, items, loading, navigate }: {
-  title: string
-  items: MangaResult[]
-  loading?: boolean
-  navigate: ReturnType<typeof useNavigate>
-}) {
-  return (
-    <div style={{ marginBottom: 32 }}>
-      <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--fg)', marginBottom: 12, lineHeight: 1.2, textWrap: 'balance', fontStyle: 'normal' }}>
-        {title}
-      </h2>
-      <div style={{ display: 'flex', gap: 12, overflowX: 'auto', flexWrap: 'nowrap', paddingBottom: 8, WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-        {loading
-          ? Array.from({ length: 8 }).map((_, i) => <DiscoveryCardSkeleton key={i} />)
-          : items.map((r, i) => <DiscoveryCard key={`${r.provider}:${r.id}`} r={r} idx={i} navigate={navigate} />)
-        }
-      </div>
-    </div>
   )
 }
 
@@ -235,10 +199,18 @@ export default function SearchPage() {
   const [sourceFilters] = useState<FilterDef[]>([])
   const [activeFilters, setActiveFilters] = useState<Record<string, string>>({})
 
-  // Discovery feed — initialise from cache if available (instant on back-nav)
-  const [discoveryPopular, setDiscoveryPopular] = useState<MangaResult[]>(_discoveryCache.popular)
-  const [discoveryLatest, setDiscoveryLatest] = useState<MangaResult[]>(_discoveryCache.latest)
-  const [discoveryLoading, setDiscoveryLoading] = useState(!_discoveryCache.fetched)
+  const [searchParams] = useSearchParams()
+
+  // Discovery feed — per-source data, survives back-nav via module-level cache
+  const [discoveryBySource, setDiscoveryBySource] = useState<Record<string, { popular: MangaResult[]; latest: MangaResult[] }>>(_discoveryBySource)
+  const [discoveryLoading, setDiscoveryLoading] = useState(!_discoveryFetched)
+
+  // Pre-select source from URL param (?source=mangakatana)
+  useEffect(() => {
+    const src = searchParams.get('source')
+    if (src) setSelectedProvider(src)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     const manager = ExtensionManager.getInstance()
@@ -256,6 +228,20 @@ export default function SearchPage() {
     return Array.from(manager.extensions.values()).map(ext => ({ id: ext.id, name: ext.name }))
   }, [extCount])
 
+  // Aggregate popular/latest — all sources except MangaDex
+  const aggregatePopular = useMemo(() =>
+    Object.entries(discoveryBySource)
+      .filter(([id]) => id !== 'mangadex')
+      .flatMap(([, v]) => v.popular ?? []),
+    [discoveryBySource]
+  )
+  const aggregateLatest = useMemo(() =>
+    Object.entries(discoveryBySource)
+      .filter(([id]) => id !== 'mangadex')
+      .flatMap(([, v]) => v.latest ?? []),
+    [discoveryBySource]
+  )
+
   useEffect(() => {
     if (activeProviders.length > 0) {
       if (selectedProvider && !activeProviders.some(p => p.id === selectedProvider)) setSelectedProvider(null)
@@ -267,25 +253,23 @@ export default function SearchPage() {
     }
   }, [activeProviders, selectedProvider, setSelectedProvider])
 
-  // Fetch discovery feed once on mount (after extensions ready)
+  // Fetch discovery feed once on mount — stores per-source data
   useEffect(() => {
-    if (_discoveryCache.fetched) return  // cache hit — skip fetch entirely
+    if (_discoveryFetched) return  // cache hit — skip fetch entirely
 
     let spinnerCleared = false
     const clearSpinner = () => {
       if (!spinnerCleared) { spinnerCleared = true; setDiscoveryLoading(false) }
     }
 
-    const mergeInto = (
-      setter: React.Dispatch<React.SetStateAction<MangaResult[]>>,
-      cacheKey: 'popular' | 'latest',
-      incoming: MangaResult[],
-    ) => {
-      setter(prev => {
-        const seen = new Set(prev.map(r => `${r.provider}:${r.id}`))
-        const next = [...prev, ...incoming.filter(r => !seen.has(`${r.provider}:${r.id}`))]
-        _discoveryCache[cacheKey] = next.slice(0, 20)
-        return _discoveryCache[cacheKey]
+    const mergeSource = (sourceId: string, key: 'popular' | 'latest', incoming: MangaResult[]) => {
+      setDiscoveryBySource(prev => {
+        const current = prev[sourceId] ?? { popular: [], latest: [] }
+        const seen = new Set(current[key].map(r => `${r.provider}:${r.id}`))
+        const merged = [...current[key], ...incoming.filter(r => !seen.has(`${r.provider}:${r.id}`))]
+        const updated = { ...prev, [sourceId]: { ...current, [key]: merged } }
+        Object.assign(_discoveryBySource, updated)
+        return updated
       })
       clearSpinner()
     }
@@ -296,19 +280,19 @@ export default function SearchPage() {
       const exts = Array.from(manager.extensions.values())
       if (exts.length === 0) { clearSpinner(); return }
 
-      // 1. Hit backend discovery cache — instant for all built-in sources
+      // 1. Backend discovery cache — instant for all built-in sources
       const providerIds = exts.map(e => e.id).join(',')
       type DiscoveryResponse = Record<string, { popular: MangaResult[]; latest: MangaResult[] }>
       const cached: DiscoveryResponse = await api.get(`/sources/discovery?providers=${providerIds}`)
         .then(r => r.data as DiscoveryResponse)
         .catch(() => ({} as DiscoveryResponse))
 
-      const serverPopular = Object.values(cached).flatMap(c => c.popular ?? []).slice(0, 20)
-      const serverLatest = Object.values(cached).flatMap(c => c.latest ?? []).slice(0, 20)
-      if (serverPopular.length > 0) mergeInto(setDiscoveryPopular, 'popular', serverPopular)
-      if (serverLatest.length > 0) mergeInto(setDiscoveryLatest, 'latest', serverLatest)
+      Object.entries(cached).forEach(([sourceId, data]) => {
+        if (data.popular?.length) mergeSource(sourceId, 'popular', data.popular)
+        if (data.latest?.length) mergeSource(sourceId, 'latest', data.latest)
+      })
 
-      // 2. Progressive browser-side fetch for community extensions not covered by backend
+      // 2. Progressive browser-side fetch for community sources not covered by backend
       const coveredIds = new Set(
         Object.entries(cached)
           .filter(([, v]) => (v.popular?.length ?? 0) > 0 || (v.latest?.length ?? 0) > 0)
@@ -318,18 +302,18 @@ export default function SearchPage() {
       uncovered.forEach(ext => {
         if (ext.getPopular) {
           (ext.getPopular(1) as Promise<MangaResult[]>)
-            .then(r => mergeInto(setDiscoveryPopular, 'popular', r))
+            .then(r => mergeSource(ext.id, 'popular', r))
             .catch(() => {})
         }
         if (ext.getLatest) {
           (ext.getLatest(1) as Promise<MangaResult[]>)
-            .then(r => mergeInto(setDiscoveryLatest, 'latest', r))
+            .then(r => mergeSource(ext.id, 'latest', r))
             .catch(() => {})
         }
       })
 
       clearSpinner()
-      _discoveryCache.fetched = true
+      _discoveryFetched = true
     }
 
     run()
@@ -525,8 +509,43 @@ export default function SearchPage() {
         {/* ── Discovery Feed (idle state) ─────────────────────────────── */}
         {isIdle && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}>
-            <SwimLane title="Popular Now" items={discoveryPopular} loading={discoveryLoading} navigate={navigate} />
-            <SwimLane title="Latest Updates" items={discoveryLatest} loading={discoveryLoading} navigate={navigate} />
+            {/* Aggregate rows — all sources except MangaDex */}
+            <DiscoverySwimlane
+              title="Popular Now"
+              items={aggregatePopular}
+              loading={discoveryLoading}
+              browseHref="/browse/popular"
+              renderCard={(r, i) => (
+                <DiscoveryCard key={`${r.provider}:${r.id}`} r={r} idx={i} navigate={navigate} />
+              )}
+            />
+            <DiscoverySwimlane
+              title="Latest Updates"
+              items={aggregateLatest}
+              loading={discoveryLoading}
+              browseHref="/browse/latest"
+              renderCard={(r, i) => (
+                <DiscoveryCard key={`${r.provider}:${r.id}`} r={r} idx={i} navigate={navigate} />
+              )}
+            />
+            {/* Per-source swimlanes — one per installed source that has data */}
+            {activeProviders.map(source => {
+              const data = discoveryBySource[source.id]
+              const hasData = (data?.popular?.length ?? 0) > 0
+              if (!hasData && !discoveryLoading) return null
+              return (
+                <DiscoverySwimlane
+                  key={source.id}
+                  title={source.name}
+                  items={data?.popular ?? []}
+                  loading={discoveryLoading && !data}
+                  browseHref={`/search?source=${source.id}`}
+                  renderCard={(r, i) => (
+                    <DiscoveryCard key={`${r.provider}:${r.id}`} r={r} idx={i} navigate={navigate} />
+                  )}
+                />
+              )
+            })}
           </motion.div>
         )}
 

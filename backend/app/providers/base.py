@@ -106,8 +106,12 @@ class Provider(ABC):
         }
 
     async def close(self):
-        if self._session:
-            self._session.close()
+        session = getattr(self, "_session", None)
+        if session:
+            try:
+                session.close()
+            except Exception as e:
+                log.debug("Error closing provider session for %s: %s", getattr(self, "id", self), e)
             self._session = None
 
     # ── Scraper validation ────────────────────────────────────────────────────

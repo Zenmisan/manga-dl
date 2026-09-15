@@ -36,6 +36,7 @@ import LoginPage from './pages/Login'
 import RegisterPage from './pages/Register'
 import TermsPage from './pages/Terms'
 import HelpPage from './pages/Help'
+import BrowsePage from './pages/Browse'
 import HistoryPage from './pages/History'
 import UpdatesPage from './pages/Updates'
 import OnboardingPage from './pages/Onboarding'
@@ -494,6 +495,7 @@ function App() {
               <Route path="/more" element={<MorePage />} />
               <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/search" element={<SearchPage />} />
+              <Route path="/browse/:category" element={<BrowsePage />} />
               <Route path="/stats" element={<StatsPage />} />
               <Route path="/sources" element={<SourcesPage />} />
               <Route path="/download" element={<DownloadHub />} />

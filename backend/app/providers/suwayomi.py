@@ -50,6 +50,7 @@ class SuwayomiProvider(Provider):
     base_url = ""  # set via configure()
 
     def __init__(self):
+        super().__init__()
         self._base_url: str = ""
 
     def configure(self, base_url: str):

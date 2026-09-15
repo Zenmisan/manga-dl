@@ -20,6 +20,7 @@ class KomgaProvider(Provider):
     base_url = ""  # set via configure()
 
     def __init__(self):
+        super().__init__()
         self._base_url: str = ""
         self._auth: tuple[str, str] | None = None
 

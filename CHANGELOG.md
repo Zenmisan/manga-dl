@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Reader Back Navigation:** Back button and error-state "Go Back" link both use `navigate(-1)` instead of constructing and pushing a new URL. Eliminates the ping-pong history issue where pressing back from `MangaDetail` would push a new `Reader` entry, requiring two taps to actually leave.
 - **Total Pages Persisted:** `useReaderData.ts` saves `localStorage.setItem(\`manga-dl-pg-total:...\`, pages.length)` immediately after pages load, enabling the chapter progress bar to compute percentages without the user finishing the chapter.
 
+### Fixed
+- **Komga & Suwayomi Provider Shutdown Crash:** Fixed `AttributeError: 'KomgaProvider' object has no attribute '_session'` on backend reload/shutdown by calling `super().__init__()` in `KomgaProvider` and `SuwayomiProvider`. Made `Provider.close()` in `base.py` defensively verify `_session` via `getattr()`, and wrapped provider cleanup in `main.py` shutdown within a try/except block.
+- **Stale Installed Extensions Auto-Pruning:** Automatically prune deprecated/defunct manga sources (`manhuaplus`, `aquamanga`, `coffeemanga`, `manhuafast`, `manhuaus`, `manhwajoy`, `sleepytranslations`, `mangakiss`, `epicmanga`, `firescans`, `kissmangain`, `mangaread`, `linkmanga`, `manhuazonghe`, `webtoonscan`, `webtoonxyz`, `whalemanga`, `woopread`, `wuxiaworldsite`, `drakescans`) across all `extensions-*` keys in `localStorage`. If any extension code returns a 404 response on `/sources/code/<id>`, `ExtensionManager` now automatically purges it from storage, permanently eliminating 404 startup noise.
+
 ### Removed
 - **Redundant Metadata Edit Button:** Pencil icon button and `openMetaEdit` call removed from `MangaDetail.tsx` sidebar header. Metadata editing still accessible through dedicated settings flow.
 - **Deprecated CI Workflows:** Deleted `.github/workflows/firebase-hosting-merge.yml` (auto-deployed to Firebase Hosting on every push to `main`) and `.github/workflows/firebase-hosting-pull-request.yml` (deployed PR preview channels). Hosting is now manual-only via `bunx firebase deploy --only hosting` from `frontend/`.
