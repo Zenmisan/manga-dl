@@ -25,7 +25,7 @@ export default function SettingsLayout() {
             Settings
           </h1>
         </div>
-        <div style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '0 16px 14px', borderBottom: '1px solid var(--border)' }}>
+        <div className="no-scrollbar" style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '0 16px 14px', borderBottom: '1px solid var(--border)' }}>
           {TABS.map(t => (
             <NavLink
               key={t.id} to={t.path}

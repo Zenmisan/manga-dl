@@ -218,7 +218,18 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
                 }
                 return `${base}/manga/image-proxy?url=${encodeURIComponent(url)}&api_key=${apiKey}`
               })
+          // Restore saved page BEFORE setPages so both updates batch into one render.
+          // If restore happens after an await, the debounced save fires for page 1 first
+          // and overwrites the stored progress before the restore runs.
+          const localKey = `manga-dl-pg:${onlineProvider}:${onlineMangaId}:${onlineChapterId}`
+          let restoredPage = 1
+          try {
+            const saved = parseInt(localStorage.getItem(localKey) || '1', 10)
+            if (saved > 1) restoredPage = saved
+          } catch { /* private browsing */ }
+
           setPages(proxyPages)
+          if (restoredPage > 1) setCurrentPage(restoredPage)
           try { localStorage.setItem(`manga-dl-pg-total:${onlineProvider}:${onlineMangaId}:${onlineChapterId}`, String(proxyPages.length)) } catch { /* quota */ }
           setLocalTitle(`Online — Ch. ${onlineChapterId}`)
           try { localStorage.setItem(`manga-dl-last-chapter:${onlineProvider}:${onlineMangaId}`, onlineChapterId) } catch { /* private browsing */ }
@@ -248,14 +259,7 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
             }
           } catch { /* non-fatal */ }
 
-          // Restore page from localStorage fallback first (works offline / no auth)
-          const localKey = `manga-dl-pg:${onlineProvider}:${onlineMangaId}:${onlineChapterId}`
-          try {
-            const localPage = parseInt(localStorage.getItem(localKey) || '1', 10)
-            if (localPage > 1) setCurrentPage(localPage)
-          } catch { /* private browsing */ }
-
-          // Override with Supabase cloud progress if available
+          // Override with Supabase cloud progress if available (wins over localStorage)
           const { data: session } = await supabase.auth.getSession()
           if (session.session) {
             try {

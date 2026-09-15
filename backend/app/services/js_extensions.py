@@ -134,16 +134,6 @@ BUILT_IN_EXTENSIONS: dict[str, dict] = {
         "nsfw": False,
         "skip_proxy": False,
     },
-    "epicmanga": {
-        "template": "madara",
-        "base_url": "https://epicmanga.co",
-        "name": "EpicManga",
-        "lang": "en",
-        "version": "1.0.0",
-        "icon": "https://epicmanga.co/favicon.ico",
-        "nsfw": False,
-        "skip_proxy": False,
-    },
     "mangafree": {
         "template": "madara",
         "base_url": "https://mangafree.info",
@@ -175,8 +165,7 @@ BUILT_IN_EXTENSIONS: dict[str, dict] = {
         "skip_proxy": False,
     },
     "flamescans": {
-        "template": "mangathemesia",
-        "base_url": "https://flamecomics.xyz",
+        "script": "flamecomics.js",
         "name": "Flame Comics",
         "lang": "en",
         "version": "1.0.0",

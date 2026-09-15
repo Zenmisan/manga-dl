@@ -67,6 +67,8 @@ async def warm_all() -> None:
     for pid, meta in BUILT_IN_EXTENSIONS.items():
         if pid == "mangadex":
             tasks.append(_warm_mangadex())
+        elif pid == "flamescans":
+            tasks.append(_warm_flamecomics())
         elif meta.get("template") == "mangathemesia":
             tasks.append(_warm_mangathemesia(pid, meta["base_url"]))
         elif meta.get("template") == "madara":
@@ -119,6 +121,54 @@ def _parse_mangadex(data: dict) -> list[dict]:
             "provider": "mangadex",
             "url": f"https://mangadex.org/title/{mid}",
             "status": attrs.get("status"),
+        })
+    return results
+
+
+# ── Flame Comics (flamecomics.xyz — Next.js, __NEXT_DATA__ JSON) ─────────────
+
+async def _warm_flamecomics() -> None:
+    base = "https://flamecomics.xyz"
+    try:
+        async with httpx.AsyncClient(timeout=10, follow_redirects=True, headers=_site_headers(base)) as client:
+            pop_r = await client.get(f"{base}/browse", params={"order": "trending"})
+            lat_r = await client.get(f"{base}/browse", params={"order": "latest"})
+        pop_r.raise_for_status()
+        lat_r.raise_for_status()
+        _cache["flamescans"] = {
+            "popular": _parse_flamecomics(pop_r.text),
+            "latest": _parse_flamecomics(lat_r.text),
+        }
+        log.debug("[Discovery] flamescans: %d popular, %d latest", len(_cache["flamescans"]["popular"]), len(_cache["flamescans"]["latest"]))
+    except Exception as exc:
+        log.warning("[Discovery] flamescans (flamecomics.xyz) failed: %s", exc)
+        _cache.setdefault("flamescans", {"popular": [], "latest": []})
+
+
+def _parse_flamecomics(html: str) -> list[dict]:
+    import json as _json, re as _re
+    nd_match = _re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, _re.DOTALL)
+    if not nd_match:
+        return []
+    try:
+        data = _json.loads(nd_match.group(1))
+        series_list = data["props"]["pageProps"]["series"]
+    except (KeyError, _json.JSONDecodeError):
+        return []
+    results = []
+    for s in series_list[:20]:
+        sid = s.get("series_id")
+        title = s.get("title", "")
+        if not sid or not title:
+            continue
+        cover = f"https://cdn.flamecomics.xyz/uploads/images/series/{sid}/{s.get('cover', 'thumbnail.webp')}"
+        results.append({
+            "id": str(sid),
+            "title": title,
+            "cover_url": cover,
+            "provider": "flamescans",
+            "url": f"https://flamecomics.xyz/series/{sid}",
+            "status": s.get("status"),
         })
     return results
 

@@ -46,8 +46,6 @@ const PROVIDER_INITIALS_MAP: Record<string, string> = {
   lhtranslation: 'lh',
   sleepytranslations: 'sl',
   mangakiss: 'ms',
-  epicmanga: 'ep',
-  firescans: 'fs',
   mangafree: 'mf',
   pawmanga: 'pw',
   mangasushi: 'su',
