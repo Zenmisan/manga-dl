@@ -5,10 +5,10 @@ After MAL redirects back with ?code=..., the frontend sends the code + verifier 
 for the actual token exchange (avoids CORS restriction on MAL's token endpoint).
 """
 import logging
-import os
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from curl_cffi.requests import AsyncSession
+from app.config import get_settings
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -44,17 +44,21 @@ class MALSearchRequest(BaseModel):
 @router.post("/mal/token")
 async def exchange_mal_token(req: MALTokenRequest):
     """Exchange MAL authorization code for access token."""
+    mal_secret = get_settings().MAL_CLIENT_SECRET or ""
     async with AsyncSession() as client:
         try:
+            token_data: dict = {
+                "client_id": req.client_id,
+                "code": req.code,
+                "code_verifier": req.code_verifier,
+                "grant_type": "authorization_code",
+                "redirect_uri": req.redirect_uri,
+            }
+            if mal_secret:
+                token_data["client_secret"] = mal_secret
             resp = await client.post(
                 MAL_TOKEN_URL,
-                data={
-                    "client_id": req.client_id,
-                    "code": req.code,
-                    "code_verifier": req.code_verifier,
-                    "grant_type": "authorization_code",
-                    "redirect_uri": req.redirect_uri,
-                },
+                data=token_data,
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
                 timeout=15.0,
             )
@@ -91,8 +95,9 @@ class AniListTokenRequest(BaseModel):
 @router.post("/anilist/token")
 async def exchange_anilist_token(req: AniListTokenRequest):
     """Exchange AniList authorization code for access token."""
-    client_id = os.environ.get("ANILIST_CLIENT_ID", "")
-    client_secret = os.environ.get("ANILIST_CLIENT_SECRET", "")
+    settings = get_settings()
+    client_id = settings.ANILIST_CLIENT_ID or ""
+    client_secret = settings.ANILIST_CLIENT_SECRET or ""
     if not client_id or not client_secret:
         raise HTTPException(status_code=503, detail="AniList client credentials not configured on server")
     async with AsyncSession() as client:

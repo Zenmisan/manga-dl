@@ -39,21 +39,21 @@ async function fetchAniListUsername(token: string): Promise<string | null> {
 
 const ease = [0.16, 1, 0.3, 1] as const
 
-const DEFAULT_ANILIST_CLIENT_ID = '50135'
+const DEFAULT_ANILIST_CLIENT_ID = '51213'
 const DEFAULT_MAL_CLIENT_ID = 'f00d5e6690b08489b0b5e2e25d1fdb28'
 
 // Evict any cached client IDs that are wrong:
 // - known stale values from before the app had registered clients
 // - AniList client IDs must be integers; anything else (e.g. a secret) is invalid
 const STALE_MAL_CLIENT_IDS = ['e59d9c72e27606e987c09ff8a3a0e6e7']
+const STALE_ANILIST_CLIENT_IDS = ['50135']
 
 function evictStaleClients() {
   const mal = localStorage.getItem('mal-client-id')
   if (mal && STALE_MAL_CLIENT_IDS.includes(mal)) localStorage.removeItem('mal-client-id')
 
   const al = localStorage.getItem('anilist-client-id')
-  // AniList client IDs are always numeric integers — evict secrets or junk values
-  if (al && !/^\d+$/.test(al.trim())) localStorage.removeItem('anilist-client-id')
+  if (al && (!/^\d+$/.test(al.trim()) || STALE_ANILIST_CLIENT_IDS.includes(al.trim()))) localStorage.removeItem('anilist-client-id')
 }
 evictStaleClients()
 
@@ -97,7 +97,7 @@ export default function TrackerSettings() {
         setAnilistToken(res.data.access_token)
         if (res.data.username) setUserName(res.data.username)
       })
-      .catch(err => { console.error('AniList auth failed:', err); alert('AniList login failed. Check the console.') })
+      .catch(err => { const detail = err?.response?.data?.detail || err?.message || String(err); console.error('AniList auth failed:', err); alert('AniList login failed: ' + detail) })
   }, [])
 
   useEffect(() => {
@@ -111,7 +111,7 @@ export default function TrackerSettings() {
     window.history.replaceState(null, '', window.location.pathname)
     api.post('/auth/mal/token', { client_id: clientId, code, code_verifier: verifier, redirect_uri: window.location.origin + '/settings/trackers' })
       .then(res => { localStorage.setItem('mal-token', res.data.access_token); localStorage.setItem('mal-username', res.data.username); localStorage.removeItem('mal-code-verifier'); setMalUser(res.data.username) })
-      .catch(err => { console.error('MAL auth failed:', err); alert('MAL login failed.') })
+      .catch(err => { const detail = err?.response?.data?.detail || err?.message || String(err); console.error('MAL auth failed:', err); alert('MAL login failed: ' + detail) })
       .finally(() => setMalLoading(false))
   }, [])
 
@@ -139,7 +139,7 @@ export default function TrackerSettings() {
     const { verifier, challenge } = generatePKCE()
     localStorage.setItem('mal-code-verifier', verifier)
     const redirectUri = encodeURIComponent(window.location.origin + '/settings/trackers')
-    window.location.href = `https://myanimelist.net/v1/oauth2/authorize?response_type=code&client_id=${effectiveClientId}&code_challenge=${challenge}&redirect_uri=${redirectUri}`
+    window.location.href = `https://myanimelist.net/v1/oauth2/authorize?response_type=code&client_id=${effectiveClientId}&code_challenge=${challenge}&code_challenge_method=plain&redirect_uri=${redirectUri}`
   }
   const handleMALLogout = () => { localStorage.removeItem('mal-token'); localStorage.removeItem('mal-username'); localStorage.removeItem('mal-code-verifier'); setMalUser('') }
 

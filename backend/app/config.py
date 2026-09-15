@@ -29,6 +29,13 @@ class Settings(BaseSettings):
     RESEND_FROM_EMAIL: str = "manga-dl <onboarding@resend.dev>"  # swap for verified domain email in prod
     SUPPORT_EMAIL: str = "zenmisan@gmail.com"  # where support ticket notifications go
     
+    # AniList OAuth (Authorization Code flow — backend exchanges code for token)
+    ANILIST_CLIENT_ID: str | None = None
+    ANILIST_CLIENT_SECRET: str | None = None
+    # MAL OAuth — client secret required even for PKCE flows
+    MAL_CLIENT_ID: str | None = None
+    MAL_CLIENT_SECRET: str | None = None
+
     # Supabase Storage Configuration
     SUPABASE_URL: str | None = None
     SUPABASE_SERVICE_KEY: str | None = None  # Required for backend bucket operations
