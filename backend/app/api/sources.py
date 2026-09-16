@@ -92,8 +92,8 @@ async def get_extension_code(pkg_id: str, request: Request):
         etag = '"' + hashlib.md5(res["code"].encode()).hexdigest()[:12] + '"'
         if request.headers.get("if-none-match") == etag:
             from fastapi.responses import Response
-            return Response(status_code=304, headers={"ETag": etag, "Cache-Control": "public, max-age=3600"})
-        return JSONResponse(content=res, headers={"Cache-Control": "public, max-age=3600", "ETag": etag})
+            return Response(status_code=304, headers={"ETag": etag, "Cache-Control": "no-cache"})
+        return JSONResponse(content=res, headers={"Cache-Control": "no-cache", "ETag": etag})
     raise HTTPException(status_code=404, detail="Extension code not found")
 
 
