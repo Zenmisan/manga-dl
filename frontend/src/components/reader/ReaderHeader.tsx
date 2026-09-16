@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   ChevronLeft, ChevronDown, Download, FileText, BookOpen,
   CloudUpload, Sparkles, Tv2, Settings2, Share2, Loader2,
-  Maximize2, Minimize2,
+  Maximize2, Minimize2, AlignJustify,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
@@ -26,6 +26,8 @@ interface Props {
   handleDownload: () => void
   handleConvertToPdf: () => void
   handleConvertToEpub: () => void
+  readingMode: 'webtoon' | 'manga' | 'manga-rtl' | 'vertical-pager'
+  setReadingMode: (mode: 'webtoon' | 'manga' | 'manga-rtl' | 'vertical-pager') => void
   onBack: () => void
   onOpenSettings: () => void
 }
@@ -39,12 +41,31 @@ export function ReaderHeader({
   upscaling, setUpscaling,
   uploading, handleCloudUpload, handleDownload,
   handleConvertToPdf, handleConvertToEpub,
+  readingMode, setReadingMode,
   onBack, onOpenSettings,
 }: Props) {
   const displayTitle = mangaTitle === 'local' ? localTitle : mangaTitle
   const displayChapter = mangaTitle === 'local' ? 'Local Preview' : filename?.replace('.cbz', '')
   const [showChapterDrop, setShowChapterDrop] = useState(false)
   const dropRef = useRef<HTMLDivElement>(null)
+  const [showLayoutDrop, setShowLayoutDrop] = useState(false)
+  const layoutRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!showLayoutDrop) return
+    const close = (e: MouseEvent) => {
+      if (layoutRef.current && !layoutRef.current.contains(e.target as Node)) setShowLayoutDrop(false)
+    }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [showLayoutDrop])
+
+  const LAYOUT_MODES = [
+    { id: 'webtoon' as const, label: 'Webtoon', desc: 'Vertical scroll' },
+    { id: 'manga' as const, label: 'L→R Paged', desc: 'Left to right' },
+    { id: 'manga-rtl' as const, label: 'R←L Paged', desc: 'Right to left' },
+    { id: 'vertical-pager' as const, label: 'Vertical Paged', desc: 'Tap to page' },
+  ]
 
   useEffect(() => {
     if (!showChapterDrop) return
@@ -219,13 +240,44 @@ export function ReaderHeader({
                 <FileText className="w-[18px] h-[18px]" />
               </button>
 
-              <button
-                onClick={handleConvertToEpub}
-                aria-label="Export as EPUB"
-                className={cn('p-2.5 hover:bg-white/10 rounded-xl transition-all text-white/30 hover:text-white hidden sm:flex', FOCUS_RING)}
-              >
-                <BookOpen className="w-[18px] h-[18px]" />
-              </button>
+              {/* Reading layout picker */}
+              <div ref={layoutRef} className="relative hidden sm:block">
+                <button
+                  onClick={() => setShowLayoutDrop(p => !p)}
+                  aria-label="Reading layout"
+                  className={cn('p-2.5 hover:bg-white/10 rounded-xl transition-all text-white/30 hover:text-white', showLayoutDrop && 'bg-white/10 text-white', FOCUS_RING)}
+                >
+                  <BookOpen className="w-[18px] h-[18px]" />
+                </button>
+                {showLayoutDrop && (
+                  <div
+                    className="absolute top-full right-0 mt-2 w-48 z-[60]"
+                    style={{
+                      background: 'rgba(8,8,8,0.97)',
+                      border: '1px solid rgba(255,255,255,0.10)',
+                      borderRadius: '0.75rem',
+                      backdropFilter: 'blur(24px)',
+                      WebkitBackdropFilter: 'blur(24px)',
+                      boxShadow: '0 8px 32px rgba(0,0,0,0.7)',
+                    }}
+                  >
+                    <p className="px-3 pt-2.5 pb-1 text-[10px] font-black uppercase tracking-widest text-white/30">Layout</p>
+                    {LAYOUT_MODES.map(m => (
+                      <button
+                        key={m.id}
+                        onClick={() => { setReadingMode(m.id); setShowLayoutDrop(false) }}
+                        className="w-full text-left px-3 py-2 flex items-center justify-between gap-2 hover:bg-white/5 transition-colors first:rounded-t-xl last:rounded-b-xl"
+                      >
+                        <div>
+                          <div className={cn('text-xs font-bold', readingMode === m.id ? 'text-red-400' : 'text-white/70')}>{m.label}</div>
+                          <div className="text-[10px] text-white/30">{m.desc}</div>
+                        </div>
+                        {readingMode === m.id && <AlignJustify className="w-3.5 h-3.5 text-red-400 shrink-0" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               <button
                 onClick={handleDownload}

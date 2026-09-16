@@ -436,13 +436,13 @@ export function MangaChaptersSection({
                   }}
                   className={cn(
                     "relative flex items-center justify-between p-5 md:p-6 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl hover:bg-white/[0.08] cursor-pointer group transition-all overflow-hidden",
-                    isChRead && "border-l-4 border-l-zinc-700",
+                    "border-l-4 border-l-red-600/50",
                     isSwiped && "-translate-x-28"
                   )}
                 >
                   {readPct > 0 && readPct < 100 && (
                     <div
-                      className="absolute bottom-0 left-0 h-[2px] bg-blue-500/70 transition-all duration-300"
+                      className="absolute bottom-0 left-0 h-[2px] bg-white/60 transition-all duration-300"
                       style={{ width: `${readPct}%` }}
                     />
                   )}

@@ -305,6 +305,8 @@ export default function Reader() {
         handleDownload={handleDownloadChapter}
         handleConvertToPdf={() => openLibraryUrl('library/pdf')}
         handleConvertToEpub={() => openLibraryUrl('library/epub')}
+        readingMode={readingMode}
+        setReadingMode={setReadingMode}
         onBack={() => navigate(-1)}
         onOpenSettings={() => setShowSettingsSheet(true)}
       />

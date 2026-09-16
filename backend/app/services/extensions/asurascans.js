@@ -18,8 +18,10 @@ function _asParseCards(doc) {
     var card = a.closest('.series-card, .grid > div, div[class*="grid"] > div, .card, div') || a;
     // Look inside <a> first — tightly scoped to this card, avoids grabbing a sibling's image
     var img = a.querySelector('img') || card.querySelector('img[src*="asura"], img[data-src*="asura"]');
-    var titleEl = a.querySelector('h3, .title, span.font-bold, span') || card.querySelector('h3, .title, span.font-bold') || a;
-    var rawTitle = titleEl ? titleEl.textContent.trim() : '';
+    // Title order: img.alt → sibling title anchor in parent → inner text elements → slug fallback
+    var altTitle = img && img.getAttribute('alt') && !img.getAttribute('alt').match(/^[\d.]+$/) ? img.getAttribute('alt').trim() : '';
+    var titleEl = !altTitle && (a.querySelector('h3, .title, span.font-bold') || card.querySelector('h3, .title, a[class*="line-clamp"], a[class*="font-bold"], span[class*="font-semibold"]') || a);
+    var rawTitle = altTitle || (titleEl ? titleEl.textContent.trim() : '');
     var title = (rawTitle && !rawTitle.match(/^[\d.]+$/)) ? rawTitle : slug.replace(/-[a-f0-9]{8}$/, '').replace(/-/g, ' ');
     if (title) {
       title = title.split(' ').map(function(w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(' ');
