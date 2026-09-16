@@ -10,6 +10,7 @@ from typing import Any
 
 import httpx
 from bs4 import BeautifulSoup
+from curl_cffi.requests import AsyncSession as CurlSession
 
 from app.services.js_extensions import BUILT_IN_EXTENSIONS
 
@@ -69,6 +70,8 @@ async def warm_all() -> None:
             tasks.append(_warm_mangadex())
         elif pid == "flamescans":
             tasks.append(_warm_flamecomics())
+        elif pid == "asurascans":
+            tasks.append(_warm_asurascans())
         elif meta.get("template") == "mangathemesia":
             tasks.append(_warm_mangathemesia(pid, meta["base_url"]))
         elif meta.get("template") == "madara":
@@ -76,6 +79,64 @@ async def warm_all() -> None:
     results = await asyncio.gather(*tasks, return_exceptions=True)
     errors = sum(1 for r in results if isinstance(r, Exception))
     log.info("[Discovery] Cache warm complete — %d sources, %d errors", len(tasks), errors)
+
+
+# ── AsuraScans ───────────────────────────────────────────────────────────────
+
+async def _warm_asurascans() -> None:
+    base = "https://asurascans.com"
+    try:
+        async with CurlSession(impersonate="chrome") as client:
+            pop_r = await client.get(f"{base}/series-ranking", timeout=15)
+            lat_r = await client.get(f"{base}/comics", timeout=15, params={"page": "1"})
+        pop_r.raise_for_status()
+        lat_r.raise_for_status()
+        _cache["asurascans"] = {
+            "popular": _parse_asurascans(pop_r.text, "ranking"),
+            "latest": _parse_asurascans(lat_r.text, "latest"),
+        }
+        log.debug("[Discovery] asurascans: %d popular, %d latest", len(_cache["asurascans"]["popular"]), len(_cache["asurascans"]["latest"]))
+    except Exception as exc:
+        log.warning("[Discovery] asurascans failed: %s", exc)
+        _cache.setdefault("asurascans", {"popular": [], "latest": []})
+
+
+def _parse_asurascans(html: str, mode: str) -> list[dict]:
+    soup = BeautifulSoup(html, "html.parser")
+    results: list[dict] = []
+    seen: set[str] = set()
+    for a in soup.select("a[href*='/comics/']"):
+        href = a.get("href", "")
+        if "/chapter/" in href:
+            continue
+        slug = href.split("/comics/")[-1].rstrip("/")
+        if not slug or slug in seen:
+            continue
+        seen.add(slug)
+        img = a.find("img")
+        cover = img.get("src") if img else None
+        if not cover or cover.startswith("data:") or len(cover) < 10:
+            cover = None
+        # Extract title: try explicit text elements inside a, fall back to alt or slug
+        title_el = (a.find(["h3", "h4", "h2"])
+                    or a.find("span", class_=lambda c: c and "font-bold" in c))
+        if title_el:
+            title = title_el.get_text(strip=True)
+        elif img and img.get("alt"):
+            title = img["alt"]
+        else:
+            title = slug.replace("-", " ").title()
+        results.append({
+            "id": slug,
+            "title": title,
+            "cover_url": cover,
+            "provider": "asurascans",
+            "url": f"https://asurascans.com/comics/{slug}",
+            "status": None,
+        })
+        if len(results) >= 20:
+            break
+    return results
 
 
 # ── MangaDex ─────────────────────────────────────────────────────────────────

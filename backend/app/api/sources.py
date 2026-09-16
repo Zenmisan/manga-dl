@@ -1,6 +1,7 @@
 import re
+import hashlib
 import logging
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from curl_cffi import requests
@@ -84,11 +85,15 @@ async def list_market_sources():
 
 
 @router.get("/code/{pkg_id}")
-async def get_extension_code(pkg_id: str):
+async def get_extension_code(pkg_id: str, request: Request):
     """Return built-in JS extension code, or proxy from Keiyoushi for community extensions."""
     res = get_extension_code_by_pkg(pkg_id)
     if res:
-        return JSONResponse(content=res, headers={"Cache-Control": "public, max-age=86400"})
+        etag = '"' + hashlib.md5(res["code"].encode()).hexdigest()[:12] + '"'
+        if request.headers.get("if-none-match") == etag:
+            from fastapi.responses import Response
+            return Response(status_code=304, headers={"ETag": etag, "Cache-Control": "public, max-age=3600"})
+        return JSONResponse(content=res, headers={"Cache-Control": "public, max-age=3600", "ETag": etag})
     raise HTTPException(status_code=404, detail="Extension code not found")
 
 

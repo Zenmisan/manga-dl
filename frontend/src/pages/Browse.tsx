@@ -100,9 +100,14 @@ export default function BrowsePage() {
         .catch(() => ({} as DiscoveryResponse))
 
       const key = isPopular ? 'popular' : 'latest'
-      const all = Object.entries(data)
+      const cols = Object.entries(data)
         .filter(([id]) => id !== 'mangadex')
-        .flatMap(([, v]) => v[key] ?? [])
+        .map(([, v]) => v[key] ?? [])
+      const maxLen = Math.max(0, ...cols.map(c => c.length))
+      const all: MangaResult[] = []
+      for (let i = 0; i < maxLen; i++) {
+        for (const col of cols) { if (i < col.length) all.push(col[i]) }
+      }
 
       setItems(all)
       setLoading(false)

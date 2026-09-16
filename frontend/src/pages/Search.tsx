@@ -23,6 +23,16 @@ import { usePageTitle } from '../lib/usePageTitle'
 const _discoveryBySource: Record<string, { popular: MangaResult[]; latest: MangaResult[] }> = {}
 let _discoveryFetched = false
 
+// Round-robin zip: [A1,A2,A3],[B1,B2] → [A1,B1,A2,B2,A3]
+function _interleave<T>(cols: T[][]): T[] {
+  const result: T[] = []
+  const maxLen = Math.max(0, ...cols.map(c => c.length))
+  for (let i = 0; i < maxLen; i++) {
+    for (const col of cols) { if (i < col.length) result.push(col[i]) }
+  }
+  return result
+}
+
 interface MangaResult {
   id: string
   title: string
@@ -228,19 +238,20 @@ export default function SearchPage() {
     return Array.from(manager.extensions.values()).map(ext => ({ id: ext.id, name: ext.name }))
   }, [extCount])
 
-  // Aggregate popular/latest — all sources except MangaDex
-  const aggregatePopular = useMemo(() =>
-    Object.entries(discoveryBySource)
-      .filter(([id]) => id !== 'mangadex')
-      .flatMap(([, v]) => v.popular ?? []),
-    [discoveryBySource]
-  )
-  const aggregateLatest = useMemo(() =>
-    Object.entries(discoveryBySource)
-      .filter(([id]) => id !== 'mangadex')
-      .flatMap(([, v]) => v.latest ?? []),
-    [discoveryBySource]
-  )
+  // Aggregate popular/latest — only enabled sources (except MangaDex), interleaved
+  const aggregatePopular = useMemo(() => {
+    const cols = Object.entries(discoveryBySource)
+      .filter(([id]) => id !== 'mangadex' && enabledSources.includes(id))
+      .map(([, v]) => v.popular ?? [])
+    return _interleave(cols)
+  }, [discoveryBySource, enabledSources])
+
+  const aggregateLatest = useMemo(() => {
+    const cols = Object.entries(discoveryBySource)
+      .filter(([id]) => id !== 'mangadex' && enabledSources.includes(id))
+      .map(([, v]) => v.latest ?? [])
+    return _interleave(cols)
+  }, [discoveryBySource, enabledSources])
 
   useEffect(() => {
     if (activeProviders.length > 0) {
@@ -529,7 +540,7 @@ export default function SearchPage() {
               )}
             />
             {/* Per-source swimlanes — one per installed source that has data */}
-            {activeProviders.map(source => {
+            {activeProviders.filter(p => enabledSources.includes(p.id)).map(source => {
               const data = discoveryBySource[source.id]
               const hasData = (data?.popular?.length ?? 0) > 0
               if (!hasData && !discoveryLoading) return null

@@ -16,18 +16,22 @@ function _asParseCards(doc) {
     seen[slug] = true;
 
     var card = a.closest('.series-card, .grid > div, div[class*="grid"] > div, .card, div') || a;
-    var img = card.querySelector('img[src*="covers"], img[src*="asura-images"], img');
-    var titleEl = card.querySelector('h3, .title, span.font-bold') || a;
+    // Look inside <a> first — tightly scoped to this card, avoids grabbing a sibling's image
+    var img = a.querySelector('img') || card.querySelector('img[src*="asura"], img[data-src*="asura"]');
+    var titleEl = a.querySelector('h3, .title, span.font-bold, span') || card.querySelector('h3, .title, span.font-bold') || a;
     var rawTitle = titleEl ? titleEl.textContent.trim() : '';
     var title = (rawTitle && !rawTitle.match(/^[\d.]+$/)) ? rawTitle : slug.replace(/-[a-f0-9]{8}$/, '').replace(/-/g, ' ');
     if (title) {
       title = title.split(' ').map(function(w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(' ');
     }
 
+    var coverUrl = img ? (img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || img.getAttribute('data-lazy') || img.getAttribute('src')) : null;
+    if (coverUrl && (coverUrl.startsWith('data:') || coverUrl.length < 10)) coverUrl = null;
+
     results.push({
       id: slug,
       title: title,
-      cover_url: img ? (img.getAttribute('src') || img.getAttribute('data-src')) : null,
+      cover_url: coverUrl,
       provider: 'asurascans',
       url: _AS + '/comics/' + slug,
       status: null,
