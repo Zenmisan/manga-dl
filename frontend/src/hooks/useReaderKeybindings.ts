@@ -59,6 +59,16 @@ export function useReaderKeybindings({
         if (readingMode !== 'webtoon') setCurrentPage(p => Math.min(p + 1, pagesLength))
       } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
         if (readingMode !== 'webtoon') setCurrentPage(p => Math.max(p - 1, 1))
+      } else if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const target = e.target as HTMLElement | null
+        if (target?.tagName !== 'INPUT' && target?.tagName !== 'TEXTAREA') {
+          e.preventDefault()
+          if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(() => {})
+          } else {
+            document.exitFullscreen().catch(() => {})
+          }
+        }
       } else if (e.key === 'VolumeDown') {
         e.preventDefault()
         if (volumeKeyMode === 'navigation') {

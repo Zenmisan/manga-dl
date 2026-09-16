@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { useLibrary, useHistory, QK } from '../lib/queries'
@@ -73,7 +73,32 @@ export function useDashboardData() {
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
   const { gridColumns } = useAppStore()
   const [showSortPanel, setShowSortPanel] = useState(false)
-  const [activeCategory, setActiveCategory] = useState<string | null>(null)
+  const [activeCategory, setActiveCategoryState] = useState<string | null>(() => {
+    try {
+      const param = new URLSearchParams(window.location.search).get('category')
+      if (param) return param
+      return sessionStorage.getItem('manga-dl-active-category') || null
+    } catch {
+      return null
+    }
+  })
+
+  const setActiveCategory = useCallback((cat: string | null) => {
+    setActiveCategoryState(cat)
+    try {
+      if (cat) {
+        sessionStorage.setItem('manga-dl-active-category', cat)
+        const url = new URL(window.location.href)
+        url.searchParams.set('category', cat)
+        window.history.replaceState(null, '', url.pathname + url.search)
+      } else {
+        sessionStorage.removeItem('manga-dl-active-category')
+        const url = new URL(window.location.href)
+        url.searchParams.delete('category')
+        window.history.replaceState(null, '', url.pathname + (url.search ? url.search : ''))
+      }
+    } catch { /* non-fatal */ }
+  }, [])
   const [categories] = useState(() => getCategories())
   const [localItems, setLocalItems] = useState<LibraryItem[]>([])
   const [bannerDismissed, setBannerDismissed] = useState(false)

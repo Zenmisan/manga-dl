@@ -10,39 +10,41 @@ import { motion, AnimatePresence, MotionConfig } from 'framer-motion'
 import { useToast } from './components/common/Toast'
 import { cn } from './lib/utils'
 import { useAppStore } from './lib/store'
-import { useAuthSession, useThemeEffects, useAppLock, useBackgroundSync } from './hooks/useAppSetup'
+import { useAuthSession, useThemeEffects, useAppLock, useBackgroundSync, useAndroidBackButton } from './hooks/useAppSetup'
 import LandingPage from './pages/Landing'
-import MorePage from './pages/More'
-import NotificationsPage from './pages/Notifications'
 import Dashboard from './pages/Dashboard'
 import SplashScreen from './components/SplashScreen'
 import { Titlebar } from './components/Titlebar'
 import { RawStaticViewer } from './components/RawStaticViewer'
-import SearchPage from './pages/Search'
-import DownloadsPage from './pages/Downloads'
-import SettingsLayout from './pages/Settings'
-import SettingsGeneral from './pages/Settings/General'
-import SettingsReader from './pages/Settings/Reader'
-import SettingsLibrary from './pages/Settings/Library'
-import SettingsTrackers from './pages/Settings/Trackers'
-import SettingsSystem from './pages/Settings/System'
-import SettingsProfile from './pages/Settings/Profile'
-import StatsPage from './pages/Stats'
-import MangaDetail from './pages/MangaDetail'
-import Reader from './pages/Reader'
-import SourcesPage from './pages/Sources'
-import DownloadHub from './pages/DownloadHub'
-import LoginPage from './pages/Login'
-import RegisterPage from './pages/Register'
-import TermsPage from './pages/Terms'
-import HelpPage from './pages/Help'
-import BrowsePage from './pages/Browse'
-import HistoryPage from './pages/History'
-import UpdatesPage from './pages/Updates'
-import OnboardingPage from './pages/Onboarding'
-import ProfilePage from './pages/Profile'
-import ImportGuide from './pages/ImportGuide'
-import LocalMangaDetail from './pages/LocalMangaDetail'
+
+// Lazy-loaded routes for code splitting and instant initial bundle
+const MorePage = React.lazy(() => import('./pages/More'))
+const NotificationsPage = React.lazy(() => import('./pages/Notifications'))
+const SearchPage = React.lazy(() => import('./pages/Search'))
+const DownloadsPage = React.lazy(() => import('./pages/Downloads'))
+const SettingsLayout = React.lazy(() => import('./pages/Settings'))
+const SettingsGeneral = React.lazy(() => import('./pages/Settings/General'))
+const SettingsReader = React.lazy(() => import('./pages/Settings/Reader'))
+const SettingsLibrary = React.lazy(() => import('./pages/Settings/Library'))
+const SettingsTrackers = React.lazy(() => import('./pages/Settings/Trackers'))
+const SettingsSystem = React.lazy(() => import('./pages/Settings/System'))
+const SettingsProfile = React.lazy(() => import('./pages/Settings/Profile'))
+const StatsPage = React.lazy(() => import('./pages/Stats'))
+const MangaDetail = React.lazy(() => import('./pages/MangaDetail'))
+const Reader = React.lazy(() => import('./pages/Reader'))
+const SourcesPage = React.lazy(() => import('./pages/Sources'))
+const DownloadHub = React.lazy(() => import('./pages/DownloadHub'))
+const LoginPage = React.lazy(() => import('./pages/Login'))
+const RegisterPage = React.lazy(() => import('./pages/Register'))
+const TermsPage = React.lazy(() => import('./pages/Terms'))
+const HelpPage = React.lazy(() => import('./pages/Help'))
+const BrowsePage = React.lazy(() => import('./pages/Browse'))
+const HistoryPage = React.lazy(() => import('./pages/History'))
+const UpdatesPage = React.lazy(() => import('./pages/Updates'))
+const OnboardingPage = React.lazy(() => import('./pages/Onboarding'))
+const ProfilePage = React.lazy(() => import('./pages/Profile'))
+const ImportGuide = React.lazy(() => import('./pages/ImportGuide'))
+const LocalMangaDetail = React.lazy(() => import('./pages/LocalMangaDetail'))
 import { ThemedLoadingScreen } from './components/common/ThemedLoader'
 import AppTour from './components/common/AppTour'
 import type { Session } from '@supabase/supabase-js'
@@ -387,6 +389,7 @@ function App() {
   const { locked, setLocked } = useAppLock()
   useBackgroundSync()
   useGlobalNotifications()
+  useAndroidBackButton()
   const [showTour, setShowTour] = useState(() => localStorage.getItem('first_launch_tour') === '1')
 
   if (location.pathname === '/sitemap.xml' || location.pathname === '/robots.txt') {
@@ -490,39 +493,42 @@ function App() {
             transition={{ duration: 0.08 }}
             className="h-full"
           >
-            <Routes location={location}>
-              <Route path="/r" element={<Dashboard />} />
-              <Route path="/more" element={<MorePage />} />
-              <Route path="/notifications" element={<NotificationsPage />} />
-              <Route path="/search" element={<SearchPage />} />
-              <Route path="/browse/:category" element={<BrowsePage />} />
-              <Route path="/stats" element={<StatsPage />} />
-              <Route path="/sources" element={<SourcesPage />} />
-              <Route path="/download" element={<DownloadHub />} />
-              <Route path="/downloads" element={<DownloadsPage />} />
-              <Route path="/settings" element={<SettingsLayout />}>
-                <Route index element={<Navigate to="profile" replace />} />
-                <Route path="profile" element={<SettingsProfile />} />
-                <Route path="general" element={<SettingsGeneral />} />
-                <Route path="reader" element={<SettingsReader />} />
-                <Route path="library" element={<SettingsLibrary />} />
-                <Route path="trackers" element={<SettingsTrackers />} />
-                <Route path="system" element={<SettingsSystem />} />
-              </Route>
-              <Route path="/manga/:provider/*" element={<MangaDetail />} />
-              <Route path="/read/:mangaTitle/:filename" element={<Reader />} />
-              <Route path="/local/:localId" element={<LocalMangaDetail />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
-              <Route path="/terms" element={<TermsPage />} />
-              <Route path="/help" element={<HelpPage />} />
-              <Route path="/guide/import" element={<ImportGuide />} />
-              <Route path="/import-guide" element={<ImportGuide />} />
-              <Route path="/history" element={<HistoryPage />} />
-              <Route path="/updates" element={<UpdatesPage />} />
-              <Route path="/onboarding" element={<OnboardingPage />} />
-              <Route path="/profile/:userId" element={<ProfilePage />} />
-            </Routes>
+            <Suspense fallback={<PageLoader />}>
+              <Routes location={location}>
+                <Route path="/r" element={<Dashboard />} />
+                <Route path="/more" element={<MorePage />} />
+                <Route path="/notifications" element={<NotificationsPage />} />
+                <Route path="/search" element={<SearchPage />} />
+                <Route path="/browse/:category" element={<BrowsePage />} />
+                <Route path="/browse/source/:sourceId" element={<BrowsePage />} />
+                <Route path="/stats" element={<StatsPage />} />
+                <Route path="/sources" element={<SourcesPage />} />
+                <Route path="/download" element={<DownloadHub />} />
+                <Route path="/downloads" element={<DownloadsPage />} />
+                <Route path="/settings" element={<SettingsLayout />}>
+                  <Route index element={<Navigate to="profile" replace />} />
+                  <Route path="profile" element={<SettingsProfile />} />
+                  <Route path="general" element={<SettingsGeneral />} />
+                  <Route path="reader" element={<SettingsReader />} />
+                  <Route path="library" element={<SettingsLibrary />} />
+                  <Route path="trackers" element={<SettingsTrackers />} />
+                  <Route path="system" element={<SettingsSystem />} />
+                </Route>
+                <Route path="/manga/:provider/*" element={<MangaDetail />} />
+                <Route path="/read/:mangaTitle/:filename" element={<Reader />} />
+                <Route path="/local/:localId" element={<LocalMangaDetail />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<RegisterPage />} />
+                <Route path="/terms" element={<TermsPage />} />
+                <Route path="/help" element={<HelpPage />} />
+                <Route path="/guide/import" element={<ImportGuide />} />
+                <Route path="/import-guide" element={<ImportGuide />} />
+                <Route path="/history" element={<HistoryPage />} />
+                <Route path="/updates" element={<UpdatesPage />} />
+                <Route path="/onboarding" element={<OnboardingPage />} />
+                <Route path="/profile/:userId" element={<ProfilePage />} />
+              </Routes>
+            </Suspense>
           </motion.div>
         </AnimatePresence>
       </main>

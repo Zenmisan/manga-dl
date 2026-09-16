@@ -78,18 +78,25 @@ function SkeletonCard() {
   )
 }
 
-export default function BrowsePage() {
-  const { category } = useParams<{ category: string }>()
-  const navigate = useNavigate()
-  const isPopular = category !== 'latest'
-  const pageTitle = isPopular ? 'Popular Now' : 'Latest Updates'
-  usePageTitle(pageTitle)
+function interleave<T>(cols: T[][]): T[] {
+  const result: T[] = []
+  const maxLen = Math.max(0, ...cols.map(c => c.length))
+  for (let i = 0; i < maxLen; i++) {
+    for (const col of cols) { if (i < col.length) result.push(col[i]) }
+  }
+  return result
+}
 
+// ── Aggregate browse (popular / latest) ──────────────────────────────────────
+
+function AggregateBrowse({ isPopular }: { isPopular: boolean }) {
+  const navigate = useNavigate()
   const [items, setItems] = useState<MangaResult[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const run = async () => {
+    let cancelled = false
+    const fetch = async (attempt = 0) => {
       const manager = ExtensionManager.getInstance()
       if (manager.extensions.size === 0) await manager.init()
       const providerIds = Array.from(manager.extensions.keys()).join(',')
@@ -103,24 +110,146 @@ export default function BrowsePage() {
       const cols = Object.entries(data)
         .filter(([id]) => id !== 'mangadex')
         .map(([, v]) => v[key] ?? [])
-      const maxLen = Math.max(0, ...cols.map(c => c.length))
-      const all: MangaResult[] = []
-      for (let i = 0; i < maxLen; i++) {
-        for (const col of cols) { if (i < col.length) all.push(col[i]) }
-      }
+      const all = interleave(cols)
 
+      if (cancelled) return
+      if (all.length === 0 && attempt < 3) {
+        // Cache still warming — retry with backoff
+        setTimeout(() => { if (!cancelled) fetch(attempt + 1) }, (attempt + 1) * 5000)
+        return
+      }
       setItems(all)
       setLoading(false)
     }
-    run()
+    fetch()
+    return () => { cancelled = true }
   }, [isPopular])
 
   const GRID = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 16 } as const
 
+  if (loading) return <div style={GRID}>{Array.from({ length: 20 }).map((_, i) => <SkeletonCard key={i} />)}</div>
+  if (items.length === 0) return (
+    <div style={{ textAlign: 'center', padding: '80px 24px', color: 'var(--muted2)', fontSize: 14 }}>
+      No results yet — sources may still be warming up.
+    </div>
+  )
+  return (
+    <div style={GRID}>
+      {items.map((r, i) => <BrowseCard key={`${r.provider}:${r.id}`} r={r} idx={i} navigate={navigate} />)}
+    </div>
+  )
+}
+
+// ── Per-source browse ─────────────────────────────────────────────────────────
+
+function SourceBrowse({ sourceId }: { sourceId: string }) {
+  const navigate = useNavigate()
+  const [tab, setTab] = useState<'popular' | 'latest'>('popular')
+  const [popular, setPopular] = useState<MangaResult[]>([])
+  const [latest, setLatest] = useState<MangaResult[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const run = async () => {
+      setLoading(true)
+      const manager = ExtensionManager.getInstance()
+      if (manager.extensions.size === 0) await manager.init()
+
+      // Try backend cache first
+      const data: DiscoveryResponse = await api
+        .get(`/sources/discovery?providers=${sourceId}`)
+        .then(r => r.data as DiscoveryResponse)
+        .catch(() => ({} as DiscoveryResponse))
+
+      const cached = data[sourceId]
+      const hasCachedPopular = (cached?.popular?.length ?? 0) > 0
+      const hasCachedLatest = (cached?.latest?.length ?? 0) > 0
+
+      if (hasCachedPopular) setPopular(cached.popular)
+      if (hasCachedLatest) setLatest(cached.latest)
+
+      // Fall back to browser-side extension for uncovered sources
+      const ext = manager.extensions.get(sourceId)
+      if (ext) {
+        const fetches: Promise<void>[] = []
+        if (!hasCachedPopular && ext.getPopular) {
+          fetches.push(
+            (ext.getPopular(1) as Promise<MangaResult[]>)
+              .then(r => setPopular(r))
+              .catch(() => {})
+          )
+        }
+        if (!hasCachedLatest && ext.getLatest) {
+          fetches.push(
+            (ext.getLatest(1) as Promise<MangaResult[]>)
+              .then(r => setLatest(r))
+              .catch(() => {})
+          )
+        }
+        await Promise.all(fetches)
+      }
+
+      setLoading(false)
+    }
+    run()
+  }, [sourceId])
+
+  const items = tab === 'popular' ? popular : latest
+  const GRID = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 16 } as const
+
+  return (
+    <>
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+        {(['popular', 'latest'] as const).map(t => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            style={{
+              padding: '6px 16px', borderRadius: 20, border: 'none', cursor: 'pointer',
+              fontSize: 12, fontWeight: 800, textTransform: 'capitalize',
+              background: tab === t ? 'var(--accent)' : 'var(--surface)',
+              color: tab === t ? '#fff' : 'var(--muted2)',
+              transition: 'all 0.15s',
+            }}
+          >
+            {t === 'popular' ? 'Popular' : 'Latest'}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div style={GRID}>{Array.from({ length: 20 }).map((_, i) => <SkeletonCard key={i} />)}</div>
+      ) : items.length > 0 ? (
+        <div style={GRID}>
+          {items.map((r, i) => <BrowseCard key={`${r.provider}:${r.id}`} r={r} idx={i} navigate={navigate} />)}
+        </div>
+      ) : (
+        <div style={{ textAlign: 'center', padding: '80px 24px', color: 'var(--muted2)', fontSize: 14 }}>
+          No results — source may not support this list.
+        </div>
+      )}
+    </>
+  )
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
+export default function BrowsePage() {
+  const { category, sourceId } = useParams<{ category?: string; sourceId?: string }>()
+  const navigate = useNavigate()
+
+  const isSourceMode = !!sourceId
+  const isPopular = !isSourceMode && category !== 'latest'
+  const pageTitle = isSourceMode
+    ? sourceId.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+    : isPopular ? 'Popular Now' : 'Latest Updates'
+
+  usePageTitle(pageTitle)
+
   return (
     <div className="min-h-full flex flex-col">
       <div className="px-4 md:px-6 pt-5 pb-28 flex-1">
-        {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
           <button
             onClick={() => navigate(-1)}
@@ -132,21 +261,10 @@ export default function BrowsePage() {
           <h1 style={{ fontSize: 22, fontWeight: 900, color: 'var(--fg)', lineHeight: 1.1, margin: 0 }}>{pageTitle}</h1>
         </div>
 
-        {loading ? (
-          <div style={GRID}>
-            {Array.from({ length: 20 }).map((_, i) => <SkeletonCard key={i} />)}
-          </div>
-        ) : items.length > 0 ? (
-          <div style={GRID}>
-            {items.map((r, i) => (
-              <BrowseCard key={`${r.provider}:${r.id}`} r={r} idx={i} navigate={navigate} />
-            ))}
-          </div>
-        ) : (
-          <div style={{ textAlign: 'center', padding: '80px 24px', color: 'var(--muted2)', fontSize: 14 }}>
-            No results yet — sources may still be warming up.
-          </div>
-        )}
+        {isSourceMode
+          ? <SourceBrowse sourceId={sourceId} />
+          : <AggregateBrowse isPopular={isPopular} />
+        }
       </div>
     </div>
   )

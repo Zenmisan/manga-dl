@@ -36,6 +36,7 @@ function Skeleton() {
 }
 
 export function DiscoverySwimlane({ title, items, loading, browseHref, renderCard }: DiscoverySwimlaneProps) {
+  if (!loading && items.length === 0) return null
   const navigate = useNavigate()
   const scrollRef = useRef<HTMLDivElement>(null)
   const [arrowClicks, setArrowClicks] = useState(0)

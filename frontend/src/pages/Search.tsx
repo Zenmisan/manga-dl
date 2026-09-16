@@ -550,7 +550,7 @@ export default function SearchPage() {
                   title={source.name}
                   items={data?.popular ?? []}
                   loading={discoveryLoading && !data}
-                  browseHref={`/search?source=${source.id}`}
+                  browseHref={`/browse/source/${source.id}`}
                   renderCard={(r, i) => (
                     <DiscoveryCard key={`${r.provider}:${r.id}`} r={r} idx={i} navigate={navigate} />
                   )}

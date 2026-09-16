@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ChevronLeft, ChevronDown, Download, FileText, BookOpen,
   CloudUpload, Sparkles, Tv2, Settings2, Share2, Loader2,
+  Maximize2, Minimize2,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
@@ -53,6 +54,22 @@ export function ReaderHeader({
     document.addEventListener('mousedown', close)
     return () => document.removeEventListener('mousedown', close)
   }, [showChapterDrop])
+
+  const [isFullscreen, setIsFullscreen] = useState(() => typeof document !== 'undefined' && !!document.fullscreenElement)
+
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', handler)
+    return () => document.removeEventListener('fullscreenchange', handler)
+  }, [])
+
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {})
+    } else {
+      document.exitFullscreen().catch(() => {})
+    }
+  }, [])
 
   return (
     <AnimatePresence>
@@ -235,6 +252,21 @@ export function ReaderHeader({
                   <Share2 className="w-[18px] h-[18px]" />
                 </button>
               )}
+
+              <button
+                onClick={(e) => { e.stopPropagation(); toggleFullscreen() }}
+                aria-label={isFullscreen ? 'Exit fullscreen (F)' : 'Enter fullscreen (F)'}
+                title={isFullscreen ? 'Exit fullscreen (F)' : 'Enter fullscreen (F)'}
+                className={cn(
+                  'p-2.5 rounded-xl transition-all border hidden sm:flex',
+                  isFullscreen
+                    ? 'bg-white/15 text-white border-white/20'
+                    : 'text-white/60 border-white/15 hover:bg-white/10 hover:text-white',
+                  FOCUS_RING
+                )}
+              >
+                {isFullscreen ? <Minimize2 className="w-[18px] h-[18px]" /> : <Maximize2 className="w-[18px] h-[18px]" />}
+              </button>
 
               <button
                 onClick={(e) => { e.stopPropagation(); onOpenSettings() }}

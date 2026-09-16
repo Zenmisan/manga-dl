@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { useToast } from '../components/common/Toast'
 import { useAppStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
 import api from '../lib/api'
@@ -200,3 +201,40 @@ export function useBackgroundSync() {
     return () => { clearTimeout(timeout); clearInterval(t) }
   }, [syncWifiOnly, syncChargingOnly])
 }
+
+export function useAndroidBackButton() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const locationRef = useRef(location)
+  useEffect(() => { locationRef.current = location }, [location])
+  const lastBackPressRef = useRef(0)
+  const { show } = useToast()
+
+  useEffect(() => {
+    if (!('Capacitor' in window)) return
+
+    let removeListener: (() => void) | undefined
+    import('@capacitor/app').then(({ App }) => {
+      const sub = App.addListener('backButton', () => {
+        const path = locationRef.current.pathname
+        const isRoot = path === '/r' || path === '/' || path === '/login'
+
+        if (isRoot) {
+          const now = Date.now()
+          if (now - lastBackPressRef.current < 2000) {
+            App.exitApp()
+          } else {
+            lastBackPressRef.current = now
+            show('Press back again to exit', 'info', 2000)
+          }
+        } else {
+          navigate(-1)
+        }
+      })
+      removeListener = () => { sub.then(h => h.remove()) }
+    }).catch(() => {})
+
+    return () => { if (removeListener) removeListener() }
+  }, [navigate, show])
+}
+

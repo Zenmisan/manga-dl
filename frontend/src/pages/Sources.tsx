@@ -78,6 +78,22 @@ export default function SourcesPage() {
     })
   }, [])
 
+  // Prune installed sources that no longer exist in market or custom repos
+  useEffect(() => {
+    if (loading || installedMeta.length === 0) return
+    const knownIds = new Set([
+      ...sources.map((s: Source) => s.id),
+      ...customSources.map((s: Source) => s.id),
+    ])
+    const pruned = installedMeta.filter(m => knownIds.has(m.id))
+    if (pruned.length < installedMeta.length) {
+      setInstalledMeta(pruned)
+      saveInstalledMeta(pruned)
+      const removed = installedMeta.filter(m => !knownIds.has(m.id))
+      removed.forEach(m => ExtensionManager.getInstance().extensions.delete(m.id))
+    }
+  }, [loading, sources, customSources]) // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (!statusMsg) return
     const t = setTimeout(() => setStatusMsg(null), 3500)
