@@ -54,7 +54,7 @@ export function MangaInfoCard({ manga, themeColor, imgRef }: Props) {
 
         {/* Title */}
         <div style={{ marginBottom: 12 }}>
-          <h1 className="page-title" style={{ fontSize: 'clamp(22px, 5vw, 36px)', lineHeight: 1.2, textTransform: 'none', letterSpacing: '0.01em' }}>{manga.title}</h1>
+          <h1 style={{ fontFamily: "var(--font-title, 'PT Serif', Georgia, serif)", fontSize: 'clamp(24px, 5vw, 38px)', fontWeight: 700, lineHeight: 1.2, color: 'var(--fg)', margin: 0 }}>{manga.title}</h1>
         </div>
 
         {/* Stats row */}

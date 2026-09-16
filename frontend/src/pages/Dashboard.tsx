@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { Book, Sparkles, Upload } from 'lucide-react'
+import { Book, Sparkles, Upload, Search, X } from 'lucide-react'
 import { useDashboardData } from '../hooks/useDashboardData'
 import { DashboardHeader } from '../components/dashboard/DashboardHeader'
 import { DashboardCategoryTabs } from '../components/dashboard/DashboardCategoryTabs'
@@ -25,6 +25,8 @@ export default function Dashboard() {
   const [density, setDensity] = useState<'large' | 'compact'>(() =>
     (localStorage.getItem('manga-dl-library-density') as 'large' | 'compact') ?? 'large'
   )
+  const [searchQuery, setSearchQuery] = useState('')
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   const handleSetDensity = useCallback((d: 'large' | 'compact') => {
     localStorage.setItem('manga-dl-library-density', d)
@@ -40,6 +42,12 @@ export default function Dashboard() {
       return next
     })
   }
+
+  const filteredItems = searchQuery.trim()
+    ? displayedItems.filter(item =>
+        item.title.toLowerCase().includes(searchQuery.trim().toLowerCase())
+      )
+    : displayedItems
 
   const gridStyle = view === 'grid' ? {
     display: 'grid' as const,
@@ -79,10 +87,36 @@ export default function Dashboard() {
         setView={setView}
         density={density}
         setDensity={handleSetDensity}
-        totalCount={displayedItems.length}
+        totalCount={searchQuery ? filteredItems.length : displayedItems.length}
       />
 
       <div className="px-4 md:px-6 pt-4 pb-28 flex-1">
+        {/* Library search bar */}
+        <div style={{ position: 'relative', marginBottom: 12 }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '8px 12px', borderRadius: 10,
+            border: '1px solid var(--border)',
+            background: 'var(--surface)',
+          }}>
+            <Search style={{ width: 14, height: 14, color: 'var(--muted3)', flexShrink: 0 }} />
+            <input
+              ref={searchInputRef}
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Filter library…"
+              style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontSize: 13, color: 'var(--fg)' }}
+              aria-label="Filter library by title"
+            />
+            {searchQuery && (
+              <button onClick={() => { setSearchQuery(''); searchInputRef.current?.focus() }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: 'var(--muted3)', display: 'flex' }}>
+                <X style={{ width: 13, height: 13 }} />
+              </button>
+            )}
+          </div>
+        </div>
+
         <DashboardCategoryTabs
           categories={categories}
           activeCategory={activeCategory}
@@ -97,7 +131,11 @@ export default function Dashboard() {
           setFilter={setFilter}
         />
 
-        {displayedItems.length === 0 ? (
+        {filteredItems.length === 0 && searchQuery ? (
+          <div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--muted2)', fontSize: 14 }}>
+            No manga matching "{searchQuery}"
+          </div>
+        ) : filteredItems.length === 0 ? (
           /* Hallmark · genre: atmospheric · empty state redesign · R2 Dashboard */
           <motion.div
             initial={{ opacity: 0 }}
@@ -169,7 +207,7 @@ export default function Dashboard() {
           </motion.div>
         ) : (
           <div style={gridStyle} className={view === 'list' ? 'flex flex-col gap-2' : 'lib-grid'}>
-            {displayedItems.map((item: LibraryItem, idx: number) => {
+            {filteredItems.map((item: LibraryItem, idx: number) => {
               const lastRead = lastReadMap[item.title?.toLowerCase().trim() ?? '']
               const isSelected = selectedItems.has(item.title)
               const isPinned = pinnedFiles.includes(item.title)

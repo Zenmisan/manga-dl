@@ -35,12 +35,17 @@ export default function OnboardingPage() {
   const [username, setUsername] = useState('')
   const [usernameLoading, setUsernameLoading] = useState(false)
   const [usernameError, setUsernameError] = useState<string | null>(null)
+
+
   const [generatingUsername, setGeneratingUsername] = useState(false)
 
   const generateUsername = async () => {
     setGeneratingUsername(true)
     setUsernameError(null)
     try {
+      const seed = Math.floor(Math.random() * 100000)
+      const themes = ['samurai', 'shinobi', 'mecha', 'isekai', 'shonen', 'yokai', 'oni', 'ronin', 'kunoichi', 'shogun']
+      const theme = themes[Math.floor(Math.random() * themes.length)]
       const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -48,19 +53,18 @@ export default function OnboardingPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'llama-3.1-8b-instant',
+          model: 'groq/compound-mini',
           messages: [{
             role: 'user',
-            content: 'Output ONLY a single manga/anime themed username. No explanation, no quotes, no punctuation. Use only lowercase letters, numbers, underscores. 5–20 characters. Examples: shadow_blade42, neon_samurai, void_reader99, ronin_scroll',
+            content: `Seed: ${seed}. Theme: ${theme}. Output ONLY one unique manga/anime username. Lowercase letters, numbers, underscores only. 5–20 characters. No explanation, no quotes.`,
           }],
-          max_tokens: 25,
-          temperature: 1.0,
+          max_tokens: 20,
+          temperature: 1.2,
         }),
       })
-      if (!res.ok) throw new Error(`Groq API error ${res.status}`)
+      if (!res.ok) throw new Error(`${res.status}`)
       const data = await res.json()
       const raw = (data.choices?.[0]?.message?.content ?? '').trim()
-      // Extract first valid username token — handles noisy model output
       const match = raw.match(/[a-z][a-z0-9_]{2,23}/i)
       const cleaned = match
         ? match[0].toLowerCase().slice(0, 24)
@@ -68,10 +72,10 @@ export default function OnboardingPage() {
       if (cleaned.length >= 3) {
         setUsername(cleaned)
       } else {
-        setUsernameError('Could not generate a valid username. Try again.')
+        setUsernameError('Could not generate a username. Try again.')
       }
     } catch {
-      setUsernameError('Generation failed. Check your connection and try again.')
+      setUsernameError('Generation failed. Check your connection.')
     } finally {
       setGeneratingUsername(false)
     }

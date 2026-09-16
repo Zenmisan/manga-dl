@@ -113,7 +113,7 @@ export const DashboardMangaCard = memo(function DashboardMangaCard({
           </div>
           <div style={{ minWidth: 0, flex: 1, paddingRight: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <h3 style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--fg)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <h3 className="manga-card-title" style={{ fontSize: 14 }}>
                 {item.title}
               </h3>
               {item.subscribed && (

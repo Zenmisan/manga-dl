@@ -105,7 +105,7 @@ export function ReaderHeader({
 
             {/* Title */}
             <div ref={dropRef} className="min-w-0 flex-1 px-2 text-center relative">
-              <h1 className="font-bold text-xs sm:text-sm truncate leading-tight">
+              <h1 className="font-bold text-xs sm:text-sm truncate leading-tight" style={{ fontFamily: "var(--font-title, 'PT Serif', Georgia, serif)" }}>
                 {displayTitle}
               </h1>
               {chapters.length > 0 && onChapterSelect ? (

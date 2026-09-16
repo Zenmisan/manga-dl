@@ -136,7 +136,7 @@ export default function LocalMangaDetail() {
             <HardDrive style={{ width: 13, height: 13, color: 'var(--accent)', flexShrink: 0 }} />
             <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--accent)' }}>Local Upload</span>
           </div>
-          <h1 style={{ fontSize: 18, fontWeight: 800, color: 'var(--fg)', margin: '2px 0 0', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <h1 style={{ fontFamily: "var(--font-title, 'PT Serif', Georgia, serif)", fontSize: 18, fontWeight: 700, color: 'var(--fg)', margin: '2px 0 0', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {entry.seriesTitle || entry.title}
           </h1>
         </div>

@@ -61,23 +61,23 @@ const STEPS: TourStep[] = [
     targetSelector: null,
     icon: null,
     title: "Here's a quick tour",
-    body: "30 seconds. We'll show you where everything is so you can start reading right away.",
+    body: "30 seconds. We'll show you where everything lives so you can start reading right away.",
     tooltipSide: 'center',
   },
   {
     id: 'sources',
     targetSelector: '[data-tour="sources"]',
     icon: Globe,
-    title: 'Set up your sources',
-    body: 'Sources power your search. Head here first to enter your API key — without it, search returns nothing.',
+    title: 'Install sources',
+    body: 'Sources are manga providers — install them here to unlock search and discovery across 50+ sites.',
     tooltipSide: 'above',
   },
   {
     id: 'search',
     targetSelector: '[data-tour="search"]',
     icon: Search,
-    title: 'Search for anything',
-    body: 'Search across all your active sources at once. Type a title, tap a result to open it.',
+    title: 'Search & discover',
+    body: 'Search across all your active sources at once. The Popular Now and Latest Updates rows update automatically — no search needed.',
     tooltipSide: 'above',
   },
   {
@@ -85,7 +85,7 @@ const STEPS: TourStep[] = [
     targetSelector: '[data-tour="library"]',
     icon: Library,
     title: 'Your library',
-    body: "Bookmark any manga with the + button on its detail page. It syncs across all your devices when you're signed in.",
+    body: "Tap + on any manga's detail page to add it to your library. It syncs across devices when you're signed in.",
     tooltipSide: 'above',
   },
   {
@@ -94,7 +94,7 @@ const STEPS: TourStep[] = [
     icon: isMobile() ? Smartphone : Keyboard,
     title: 'Reader controls',
     body: isMobile()
-      ? 'Tap the left or right third of the screen to turn pages. Tap the center to show or hide the UI.'
+      ? 'Tap the left or right third of the screen to turn pages. Tap the center to show or hide the UI. Swipe down from the top edge to search.'
       : 'Use arrow keys to turn pages. Hold Ctrl to jump between chapters.',
     tooltipSide: 'center',
     extra: isMobile() ? READER_CONTROLS_MOBILE : READER_CONTROLS_DESKTOP,
@@ -108,11 +108,19 @@ const STEPS: TourStep[] = [
     tooltipSide: 'above',
   },
   {
+    id: 'trackers',
+    targetSelector: null,
+    icon: null,
+    title: 'Sync with AniList & MAL',
+    body: 'Connect AniList or MyAnimeList in Settings → Trackers. Your reading progress syncs automatically when you finish a chapter.',
+    tooltipSide: 'center',
+  },
+  {
     id: 'done',
     targetSelector: null,
     icon: BookOpen,
-    title: "You're ready.",
-    body: "That's everything. Find this tour again in Settings → Help whenever you need a refresher.",
+    title: "You're all set.",
+    body: "That's everything. Find this tour again any time in Settings → Help.",
     tooltipSide: 'center',
   },
 ]

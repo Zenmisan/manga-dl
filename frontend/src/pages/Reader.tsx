@@ -46,6 +46,43 @@ export default function Reader() {
     try { return localStorage.getItem('manga-reader-shortcut-shown') !== 'true' } catch { return false }
   })
 
+  // Pull-down-to-search tip: shown on mobile until permanently dismissed
+  const [showSearchTip, setShowSearchTip] = useState(() => {
+    try {
+      const isMobile = window.innerWidth < 768
+      return isMobile && localStorage.getItem('manga-reader-search-tip-dismissed') !== 'true'
+    } catch { return false }
+  })
+  // X = close for this session only; "Don't show again" = permanent
+  const closeSearchTip = () => setShowSearchTip(false)
+  const neverShowSearchTip = () => {
+    localStorage.setItem('manga-reader-search-tip-dismissed', 'true')
+    setShowSearchTip(false)
+  }
+
+  // Swipe-down gesture from top of screen → navigate to /search
+  useEffect(() => {
+    let startY = 0
+    let startX = 0
+    const onTouchStart = (e: TouchEvent) => {
+      startY = e.touches[0].clientY
+      startX = e.touches[0].clientX
+    }
+    const onTouchEnd = (e: TouchEvent) => {
+      const dy = e.changedTouches[0].clientY - startY
+      const dx = Math.abs(e.changedTouches[0].clientX - startX)
+      if (dy > 80 && dx < 60 && startY < window.innerHeight * 0.25) {
+        navigate('/search')
+      }
+    }
+    document.addEventListener('touchstart', onTouchStart, { passive: true })
+    document.addEventListener('touchend', onTouchEnd, { passive: true })
+    return () => {
+      document.removeEventListener('touchstart', onTouchStart)
+      document.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [navigate])
+
   useEffect(() => {
     if (!localStorage.getItem('onboarded')) {
       navigate(`/onboarding?redirect=${encodeURIComponent(location.pathname + location.search)}`, { replace: true })
@@ -351,6 +388,53 @@ export default function Reader() {
           setShowShortcutOverlay(false)
         }}
       />
+
+      {/* Pull-down-to-search tip — mobile only */}
+      {showSearchTip && (
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: [30, 0, -8, 0, -4, 0] }}
+          transition={{ duration: 0.55, ease: 'easeOut' }}
+          style={{
+            position: 'fixed', bottom: 90, left: '50%', transform: 'translateX(-50%)',
+            zIndex: 9000, background: 'rgba(12,12,12,0.94)', backdropFilter: 'blur(14px)',
+            border: '1px solid rgba(255,255,255,0.14)', borderRadius: 18,
+            padding: '14px 16px 12px',
+            maxWidth: 'calc(100vw - 40px)', width: 320,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 10 }}>
+            <motion.span
+              animate={{ y: [0, -4, 0, -4, 0] }}
+              transition={{ duration: 1.2, repeat: Infinity, repeatDelay: 2 }}
+              style={{ fontSize: 22, lineHeight: 1, flexShrink: 0 }}
+            >↓</motion.span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: '#fff', lineHeight: 1.3 }}>Pull down to search</div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 3, lineHeight: 1.4 }}>
+                Swipe down from the top of the screen to open search
+              </div>
+            </div>
+            <button
+              onClick={closeSearchTip}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.35)', padding: '2px 4px', fontSize: 18, lineHeight: 1, flexShrink: 0, marginTop: -2 }}
+              aria-label="Close tip"
+            >×</button>
+          </div>
+          <button
+            onClick={neverShowSearchTip}
+            style={{
+              width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 10, padding: '7px 12px', cursor: 'pointer',
+              fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.4)',
+              textAlign: 'center', letterSpacing: '0.04em',
+            }}
+          >
+            Don't show again
+          </button>
+        </motion.div>
+      )}
 
       <ReaderSettingsSheet
         open={showSettingsSheet}

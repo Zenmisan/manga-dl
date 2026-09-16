@@ -185,8 +185,15 @@ export default function MangaDetail() {
             <div className="mb-5">
               <div className="flex items-start gap-2">
                 <h1
-                  className="flex-1 min-w-0 text-xl font-black uppercase tracking-tight text-white leading-tight"
-                  style={{ fontFamily: "'Anton', sans-serif", overflowWrap: 'anywhere' }}
+                  className={cn(
+                    "flex-1 min-w-0 font-bold text-white leading-snug tracking-tight",
+                    manga.title.length > 50
+                      ? "text-base md:text-lg"
+                      : manga.title.length > 25
+                      ? "text-lg md:text-xl"
+                      : "text-xl md:text-2xl"
+                  )}
+                  style={{ fontFamily: "var(--font-title, 'PT Serif', Georgia, serif)", overflowWrap: 'anywhere' }}
                 >
                   {manga.title}
                 </h1>

@@ -55,10 +55,14 @@ function BrowseCard({ r, idx, navigate }: { r: MangaResult; idx: number; navigat
           {r.provider}
         </div>
       </div>
-      <div style={{
-        marginTop: 6, fontSize: 12, fontWeight: 600, color: 'var(--fg)', lineHeight: 1.3,
-        display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
-      }}>
+      <div
+        className="manga-card-title"
+        style={{
+          marginTop: 6, fontSize: 13,
+          display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+          whiteSpace: 'normal',
+        }}
+      >
         {r.title}
       </div>
     </motion.div>

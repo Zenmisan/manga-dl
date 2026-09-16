@@ -85,11 +85,16 @@ function DiscoveryCard({ r, idx, navigate }: { r: MangaResult; idx: number; navi
         <style>{`.disc-card-${idx % 20}:active { transform: scale(0.97); }`}</style>
       </div>
       <div style={{ marginTop: 6 }}>
-        <div style={{
-          fontSize: 12, fontWeight: 600, color: 'var(--fg)', lineHeight: 1.3,
-          display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
-          textWrap: 'balance',
-        }}>{r.title}</div>
+        <div
+          className="manga-card-title"
+          style={{
+            fontSize: 13,
+            display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+            whiteSpace: 'normal', textWrap: 'balance',
+          }}
+        >
+          {r.title}
+        </div>
         <div style={{ fontSize: 10, color: 'var(--muted3)', marginTop: 2, textTransform: 'capitalize', fontWeight: 500 }}>{r.provider}</div>
       </div>
     </motion.div>
@@ -141,7 +146,7 @@ function MangaCard({ r, idx, onSubscribe, subscribed, subscribing, navigate }: {
       </div>
 
       <div style={{ marginTop: 8, paddingLeft: 2 }}>
-        <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.3 }}>{r.title}</div>
+        <div className="manga-card-title" style={{ fontSize: 13.5 }}>{r.title}</div>
         <div style={{ fontSize: 11, color: 'var(--muted3)', marginTop: 2, fontWeight: 500 }}>{r.status || 'unknown'}</div>
 
         <button
