@@ -1,6 +1,11 @@
 import api from './api'
 import { supabase } from './supabase'
 
+export interface NovelChapterContent {
+  content: string
+  format: 'html' | 'plain'
+}
+
 export interface MangaExtension {
   id: string
   name: string
@@ -8,10 +13,12 @@ export interface MangaExtension {
   lang: string
   builtin: boolean
   skipProxy: boolean
+  type: 'manga' | 'novel'
 
   search: (query: string, page: number) => Promise<unknown[]>
   getMangaDetail: (mangaId: string) => Promise<unknown>
   getPages: (chapterId: string) => Promise<string[]>
+  getChapterText?: (chapterId: string) => Promise<NovelChapterContent>
   getPopular?: (page: number) => Promise<unknown[]>
   getLatest?: (page: number) => Promise<unknown[]>
 }
@@ -193,9 +200,11 @@ export class ExtensionManager {
         version,
         builtin: this.builtinIds.has(pkgId),
         skipProxy,
+        type: res.data.type ?? 'manga',
         search: (query, page) => extInstance.search(query, page),
         getMangaDetail: (id) => extInstance.getMangaDetail(id),
-        getPages: (id) => extInstance.getPages(id),
+        getPages: (id) => (extInstance.getPages ? extInstance.getPages(id) : Promise.resolve([])),
+        getChapterText: extInstance.getChapterText ? (id) => extInstance.getChapterText(id) : undefined,
         getPopular: extInstance.getPopular ? (page) => extInstance.getPopular(page) : undefined,
         getLatest: extInstance.getLatest ? (page) => extInstance.getLatest(page) : undefined,
       }
@@ -247,9 +256,11 @@ export class ExtensionManager {
       const extension: MangaExtension = {
         id: pkgId, name, lang, version,
         builtin: false, skipProxy: false,
+        type: 'manga',
         search: (query, page) => extInstance.search(query, page),
         getMangaDetail: (id) => extInstance.getMangaDetail(id),
-        getPages: (id) => extInstance.getPages(id),
+        getPages: (id) => (extInstance.getPages ? extInstance.getPages(id) : Promise.resolve([])),
+        getChapterText: extInstance.getChapterText ? (id) => extInstance.getChapterText(id) : undefined,
         getPopular: extInstance.getPopular ? (page) => extInstance.getPopular(page) : undefined,
         getLatest: extInstance.getLatest ? (page) => extInstance.getLatest(page) : undefined,
       }

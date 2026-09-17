@@ -12,6 +12,48 @@ import { ExtensionManager } from '../lib/extensions'
 import type { Session } from '@supabase/supabase-js'
 import React from 'react'
 
+/** Copy guest (anon) localStorage data into the newly-signed-in user's scope, then push to cloud. */
+async function migrateGuestDataToAccount(userId: string) {
+  try {
+    const ALREADY_KEY = `manga-dl-migrated:${userId}`
+    if (localStorage.getItem(ALREADY_KEY)) return  // already migrated for this user
+    localStorage.setItem(ALREADY_KEY, '1')
+
+    // 1. Migrate library subscriptions: anon → userId
+    const anonSubsKey = 'manga-dl-local-subs:anon'
+    const userSubsKey = `manga-dl-local-subs:${userId}`
+    const anonMetaKey = 'manga-dl-local-sub-meta:anon'
+    const userMetaKey = `manga-dl-local-sub-meta:${userId}`
+
+    const anonSubs: string[] = JSON.parse(localStorage.getItem(anonSubsKey) || '[]')
+    if (anonSubs.length > 0) {
+      const userSubs: string[] = JSON.parse(localStorage.getItem(userSubsKey) || '[]')
+      const merged = [...new Set([...userSubs, ...anonSubs])]
+      localStorage.setItem(userSubsKey, JSON.stringify(merged))
+
+      const anonMeta: Record<string, unknown> = JSON.parse(localStorage.getItem(anonMetaKey) || '{}')
+      const userMeta: Record<string, unknown> = JSON.parse(localStorage.getItem(userMetaKey) || '{}')
+      localStorage.setItem(userMetaKey, JSON.stringify({ ...anonMeta, ...userMeta }))
+
+      // Push subscriptions to backend
+      for (const key of anonSubs) {
+        const [provider, ...rest] = key.split(':')
+        const mangaId = rest.join(':')
+        const meta = anonMeta[key] as { title?: string; cover_url?: string | null } | undefined
+        api.post('/manga/subscriptions', {
+          provider_id: provider,
+          manga_id: mangaId,
+          title: meta?.title || '',
+          cover_url: meta?.cover_url || null,
+        }).catch(() => {})
+      }
+    }
+
+    // 2. Push local read tracking to cloud (it's not user-scoped so it's already accessible)
+    await syncReadTrackingFromCloud()
+  } catch { /* non-fatal */ }
+}
+
 export function useAuthSession() {
   const navigate = useNavigate()
   const [session, setSession] = React.useState<Session | null>(null)
@@ -22,9 +64,12 @@ export function useAuthSession() {
       setSession(session)
       setLoadingSession(false)
     })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s)
       setLoadingSession(false)
+      if (event === 'SIGNED_IN' && s?.user?.id) {
+        migrateGuestDataToAccount(s.user.id)
+      }
     })
     return () => subscription.unsubscribe()
   }, [])

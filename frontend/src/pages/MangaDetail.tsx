@@ -7,6 +7,7 @@ import { MangaRatingNotes } from '../components/manga/MangaRatingNotes'
 import { MangaChaptersSection } from '../components/manga/MangaChaptersSection'
 import { MangaModals } from '../components/manga/MangaModals'
 import { buildSmartReadUrl } from '../lib/smartUrl'
+import { buildNovelReadUrl } from '../lib/novelUrl'
 import { cn } from '../lib/utils'
 import api from '../lib/api'
 import { ThemedLoadingScreen, ThemedSpinner } from '../components/common/ThemedLoader'
@@ -32,8 +33,8 @@ export default function MangaDetail() {
   if (loading) {
     return (
       <ThemedLoadingScreen
-        message="Loading Manga Details..."
-        subMessage="Fetching metadata, chapters, and cover..."
+        message="Loading..."
+        subMessage="Fetching title details..."
       />
     )
   }
@@ -54,8 +55,13 @@ export default function MangaDetail() {
   const authorText = manga.authors.join(', ') || 'Unknown Author'
   const statusIsOngoing = manga.status?.toLowerCase().includes('ongoing') ?? true
 
-  const goRead = (chId: string, chTitle: string) =>
-    navigate(buildSmartReadUrl(provider || '', manga.id, chId, manga.title, chTitle))
+  const goRead = (chId: string, chTitle: string) => {
+    if (manga.type === 'novel') {
+      navigate(buildNovelReadUrl(provider || '', manga.id, chId, manga.title, chTitle))
+    } else {
+      navigate(buildSmartReadUrl(provider || '', manga.id, chId, manga.title, chTitle))
+    }
+  }
 
   return (
     <div

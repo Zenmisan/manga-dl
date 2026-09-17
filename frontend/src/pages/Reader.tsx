@@ -46,19 +46,24 @@ export default function Reader() {
     try { return localStorage.getItem('manga-reader-shortcut-shown') !== 'true' } catch { return false }
   })
 
-  // Pull-down-to-search tip: shown on mobile until permanently dismissed
+  // Pull-down-to-search tip: shown once on mobile then auto-dismissed
   const [showSearchTip, setShowSearchTip] = useState(() => {
     try {
       const isMobile = window.innerWidth < 768
       return isMobile && localStorage.getItem('manga-reader-search-tip-dismissed') !== 'true'
     } catch { return false }
   })
-  // X = close for this session only; "Don't show again" = permanent
-  const closeSearchTip = () => setShowSearchTip(false)
   const neverShowSearchTip = () => {
     localStorage.setItem('manga-reader-search-tip-dismissed', 'true')
     setShowSearchTip(false)
   }
+  // Auto-dismiss and permanently hide after 6s
+  useEffect(() => {
+    if (!showSearchTip) return
+    const t = setTimeout(neverShowSearchTip, 6000)
+    return () => clearTimeout(t)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showSearchTip])
 
   // Swipe-down gesture from top of screen → navigate to /search
   useEffect(() => {
@@ -93,6 +98,7 @@ export default function Reader() {
     pages, loading, fetchError,
     currentPage, setCurrentPage,
     nextChapterId, prevChapterId, localTitle,
+    resolvedMangaTitle, resolvedChapterTitle,
     uploading, handleCloudUpload,
     onlinePartsRef, chapterListRef,
     getImageUrl, isWidePage,
@@ -278,6 +284,8 @@ export default function Reader() {
         mangaTitle={mangaTitle}
         filename={filename}
         localTitle={localTitle}
+        resolvedMangaTitle={resolvedMangaTitle ?? undefined}
+        resolvedChapterTitle={resolvedChapterTitle ?? undefined}
         currentChapterId={onlinePartsRef.current?.chapterId}
         chapters={chapterListRef.current}
         onChapterSelect={(chapterId) => {
@@ -304,7 +312,6 @@ export default function Reader() {
         handleCloudUpload={handleCloudUpload}
         handleDownload={handleDownloadChapter}
         handleConvertToPdf={() => openLibraryUrl('library/pdf')}
-        handleConvertToEpub={() => openLibraryUrl('library/epub')}
         readingMode={readingMode}
         setReadingMode={setReadingMode}
         onBack={() => navigate(-1)}
@@ -398,11 +405,13 @@ export default function Reader() {
           animate={{ opacity: 1, y: [30, 0, -8, 0, -4, 0] }}
           transition={{ duration: 0.55, ease: 'easeOut' }}
           style={{
-            position: 'fixed', bottom: 90, left: '50%', transform: 'translateX(-50%)',
+            position: 'fixed',
+            bottom: 'max(80px, calc(env(safe-area-inset-bottom, 0px) + 72px))',
+            left: '50%', transform: 'translateX(-50%)',
             zIndex: 9000, background: 'rgba(12,12,12,0.94)', backdropFilter: 'blur(14px)',
             border: '1px solid rgba(255,255,255,0.14)', borderRadius: 18,
             padding: '14px 16px 12px',
-            maxWidth: 'calc(100vw - 40px)', width: 320,
+            maxWidth: 'calc(100vw - 32px)', width: 320,
             boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
           }}
         >
@@ -419,7 +428,7 @@ export default function Reader() {
               </div>
             </div>
             <button
-              onClick={closeSearchTip}
+              onClick={neverShowSearchTip}
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.35)', padding: '2px 4px', fontSize: 18, lineHeight: 1, flexShrink: 0, marginTop: -2 }}
               aria-label="Close tip"
             >×</button>

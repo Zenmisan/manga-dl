@@ -1,7 +1,7 @@
 import React, { useRef, useCallback, Suspense, useEffect, useState } from 'react'
 import {
   Library, Search, Globe, BarChart2, Clock, Bell,
-  Download, Settings, Sparkles, PanelLeftClose, PanelLeftOpen, LogOut, LogIn, MonitorDown, MoreHorizontal,
+  Download, Settings, PanelLeftClose, PanelLeftOpen, LogOut, LogIn, MonitorDown, MoreHorizontal,
 } from 'lucide-react'
 import { usePwaInstall } from './hooks/usePwaInstall'
 import { useOnlineStatus } from './hooks/useOnlineStatus'
@@ -32,6 +32,7 @@ const SettingsProfile = React.lazy(() => import('./pages/Settings/Profile'))
 const StatsPage = React.lazy(() => import('./pages/Stats'))
 const MangaDetail = React.lazy(() => import('./pages/MangaDetail'))
 const Reader = React.lazy(() => import('./pages/Reader'))
+const NovelReader = React.lazy(() => import('./pages/NovelReader'))
 const SourcesPage = React.lazy(() => import('./pages/Sources'))
 const DownloadHub = React.lazy(() => import('./pages/DownloadHub'))
 const LoginPage = React.lazy(() => import('./pages/Login'))
@@ -201,26 +202,6 @@ function Sidebar({ session, onSignOut, isTauri }: {
             </Link>
           )
         })}
-
-        {!isTauri && !isCollapsed && (
-          <div className="mt-auto pt-3 px-1 pb-1">
-            <Link
-              to="/download"
-              className="group relative flex flex-col gap-1.5 p-3 rounded-2xl border border-red-500/20 bg-gradient-to-br from-red-600/10 to-transparent transition-all overflow-hidden"
-            >
-              <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-red-500">
-                  <Sparkles className="w-3 h-3" />
-                  Desktop App
-                </span>
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              </div>
-              <div className="text-xs font-black text-white group-hover:text-red-400 transition-colors">
-                Native Windows App
-              </div>
-            </Link>
-          </div>
-        )}
       </nav>
 
       {/* Bottom — Help, GitHub, User Profile & Sign Out */}
@@ -480,7 +461,7 @@ function App() {
       {isTauri && <Titlebar />}
 
       <OfflineStatusEffect />
-      <Sidebar session={session} onSignOut={handleSignOut} isTauri={isTauri} />
+      {!isReader && <Sidebar session={session} onSignOut={handleSignOut} isTauri={isTauri} />}
 
       {/* Main content */}
       <main className={cn('flex-1 min-w-0', !isReader && 'pb-[76px] md:pb-0')}>
@@ -516,6 +497,7 @@ function App() {
                 </Route>
                 <Route path="/manga/:provider/*" element={<MangaDetail />} />
                 <Route path="/read/:mangaTitle/:filename" element={<Reader />} />
+                <Route path="/read/novel/:provider/:novelId/:chapterId" element={<NovelReader />} />
                 <Route path="/local/:localId" element={<LocalMangaDetail />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />

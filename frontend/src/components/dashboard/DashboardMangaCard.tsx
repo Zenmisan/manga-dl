@@ -119,6 +119,9 @@ export const DashboardMangaCard = memo(function DashboardMangaCard({
               {item.subscribed && (
                 <span style={{ fontSize: 9, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', background: 'rgba(52,211,153,0.15)', color: 'rgb(52,211,153)', border: '1px solid rgba(52,211,153,0.3)', padding: '1px 6px', borderRadius: 6, flexShrink: 0 }}>Sub</span>
               )}
+              {item.type === 'novel' && (
+                <span style={{ fontSize: 9, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', background: 'rgba(139,92,246,0.15)', color: 'rgb(167,139,250)', border: '1px solid rgba(139,92,246,0.3)', padding: '1px 6px', borderRadius: 6, flexShrink: 0 }}>Novel</span>
+              )}
               {isCloudOnly && (
                 <span style={{ fontSize: 9, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', background: 'rgba(56,189,248,0.1)', color: 'rgb(56,189,248)', border: '1px solid rgba(56,189,248,0.2)', padding: '1px 6px', borderRadius: 6, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 3 }}>
                   <WifiOff style={{ width: 8, height: 8 }} /> Cloud

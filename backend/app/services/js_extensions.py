@@ -324,6 +324,47 @@ BUILT_IN_EXTENSIONS: dict[str, dict] = {
         "nsfw": False,
         "skip_proxy": False,
     },
+    # ── Web Novels ───────────────────────────────────────────────
+    "royalroad": {
+        "script": "royalroad.js",
+        "type": "novel",
+        "name": "Royal Road",
+        "lang": "en",
+        "version": "1.0.0",
+        "icon": "https://www.royalroad.com/favicon.ico",
+        "nsfw": False,
+        "skip_proxy": True,
+    },
+    "scribblehub": {
+        "script": "scribblehub.js",
+        "type": "novel",
+        "name": "Scribble Hub",
+        "lang": "en",
+        "version": "1.0.0",
+        "icon": "https://www.scribblehub.com/favicon.ico",
+        "nsfw": False,
+        "skip_proxy": True,
+    },
+    "lightnovelworld": {
+        "script": "lightnovelworld.js",
+        "type": "novel",
+        "name": "Light Novel World",
+        "lang": "en",
+        "version": "1.0.0",
+        "icon": "https://www.lightnovelworld.com/favicon.ico",
+        "nsfw": False,
+        "skip_proxy": False,
+    },
+    "wuxiaworld": {
+        "script": "wuxiaworld.js",
+        "type": "novel",
+        "name": "WuxiaWorld",
+        "lang": "en",
+        "version": "1.0.0",
+        "icon": "https://www.wuxiaworld.com/favicon.ico",
+        "nsfw": False,
+        "skip_proxy": True,
+    },
 }
 
 
@@ -342,6 +383,7 @@ def get_extension_code_by_pkg(pkg_id: str) -> dict | None:
         return {
             "code": code,
             "skip_proxy": meta.get("skip_proxy", False),
+            "type": meta.get("type", "manga"),
         }
 
     home_url = None

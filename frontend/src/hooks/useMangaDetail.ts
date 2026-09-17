@@ -31,6 +31,7 @@ export interface MangaDetail {
   provider: string
   url: string
   chapters: Chapter[]
+  type?: 'manga' | 'novel'
 }
 
 const fac = new FastAverageColor()
@@ -166,6 +167,7 @@ export function useMangaDetail() {
             authors: details.authors || [],
             provider: provider!,
             url: details.url || '',
+            type: ext.type ?? 'manga',
             chapters: chList.map((c: { id: string; name?: string; title?: string; chapter_number?: number }) => ({
               id: c.id,
               title: c.title || c.name || (c.chapter_number ? `Chapter ${c.chapter_number}` : 'Chapter 1'),
@@ -174,7 +176,7 @@ export function useMangaDetail() {
             })),
           }
           const override = getMangaOverride(provider!, mangaId!)
-          setManga(override ? { ...combined, title: override.title || combined.title, cover_url: override.cover_url || combined.cover_url, description: override.description || combined.description } : combined)
+          setManga(override ? { ...combined, title: override.title || combined.title, cover_url: override.cover_url || combined.cover_url, description: override.description || combined.description, type: combined.type } : combined)
           setLoading(false)
           return
         } catch (err) {

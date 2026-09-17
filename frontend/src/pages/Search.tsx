@@ -350,7 +350,11 @@ export default function SearchPage() {
     try {
       await api.post(`/manga/subscribe/${provider}/${encodeURIComponent(mangaId)}`, { title, cover_url })
       setSubscribed(prev => [...prev, key])
-    } catch { toast('Could not add to library.', 'error') }
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status
+      if (status === 401) toast('Sign in to add manga to your library.', 'error')
+      else toast('Could not add to library.', 'error')
+    }
     finally { setSubscribing(prev => prev.filter(k => k !== key)) }
   }
 

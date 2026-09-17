@@ -14,6 +14,8 @@ interface Props {
   mangaTitle: string | undefined
   filename: string | undefined
   localTitle: string | null
+  resolvedMangaTitle?: string
+  resolvedChapterTitle?: string
   currentChapterId?: string
   chapters?: ChapterItem[]
   onChapterSelect?: (chapterId: string) => void
@@ -25,7 +27,6 @@ interface Props {
   handleCloudUpload: () => void
   handleDownload: () => void
   handleConvertToPdf: () => void
-  handleConvertToEpub: () => void
   readingMode: 'webtoon' | 'manga' | 'manga-rtl' | 'vertical-pager'
   setReadingMode: (mode: 'webtoon' | 'manga' | 'manga-rtl' | 'vertical-pager') => void
   onBack: () => void
@@ -34,18 +35,25 @@ interface Props {
 
 const FOCUS_RING = 'focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-black'
 
+function prettifySlug(s: string | undefined | null): string {
+  if (!s) return ''
+  return s.replace(/\.(cbz|zip|epub)$/i, '').replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim()
+    .replace(/\b\w/g, c => c.toUpperCase())
+}
+
 export function ReaderHeader({
   show, mangaTitle, filename, localTitle,
+  resolvedMangaTitle, resolvedChapterTitle,
   currentChapterId, chapters = [], onChapterSelect,
   ambilightEnabled, setAmbilightEnabled,
   upscaling, setUpscaling,
   uploading, handleCloudUpload, handleDownload,
-  handleConvertToPdf, handleConvertToEpub,
+  handleConvertToPdf,
   readingMode, setReadingMode,
   onBack, onOpenSettings,
 }: Props) {
-  const displayTitle = mangaTitle === 'local' ? localTitle : mangaTitle
-  const displayChapter = mangaTitle === 'local' ? 'Local Preview' : filename?.replace('.cbz', '')
+  const displayTitle = resolvedMangaTitle || localTitle || prettifySlug(mangaTitle)
+  const displayChapter = resolvedChapterTitle || (mangaTitle === 'local' ? 'Local Preview' : prettifySlug(filename))
   const [showChapterDrop, setShowChapterDrop] = useState(false)
   const dropRef = useRef<HTMLDivElement>(null)
   const [showLayoutDrop, setShowLayoutDrop] = useState(false)

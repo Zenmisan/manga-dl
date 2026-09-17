@@ -16,6 +16,7 @@ interface Source {
   lang: string
   icon: string
   nsfw: boolean
+  type?: 'manga' | 'novel'
   customRepo?: string
   codeUrl?: string
 }
@@ -243,7 +244,8 @@ export default function SourcesPage() {
     return matchesSearch && matchesLang && matchesNsfw
   })
 
-  const installedBuiltins = filteredSources.filter(s => installedIds.includes(s.id) && builtinIdSet.has(s.id))
+  const installedBuiltins = filteredSources.filter(s => installedIds.includes(s.id) && builtinIdSet.has(s.id) && (s.type ?? 'manga') === 'manga')
+  const installedNovelBuiltins = filteredSources.filter(s => installedIds.includes(s.id) && builtinIdSet.has(s.id) && s.type === 'novel')
   const installedCommunity = filteredSources.filter(s => installedIds.includes(s.id) && !builtinIdSet.has(s.id))
   const available = filteredSources.filter(s => !installedIds.includes(s.id) && !builtinIdSet.has(s.id))
 
@@ -444,6 +446,45 @@ export default function SourcesPage() {
                 </div>
               )}
 
+              {installedNovelBuiltins.length > 0 && (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                    <span style={{ fontSize: 16 }}>📖</span>
+                    <span style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)' }}>Web Novels ({installedNovelBuiltins.length})</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <AnimatePresence>
+                      {installedNovelBuiltins.map((s) => {
+                        const isDisabled = disabledIds.includes(s.id)
+                        return (
+                          <motion.div key={s.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 14px', borderRadius: 14, border: '1px solid var(--border)', background: 'var(--surface)', opacity: isDisabled ? 0.5 : 1 }}>
+                            <div style={{ width: 42, height: 42, borderRadius: 12, overflow: 'hidden', flexShrink: 0, background: 'var(--surface-hover)', border: '1px solid var(--border)', padding: 6, boxSizing: 'border-box' }}>
+                              <img src={s.icon} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} onError={e => { (e.target as HTMLImageElement).src = FALLBACK_ICON }} />
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
+                                <span aria-hidden="true" style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', padding: '2px 6px', borderRadius: 5, background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.25)', color: 'rgb(167,139,250)', flexShrink: 0 }}>Novel</span>
+                              </div>
+                              <div style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted3)', marginTop: 2 }}>{s.lang} · v{s.version}{isDisabled ? ' · deactivated' : ''}</div>
+                            </div>
+                            <button
+                              onClick={() => handleToggleDisable(s.id)}
+                              aria-label={isDisabled ? `Activate ${s.name}` : `Deactivate ${s.name}`}
+                              aria-pressed={!isDisabled}
+                              className="icon-btn focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1"
+                              style={{ width: 34, height: 34, borderRadius: 10, color: isDisabled ? 'rgb(74,222,128)' : undefined }}
+                            >
+                              {isDisabled ? <Power style={{ width: 14, height: 14 }} /> : <PowerOff style={{ width: 14, height: 14 }} />}
+                            </button>
+                          </motion.div>
+                        )
+                      })}
+                    </AnimatePresence>
+                  </div>
+                </div>
+              )}
+
               {installedCommunity.length > 0 && (
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)', marginBottom: 10 }}>Installed ({installedCommunity.length})</div>
@@ -526,6 +567,14 @@ export default function SourcesPage() {
                       })}
                     </AnimatePresence>
                   </div>
+                </div>
+              )}
+
+              {/* Keiyoushi shutdown notice */}
+              {available.length === 0 && installedCommunity.length === 0 && (
+                <div style={{ padding: '14px 16px', borderRadius: 14, background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', marginBottom: 4 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#ef4444', marginBottom: 4 }}>Community Extensions Unavailable</div>
+                  <div style={{ fontSize: 11, color: 'var(--muted2)', lineHeight: 1.6 }}>The Keiyoushi extension repository has shut down. Community extensions sourced from <code style={{ fontSize: 10, background: 'var(--surface)', padding: '1px 4px', borderRadius: 4 }}>keiyoushi/extensions</code> are no longer available. Built-in and Web Novel sources above are unaffected.</div>
                 </div>
               )}
 

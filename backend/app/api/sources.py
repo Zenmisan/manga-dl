@@ -31,6 +31,7 @@ async def list_builtins():
             "nsfw": meta["nsfw"],
             "builtin": True,
             "skip_proxy": meta["skip_proxy"],
+            "type": meta.get("type", "manga"),
         }
         for ext_id, meta in BUILT_IN_EXTENSIONS.items()
     ]
@@ -50,6 +51,7 @@ async def list_market_sources():
             "nsfw": meta["nsfw"],
             "builtin": True,
             "skip_proxy": meta["skip_proxy"],
+            "type": meta.get("type", "manga"),
         }
         for ext_id, meta in BUILT_IN_EXTENSIONS.items()
     ]

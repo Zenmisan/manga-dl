@@ -8,6 +8,7 @@ import {
 import { ThemedSpinner } from '../common/ThemedLoader'
 import { cn } from '../../lib/utils'
 import { buildSmartReadUrl } from '../../lib/smartUrl'
+import { buildNovelReadUrl } from '../../lib/novelUrl'
 import type { MangaDetail, Chapter } from '../../hooks/useMangaDetail'
 
 interface CustomGlassSelectOption<T extends string> {
@@ -209,7 +210,9 @@ export function MangaChaptersSection({
   }
 
   const handleCopyLink = (chapter: Chapter) => {
-    const targetUrl = buildSmartReadUrl(provider || '', manga.id, chapter.id, manga.title, chapter.title)
+    const targetUrl = manga.type === 'novel'
+      ? buildNovelReadUrl(provider || '', manga.id, chapter.id, manga.title, chapter.title)
+      : buildSmartReadUrl(provider || '', manga.id, chapter.id, manga.title, chapter.title)
     const fullUrl = `${window.location.origin}${targetUrl}`
     navigator.clipboard.writeText(fullUrl)
     setCopiedNotification(true)
@@ -431,7 +434,9 @@ export function MangaChaptersSection({
 
                 <div
                   onClick={() => {
-                    const targetUrl = buildSmartReadUrl(provider || '', manga.id, chapter.id, manga.title, chapter.title)
+                    const targetUrl = manga.type === 'novel'
+                      ? buildNovelReadUrl(provider || '', manga.id, chapter.id, manga.title, chapter.title)
+                      : buildSmartReadUrl(provider || '', manga.id, chapter.id, manga.title, chapter.title)
                     navigate(targetUrl)
                   }}
                   className={cn(
@@ -508,7 +513,9 @@ export function MangaChaptersSection({
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
-                          const targetUrl = buildSmartReadUrl(provider || '', manga.id, chapter.id, manga.title, chapter.title)
+                          const targetUrl = manga.type === 'novel'
+                            ? buildNovelReadUrl(provider || '', manga.id, chapter.id, manga.title, chapter.title)
+                            : buildSmartReadUrl(provider || '', manga.id, chapter.id, manga.title, chapter.title)
                           navigate(targetUrl)
                         }}
                         className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-zinc-200 font-extrabold text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer border border-white/10"
@@ -522,7 +529,9 @@ export function MangaChaptersSection({
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
-                          const targetUrl = buildSmartReadUrl(provider || '', manga.id, chapter.id, manga.title, chapter.title)
+                          const targetUrl = manga.type === 'novel'
+                            ? buildNovelReadUrl(provider || '', manga.id, chapter.id, manga.title, chapter.title)
+                            : buildSmartReadUrl(provider || '', manga.id, chapter.id, manga.title, chapter.title)
                           navigate(targetUrl)
                         }}
                         className="px-4 py-2 rounded-xl border border-red-500/50 text-red-400 hover:bg-red-500/10 font-extrabold text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer"

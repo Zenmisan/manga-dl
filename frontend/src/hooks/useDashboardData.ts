@@ -22,6 +22,7 @@ export interface LibraryItem {
   provider_manga_id?: string
   subscribed?: boolean
   cover_url?: string | null
+  type?: 'manga' | 'novel'
 }
 
 async function buildLocalMangaEntry(file: File): Promise<LocalMangaEntry> {

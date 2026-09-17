@@ -26,7 +26,47 @@ export default function Dashboard() {
     (localStorage.getItem('manga-dl-library-density') as 'large' | 'compact') ?? 'large'
   )
   const [searchQuery, setSearchQuery] = useState('')
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false)
+  const [contentFilter, setContentFilter] = useState<'all' | 'manga' | 'novel'>('all')
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const searchContainerRef = useRef<HTMLDivElement>(null)
+
+  const isExpanded = isSearchExpanded || searchQuery.length > 0
+
+  const handleOpenSearch = useCallback(() => {
+    setIsSearchExpanded(true)
+    setTimeout(() => searchInputRef.current?.focus(), 60)
+  }, [])
+
+  const handleClearOrCloseSearch = useCallback(() => {
+    if (searchQuery) {
+      setSearchQuery('')
+      searchInputRef.current?.focus()
+    } else {
+      setIsSearchExpanded(false)
+      searchInputRef.current?.blur()
+    }
+  }, [searchQuery])
+
+  const handleSearchBlur = useCallback((e: React.FocusEvent) => {
+    if (searchContainerRef.current?.contains(e.relatedTarget as Node)) {
+      return
+    }
+    if (!searchQuery.trim()) {
+      setIsSearchExpanded(false)
+    }
+  }, [searchQuery])
+
+  const handleSearchKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape') {
+      if (searchQuery) {
+        setSearchQuery('')
+      } else {
+        setIsSearchExpanded(false)
+        searchInputRef.current?.blur()
+      }
+    }
+  }, [searchQuery])
 
   const handleSetDensity = useCallback((d: 'large' | 'compact') => {
     localStorage.setItem('manga-dl-library-density', d)
@@ -43,11 +83,9 @@ export default function Dashboard() {
     })
   }
 
-  const filteredItems = searchQuery.trim()
-    ? displayedItems.filter(item =>
-        item.title.toLowerCase().includes(searchQuery.trim().toLowerCase())
-      )
-    : displayedItems
+  const filteredItems = displayedItems
+    .filter(item => contentFilter === 'all' || (item.type ?? 'manga') === contentFilter)
+    .filter(item => !searchQuery.trim() || item.title.toLowerCase().includes(searchQuery.trim().toLowerCase()))
 
   const gridStyle = view === 'grid' ? {
     display: 'grid' as const,
@@ -91,30 +129,115 @@ export default function Dashboard() {
       />
 
       <div className="px-4 md:px-6 pt-4 pb-28 flex-1">
-        {/* Library search bar */}
-        <div style={{ position: 'relative', marginBottom: 12 }}>
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            padding: '8px 12px', borderRadius: 10,
-            border: '1px solid var(--border)',
-            background: 'var(--surface)',
-          }}>
-            <Search style={{ width: 14, height: 14, color: 'var(--muted3)', flexShrink: 0 }} />
+        {/* Library search bar — animated expandable icon to full-width input */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+          <motion.div
+            ref={searchContainerRef}
+            initial={false}
+            animate={{
+              width: isExpanded ? '100%' : 36,
+              borderColor: isExpanded ? 'var(--accent, #ef4444)' : 'var(--border)',
+            }}
+            transition={{ type: 'spring', damping: 25, stiffness: 320 }}
+            whileHover={!isExpanded ? { scale: 1.05 } : undefined}
+            whileTap={!isExpanded ? { scale: 0.95 } : undefined}
+            role={isExpanded ? 'search' : 'button'}
+            tabIndex={isExpanded ? -1 : 0}
+            aria-label={isExpanded ? 'Search library' : 'Filter library'}
+            title={isExpanded ? undefined : 'Filter library by title'}
+            onClick={() => {
+              if (!isExpanded) {
+                handleOpenSearch()
+              }
+            }}
+            onKeyDown={e => {
+              if (!isExpanded && (e.key === 'Enter' || e.key === ' ')) {
+                e.preventDefault()
+                handleOpenSearch()
+              }
+            }}
+            style={{
+              position: 'relative',
+              display: 'flex',
+              alignItems: 'center',
+              height: 36,
+              borderRadius: 10,
+              borderWidth: 1,
+              borderStyle: 'solid',
+              background: 'var(--surface)',
+              overflow: 'hidden',
+              cursor: isExpanded ? 'default' : 'pointer',
+              userSelect: isExpanded ? 'auto' : 'none',
+            }}
+          >
+            {/* Search icon trigger / indicator */}
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                color: isExpanded ? 'var(--accent, #ef4444)' : 'var(--muted3)',
+                transition: 'color 0.2s ease',
+              }}
+            >
+              <Search style={{ width: 14, height: 14 }} />
+            </div>
+
+            {/* Expandable input field */}
             <input
               ref={searchInputRef}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
+              onBlur={handleSearchBlur}
+              onKeyDown={handleSearchKeyDown}
               placeholder="Filter library…"
-              style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontSize: 13, color: 'var(--fg)' }}
               aria-label="Filter library by title"
+              tabIndex={isExpanded ? 0 : -1}
+              style={{
+                flex: 1,
+                minWidth: 0,
+                background: 'none',
+                border: 'none',
+                outline: 'none',
+                fontSize: 13,
+                color: 'var(--fg)',
+                opacity: isExpanded ? 1 : 0,
+                pointerEvents: isExpanded ? 'auto' : 'none',
+                transition: 'opacity 0.15s ease',
+                padding: '0 4px',
+              }}
             />
-            {searchQuery && (
-              <button onClick={() => { setSearchQuery(''); searchInputRef.current?.focus() }}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: 'var(--muted3)', display: 'flex' }}>
+
+            {/* Clear query or collapse button */}
+            {isExpanded && (
+              <button
+                type="button"
+                onMouseDown={e => e.preventDefault()}
+                onClick={handleClearOrCloseSearch}
+                aria-label={searchQuery ? 'Clear search' : 'Close search'}
+                title={searchQuery ? 'Clear search' : 'Close search'}
+                style={{
+                  width: 32,
+                  height: 32,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--muted3)',
+                  marginRight: 2,
+                  borderRadius: 6,
+                }}
+              >
                 <X style={{ width: 13, height: 13 }} />
               </button>
             )}
-          </div>
+          </motion.div>
         </div>
 
         <DashboardCategoryTabs
@@ -122,6 +245,23 @@ export default function Dashboard() {
           activeCategory={activeCategory}
           setActiveCategory={setActiveCategory}
         />
+
+        {/* Content type filter pills */}
+        <div style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
+          {(['all', 'manga', 'novel'] as const).map(t => (
+            <button
+              key={t}
+              onClick={() => setContentFilter(t)}
+              style={{
+                padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 500,
+                border: '1px solid', cursor: 'pointer',
+                background: contentFilter === t ? 'var(--accent, #ef4444)' : 'var(--surface)',
+                borderColor: contentFilter === t ? 'var(--accent, #ef4444)' : 'var(--border)',
+                color: contentFilter === t ? '#fff' : 'var(--muted2)',
+              }}
+            >{t.charAt(0).toUpperCase() + t.slice(1)}</button>
+          ))}
+        </div>
 
         <DashboardSortFilterPanel
           show={showSortPanel}

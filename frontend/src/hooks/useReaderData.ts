@@ -32,6 +32,8 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [localTitle, setLocalTitle] = useState<string | null>(null)
+  const [resolvedMangaTitle, setResolvedMangaTitle] = useState<string | null>(null)
+  const [resolvedChapterTitle, setResolvedChapterTitle] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [nextChapterId, setNextChapterId] = useState<string | null>(null)
   const [prevChapterId, setPrevChapterId] = useState<string | null>(null)
@@ -200,6 +202,8 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
         const onlineMangaTitle = parts[3]
         const onlineChapterTitle = parts[4]
         onlinePartsRef.current = { provider: onlineProvider, mangaId: onlineMangaId, chapterId: onlineChapterId, mangaTitle: onlineMangaTitle, chapterTitle: onlineChapterTitle }
+        if (onlineMangaTitle) setResolvedMangaTitle(onlineMangaTitle)
+        if (onlineChapterTitle) setResolvedChapterTitle(onlineChapterTitle)
 
         const base = api.defaults.baseURL || ''
         const apiKey = localStorage.getItem('manga-api-key') || ''
@@ -309,6 +313,8 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
         if (ok && session) {
           // Populate refs BEFORE setLoading(false) so the re-render sees them
           onlinePartsRef.current = { provider: 'local', mangaId: session.localId || targetId, chapterId: session.currentChapterId || 'ch-1', mangaTitle: session.title, chapterTitle: session.chapterTitle || '' }
+          if (session.title) setResolvedMangaTitle(session.title)
+          if (session.chapterTitle) setResolvedChapterTitle(session.chapterTitle)
           const chapters = session.chapters || []
           chapterListRef.current = chapters.map(c => ({ id: c.id, number: c.number, title: c.title }))
           const currentIdx = chapters.findIndex(c => c.id === session.currentChapterId || c.number === session.currentChapterNumber)
@@ -467,6 +473,7 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
     pages, loading, fetchError,
     currentPage, setCurrentPage,
     nextChapterId, prevChapterId, localTitle,
+    resolvedMangaTitle, resolvedChapterTitle,
     uploading, handleCloudUpload,
     onlinePartsRef, chapterListRef,
     getImageUrl, getImageUrlForChapter,

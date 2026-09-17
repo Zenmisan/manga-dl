@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.core.supabase_auth import get_current_user_email, require_jwt_user
+from app.core.supabase_auth import get_current_user, get_current_user_email, require_jwt_user
 from app.config import get_settings
 from app.services.proxy_service import (
     proxy_html_content,
@@ -171,7 +171,7 @@ async def toggle_subscribe(
     provider_id: str,
     manga_id: str,
     meta: SubscribeMeta = SubscribeMeta(),
-    user_id: str = Depends(require_jwt_user),
+    user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Toggle subscription for a manga. Scoped to the authenticated user."""

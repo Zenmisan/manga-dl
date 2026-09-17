@@ -166,6 +166,13 @@ export default function AppTour({ onDone }: Props) {
     onDone()
   }, [onDone])
 
+  // Auto-dismiss after 10s of inactivity on first step
+  useEffect(() => {
+    if (stepIdx !== 0) return
+    const t = setTimeout(dismiss, 10000)
+    return () => clearTimeout(t)
+  }, [stepIdx, dismiss])
+
   const next = useCallback(() => {
     if (isLast) {
       dismiss()
@@ -191,23 +198,44 @@ export default function AppTour({ onDone }: Props) {
   }, [next, prev, dismiss])
 
   // Compute tooltip card position
-  const cardStyle: React.CSSProperties = { position: 'fixed', zIndex: 10001, maxWidth: 340, width: 'calc(100vw - 32px)' }
+  const mobile = isMobile()
+  const cardStyle: React.CSSProperties = {
+    position: 'fixed',
+    zIndex: 10001,
+    maxWidth: mobile ? '100%' : 340,
+    width: mobile ? '100%' : 'calc(100vw - 32px)',
+    maxHeight: 'calc(100dvh - 80px)',
+    overflowY: 'auto',
+  }
 
   if (!rect || step.tooltipSide === 'center') {
-    // Center modal
-    cardStyle.top = '50%'
-    cardStyle.left = '50%'
-    cardStyle.transform = 'translate(-50%, -50%)'
+    if (mobile) {
+      // Bottom sheet on mobile — safe area aware
+      cardStyle.bottom = 0
+      cardStyle.left = 0
+      cardStyle.right = 0
+      cardStyle.borderRadius = '20px 20px 0 0'
+      cardStyle.paddingBottom = 'max(22px, env(safe-area-inset-bottom))'
+    } else {
+      cardStyle.top = '50%'
+      cardStyle.left = '50%'
+      cardStyle.transform = 'translate(-50%, -50%)'
+      cardStyle.borderRadius = 18
+    }
   } else if (step.tooltipSide === 'above') {
-    // Above the target (bottom-nav items)
-    cardStyle.bottom = window.innerHeight - rect.top + PAD + 16
+    // Above the target (bottom-nav items) — clamp so it never goes off screen
+    const fromBottom = window.innerHeight - rect.top + PAD + 16
+    cardStyle.bottom = fromBottom
     cardStyle.left = '50%'
     cardStyle.transform = 'translateX(-50%)'
+    cardStyle.maxWidth = mobile ? 'calc(100vw - 32px)' : 340
+    cardStyle.borderRadius = 18
   } else {
     // Below the target
     cardStyle.top = rect.top + rect.height + PAD + 16
     cardStyle.left = '50%'
     cardStyle.transform = 'translateX(-50%)'
+    cardStyle.borderRadius = 18
   }
 
   const Icon = step.icon
@@ -270,7 +298,7 @@ export default function AppTour({ onDone }: Props) {
             ...cardStyle,
             background: 'var(--surface)',
             border: '1px solid var(--border)',
-            borderRadius: 18,
+            borderRadius: cardStyle.borderRadius ?? 18,
             padding: '22px 22px 18px',
             boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
           }}
@@ -317,7 +345,14 @@ export default function AppTour({ onDone }: Props) {
             </div>
 
             <div style={{ display: 'flex', gap: 8 }}>
-              {!isFirst && (
+              {isFirst ? (
+                <button
+                  onClick={dismiss}
+                  style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '7px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--muted2)', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+                >
+                  Skip
+                </button>
+              ) : (
                 <button
                   onClick={prev}
                   style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '7px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--muted2)', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}

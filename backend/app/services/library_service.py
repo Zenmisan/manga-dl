@@ -99,6 +99,8 @@ async def list_library_items(db: AsyncSession, user_id: str) -> list[dict]:
             grouped[r.title]["provider"] = r.provider
             grouped[r.title]["provider_manga_id"] = r.provider_manga_id
 
+    _novel_providers = {"royalroad", "scribblehub", "lightnovelworld", "wuxiaworld"}
+
     items = [
         {
             "title": title,
@@ -110,6 +112,7 @@ async def list_library_items(db: AsyncSession, user_id: str) -> list[dict]:
             "total_chapters": data.get("total_chapters", 0),
             "provider": data.get("provider"),
             "provider_manga_id": data.get("provider_manga_id"),
+            "type": "novel" if data.get("provider") in _novel_providers else "manga",
         }
         for title, data in grouped.items()
     ]

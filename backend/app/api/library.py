@@ -40,6 +40,7 @@ class LibraryItem(BaseModel):
     total_chapters: int = 0
     provider: str | None = None
     provider_manga_id: str | None = None
+    type: str = 'manga'
 
 
 class ProgressUpdate(BaseModel):
