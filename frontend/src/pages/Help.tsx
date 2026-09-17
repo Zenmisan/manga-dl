@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
+import api from '../lib/api'
 import {
   ChevronLeft,
   Library, Search, BarChart2, Globe, Download, Settings,
@@ -100,6 +101,38 @@ const FAQS = [
 export default function HelpPage() {
   const navigate = useNavigate()
   const [openFaq, setOpenFaq] = useState<number | null>(null)
+
+  // Contact form state
+  const [contactName, setContactName] = useState('')
+  const [contactEmail, setContactEmail] = useState('')
+  const [contactCategory, setContactCategory] = useState('general')
+  const [contactMessage, setContactMessage] = useState('')
+  const [contactSending, setContactSending] = useState(false)
+  const [contactDone, setContactDone] = useState(false)
+  const [contactError, setContactError] = useState<string | null>(null)
+
+  const handleContactSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!contactMessage.trim()) return
+    setContactSending(true)
+    setContactError(null)
+    try {
+      await api.post('/support/ticket', {
+        name: contactName.trim() || undefined,
+        email: contactEmail.trim() || undefined,
+        category: contactCategory,
+        message: contactMessage.trim(),
+      })
+      setContactDone(true)
+      setContactName('')
+      setContactEmail('')
+      setContactMessage('')
+      setContactCategory('general')
+    } catch {
+      setContactError('Failed to send. Please try again.')
+    }
+    setContactSending(false)
+  }
 
   return (
     <div className="min-h-full flex flex-col">
@@ -227,8 +260,91 @@ export default function HelpPage() {
           ))}
         </div>
 
+        {/* Contact / Support Form */}
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} style={{ marginTop: 32, padding: '22px 22px', borderRadius: 20, border: '1px solid var(--border)', background: 'var(--surface)' }}>
+          <div style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)', marginBottom: 6 }}>Contact Support</div>
+          <p style={{ fontSize: 13, color: 'var(--muted2)', marginBottom: 18, lineHeight: 1.5 }}>
+            Can't find an answer? Send a message and we'll get back to you.
+          </p>
+
+          {contactDone ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderRadius: 12, background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.2)', color: 'rgb(74,222,128)', fontSize: 13, fontWeight: 700 }}>
+              <CheckCircle2 style={{ width: 18, height: 18, flexShrink: 0 }} />
+              Message sent! We'll reply to your email shortly.
+            </div>
+          ) : (
+            <form onSubmit={handleContactSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted3)', marginBottom: 5 }}>Name (optional)</label>
+                  <input
+                    type="text"
+                    value={contactName}
+                    onChange={e => setContactName(e.target.value)}
+                    placeholder="Your name"
+                    style={{ width: '100%', padding: '9px 12px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface-hover)', fontSize: 13, color: 'var(--fg)', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted3)', marginBottom: 5 }}>Email (optional)</label>
+                  <input
+                    type="email"
+                    value={contactEmail}
+                    onChange={e => setContactEmail(e.target.value)}
+                    placeholder="for reply"
+                    style={{ width: '100%', padding: '9px 12px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface-hover)', fontSize: 13, color: 'var(--fg)', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted3)', marginBottom: 5 }}>Category</label>
+                <select
+                  value={contactCategory}
+                  onChange={e => setContactCategory(e.target.value)}
+                  style={{ width: '100%', padding: '9px 12px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface-hover)', fontSize: 13, color: 'var(--fg)', outline: 'none' }}
+                >
+                  <option value="general">General</option>
+                  <option value="bug">Bug Report</option>
+                  <option value="account">Account Issue</option>
+                  <option value="source">Source / Extension</option>
+                  <option value="feature">Feature Request</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted3)', marginBottom: 5 }}>Message <span style={{ color: 'var(--accent)' }}>*</span></label>
+                <textarea
+                  value={contactMessage}
+                  onChange={e => setContactMessage(e.target.value)}
+                  placeholder="Describe your issue or question in detail..."
+                  rows={4}
+                  maxLength={4000}
+                  required
+                  style={{ width: '100%', padding: '9px 12px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface-hover)', fontSize: 13, color: 'var(--fg)', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
+                />
+                <div style={{ fontSize: 11, color: 'var(--muted3)', textAlign: 'right', marginTop: 3 }}>{contactMessage.length}/4000</div>
+              </div>
+
+              {contactError && (
+                <div style={{ padding: '9px 12px', borderRadius: 10, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171', fontSize: 12 }}>
+                  {contactError}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={contactSending || !contactMessage.trim()}
+                className="btn-primary"
+                style={{ alignSelf: 'flex-end', display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, padding: '9px 20px', opacity: (contactSending || !contactMessage.trim()) ? 0.5 : 1 }}
+              >
+                {contactSending ? 'Sending…' : 'Send Message'}
+              </button>
+            </form>
+          )}
+        </motion.div>
+
         {/* GitHub CTA */}
-        <div style={{ marginTop: 32, padding: '20px 22px', borderRadius: 20, border: '1px solid var(--border)', background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+        <div style={{ marginTop: 16, padding: '20px 22px', borderRadius: 20, border: '1px solid var(--border)', background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
           <div>
             <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--fg)', marginBottom: 4 }}>Still need help?</div>
             <div style={{ fontSize: 12, color: 'var(--muted2)' }}>Open an issue on GitHub or browse existing discussions.</div>

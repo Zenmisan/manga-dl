@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, ChevronLeft, ChevronRight, Settings2, List, X, BookOpen } from 'lucide-react'
+import { ArrowLeft, ChevronLeft, ChevronRight, Settings2, List, X, BookOpen, MessageCircle } from 'lucide-react'
 import { ExtensionManager } from '../lib/extensions'
 import { NovelViewport, DEFAULT_NOVEL_SETTINGS } from '../components/reader/NovelViewport'
 import type { NovelSettings } from '../components/reader/NovelViewport'
 import { buildNovelReadUrl } from '../lib/novelUrl'
 import { usePageTitle } from '../lib/usePageTitle'
+import CommentSheet from '../components/comments/CommentSheet'
 import { cn } from '../lib/utils'
 
 const SETTINGS_KEY = 'manga-novel-settings'
@@ -39,6 +40,7 @@ export default function NovelReader() {
   const [progress, setProgress] = useState(0)
   const [showSettings, setShowSettings] = useState(false)
   const [showChapters, setShowChapters] = useState(false)
+  const [showComments, setShowComments] = useState(false)
 
   const [settings, setSettings] = useState<NovelSettings>(() => {
     try {
@@ -137,6 +139,9 @@ export default function NovelReader() {
         <button onClick={() => setShowChapters(true)} className="p-1.5 rounded hover:bg-white/10 text-white/70 hover:text-white">
           <List size={18} />
         </button>
+        <button onClick={() => setShowComments(true)} className="p-1.5 rounded hover:bg-white/10 text-white/70 hover:text-white">
+          <MessageCircle size={18} />
+        </button>
         <button onClick={() => setShowSettings(true)} className="p-1.5 rounded hover:bg-white/10 text-white/70 hover:text-white">
           <Settings2 size={18} />
         </button>
@@ -184,6 +189,14 @@ export default function NovelReader() {
           Next <ChevronRight size={16} />
         </button>
       </div>
+
+      <CommentSheet
+        open={showComments}
+        onClose={() => setShowComments(false)}
+        provider={provider}
+        mangaId={decodedNovelId}
+        chapterId={decodedChapterId}
+      />
 
       {/* Settings sheet */}
       {showSettings && (
@@ -288,6 +301,14 @@ export default function NovelReader() {
           </div>
         </div>
       )}
+
+      <CommentSheet
+        open={showComments}
+        onClose={() => setShowComments(false)}
+        provider={provider}
+        mangaId={decodedNovelId}
+        chapterId={decodedChapterId}
+      />
     </div>
   )
 }

@@ -6,6 +6,7 @@ import { MangaHeroHeader } from '../components/manga/MangaHeroHeader'
 import { MangaRatingNotes } from '../components/manga/MangaRatingNotes'
 import { MangaChaptersSection } from '../components/manga/MangaChaptersSection'
 import { MangaModals } from '../components/manga/MangaModals'
+import CommentSection from '../components/comments/CommentSection'
 import { buildSmartReadUrl } from '../lib/smartUrl'
 import { buildNovelReadUrl } from '../lib/novelUrl'
 import { cn } from '../lib/utils'
@@ -328,6 +329,11 @@ export default function MangaDetail() {
             />
           </div>
         </div>
+      </div>
+
+      {/* Manga-level comments */}
+      <div className="max-w-5xl mx-auto px-4 pb-10">
+        <CommentSection provider={provider || ''} mangaId={mangaId || ''} preview />
       </div>
 
       <MangaModals

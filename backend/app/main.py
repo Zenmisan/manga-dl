@@ -12,7 +12,7 @@ from app.database import init_db
 from app.core.queue import download_queue
 from app.core.tasks import start_sync_task, stop_sync_task
 from app.core.discovery_cache import start_discovery_refresh, stop_discovery_refresh
-from app.api import manga, downloads, settings as settings_router, library, sources, auth, users, backup, support
+from app.api import manga, downloads, settings as settings_router, library, sources, auth, users, backup, support, comments as comments_router
 from app.api import discovery as discovery_router_module
 from app.providers import list_providers
 from app.core.security import verify_api_key
@@ -97,6 +97,7 @@ app.include_router(auth.router, prefix="/api", dependencies=api_deps)
 app.include_router(users.router, prefix="/api")  # Uses Supabase JWT auth, not API key
 app.include_router(backup.router, prefix="/api")
 app.include_router(support.router, prefix="/api")  # No auth — public contact form
+app.include_router(comments_router.router, prefix="/api")  # Supabase JWT auth for write ops
 app.include_router(discovery_router_module.router, prefix="/api", dependencies=api_deps)
 
 # Serve built frontend in production

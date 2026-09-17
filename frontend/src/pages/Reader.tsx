@@ -13,6 +13,7 @@ import { ReaderViewport } from '../components/reader/ReaderViewport'
 import { PageScrubber } from '../components/reader/PageScrubber'
 import { ShortcutOverlay } from '../components/reader/ShortcutOverlay'
 import { ReaderSettingsSheet } from '../components/reader/ReaderSettingsSheet'
+import CommentSheet from '../components/comments/CommentSheet'
 import { startSession, endSession } from '../lib/readingSession'
 import { markRead } from '../lib/readTracking'
 import { buildSmartReadUrl } from '../lib/smartUrl'
@@ -40,6 +41,7 @@ export default function Reader() {
 
   const [showControls, setShowControls] = useState(true)
   const [showSettingsSheet, setShowSettingsSheet] = useState(false)
+  const [showCommentSheet, setShowCommentSheet] = useState(false)
   const [ambilightColor, setAmbilightColor] = useState('rgba(0,0,0,0)')
   const [ambilightEnabled, setAmbilightEnabled] = useState(true)
   const [showShortcutOverlay, setShowShortcutOverlay] = useState(() => {
@@ -316,6 +318,7 @@ export default function Reader() {
         setReadingMode={setReadingMode}
         onBack={() => navigate(-1)}
         onOpenSettings={() => setShowSettingsSheet(true)}
+        onOpenComments={onlinePartsRef.current && mangaTitle !== 'local' ? () => setShowCommentSheet(true) : undefined}
       />
 
       <ReaderViewport
@@ -461,6 +464,16 @@ export default function Reader() {
         setSkipReadChapters={setSkipReadChapters}
         isOnline={mangaTitle !== 'local'}
       />
+
+      {onlinePartsRef.current && mangaTitle !== 'local' && (
+        <CommentSheet
+          open={showCommentSheet}
+          onClose={() => setShowCommentSheet(false)}
+          provider={onlinePartsRef.current.provider}
+          mangaId={onlinePartsRef.current.mangaId}
+          chapterId={onlinePartsRef.current.chapterId}
+        />
+      )}
     </div>
   )
 }

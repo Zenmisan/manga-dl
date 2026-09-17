@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   ChevronLeft, ChevronDown, Download, FileText, BookOpen,
   CloudUpload, Sparkles, Tv2, Settings2, Share2, Loader2,
-  Maximize2, Minimize2, AlignJustify,
+  Maximize2, Minimize2, AlignJustify, MessageCircle,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
@@ -31,6 +31,7 @@ interface Props {
   setReadingMode: (mode: 'webtoon' | 'manga' | 'manga-rtl' | 'vertical-pager') => void
   onBack: () => void
   onOpenSettings: () => void
+  onOpenComments?: () => void
 }
 
 const FOCUS_RING = 'focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-black'
@@ -50,7 +51,7 @@ export function ReaderHeader({
   uploading, handleCloudUpload, handleDownload,
   handleConvertToPdf,
   readingMode, setReadingMode,
-  onBack, onOpenSettings,
+  onBack, onOpenSettings, onOpenComments,
 }: Props) {
   const displayTitle = resolvedMangaTitle || localTitle || prettifySlug(mangaTitle)
   const displayChapter = resolvedChapterTitle || (mangaTitle === 'local' ? 'Local Preview' : prettifySlug(filename))
@@ -327,6 +328,19 @@ export function ReaderHeader({
               >
                 {isFullscreen ? <Minimize2 className="w-[18px] h-[18px]" /> : <Maximize2 className="w-[18px] h-[18px]" />}
               </button>
+
+              {onOpenComments && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onOpenComments() }}
+                  aria-label="Open comments"
+                  className={cn(
+                    'p-2.5 rounded-xl transition-all border text-white/60 border-white/15 hover:bg-white/10 hover:text-white',
+                    FOCUS_RING
+                  )}
+                >
+                  <MessageCircle className="w-[18px] h-[18px]" />
+                </button>
+              )}
 
               <button
                 onClick={(e) => { e.stopPropagation(); onOpenSettings() }}
