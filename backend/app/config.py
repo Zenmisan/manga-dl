@@ -26,8 +26,13 @@ class Settings(BaseSettings):
     ]
     API_KEY: str | None = None
     RESEND_API_KEY: str | None = None
-    RESEND_FROM_EMAIL: str = "manga-dl <onboarding@resend.dev>"  # swap for verified domain email in prod
+    RESEND_FROM_EMAIL: str = "manga-dl <onboarding@resend.dev>"
     SUPPORT_EMAIL: str = "zenmisan@gmail.com"  # where support ticket notifications go
+    # Gmail SMTP (alternative to Resend — no custom domain needed)
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str | None = None   # your Gmail address
+    SMTP_PASS: str | None = None   # Google App Password (16 chars)
     
     # AniList OAuth (Authorization Code flow — backend exchanges code for token)
     ANILIST_CLIENT_ID: str | None = None
