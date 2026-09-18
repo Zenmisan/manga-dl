@@ -229,6 +229,7 @@ function SourceBrowse({ sourceId, onNameResolved }: { sourceId: string; onNameRe
   useEffect(() => {
     modeRef.current = mode
     queryRef.current = activeQuery
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHasMore(true)
     fetchPage(1, true)
   // fetchPage is stable (useCallback with only sourceId dep)

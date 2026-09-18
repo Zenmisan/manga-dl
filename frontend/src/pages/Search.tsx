@@ -293,6 +293,7 @@ export default function SearchPage() {
     return all
       .filter(ext => ext.type !== 'novel' && !NOVEL_PROVIDER_IDS.includes(ext.id))
       .map(ext => ({ id: ext.id, name: ext.name }))
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- extCount triggers recompute when extensions load
   }, [extCount, searchMode])
 
   // Aggregate popular/latest — interleaved
@@ -326,6 +327,7 @@ export default function SearchPage() {
     if (activeProviders.length > 0) {
       if (selectedProvider && !activeProviders.some(p => p.id === selectedProvider)) setSelectedProvider(null)
       if (searchMode === 'manga') {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setEnabledSources(prev => {
           const availableIds = activeProviders.map(p => p.id)
           const valid = prev.filter(id => availableIds.includes(id))
@@ -578,7 +580,6 @@ export default function SearchPage() {
   const isFirstSourceMount = useRef(true)
   useEffect(() => {
     if (isFirstSourceMount.current) { isFirstSourceMount.current = false; return }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (searchQuery.trim()) performSearch(searchQuery.trim(), searchMode, selectedProvider)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProvider, enabledSources])

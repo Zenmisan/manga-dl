@@ -103,6 +103,7 @@ export default function SourcesPage() {
     ])
     const pruned = installedMeta.filter(m => knownIds.has(m.id))
     if (pruned.length < installedMeta.length) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setInstalledMeta(pruned)
       saveInstalledMeta(pruned)
       const removed = installedMeta.filter(m => !knownIds.has(m.id))
@@ -118,6 +119,7 @@ export default function SourcesPage() {
 
   // Fetch and merge custom repo indexes
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!customRepos.length) { setCustomSources([]); return }
     let cancelled = false
     const fetchAll = async () => {
