@@ -1,4 +1,5 @@
 import re
+import time
 import hashlib
 import logging
 from fastapi import APIRouter, HTTPException, Request
@@ -16,6 +17,10 @@ from app.services.js_extensions import (
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/sources", tags=["sources"])
+
+_market_cache: list[dict] | None = None
+_market_cache_time: float = 0
+MARKET_CACHE_TTL = 86400  # 24 hours
 
 
 @router.get("/builtins")
@@ -35,12 +40,20 @@ async def list_builtins():
         }
         for ext_id, meta in BUILT_IN_EXTENSIONS.items()
     ]
-    return JSONResponse(content=data, headers={"Cache-Control": "public, max-age=3600"})
+    return JSONResponse(content=data, headers={"Cache-Control": "public, max-age=86400, stale-while-revalidate=86400"})
 
 
 @router.get("/market")
 async def list_market_sources():
     """Return built-in extensions + Keiyoushi community extensions."""
+    global _market_cache, _market_cache_time
+    now = time.time()
+    if _market_cache is not None and (now - _market_cache_time < MARKET_CACHE_TTL):
+        return JSONResponse(
+            content=_market_cache,
+            headers={"Cache-Control": "public, max-age=86400, stale-while-revalidate=86400"},
+        )
+
     sources = [
         {
             "id": ext_id,
@@ -58,7 +71,7 @@ async def list_market_sources():
     ]
 
     try:
-        response = requests.get(KEIYOUSHI_INDEX, impersonate="chrome110", timeout=10)
+        response = requests.get(KEIYOUSHI_INDEX, impersonate="chrome110", timeout=5)
         if response.status_code == 200:
             data = response.json()
             _SENTINEL_NAMES = {"outdated app", "update to mihon", "update mihon", "app outdated"}
@@ -84,7 +97,12 @@ async def list_market_sources():
     except Exception as e:
         log.warning("Keiyoushi market fetch failed (non-fatal): %s", e)
 
-    return sources
+    _market_cache = sources
+    _market_cache_time = now
+    return JSONResponse(
+        content=sources,
+        headers={"Cache-Control": "public, max-age=86400, stale-while-revalidate=86400"},
+    )
 
 
 @router.get("/code/{pkg_id}")
@@ -95,8 +113,9 @@ async def get_extension_code(pkg_id: str, request: Request):
         etag = '"' + hashlib.md5(res["code"].encode()).hexdigest()[:12] + '"'
         if request.headers.get("if-none-match") == etag:
             from fastapi.responses import Response
-            return Response(status_code=304, headers={"ETag": etag, "Cache-Control": "no-cache"})
-        return JSONResponse(content=res, headers={"Cache-Control": "no-cache", "ETag": etag})
+            return Response(status_code=304, headers={"ETag": etag, "Cache-Control": "public, max-age=86400"})
+        return JSONResponse(content=res, headers={"Cache-Control": "public, max-age=86400", "ETag": etag})
+    raise HTTPException(status_code=404, detail="Extension code not found")
     raise HTTPException(status_code=404, detail="Extension code not found")
 
 
