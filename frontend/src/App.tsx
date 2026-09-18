@@ -37,6 +37,7 @@ const SourcesPage = React.lazy(() => import('./pages/Sources'))
 const DownloadHub = React.lazy(() => import('./pages/DownloadHub'))
 const LoginPage = React.lazy(() => import('./pages/Login'))
 const RegisterPage = React.lazy(() => import('./pages/Register'))
+const ForgotPasswordPage = React.lazy(() => import('./pages/ForgotPassword'))
 const TermsPage = React.lazy(() => import('./pages/Terms'))
 const HelpPage = React.lazy(() => import('./pages/Help'))
 const BrowsePage = React.lazy(() => import('./pages/Browse'))
@@ -414,12 +415,12 @@ function App() {
     return <Navigate to="/r" replace />
   }
 
-  const appRoute = !['/', '/login', '/register', '/terms', '/onboarding'].includes(location.pathname)
+  const appRoute = !['/', '/login', '/register', '/forgot-password', '/terms', '/onboarding'].includes(location.pathname)
   if (appRoute && !localStorage.getItem('onboarded')) {
     return <Navigate to={`/onboarding?redirect=${encodeURIComponent(location.pathname)}`} replace />
   }
 
-  const noShell = ['/', '/login', '/register', '/terms', '/onboarding'].includes(location.pathname)
+  const noShell = ['/', '/login', '/register', '/forgot-password', '/terms', '/onboarding'].includes(location.pathname)
   const isReader = location.pathname.startsWith('/read/')
 
   if (noShell) {
@@ -441,6 +442,7 @@ function App() {
                   <Route path="/" element={<LandingPage />} />
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/register" element={<RegisterPage />} />
+                  <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                   <Route path="/terms" element={<TermsPage />} />
                   <Route path="/onboarding" element={<OnboardingPage />} />
                 </Routes>
@@ -464,7 +466,7 @@ function App() {
       {!isReader && <Sidebar session={session} onSignOut={handleSignOut} isTauri={isTauri} />}
 
       {/* Main content */}
-      <main className={cn('flex-1 min-w-0', !isReader && 'pb-[76px] md:pb-0')}>
+      <main className={cn('flex-1 min-w-0 overflow-x-hidden', !isReader && 'pb-[76px] md:pb-0')}>
         <AnimatePresence mode="sync">
           <motion.div
             key={location.pathname}
@@ -501,6 +503,7 @@ function App() {
                 <Route path="/local/:localId" element={<LocalMangaDetail />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                 <Route path="/terms" element={<TermsPage />} />
                 <Route path="/help" element={<HelpPage />} />
                 <Route path="/guide/import" element={<ImportGuide />} />

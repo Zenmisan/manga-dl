@@ -1,6 +1,7 @@
 /* Hallmark · genre: atmospheric · macrostructure: sidebar-detail (comix.to model) · theme: app tokens · nav: sticky-header */
-import { useState } from 'react'
-import { Play, Bookmark, BookmarkCheck, Download, Star } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Play, Bookmark, BookmarkCheck, Download, Star, StickyNote, X } from 'lucide-react'
 import { useMangaDetail } from '../hooks/useMangaDetail'
 import { MangaHeroHeader } from '../components/manga/MangaHeroHeader'
 import { MangaRatingNotes } from '../components/manga/MangaRatingNotes'
@@ -30,6 +31,10 @@ export default function MangaDetail() {
 
   usePageTitle(manga?.title ?? null)
   const [imgError, setImgError] = useState(false)
+  const [imgKey, setImgKey] = useState(0)
+  const imgRetryCount = useRef(0)
+  const [descExpanded, setDescExpanded] = useState(false)
+  const [notesOpen, setNotesOpen] = useState(false)
 
   if (loading) {
     return (
@@ -77,8 +82,8 @@ export default function MangaDetail() {
         onQueueClick={() => navigate('/downloads')}
       />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 relative z-10">
-        <div className="flex flex-col lg:flex-row gap-8 items-start">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 relative z-10 overflow-x-hidden">
+        <div className="flex flex-col lg:flex-row gap-8 lg:items-start">
 
           {/* ── LEFT SIDEBAR ── */}
           <aside className="w-full lg:w-60 xl:w-64 shrink-0 -mt-20 lg:-mt-28">
@@ -90,15 +95,30 @@ export default function MangaDetail() {
             >
               {proxyUrl && !imgError ? (
                 <img
+                  key={imgKey}
                   ref={imgRef}
-                  src={proxyUrl}
+                  src={`${proxyUrl}&_r=${imgKey}`}
                   alt={manga.title}
-                  className="w-full h-full object-cover"
-                  onError={() => setImgError(true)}
+                  className="w-full h-full object-cover cursor-pointer"
+                  title="Tap to reload cover"
+                  onClick={() => { imgRetryCount.current = 0; setImgError(false); setImgKey(k => k + 1) }}
+                  onError={() => {
+                    if (imgRetryCount.current < 3) {
+                      imgRetryCount.current += 1
+                      const delay = imgRetryCount.current * 1500
+                      setTimeout(() => { setImgError(false); setImgKey(k => k + 1) }, delay)
+                    } else {
+                      setImgError(true)
+                    }
+                  }}
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center bg-zinc-900 text-zinc-600 font-bold text-xs">
-                  No Cover
+                <div
+                  className="w-full h-full flex flex-col items-center justify-center bg-zinc-900 text-zinc-600 font-bold text-xs gap-1 cursor-pointer hover:bg-zinc-800 transition-colors"
+                  onClick={() => { imgRetryCount.current = 0; setImgError(false); setImgKey(k => k + 1) }}
+                >
+                  <span>No Cover</span>
+                  <span className="text-[10px] font-normal opacity-60">Tap to retry</span>
                 </div>
               )}
             </div>
@@ -262,31 +282,45 @@ export default function MangaDetail() {
                 <div className="text-[10px] font-black uppercase tracking-[.15em] text-[var(--accent,#dc2626)] mb-2">
                   Synopsis
                 </div>
-                <p className="text-sm leading-relaxed text-zinc-300">
-                  {manga.description
-                    .replace(/\*\*([^*]+)\*\*/g, '$1')
-                    .replace(/\*([^*]+)\*/g, '$1')
-                    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-                    .replace(/_{2,}/g, '')
-                    .replace(/\n{3,}/g, '\n\n')
-                    .trim()}
-                </p>
+                <div className="relative">
+                  <p className={cn(
+                    'text-sm leading-relaxed text-zinc-300 transition-all',
+                    !descExpanded && 'line-clamp-4'
+                  )}>
+                    {manga.description
+                      .replace(/\*\*([^*]+)\*\*/g, '$1')
+                      .replace(/\*([^*]+)\*/g, '$1')
+                      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+                      .replace(/_{2,}/g, '')
+                      .replace(/\n{3,}/g, '\n\n')
+                      .trim()}
+                  </p>
+                  <button
+                    onClick={() => setDescExpanded(e => !e)}
+                    className="mt-1.5 text-[11px] font-bold text-[var(--accent,#dc2626)] hover:opacity-80 transition-opacity"
+                  >
+                    {descExpanded ? 'Show less ▲' : 'Read more ▼'}
+                  </button>
+                </div>
               </div>
             )}
 
-            {/* Personal Rating & Notes */}
-            <MangaRatingNotes
-              provider={provider}
-              mangaId={mangaId}
-              userRating={userRating}
-              setUserRating={setUserRating}
-              userNote={userNote}
-              setUserNote={setUserNote}
-              noteEditing={noteEditing}
-              setNoteEditing={setNoteEditing}
-              noteDraft={noteDraft}
-              setNoteDraft={setNoteDraft}
-            />
+            {/* Rating & Notes — icon only */}
+            <button
+              onClick={() => setNotesOpen(true)}
+              className="flex items-center gap-2 text-xs text-zinc-500 hover:text-white transition-colors mb-5 group"
+            >
+              <StickyNote className="w-3.5 h-3.5 group-hover:text-[var(--accent,#dc2626)] transition-colors" />
+              <span className="font-semibold">My Rating &amp; Notes</span>
+              {userRating > 0 && (
+                <span className="flex items-center gap-0.5 text-yellow-400 font-bold ml-1">
+                  <Star className="w-3 h-3 fill-yellow-400" />{userRating}
+                </span>
+              )}
+            </button>
+
+            {/* Comments in sidebar */}
+            <CommentSection provider={provider || ''} mangaId={mangaId || ''} preview />
           </aside>
 
           {/* ── RIGHT: CHAPTERS ── */}
@@ -331,11 +365,6 @@ export default function MangaDetail() {
         </div>
       </div>
 
-      {/* Manga-level comments */}
-      <div className="max-w-5xl mx-auto px-4 pb-10">
-        <CommentSection provider={provider || ''} mangaId={mangaId || ''} preview />
-      </div>
-
       <MangaModals
         editingMeta={editingMeta}
         setEditingMeta={setEditingMeta}
@@ -343,6 +372,45 @@ export default function MangaDetail() {
         setMetaDraft={setMetaDraft}
         saveMetaEdit={saveMetaEdit}
       />
+
+      {/* Rating & Notes sheet */}
+      <AnimatePresence>
+        {notesOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 z-40"
+              onClick={() => setNotesOpen(false)}
+            />
+            <motion.div
+              initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              className="fixed bottom-0 left-0 right-0 z-50 bg-zinc-950 border-t border-white/10 rounded-t-2xl max-h-[80dvh] flex flex-col"
+            >
+              <div className="flex items-center justify-between px-5 pt-4 pb-2 shrink-0">
+                <span className="text-sm font-black uppercase tracking-widest text-zinc-400">My Rating &amp; Notes</span>
+                <button onClick={() => setNotesOpen(false)} className="p-1.5 rounded-lg text-zinc-500 hover:text-white transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="overflow-y-auto px-5 pb-8" style={{ paddingBottom: 'max(32px, env(safe-area-inset-bottom))' }}>
+                <MangaRatingNotes
+                  provider={provider}
+                  mangaId={mangaId}
+                  userRating={userRating}
+                  setUserRating={setUserRating}
+                  userNote={userNote}
+                  setUserNote={setUserNote}
+                  noteEditing={noteEditing}
+                  setNoteEditing={setNoteEditing}
+                  noteDraft={noteDraft}
+                  setNoteDraft={setNoteDraft}
+                />
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '../lib/api'
+import { useToast } from '../components/common/Toast'
 import { FastAverageColor } from 'fast-average-color'
 import { getReadChapters } from '../lib/readTracking'
 import { ExtensionManager } from '../lib/extensions'
@@ -56,6 +57,7 @@ export function useMangaDetail() {
       mangaId = resolved.mangaId
     }
   }
+  const { show: toast } = useToast()
   const [manga, setManga] = useState<MangaDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [downloading, setDownloading] = useState<string[]>([])
@@ -310,7 +312,7 @@ export function useMangaDetail() {
       }
 
       if (!pages.length) {
-        alert('Could not fetch chapter pages — try again or check your connection.')
+        toast('Could not fetch chapter pages — try again or check your connection.', 'error')
         return
       }
 
@@ -324,7 +326,7 @@ export function useMangaDetail() {
         pages,
       })
     } catch {
-      alert('Failed to queue download')
+      toast('Failed to queue download', 'error')
     } finally {
       setTimeout(() => {
         setDownloading((prev) => prev.filter((id) => id !== chapter.id))
@@ -341,7 +343,7 @@ export function useMangaDetail() {
         await handleDownload(chapter)
       }
     } catch {
-      alert('Failed to queue bulk downloads')
+      toast('Failed to queue bulk downloads', 'error')
     } finally {
       setBulkLoading(false)
     }
@@ -360,12 +362,12 @@ export function useMangaDetail() {
           status: 'reading',
           chapters_read: readChapters.size,
         })
-        alert(`Synced "${manga.title}" to MyAnimeList (Reading, ${readChapters.size} chapters)!`)
+        toast(`Synced "${manga.title}" to MyAnimeList (Reading, ${readChapters.size} chapters)!`, 'success')
       } else {
-        alert(`Could not find "${manga.title}" on MyAnimeList.`)
+        toast(`Could not find "${manga.title}" on MyAnimeList.`, 'warning')
       }
     } catch {
-      alert('MAL Sync failed. Check your credentials in Settings.')
+      toast('MAL Sync failed. Check your credentials in Settings.', 'error')
     }
     setMalSyncing(false)
   }

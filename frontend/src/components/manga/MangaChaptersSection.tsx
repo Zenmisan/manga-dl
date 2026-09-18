@@ -155,6 +155,7 @@ export function MangaChaptersSection({
   const [hiddenChapters, setHiddenChapters] = useState<Set<string>>(new Set())
   const [copiedNotification, setCopiedNotification] = useState(false)
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const contextMenuOpenTime = useRef<number>(0)
 
   // Filter out user hidden chapters
   const visibleChapters = displayedChapters.filter(ch => !hiddenChapters.has(ch.id))
@@ -162,6 +163,7 @@ export function MangaChaptersSection({
   const handleContextMenu = (e: React.MouseEvent, chapter: Chapter) => {
     e.preventDefault()
     e.stopPropagation()
+    contextMenuOpenTime.current = Date.now()
     setContextMenu({ x: e.clientX, y: e.clientY, chapter })
   }
 
@@ -169,6 +171,7 @@ export function MangaChaptersSection({
     swipeStartXRef.current = e.touches[0].clientX
     const touch = e.touches[0]
     longPressTimerRef.current = setTimeout(() => {
+      contextMenuOpenTime.current = Date.now()
       setContextMenu({ x: touch.clientX, y: touch.clientY, chapter })
     }, 500)
   }
@@ -228,8 +231,9 @@ export function MangaChaptersSection({
     { value: 'num-asc', label: 'Lowest' },
   ]
 
+  const isMobileView = typeof window !== 'undefined' && window.innerWidth < 640
   const scanlatorOptions: CustomGlassSelectOption<string>[] = [
-    { value: 'all', label: 'All Scanlators' },
+    { value: 'all', label: isMobileView ? 'All Groups' : 'All Scanlators' },
     ...scanlators.map(s => ({ value: s, label: s }))
   ]
 
@@ -238,7 +242,7 @@ export function MangaChaptersSection({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.6, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
-      className="mt-8 lg:mt-0 flex-1 relative"
+      className="mt-8 lg:mt-0 flex-1 relative min-w-0"
       onClick={() => setContextMenu(null)}
     >
       {/* Toast Notification */}
@@ -393,7 +397,7 @@ export function MangaChaptersSection({
       </div>
 
       {/* Chapters list */}
-      <div className="space-y-2.5">
+      <div className="space-y-2.5 w-full">
         {visibleChapters.length === 0 ? (
           <div className="p-8 text-center rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl">
             <p className="text-zinc-400 text-xs font-semibold">No chapters match your search or filters</p>
@@ -416,7 +420,8 @@ export function MangaChaptersSection({
             return (
               <div
                 key={chapter.id}
-                className="relative overflow-hidden rounded-2xl"
+                className="relative overflow-hidden rounded-2xl w-full"
+                style={{ WebkitUserSelect: 'none', userSelect: 'none' }}
                 onContextMenu={(e) => handleContextMenu(e, chapter)}
                 onTouchStart={(e) => handleTouchStart(e, chapter)}
                 onTouchMove={handleTouchMove}
@@ -440,8 +445,8 @@ export function MangaChaptersSection({
                     navigate(targetUrl)
                   }}
                   className={cn(
-                    "relative flex items-center justify-between p-5 md:p-6 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl hover:bg-white/[0.08] cursor-pointer group transition-all overflow-hidden",
-                    "border-l-4 border-l-red-600/50",
+                    "relative flex items-center justify-between p-3 sm:p-5 md:p-6 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl hover:bg-white/[0.08] cursor-pointer group transition-all overflow-hidden",
+                    "border-l-4 border-l-red-500",
                     isSwiped && "-translate-x-28"
                   )}
                 >
@@ -451,7 +456,7 @@ export function MangaChaptersSection({
                       style={{ width: `${readPct}%` }}
                     />
                   )}
-                  <div className={cn("flex items-center gap-4 min-w-0 pr-4", isChRead && "opacity-50")}>
+                  <div className={cn("flex items-center gap-2 sm:gap-4 flex-1 min-w-0 overflow-hidden pr-2 sm:pr-4", isChRead && "opacity-50")}>
                     {/* Bookmark indicator */}
                     <button
                       onClick={(e) => toggleBookmark(chapter.id, e)}
@@ -464,8 +469,8 @@ export function MangaChaptersSection({
                       {isBookmarked ? <BookmarkCheck className="w-4 h-4 fill-amber-400" /> : <Bookmark className="w-4 h-4" />}
                     </button>
 
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
+                    <div className="min-w-0 overflow-hidden">
+                      <div className="flex items-center gap-2 min-w-0">
                         <h3 className="font-bold text-base md:text-lg text-white group-hover:text-red-400 transition-colors truncate leading-snug">
                           {chapter.title || `Chapter ${chapter.number}`}
                         </h3>
@@ -554,7 +559,9 @@ export function MangaChaptersSection({
         {contextMenu && (
           <div
             className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs"
-            onClick={() => setContextMenu(null)}
+            onClick={() => {
+              if (Date.now() - contextMenuOpenTime.current > 300) setContextMenu(null)
+            }}
             onContextMenu={(e) => { e.preventDefault(); setContextMenu(null) }}
           >
             <motion.div

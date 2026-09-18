@@ -40,18 +40,20 @@ export default defineConfig({
           {
             // Manga page images served via the backend image-proxy endpoint
             urlPattern: /\/manga\/image-proxy(\?|$)/,
-            handler: 'CacheFirst',
+            handler: 'NetworkFirst',
             options: {
               cacheName: 'manga-images',
+              networkTimeoutSeconds: 15,
               expiration: { maxEntries: 2000, maxAgeSeconds: 60 * 60 * 24 * 30 },
             },
           },
           {
             // DRM-descrambled images (comixto etc.)
             urlPattern: /\/manga\/descramble-proxy(\?|$)/,
-            handler: 'CacheFirst',
+            handler: 'NetworkFirst',
             options: {
               cacheName: 'manga-images',
+              networkTimeoutSeconds: 15,
               expiration: { maxEntries: 500, maxAgeSeconds: 60 * 60 * 24 * 7 },
             },
           },

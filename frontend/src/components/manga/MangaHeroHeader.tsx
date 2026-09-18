@@ -26,11 +26,13 @@ export function MangaHeroHeader({ manga, themeColor, showQueueLink, onBack, onQu
             backgroundImage: `url(${proxyUrl})`,
             backgroundColor: themeColor,
             backgroundSize: 'cover', backgroundPosition: 'center',
-            filter: 'blur(36px)', opacity: 0.35, transform: 'scale(1.1)',
+            filter: 'blur(36px)', opacity: 0.55, transform: 'scale(1.1)',
             transition: 'all 1s',
           }}
         />
       )}
+      {/* Accent tint so dark covers still show color in hero */}
+      <div style={{ position: 'absolute', inset: 0, background: `${themeColor}30`, mixBlendMode: 'screen', pointerEvents: 'none' }} />
 
       {/* Fade overlay to body background */}
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, transparent 30%, var(--bg) 100%)' }} />

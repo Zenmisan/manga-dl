@@ -139,14 +139,22 @@ async def proxy_image_response(url: str) -> StreamingResponse:
                 if resp.status_code != 200:
                     log.warning("Image proxy upstream %s for %s", resp.status_code, url)
                     raise HTTPException(status_code=resp.status_code, detail=f"Upstream image error: {resp.status_code}")
-                content_type = resp.headers.get("content-type", "image/jpeg")
+                content_type = resp.headers.get("content-type", "image/jpeg").split(";")[0].strip()
+                content = resp.content
+                extra_headers: dict[str, str] = {
+                    "Cache-Control": "no-store",
+                    "Access-Control-Allow-Origin": "*",
+                    "Content-Length": str(len(content)),
+                }
+                if cl := resp.headers.get("content-length"):
+                    # Validate upstream claimed length matches what we actually got
+                    if int(cl) != len(content):
+                        log.warning("Image proxy incomplete: upstream claimed %s bytes, got %d for %s", cl, len(content), url)
+                        raise ValueError(f"Incomplete image: expected {cl} bytes, received {len(content)}")
                 return StreamingResponse(
-                    iter([resp.content]),
+                    iter([content]),
                     media_type=content_type,
-                    headers={
-                        "Cache-Control": "public, max-age=86400",
-                        "Access-Control-Allow-Origin": "*",
-                    },
+                    headers=extra_headers,
                 )
         except HTTPException:
             raise

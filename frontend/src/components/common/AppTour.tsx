@@ -158,7 +158,7 @@ export default function AppTour({ onDone }: Props) {
   const rect = useSpotlight(step.targetSelector)
   const isFirst = stepIdx === 0
   const isLast = stepIdx === STEPS.length - 1
-  const PAD = 10
+  const PAD = 4
 
   const dismiss = useCallback(() => {
     localStorage.removeItem('first_launch_tour')
@@ -226,8 +226,15 @@ export default function AppTour({ onDone }: Props) {
     // Above the target (bottom-nav items) — clamp so it never goes off screen
     const fromBottom = window.innerHeight - rect.top + PAD + 16
     cardStyle.bottom = fromBottom
-    cardStyle.left = '50%'
-    cardStyle.transform = 'translateX(-50%)'
+    if (mobile) {
+      // Use left+right bounds so the card never clips the viewport edge
+      cardStyle.left = 16
+      cardStyle.right = 16
+      cardStyle.width = 'auto'
+    } else {
+      cardStyle.left = '50%'
+      cardStyle.transform = 'translateX(-50%)'
+    }
     cardStyle.maxWidth = mobile ? 'calc(100vw - 32px)' : 340
     cardStyle.borderRadius = 18
   } else {

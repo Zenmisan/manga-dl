@@ -203,7 +203,7 @@ export default function LandingPage() {
             manga-dl
           </span>
         </Link>
-        <div className="flex items-center gap-1 flex-1 justify-center">
+        <div className="hidden sm:flex items-center gap-1 flex-1 justify-center">
           <Link
             to="/r"
             className="px-3 py-1.5 text-xs font-bold rounded-lg transition-colors"
@@ -248,7 +248,7 @@ export default function LandingPage() {
       </nav>
 
       {/* ── HERO — left text / right stat column ─────────────── */}
-      <section className="relative min-h-[100dvh] flex items-center" style={{ paddingTop: '5rem' }}>
+      <section className="relative min-h-[100dvh] flex items-start md:items-center" style={{ paddingTop: '5rem' }}>
         {/* Atmospheric background */}
         <div className="absolute inset-0 pointer-events-none select-none" aria-hidden="true">
           <div
@@ -260,7 +260,7 @@ export default function LandingPage() {
           <div className="absolute bottom-0 left-0 right-0 h-40" style={{ background: 'linear-gradient(to bottom, transparent, var(--color-paper))' }} />
         </div>
 
-        <div className="relative z-10 w-full max-w-6xl mx-auto px-6 md:px-12 py-20">
+        <div className="relative z-10 w-full max-w-6xl mx-auto px-6 md:px-12 pt-8 pb-16 md:py-20">
           <div className="grid md:grid-cols-[3fr_2fr] gap-12 md:gap-16 items-center">
 
             {/* Left — declaration */}

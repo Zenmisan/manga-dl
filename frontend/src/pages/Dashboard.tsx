@@ -26,7 +26,8 @@ export default function Dashboard() {
     (localStorage.getItem('manga-dl-library-density') as 'large' | 'compact') ?? 'large'
   )
   const [searchQuery, setSearchQuery] = useState('')
-  const [isSearchExpanded, setIsSearchExpanded] = useState(false)
+  const isMobileScreen = typeof window !== 'undefined' && window.innerWidth < 768
+  const [isSearchExpanded, setIsSearchExpanded] = useState(isMobileScreen)
   const [contentFilter, setContentFilter] = useState<'all' | 'manga' | 'novel'>('all')
   const searchInputRef = useRef<HTMLInputElement>(null)
   const searchContainerRef = useRef<HTMLDivElement>(null)
@@ -42,20 +43,20 @@ export default function Dashboard() {
     if (searchQuery) {
       setSearchQuery('')
       searchInputRef.current?.focus()
-    } else {
+    } else if (!isMobileScreen) {
       setIsSearchExpanded(false)
       searchInputRef.current?.blur()
     }
-  }, [searchQuery])
+  }, [searchQuery, isMobileScreen])
 
   const handleSearchBlur = useCallback((e: React.FocusEvent) => {
     if (searchContainerRef.current?.contains(e.relatedTarget as Node)) {
       return
     }
-    if (!searchQuery.trim()) {
+    if (!searchQuery.trim() && !isMobileScreen) {
       setIsSearchExpanded(false)
     }
-  }, [searchQuery])
+  }, [searchQuery, isMobileScreen])
 
   const handleSearchKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Escape') {

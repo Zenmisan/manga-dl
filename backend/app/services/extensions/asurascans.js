@@ -12,7 +12,7 @@ function _asParseCards(doc) {
     var href = a.getAttribute('href') || '';
     if (href.includes('/chapter/')) return;
     var slug = href.split('/comics/').pop().replace(/\/$/, '');
-    if (!slug || seen[slug]) return;
+    if (!slug || seen[slug] || /^\d+$/.test(slug)) return;
     seen[slug] = true;
 
     var card = a.closest('.series-card, .grid > div, div[class*="grid"] > div, .card, div') || a;
