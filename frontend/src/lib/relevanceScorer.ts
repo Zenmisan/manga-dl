@@ -1,54 +1,80 @@
 /**
+ * Normalize a string for comparison: lowercase, strip diacritics, remove punctuation,
+ * drop leading articles (the/a/an), collapse whitespace.
+ */
+export function normalizeForSearch(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^\w\s-]/g, ' ')
+    .replace(/^(the|a|an)\s+/i, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/**
  * Scores the relevance of a manga title against a user search query.
  * Higher score = higher relevance.
  */
 export function scoreRelevance(title: string, query: string): number {
   if (!title || !query) return 0
 
-  const t = title.toLowerCase().trim()
-  const q = query.toLowerCase().trim()
+  const t = normalizeForSearch(title)
+  const q = normalizeForSearch(query)
+  if (!t || !q) return 0
 
-  // Exact full title match (e.g. "Solo Leveling" === "Solo Leveling")
   if (t === q) return 1000
-
-  // Title starts with the query (e.g. "Solo Leveling: Ragnarok" starts with "Solo Leveling")
-  if (t.startsWith(q)) return 800
-
-  // Title contains the full exact query string (e.g. "The Legend of Solo Leveling")
+  if (t.startsWith(q + ' ') || t.startsWith(q)) return 800
   if (t.includes(q)) return 500
 
-  // Word token matching: count how many query words are in the title
   const queryTokens = q.split(/\s+/).filter(w => w.length > 1)
+  const titleTokens = t.split(/\s+/).filter(w => w.length > 0)
+  const titleTokenSet = new Set(titleTokens)
+
   if (queryTokens.length > 0) {
-    let matchedWords = 0
+    let exactMatches = 0
+    let substringMatches = 0
+    let prefixMatches = 0
+
     for (const token of queryTokens) {
-      if (t.includes(token)) matchedWords++
+      if (titleTokenSet.has(token)) {
+        exactMatches++
+      } else if (t.includes(token)) {
+        substringMatches++
+      } else {
+        for (const tt of titleTokens) {
+          if (tt.startsWith(token) || token.startsWith(tt)) {
+            prefixMatches++
+            break
+          }
+        }
+      }
     }
 
-    if (matchedWords === queryTokens.length) {
-      // Contains all words in any order
-      return 400
-    }
-
-    if (matchedWords > 0) {
-      // Partial word matches (e.g. matched 1 out of 2 words)
-      return (matchedWords / queryTokens.length) * 250
-    }
+    const allMatched = exactMatches + substringMatches
+    if (allMatched === queryTokens.length) return 400
+    if (allMatched > 0) return Math.max(50, (allMatched / queryTokens.length) * 250)
+    if (prefixMatches > 0) return Math.max(30, (prefixMatches / queryTokens.length) * 100)
   }
 
-  // Fallback fuzzy / character overlap
-  return 10
+  // Character overlap fallback — better than flat 10
+  const qChars = new Set(q.replace(/\s/g, ''))
+  const overlap = [...qChars].filter(c => t.includes(c)).length
+  return Math.max(10, Math.floor((overlap / Math.max(qChars.size, 1)) * 40))
 }
 
 /**
- * Sorts an array of manga results by their relevance score against the query in descending order.
+ * Sorts an array of manga results by best relevance score across multiple query variants.
+ * Pass a single-element array [query] for standard behavior.
  */
-export function sortResultsByRelevance<T extends { title: string }>(results: T[], query: string): T[] {
+export function sortResultsByRelevance<T extends { title: string }>(results: T[], query: string, variants?: string[]): T[] {
   if (!query || !query.trim()) return results
+  const all = variants && variants.length > 0 ? [query, ...variants] : [query]
 
   return [...results].sort((a, b) => {
-    const scoreA = scoreRelevance(a.title, query)
-    const scoreB = scoreRelevance(b.title, query)
-    return scoreB - scoreA
+    const sA = Math.max(...all.map(v => scoreRelevance(a.title, v)))
+    const sB = Math.max(...all.map(v => scoreRelevance(b.title, v)))
+    return sB - sA
   })
 }

@@ -4,7 +4,7 @@ import api from '../lib/api'
 import { useToast } from '../components/common/Toast'
 import { FastAverageColor } from 'fast-average-color'
 import { getReadChapters } from '../lib/readTracking'
-import { ExtensionManager } from '../lib/extensions'
+import { ExtensionManager, NOVEL_EXTENSION_IDS } from '../lib/extensions'
 import { getMangaNote } from '../lib/mangaNotes'
 import { setMangaOverride, getMangaOverride } from '../lib/metaOverrides'
 import { supabase } from '../lib/supabase'
@@ -159,6 +159,7 @@ export function useMangaDetail() {
           const details = await (ext.getMangaDetail(mangaId!) as Promise<{ id: string; title: string; cover_url: string | null; description: string | null; status: string | null; genres?: string[]; authors?: string[]; url?: string; chapters?: Array<{ id: string; name?: string; title?: string; chapter_number?: number }> }>)
           if (!isMounted) return
           const chList = details.chapters || []
+          const isNovel = ext.type === 'novel' || (provider ? NOVEL_EXTENSION_IDS.has(provider) : false)
           const combined: MangaDetail = {
             id: details.id,
             title: details.title,
@@ -169,12 +170,12 @@ export function useMangaDetail() {
             authors: details.authors || [],
             provider: provider!,
             url: details.url || '',
-            type: ext.type ?? 'manga',
-            chapters: chList.map((c: { id: string; name?: string; title?: string; chapter_number?: number }) => ({
+            type: isNovel ? 'novel' : 'manga',
+            chapters: chList.map((c: { id: string; name?: string; title?: string; chapter_number?: number; number?: number; published_at?: string | null }) => ({
               id: c.id,
-              title: c.title || c.name || (c.chapter_number ? `Chapter ${c.chapter_number}` : 'Chapter 1'),
-              number: c.chapter_number || 0,
-              published_at: null
+              title: c.title || c.name || (c.chapter_number ? `Chapter ${c.chapter_number}` : (c.number ? `Chapter ${c.number}` : 'Chapter 1')),
+              number: c.number ?? c.chapter_number ?? 0,
+              published_at: c.published_at || null
             })),
           }
           const override = getMangaOverride(provider!, mangaId!)
@@ -190,8 +191,11 @@ export function useMangaDetail() {
       try {
         const res = await api.get(`/manga/detail/${provider}/${mangaId}`)
         if (!isMounted) return
+        const isNovel = provider ? NOVEL_EXTENSION_IDS.has(provider) : false
         const override = getMangaOverride(provider!, mangaId!)
-        const data = override ? { ...res.data, title: override.title || res.data.title, cover_url: override.cover_url || res.data.cover_url, description: override.description || res.data.description } : res.data
+        const data = override
+          ? { ...res.data, title: override.title || res.data.title, cover_url: override.cover_url || res.data.cover_url, description: override.description || res.data.description, type: isNovel ? 'novel' : (res.data.type || 'manga') }
+          : { ...res.data, type: isNovel ? 'novel' : (res.data.type || 'manga') }
         setManga(data)
       } catch {
         // Suppress 404 error

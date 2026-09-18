@@ -50,6 +50,30 @@ export const DEPRECATED_EXTENSIONS = new Set([
   'drakescans',
 ])
 
+// Built-in web novel extension IDs — always enabled, isolated from toggleable manga sources
+export const NOVEL_EXTENSION_IDS = new Set([
+  'royalroad',
+  'novelbin',
+  'novelfull',
+  'freewebnovel',
+  'novelfire',
+  'allnovel',
+  'novelphoenix',
+  'readnovelfull',
+  'libread',
+  'brightnovel',
+  'chrysanthemumgarden',
+  'comrademao',
+  'lightnoveltranslations',
+  'bestlightnovel',
+  'asianovel',
+  'novelbuddy',
+  'readlightnovel',
+  'scribblehub',
+  'lightnovelworld',
+  'wuxiaworld',
+])
+
 export class ExtensionManager {
   private static instance: ExtensionManager
   public extensions: Map<string, MangaExtension> = new Map()
@@ -128,12 +152,11 @@ export class ExtensionManager {
   async loadBuiltins() {
     try {
       // Purge any novel extensions previously saved into user's installed sources list
-      const novelIds = new Set(['royalroad', 'scribblehub', 'lightnovelworld', 'wuxiaworld'])
       const rawInstalled = localStorage.getItem(this.storageKey)
       if (rawInstalled) {
         try {
           const list = JSON.parse(rawInstalled)
-          const filtered = list.filter((e: { id: string }) => !novelIds.has(e.id))
+          const filtered = list.filter((e: { id: string }) => !NOVEL_EXTENSION_IDS.has(e.id))
           if (filtered.length !== list.length) {
             localStorage.setItem(this.storageKey, JSON.stringify(filtered))
           }
@@ -148,8 +171,9 @@ export class ExtensionManager {
       builtins.forEach(b => this.builtinIds.add(b.id))
 
       await Promise.all(builtins.map(async b => {
+        const isNovel = b.type === 'novel' || NOVEL_EXTENSION_IDS.has(b.id)
         // Novel extensions are internal built-ins that are always enabled and never user-disabled
-        const isOptOut = b.type !== 'novel' && installed.find(e => e.id === b.id)?.disabled
+        const isOptOut = !isNovel && installed.find(e => e.id === b.id)?.disabled
         if (isOptOut) {
           this.extensions.delete(b.id)
           return
@@ -161,9 +185,10 @@ export class ExtensionManager {
         const ext = this.extensions.get(b.id)
         if (ext) {
           ;(ext as MangaExtension).skipProxy = b.skip_proxy ?? SKIP_PROXY_PROVIDERS.has(b.id)
+          if (isNovel) (ext as MangaExtension).type = 'novel'
         }
         // Only save manga extensions to the user's toggleable installed list
-        if (b.type !== 'novel' && !installedIds.has(b.id)) {
+        if (!isNovel && !installedIds.has(b.id)) {
           const list = JSON.parse(localStorage.getItem(this.storageKey) || '[]')
           list.push({ id: b.id, name: b.name, lang: b.lang, version: b.version })
           localStorage.setItem(this.storageKey, JSON.stringify(list))
@@ -215,7 +240,7 @@ export class ExtensionManager {
         version,
         builtin: this.builtinIds.has(pkgId),
         skipProxy,
-        type: res.data.type ?? 'manga',
+        type: res.data.type ?? (NOVEL_EXTENSION_IDS.has(pkgId) ? 'novel' : 'manga'),
         search: (query, page) => extInstance.search(query, page),
         getMangaDetail: (id) => extInstance.getMangaDetail(id),
         getPages: (id) => (extInstance.getPages ? extInstance.getPages(id) : Promise.resolve([])),
@@ -226,7 +251,7 @@ export class ExtensionManager {
 
       this.extensions.set(pkgId, extension)
 
-      if (!silent) {
+      if (!silent && !NOVEL_EXTENSION_IDS.has(pkgId)) {
         const installed = JSON.parse(localStorage.getItem(this.storageKey) || '[]')
         if (!installed.find((e: { id: string }) => e.id === pkgId)) {
           installed.push({ id: pkgId, name, lang, version })
@@ -350,7 +375,7 @@ export class ExtensionManager {
   async loadInstalled() {
     this.cleanupDeprecatedExtensions()
     const rawInstalled = JSON.parse(localStorage.getItem(this.storageKey) || '[]') as Array<{ id: string; name: string; lang: string; version: string; disabled?: boolean }>
-    const installed = rawInstalled.filter(e => e && e.id && e.id !== 'undefined' && !DEPRECATED_EXTENSIONS.has(e.id))
+    const installed = rawInstalled.filter(e => e && e.id && e.id !== 'undefined' && !DEPRECATED_EXTENSIONS.has(e.id) && !NOVEL_EXTENSION_IDS.has(e.id))
     if (installed.length !== rawInstalled.length) {
       localStorage.setItem(this.storageKey, JSON.stringify(installed))
     }

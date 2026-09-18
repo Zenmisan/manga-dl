@@ -365,6 +365,16 @@ BUILT_IN_EXTENSIONS: dict[str, dict] = {
         "nsfw": False,
         "skip_proxy": True,
     },
+    "novelbin": {
+        "script": "novelbin.js",
+        "type": "novel",
+        "name": "NovelBin",
+        "lang": "en",
+        "version": "1.0.0",
+        "icon": "https://novelarrow.com/favicon.ico",
+        "nsfw": False,
+        "skip_proxy": False,
+    },
     "novelfire": {
         "script": "novelfire.js",
         "type": "novel",

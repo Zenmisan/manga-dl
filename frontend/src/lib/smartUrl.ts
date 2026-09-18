@@ -104,6 +104,22 @@ const PROVIDER_INITIALS_MAP: Record<string, string> = {
   scribblehub: 'sh',
   lightnovelworld: 'ln',
   wuxiaworld: 'ww',
+  novelbin: 'nb',
+  novelfull: 'nf',
+  freewebnovel: 'fw',
+  novelfire: 'fi',
+  allnovel: 'an',
+  novelphoenix: 'nx',
+  readnovelfull: 'rf',
+  libread: 'lr',
+  brightnovel: 'bn',
+  chrysanthemumgarden: 'cg',
+  comrademao: 'cm',
+  lightnoveltranslations: 'lt',
+  bestlightnovel: 'bl',
+  asianovel: 'ao',
+  novelbuddy: 'bd',
+  readlightnovel: 'rl',
 }
 
 /**

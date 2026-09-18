@@ -4,7 +4,7 @@ import { Download, Search, ShieldAlert, Trash2, RefreshCw, PowerOff, Power, Zap,
 import { motion, AnimatePresence } from 'framer-motion'
 import { ThemedSpinner } from '../components/common/ThemedLoader'
 import { cn } from '../lib/utils'
-import { ExtensionManager } from '../lib/extensions'
+import { ExtensionManager, NOVEL_EXTENSION_IDS } from '../lib/extensions'
 import { usePageTitle } from '../lib/usePageTitle'
 
 const CUSTOM_REPOS_KEY = 'manga-dl-custom-repos'
@@ -234,7 +234,7 @@ export default function SourcesPage() {
   const allSources = useMemo(() => {
     const marketIds = new Set(sources.map(s => s.id))
     const deduped = customSources.filter(s => !marketIds.has(s.id))
-    return [...sources, ...deduped].filter(s => s.type !== 'novel')
+    return [...sources, ...deduped].filter(s => s.type !== 'novel' && !NOVEL_EXTENSION_IDS.has(s.id))
   }, [sources, customSources])
 
   const filteredSources = allSources.filter(s => {

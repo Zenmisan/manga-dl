@@ -52,13 +52,29 @@ const FALLBACK_PROVIDERS = [
   { id: 'omegascans', name: 'Omega Scans' },
 ]
 
-const NOVEL_PROVIDER_IDS = ['royalroad', 'scribblehub', 'lightnovelworld', 'wuxiaworld']
 const NOVEL_PROVIDERS = [
   { id: 'royalroad', name: 'Royal Road' },
+  { id: 'novelbin', name: 'NovelBin' },
+  { id: 'novelfull', name: 'NovelFull' },
+  { id: 'freewebnovel', name: 'FreeWebNovel' },
+  { id: 'novelfire', name: 'NovelFire' },
+  { id: 'allnovel', name: 'AllNovel' },
+  { id: 'novelphoenix', name: 'Novel Phoenix' },
+  { id: 'readnovelfull', name: 'ReadNovelFull' },
+  { id: 'libread', name: 'LibRead' },
+  { id: 'brightnovel', name: 'Bright Novel' },
+  { id: 'chrysanthemumgarden', name: 'Chrysanthemum Garden' },
+  { id: 'comrademao', name: 'Comrademao' },
+  { id: 'lightnoveltranslations', name: 'Light Novel Translations' },
+  { id: 'bestlightnovel', name: 'BestLightNovel' },
+  { id: 'asianovel', name: 'Asian Novel' },
+  { id: 'novelbuddy', name: 'NovelBuddy' },
+  { id: 'readlightnovel', name: 'ReadLightNovel' },
   { id: 'scribblehub', name: 'Scribble Hub' },
   { id: 'lightnovelworld', name: 'Light Novel World' },
   { id: 'wuxiaworld', name: 'WuxiaWorld' },
 ]
+const NOVEL_PROVIDER_IDS = NOVEL_PROVIDERS.map(p => p.id)
 
 // ── Discovery Card ─────────────────────────────────────────────────────────
 
@@ -424,61 +440,134 @@ export default function SearchPage() {
     }
   }
 
-  const performSearch = useCallback(async (query: string, overrideMode?: 'manga' | 'novel', overrideProvider?: string | null) => {
+  // Incremented on every new search to discard stale results from previous calls
+  const searchIdRef = useRef(0)
+
+  const performSearch = useCallback((query: string, overrideMode?: 'manga' | 'novel', overrideProvider?: string | null) => {
     if (!query) return
     const mode = overrideMode ?? searchMode
     const providerToUse = overrideProvider !== undefined ? overrideProvider : selectedProvider
+    const searchId = ++searchIdRef.current
+
     setLoading(true)
     setHasSearched(false)
-    try {
+    setSearchResults([])
+
+    const run = async () => {
       const manager = ExtensionManager.getInstance()
       if (manager.extensions.size === 0) await manager.init()
-      if (manager.extensions.size === 0) { toast('No sources loaded. Check your API Key in Settings.', 'warning'); setLoading(false); return }
+      if (manager.extensions.size === 0) {
+        if (searchIdRef.current !== searchId) return
+        toast('No sources loaded. Check your API Key in Settings.', 'warning')
+        setLoading(false)
+        return
+      }
 
+      // Build extension list for this search
+      let exts: ReturnType<typeof manager.extensions.get>[]
       if (mode === 'novel') {
         if (providerToUse) {
-          const ext = manager.extensions.get(providerToUse)
-          const results = ext ? ((await ext.search(query, 1)) as MangaResult[]).map(r => ({ ...r, type: 'novel' as const })) : []
-          setSearchResults(sortResultsByRelevance(results, query))
+          exts = [manager.extensions.get(providerToUse)].filter(Boolean) as typeof exts
         } else {
-          const novelExts = Array.from(manager.extensions.values()).filter(
+          exts = Array.from(manager.extensions.values()).filter(
             ext => ext.type === 'novel' || NOVEL_PROVIDER_IDS.includes(ext.id)
           )
-          const targetExts = novelExts.length > 0 ? novelExts : []
-          const settled = await Promise.allSettled(targetExts.map(ext => ext.search(query, 1) as Promise<MangaResult[]>))
-          settled.forEach((r, i) => { if (r.status === 'rejected') console.error(`[Search] Novel ${targetExts[i].name} failed:`, r.reason) })
-          const merged = settled.flatMap(r => r.status === 'fulfilled' ? r.value : []).map(r => ({ ...r, type: 'novel' as const }))
-          if (merged.length === 0 && settled.some(r => r.status === 'rejected')) {
-            const firstError = settled.find(r => r.status === 'rejected') as PromiseRejectedResult
-            if (String(firstError?.reason).includes('403')) toast('Search failed (403). Check your API Key in Settings.', 'error')
-          }
-          setSearchResults(sortResultsByRelevance(merged, query))
         }
       } else {
         if (providerToUse) {
-          const ext = manager.extensions.get(providerToUse)
-          const results = ext ? await ext.search(query, 1) as MangaResult[] : []
-          setSearchResults(sortResultsByRelevance(results, query))
+          exts = [manager.extensions.get(providerToUse)].filter(Boolean) as typeof exts
         } else {
           const allExts = Array.from(manager.extensions.values()).filter(
             ext => ext.type !== 'novel' && !NOVEL_PROVIDER_IDS.includes(ext.id)
           )
           const targetExts = allExts.filter(ext => enabledSources.includes(ext.id))
-          const finalExts = targetExts.length > 0 ? targetExts : allExts
-
-          const settled = await Promise.allSettled(finalExts.map(ext => ext.search(query, 1) as Promise<MangaResult[]>))
-          settled.forEach((r, i) => { if (r.status === 'rejected') console.error(`[Search] ${finalExts[i].name} failed:`, r.reason) })
-          const merged = settled.flatMap(r => r.status === 'fulfilled' ? r.value : [])
-          if (merged.length === 0 && settled.some(r => r.status === 'rejected')) {
-            const firstError = settled.find(r => r.status === 'rejected') as PromiseRejectedResult
-            if (String(firstError?.reason).includes('403')) toast('Search failed (403). Check your API Key in Settings.', 'error')
-          }
-          setSearchResults(sortResultsByRelevance(merged, query))
+          exts = targetExts.length > 0 ? targetExts : allExts
         }
       }
-      setHasSearched(true)
-    } catch (err) { console.error(err) }
-    finally { setLoading(false) }
+
+      if (exts.length === 0) {
+        if (searchIdRef.current !== searchId) return
+        setLoading(false)
+        setHasSearched(true)
+        return
+      }
+
+      // AniList alt-title variants (manga mode only, fires in parallel, adds zero wait)
+      let anilistVariants: string[] = []
+      if (mode !== 'novel') {
+        ;(async () => {
+          try {
+            const res = await fetch('https://graphql.anilist.co', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+              body: JSON.stringify({
+                query: 'query($s:String){Media(search:$s,type:MANGA,isAdult:false){title{romaji english native}synonyms}}',
+                variables: { s: query },
+              }),
+            })
+            if (!res.ok || searchIdRef.current !== searchId) return
+            const json = await res.json()
+            const media = json?.data?.Media
+            if (!media || searchIdRef.current !== searchId) return
+            const variants = [
+              media.title?.romaji,
+              media.title?.english,
+              media.title?.native,
+              ...(media.synonyms ?? []),
+            ].filter(Boolean) as string[]
+            if (variants.length === 0) return
+            anilistVariants = variants
+            // Re-sort whatever results exist with the richer variant set
+            setSearchResults(prev =>
+              prev.length > 0 ? sortResultsByRelevance(prev, query, anilistVariants) : prev
+            )
+          } catch {
+            // AniList failure is silent — doesn't degrade search quality
+          }
+        })()
+      }
+
+      // Per-source streaming: fire all, update state as each resolves
+      let remaining = exts.length
+      let hasError403 = false
+
+      const handleBatch = (newResults: MangaResult[]) => {
+        if (searchIdRef.current !== searchId) return
+        remaining--
+        if (newResults.length > 0) {
+          setSearchResults(prev =>
+            sortResultsByRelevance([...prev, ...newResults], query, anilistVariants)
+          )
+        }
+        if (remaining === 0) {
+          setLoading(false)
+          setHasSearched(true)
+          if (hasError403) toast('Search failed (403). Check your API Key in Settings.', 'error')
+        }
+      }
+
+      for (const ext of exts) {
+        if (!ext) { handleBatch([]); continue }
+        ;(ext.search(query, 1) as Promise<MangaResult[]>)
+          .then(results =>
+            handleBatch(
+              mode === 'novel'
+                ? results.map(r => ({ ...r, type: 'novel' as const }))
+                : results
+            )
+          )
+          .catch(err => {
+            console.error(`[Search] ${ext.name} failed:`, err)
+            if (String(err).includes('403')) hasError403 = true
+            handleBatch([])
+          })
+      }
+    }
+
+    run().catch(err => {
+      console.error('[Search] init error:', err)
+      if (searchIdRef.current === searchId) setLoading(false)
+    })
   }, [searchMode, selectedProvider, enabledSources, setSearchResults, setHasSearched, toast])
 
   const isFirstSourceMount = useRef(true)
@@ -715,14 +804,12 @@ export default function SearchPage() {
         {/* ── Search results ──────────────────────────────────────────── */}
         {!isIdle && (
           <>
-            {hasSearched && !loading && searchResults.length > 0 && (
+            {(searchResults.length > 0 || hasSearched) && (
               <p aria-live="polite" aria-atomic="true" style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted2)', marginBottom: 12, letterSpacing: '0.04em' }}>
-                {searchResults.length} results
+                {searchResults.length} result{searchResults.length !== 1 ? 's' : ''}{loading ? ' · searching more sources…' : ''}
               </p>
             )}
-            {loading ? (
-              <ThemedSkeletonGrid count={12} />
-            ) : searchResults.length > 0 ? (
+            {searchResults.length > 0 ? (
               selectedProvider || searchViewMode === 'grid' ? (
                 <div style={GRID_STYLE}>
                   <AnimatePresence mode="popLayout">
@@ -761,6 +848,8 @@ export default function SearchPage() {
                     ))}
                 </div>
               )
+            ) : loading ? (
+              <ThemedSkeletonGrid count={12} />
             ) : hasSearched ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '80px 24px', gap: 12 }}>
                 <Globe style={{ width: 52, height: 52, color: 'var(--muted3)', opacity: 0.35 }} />
