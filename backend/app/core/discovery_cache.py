@@ -76,6 +76,8 @@ async def warm_all() -> None:
             tasks.append(_warm_mangathemesia(pid, meta["base_url"]))
         elif meta.get("template") == "madara":
             tasks.append(_warm_madara(pid, meta["base_url"]))
+        elif pid == "comixto":
+            tasks.append(_warm_comixto())
     results = await asyncio.gather(*tasks, return_exceptions=True)
     errors = sum(1 for r in results if isinstance(r, Exception))
     log.info("[Discovery] Cache warm complete — %d sources, %d errors", len(tasks), errors)
@@ -232,6 +234,74 @@ def _parse_flamecomics(html: str) -> list[dict]:
             "status": s.get("status"),
         })
     return results
+
+
+# ── Comixto ──────────────────────────────────────────────────────────────────
+
+async def _warm_comixto() -> None:
+    base = "https://comix.to"
+    try:
+        async with CurlSession(impersonate="chrome120") as client:
+            resp = await client.get(base + "/", headers={**_HEADERS, "Referer": base + "/"}, timeout=20.0, allow_redirects=True)
+        if resp.status_code != 200:
+            raise RuntimeError(f"HTTP {resp.status_code}")
+        _cache["comixto"] = {
+            "popular": _parse_comixto_popular(resp.text),
+            "latest": _parse_comixto_latest(resp.text),
+        }
+        log.debug("[Discovery] comixto: %d popular, %d latest", len(_cache["comixto"]["popular"]), len(_cache["comixto"]["latest"]))
+    except Exception as exc:
+        log.warning("[Discovery] comixto failed: %s", exc)
+        _cache.setdefault("comixto", {"popular": [], "latest": []})
+
+
+def _parse_comixto_popular(html: str) -> list[dict]:
+    import json as _json, re as _re
+    ssr = _re.search(r'id="initial-data"[^>]*>([^<]+)', html)
+    if not ssr:
+        return []
+    try:
+        data = _json.loads(ssr.group(1))
+    except _json.JSONDecodeError:
+        return []
+    for val in (data.get("queries") or {}).values():
+        if isinstance(val, list) and val and isinstance(val[0], dict) and "hid" in val[0]:
+            return [_comixto_item(m) for m in val if m.get("hid")]
+    return []
+
+
+def _parse_comixto_latest(html: str) -> list[dict]:
+    import json as _json, re as _re
+    ssr = _re.search(r'id="initial-data"[^>]*>([^<]+)', html)
+    if not ssr:
+        return []
+    try:
+        data = _json.loads(ssr.group(1))
+    except _json.JSONDecodeError:
+        return []
+    for val in (data.get("queries") or {}).values():
+        if isinstance(val, dict) and isinstance(val.get("items"), list):
+            items = val["items"]
+            if items and isinstance(items[0], dict) and "hid" in items[0]:
+                return [_comixto_item(m) for m in items if m.get("hid")]
+    return []
+
+
+def _comixto_item(m: dict) -> dict:
+    hid = m.get("hid", "")
+    url = m.get("url") or f"/title/{hid}"
+    poster = m.get("poster")
+    cover = poster if isinstance(poster, str) else (
+        (poster or {}).get("large") or (poster or {}).get("medium") or (poster or {}).get("small")
+    )
+    return {
+        "id": hid,
+        "title": m.get("title") or m.get("name") or "",
+        "cover_url": cover,
+        "provider": "comixto",
+        "url": "https://comix.to" + url if url.startswith("/") else url,
+        "status": m.get("status"),
+    }
 
 
 # ── MangaThemesia ─────────────────────────────────────────────────────────────

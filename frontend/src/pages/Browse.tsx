@@ -162,6 +162,7 @@ function SourceBrowse({ sourceId, onNameResolved }: { sourceId: string; onNameRe
   const [hasMore, setHasMore] = useState(true)
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [fetchError, setFetchError] = useState<string | null>(null)
 
   // Refs so callbacks read current values without stale closure issues
   const modeRef = useRef<BrowseMode>(mode)
@@ -188,7 +189,7 @@ function SourceBrowse({ sourceId, onNameResolved }: { sourceId: string; onNameRe
     const currentMode = modeRef.current
     const currentQuery = queryRef.current
 
-    if (isReset) { setLoading(true); setItems([]) }
+    if (isReset) { setLoading(true); setItems([]); setFetchError(null) }
     else setLoadingMore(true)
 
     try {
@@ -212,11 +213,14 @@ function SourceBrowse({ sourceId, onNameResolved }: { sourceId: string; onNameRe
 
       if (fetchCountRef.current !== fetchId) return
 
-      setHasMore(results.length >= 16)
+      setHasMore(results.length > 0)
       setPage(targetPage)
       setItems(prev => isReset ? results : [...prev, ...results])
     } catch (err) {
       console.error('[Browse] fetch failed:', err)
+      if (fetchCountRef.current === fetchId && isReset) {
+        setFetchError(err instanceof Error ? err.message : 'Failed to load listings from this source.')
+      }
     } finally {
       if (fetchCountRef.current === fetchId) {
         setLoading(false)
@@ -335,8 +339,17 @@ function SourceBrowse({ sourceId, onNameResolved }: { sourceId: string; onNameRe
       {loading ? (
         <div style={GRID}>{Array.from({ length: 20 }).map((_, i) => <SkeletonCard key={i} />)}</div>
       ) : items.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '80px 24px', color: 'var(--muted2)', fontSize: 14 }}>
-          {mode === 'search' ? `No results for "${activeQuery}"` : 'No results — source may not support this listing.'}
+        <div style={{ textAlign: 'center', padding: '80px 24px', fontSize: 14 }}>
+          {fetchError ? (
+            <>
+              <p style={{ color: 'var(--muted2)', marginBottom: 6 }}>Failed to load from this source.</p>
+              <p style={{ color: 'var(--muted3)', fontSize: 11, fontFamily: 'monospace', wordBreak: 'break-all', maxWidth: 400, margin: '0 auto' }}>{fetchError}</p>
+            </>
+          ) : mode === 'search' ? (
+            <span style={{ color: 'var(--muted2)' }}>No results for &ldquo;{activeQuery}&rdquo;</span>
+          ) : (
+            <span style={{ color: 'var(--muted2)' }}>No results — source may not support this listing.</span>
+          )}
         </div>
       ) : (
         <>

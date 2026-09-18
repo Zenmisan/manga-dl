@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     MAL_CLIENT_ID: str | None = None
     MAL_CLIENT_SECRET: str | None = None
 
+    # Per-source auth cookies (injected by proxy when URL matches)
+    COMIXTO_COOKIE: str | None = None
+    COMIXTO_API_TOKEN: str | None = None  # _= query param required for chapter API endpoints
+
     # Supabase Storage Configuration
     SUPABASE_URL: str | None = None
     SUPABASE_SERVICE_KEY: str | None = None  # Required for backend bucket operations

@@ -157,11 +157,6 @@ function Sidebar({ session, onSignOut, isTauri }: {
           <div className="w-10 h-10 rounded-xl bg-red-600/10 border border-red-500/20 flex items-center justify-center p-1.5 shrink-0 group-hover:border-red-500/40 transition-colors shadow-sm aspect-square">
             <img src="/Manga-dl1.png" alt="manga-dl" className="w-full h-full object-contain shrink-0" />
           </div>
-          {!isCollapsed && (
-            <div className="flex flex-col min-w-0 overflow-hidden">
-              <span className="font-black text-lg text-white uppercase tracking-wider font-mono leading-none truncate">manga-dl</span>
-            </div>
-          )}
         </Link>
 
         <button

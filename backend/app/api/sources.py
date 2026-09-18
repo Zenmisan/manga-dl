@@ -144,3 +144,15 @@ async def configure_suwayomi(config: SuwayomiConfig):
         raise HTTPException(500, "Suwayomi provider not registered")
     provider.configure(config.base_url)
     return {"status": "ok", "base_url": config.base_url}
+
+
+class ComixtoToken(BaseModel):
+    token: str
+
+
+@router.post("/comixto/token")
+async def set_comixto_token(body: ComixtoToken):
+    """Update the comixto _= API token at runtime without server restart."""
+    from app.services.proxy_service import set_runtime_token
+    set_runtime_token("comixto", body.token.strip())
+    return {"status": "ok", "token_length": len(body.token.strip())}

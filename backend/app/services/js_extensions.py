@@ -537,7 +537,7 @@ def get_extension_code_by_pkg(pkg_id: str) -> dict | None:
         elif "template" in meta:
             template_file = f"{meta['template']}.template.js"
             template = load_extension_script(template_file)
-            code = template.replace("{BASE_URL}", meta["base_url"].rstrip("/"))
+            code = template.replace("{BASE_URL}", meta["base_url"].rstrip("/")).replace("{SOURCE_ID}", pkg_id)
         else:
             return None
         return {
@@ -593,12 +593,12 @@ def get_extension_code_by_pkg(pkg_id: str) -> dict | None:
         base_url = home_url.rstrip("/")
         if theme == "Madara":
             template = load_extension_script("madara.template.js")
-            code = template.replace("{BASE_URL}", base_url)
+            code = template.replace("{BASE_URL}", base_url).replace("{SOURCE_ID}", pkg_id)
             log.info("Dynamically generated Madara code for package: %s, URL: %s", pkg_id, base_url)
             return {"code": code, "skip_proxy": False}
         elif theme == "MangaThemesia":
             template = load_extension_script("mangathemesia.template.js")
-            code = template.replace("{BASE_URL}", base_url)
+            code = template.replace("{BASE_URL}", base_url).replace("{SOURCE_ID}", pkg_id)
             log.info("Dynamically generated MangaThemesia code for package: %s, URL: %s", pkg_id, base_url)
             return {"code": code, "skip_proxy": False}
 
