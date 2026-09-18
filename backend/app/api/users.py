@@ -91,7 +91,11 @@ async def get_reading_history(
     db: AsyncSession = Depends(get_db),
     limit: int = Query(100, le=500),
 ):
-    return await fetch_user_reading_history(user_id, limit, db)
+    try:
+        return await fetch_user_reading_history(user_id, limit, db)
+    except Exception as exc:
+        log.warning("History fetch failed for user %s: %s", user_id, exc)
+        return []
 
 
 @router.delete("/history")

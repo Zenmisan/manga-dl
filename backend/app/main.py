@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, Depends, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
@@ -86,6 +86,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.exception_handler(Exception)
+async def _global_exc_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Ensure CORS headers are present even on unhandled 500 errors."""
+    origin = request.headers.get("origin", "")
+    headers: dict[str, str] = {}
+    if origin in _settings.CORS_ORIGINS:
+        headers["Access-Control-Allow-Origin"] = origin
+        headers["Access-Control-Allow-Credentials"] = "true"
+    log.exception("Unhandled error on %s %s", request.method, request.url.path)
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"}, headers=headers)
 
 api_deps = [Depends(verify_api_key)]
 app.include_router(manga.router, prefix="/api", dependencies=api_deps)

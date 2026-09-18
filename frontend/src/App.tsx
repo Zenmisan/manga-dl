@@ -178,10 +178,16 @@ function Sidebar({ session, onSignOut, isTauri }: {
         {SIDEBAR_ITEMS.map((item) => {
           const active = location.pathname === item.path ||
             (item.path === '/settings' && location.pathname.startsWith('/settings'))
+          const tourId = item.path === '/r' ? 'library'
+            : item.path === '/search' ? 'search'
+            : item.path === '/sources' ? 'sources'
+            : item.path === '/downloads' ? 'downloads'
+            : undefined
           return (
             <Link
               key={item.path}
               to={item.path}
+              data-tour={tourId}
               title={isCollapsed ? item.label : undefined}
               className={cn(
                 'flex items-center rounded-xl text-xs font-extrabold transition-all',

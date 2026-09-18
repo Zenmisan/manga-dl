@@ -56,14 +56,23 @@ async def proxy_html_content(url: str) -> dict:
 
     for attempt in range(1 + MAX_RETRIES):
         try:
-            async with CurlSession(impersonate="chrome110") as client:
+            async with CurlSession(impersonate="chrome120") as client:
                 resp = await client.get(
                     url,
-                    headers={"Referer": referer, "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"},
+                    headers={
+                        "Referer": referer,
+                        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+                        "Accept-Language": "en-US,en;q=0.9",
+                        "Accept-Encoding": "gzip, deflate, br",
+                        "Sec-Fetch-Dest": "document",
+                        "Sec-Fetch-Mode": "navigate",
+                        "Sec-Fetch-Site": "none",
+                        "Upgrade-Insecure-Requests": "1",
+                    },
                     timeout=20.0,
                     allow_redirects=True,
                 )
-                if resp.status_code != 200:
+                if resp.status_code not in (200, 206):
                     raise HTTPException(status_code=resp.status_code, detail=f"Upstream HTML error: {resp.status_code}")
                 return {"html": resp.text, "url": str(resp.url)}
         except HTTPException:

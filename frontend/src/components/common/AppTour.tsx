@@ -223,19 +223,20 @@ export default function AppTour({ onDone }: Props) {
       cardStyle.borderRadius = 18
     }
   } else if (step.tooltipSide === 'above') {
-    // Above the target (bottom-nav items) — clamp so it never goes off screen
-    const fromBottom = window.innerHeight - rect.top + PAD + 16
-    cardStyle.bottom = fromBottom
     if (mobile) {
-      // Use left+right bounds so the card never clips the viewport edge
+      // Above bottom-nav items — position above the element
+      const fromBottom = window.innerHeight - rect.top + PAD + 16
+      cardStyle.bottom = fromBottom
       cardStyle.left = 16
       cardStyle.right = 16
       cardStyle.width = 'auto'
+      cardStyle.maxWidth = 'calc(100vw - 32px)'
     } else {
-      cardStyle.left = '50%'
-      cardStyle.transform = 'translateX(-50%)'
+      // Desktop: sidebar item — position card to the right of the sidebar
+      cardStyle.top = Math.max(16, rect.top - 20)
+      cardStyle.left = rect.left + rect.width + 16
+      cardStyle.maxWidth = 340
     }
-    cardStyle.maxWidth = mobile ? 'calc(100vw - 32px)' : 340
     cardStyle.borderRadius = 18
   } else {
     // Below the target
