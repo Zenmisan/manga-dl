@@ -36,13 +36,25 @@ interface InstalledMeta {
 
 function getInstalledMeta(): InstalledMeta[] {
   const manager = ExtensionManager.getInstance()
-  const key = (manager as unknown as Record<string, unknown>).storageKey as string
-  try { return JSON.parse(localStorage.getItem(key) || '[]') } catch { return [] }
+  const key = manager.storageKey
+  try {
+    const list = JSON.parse(localStorage.getItem(key) || '[]')
+    if (Array.isArray(list) && list.length > 0) return list
+    // Fallback: check any extensions- key in localStorage
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)
+      if (k && k.startsWith('extensions-')) {
+        const fallback = JSON.parse(localStorage.getItem(k) || '[]')
+        if (Array.isArray(fallback) && fallback.length > 0) return fallback
+      }
+    }
+  } catch { return [] }
+  return []
 }
 
 function saveInstalledMeta(list: InstalledMeta[]) {
   const manager = ExtensionManager.getInstance()
-  const key = (manager as unknown as Record<string, unknown>).storageKey as string
+  const key = manager.storageKey
   localStorage.setItem(key, JSON.stringify(list))
 }
 
@@ -57,7 +69,7 @@ export default function SourcesPage() {
   const [filterLang, setFilterLang] = useState('all')
   const [hideNsfw, setHideNsfw] = useState(false)
   const [installing, setInstalling] = useState<string[]>([])
-  const [installedMeta, setInstalledMeta] = useState<InstalledMeta[]>([])
+  const [installedMeta, setInstalledMeta] = useState<InstalledMeta[]>(() => getInstalledMeta())
   const [uninstalling, setUninstalling] = useState<string[]>([])
   const [confirmUninstall, setConfirmUninstall] = useState<string | null>(null)
   const [checkingUpdates, setCheckingUpdates] = useState(false)
@@ -74,6 +86,7 @@ export default function SourcesPage() {
   const disabledIds = useMemo(() => installedMeta.filter(m => m.disabled).map(m => m.id), [installedMeta])
 
   useEffect(() => {
+    // Refresh installedMeta once ExtensionManager finishes sync/init
     ExtensionManager.getInstance().init().then(() => {
       setInstalledMeta(getInstalledMeta())
     })
@@ -234,8 +247,22 @@ export default function SourcesPage() {
   const allSources = useMemo(() => {
     const marketIds = new Set(sources.map(s => s.id))
     const deduped = customSources.filter(s => !marketIds.has(s.id))
-    return [...sources, ...deduped].filter(s => s.type !== 'novel' && !NOVEL_EXTENSION_IDS.has(s.id))
-  }, [sources, customSources])
+    const combined = [...sources, ...deduped]
+    if (combined.length === 0 && installedMeta.length > 0) {
+      return installedMeta
+        .filter(m => !NOVEL_EXTENSION_IDS.has(m.id))
+        .map(m => ({
+          id: m.id,
+          name: m.name,
+          lang: m.lang,
+          version: m.version,
+          icon: '',
+          nsfw: false,
+          type: 'manga' as const,
+        }))
+    }
+    return combined.filter(s => s.type !== 'novel' && !NOVEL_EXTENSION_IDS.has(s.id))
+  }, [sources, customSources, installedMeta])
 
   const filteredSources = allSources.filter(s => {
     const matchesSearch = s.name.toLowerCase().includes(search.toLowerCase()) || s.id.toLowerCase().includes(search.toLowerCase())
@@ -369,7 +396,13 @@ export default function SourcesPage() {
       <div className="px-4 md:px-6 pt-4 pb-28 flex-1">
 
         {tab === 'sources' && (
-          activeInstalled.length === 0 ? (
+          loading && activeInstalled.length === 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {[...Array(6)].map((_, i) => (
+                <div key={i} style={{ height: 62, background: 'var(--surface)', borderRadius: 14, border: '1px solid var(--border)' }} className="animate-pulse" />
+              ))}
+            </div>
+          ) : activeInstalled.length === 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '64px 24px', gap: 14 }}>
               <div style={{ width: 64, height: 64, borderRadius: 20, background: 'var(--surface)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>☆</div>
               <p style={{ fontWeight: 800, fontSize: 15, color: 'var(--fg)' }}>No sources installed</p>
@@ -383,7 +416,11 @@ export default function SourcesPage() {
                 return (
                   <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 14px', borderRadius: 14, border: '1px solid var(--border)', background: 'var(--surface)', marginBottom: 4 }}>
                     <div style={{ width: 42, height: 42, borderRadius: 12, overflow: 'hidden', flexShrink: 0, background: 'var(--surface-hover)', border: '1px solid var(--border)', padding: 6, boxSizing: 'border-box' }}>
-                      {src?.icon && <img src={src.icon} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} onError={e => { (e.target as HTMLImageElement).src = FALLBACK_ICON }} />}
+                      {src?.icon ? (
+                        <img src={src.icon} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} onError={e => { (e.target as HTMLImageElement).src = FALLBACK_ICON }} />
+                      ) : (
+                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 14, color: 'var(--muted2)' }}>{m.name.charAt(0)}</div>
+                      )}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}</div>
