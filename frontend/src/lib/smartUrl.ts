@@ -98,6 +98,12 @@ const PROVIDER_INITIALS_MAP: Record<string, string> = {
   suwayomi: 'sy',
   kavita: 'kv',
   local: 'lc',
+
+  // Built-in Web Novels
+  royalroad: 'rr',
+  scribblehub: 'sh',
+  lightnovelworld: 'ln',
+  wuxiaworld: 'ww',
 }
 
 /**

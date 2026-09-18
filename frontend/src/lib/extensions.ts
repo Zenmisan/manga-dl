@@ -127,15 +127,29 @@ export class ExtensionManager {
   /** Fetch built-in extension list from backend and install any not already active */
   async loadBuiltins() {
     try {
+      // Purge any novel extensions previously saved into user's installed sources list
+      const novelIds = new Set(['royalroad', 'scribblehub', 'lightnovelworld', 'wuxiaworld'])
+      const rawInstalled = localStorage.getItem(this.storageKey)
+      if (rawInstalled) {
+        try {
+          const list = JSON.parse(rawInstalled)
+          const filtered = list.filter((e: { id: string }) => !novelIds.has(e.id))
+          if (filtered.length !== list.length) {
+            localStorage.setItem(this.storageKey, JSON.stringify(filtered))
+          }
+        } catch {}
+      }
+
       const res = await api.get('/sources/builtins')
-      const builtins: Array<{ id: string; name: string; lang: string; version: string; skip_proxy: boolean }> = res.data
+      const builtins: Array<{ id: string; name: string; lang: string; version: string; skip_proxy: boolean; type?: 'manga' | 'novel' }> = res.data
       const installed = JSON.parse(localStorage.getItem(this.storageKey) || '[]') as Array<{ id: string; disabled?: boolean }>
       const installedIds = new Set(installed.map(e => e.id))
 
       builtins.forEach(b => this.builtinIds.add(b.id))
 
       await Promise.all(builtins.map(async b => {
-        const isOptOut = installed.find(e => e.id === b.id)?.disabled
+        // Novel extensions are internal built-ins that are always enabled and never user-disabled
+        const isOptOut = b.type !== 'novel' && installed.find(e => e.id === b.id)?.disabled
         if (isOptOut) {
           this.extensions.delete(b.id)
           return
@@ -148,7 +162,8 @@ export class ExtensionManager {
         if (ext) {
           ;(ext as MangaExtension).skipProxy = b.skip_proxy ?? SKIP_PROXY_PROVIDERS.has(b.id)
         }
-        if (!installedIds.has(b.id)) {
+        // Only save manga extensions to the user's toggleable installed list
+        if (b.type !== 'novel' && !installedIds.has(b.id)) {
           const list = JSON.parse(localStorage.getItem(this.storageKey) || '[]')
           list.push({ id: b.id, name: b.name, lang: b.lang, version: b.version })
           localStorage.setItem(this.storageKey, JSON.stringify(list))

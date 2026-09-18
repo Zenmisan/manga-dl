@@ -54,6 +54,7 @@ async def list_market_sources():
             "type": meta.get("type", "manga"),
         }
         for ext_id, meta in BUILT_IN_EXTENSIONS.items()
+        if meta.get("type") != "novel"
     ]
 
     try:

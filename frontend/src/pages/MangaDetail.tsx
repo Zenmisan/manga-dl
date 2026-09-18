@@ -82,7 +82,7 @@ export default function MangaDetail() {
         onQueueClick={() => navigate('/downloads')}
       />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 relative z-10 overflow-x-hidden">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 relative z-10">
         <div className="flex flex-col lg:flex-row gap-8 lg:items-start">
 
           {/* ── LEFT SIDEBAR ── */}
@@ -97,10 +97,11 @@ export default function MangaDetail() {
                 <img
                   key={imgKey}
                   ref={imgRef}
-                  src={`${proxyUrl}&_r=${imgKey}`}
-                  alt={manga.title}
-                  className="w-full h-full object-cover cursor-pointer"
-                  title="Tap to reload cover"
+                  src={imgKey > 0 ? `${proxyUrl}&_r=${imgKey}` : proxyUrl}
+                  alt=""
+                  className="w-full h-full object-cover cursor-pointer transition-opacity duration-300"
+                  style={{ opacity: 0 }}
+                  onLoad={e => { (e.currentTarget as HTMLImageElement).style.opacity = '1' }}
                   onClick={() => { imgRetryCount.current = 0; setImgError(false); setImgKey(k => k + 1) }}
                   onError={() => {
                     if (imgRetryCount.current < 3) {
@@ -112,7 +113,7 @@ export default function MangaDetail() {
                     }
                   }}
                 />
-              ) : (
+              ) : imgError ? (
                 <div
                   className="w-full h-full flex flex-col items-center justify-center bg-zinc-900 text-zinc-600 font-bold text-xs gap-1 cursor-pointer hover:bg-zinc-800 transition-colors"
                   onClick={() => { imgRetryCount.current = 0; setImgError(false); setImgKey(k => k + 1) }}
@@ -120,7 +121,7 @@ export default function MangaDetail() {
                   <span>No Cover</span>
                   <span className="text-[10px] font-normal opacity-60">Tap to retry</span>
                 </div>
-              )}
+              ) : null}
             </div>
 
             {/* Stat Bar */}

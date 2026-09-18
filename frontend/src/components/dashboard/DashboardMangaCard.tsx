@@ -101,7 +101,7 @@ export const DashboardMangaCard = memo(function DashboardMangaCard({
           )}
           <div style={{ width: 44, height: 60, borderRadius: 8, background: 'var(--surface-hover)', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border)', position: 'relative' }}>
             {coverSrc && !coverError ? (
-              <img src={coverSrc} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={() => setCoverError(true)} />
+              <img src={coverSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0, transition: 'opacity 0.25s ease' }} onLoad={e => { (e.currentTarget as HTMLImageElement).style.opacity = '1' }} onError={() => setCoverError(true)} />
             ) : (
               <Book style={{ width: 18, height: 18, color: 'var(--muted3)' }} />
             )}
@@ -190,9 +190,10 @@ export const DashboardMangaCard = memo(function DashboardMangaCard({
         {coverSrc && !coverError ? (
           <img
             src={coverSrc}
-            alt={item.title}
-            style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s ease', display: 'block' }}
+            alt=""
+            style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'opacity 0.25s ease, transform 0.4s ease', display: 'block', opacity: 0 }}
             className="group-hover:brightness-105"
+            onLoad={e => { (e.currentTarget as HTMLImageElement).style.opacity = '1' }}
             onError={() => setCoverError(true)}
           />
         ) : (

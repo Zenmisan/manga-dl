@@ -42,6 +42,7 @@ interface MangaResult {
   status: string | null
   anilist_score?: number
   anilist_url?: string
+  type?: 'manga' | 'novel'
 }
 
 const FALLBACK_PROVIDERS = [
@@ -51,6 +52,14 @@ const FALLBACK_PROVIDERS = [
   { id: 'omegascans', name: 'Omega Scans' },
 ]
 
+const NOVEL_PROVIDER_IDS = ['royalroad', 'scribblehub', 'lightnovelworld', 'wuxiaworld']
+const NOVEL_PROVIDERS = [
+  { id: 'royalroad', name: 'Royal Road' },
+  { id: 'scribblehub', name: 'Scribble Hub' },
+  { id: 'lightnovelworld', name: 'Light Novel World' },
+  { id: 'wuxiaworld', name: 'WuxiaWorld' },
+]
+
 // ── Discovery Card ─────────────────────────────────────────────────────────
 
 function DiscoveryCard({ r, idx, navigate }: { r: MangaResult; idx: number; navigate: ReturnType<typeof useNavigate> }) {
@@ -58,6 +67,7 @@ function DiscoveryCard({ r, idx, navigate }: { r: MangaResult; idx: number; navi
   const apiBase = api.defaults.baseURL || ''
   const apiKey = localStorage.getItem('manga-api-key') || ''
   const coverSrc = r.cover_url ? `${apiBase}/manga/image-proxy?url=${encodeURIComponent(r.cover_url)}&api_key=${apiKey}` : null
+  const isNovel = r.type === 'novel' || NOVEL_PROVIDER_IDS.includes(r.provider)
 
   return (
     <motion.div
@@ -71,14 +81,20 @@ function DiscoveryCard({ r, idx, navigate }: { r: MangaResult; idx: number; navi
         {coverSrc && !coverError ? (
           <img
             src={coverSrc}
-            alt={r.title}
+            alt=""
             loading="lazy"
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'transform 0.3s ease' }}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'opacity 0.25s ease, transform 0.3s ease', opacity: 0 }}
+            onLoad={e => { (e.currentTarget as HTMLImageElement).style.opacity = '1' }}
             onError={() => setCoverError(true)}
           />
         ) : (
           <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <BookOpen style={{ width: 24, height: 24, color: 'var(--muted3)' }} />
+          </div>
+        )}
+        {isNovel && (
+          <div style={{ position: 'absolute', top: 5, left: 5, background: 'rgba(139,92,246,0.92)', backdropFilter: 'blur(6px)', padding: '2px 6px', borderRadius: 5, fontSize: 8, fontWeight: 900, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.08em', zIndex: 2 }}>
+            Novel
           </div>
         )}
         {/* Active press effect via CSS */}
@@ -115,6 +131,7 @@ function MangaCard({ r, idx, onSubscribe, subscribed, subscribing, navigate }: {
   const key = `${r.provider}:${r.id}`
   const isSubscribed = subscribed.includes(key)
   const isSubscribing = subscribing.includes(key)
+  const isNovel = r.type === 'novel' || NOVEL_PROVIDER_IDS.includes(r.provider)
   return (
     <motion.div
       layout
@@ -129,15 +146,21 @@ function MangaCard({ r, idx, onSubscribe, subscribed, subscribing, navigate }: {
         {r.cover_url && !coverError ? (
           <img
             src={`${api.defaults.baseURL || ''}/manga/image-proxy?url=${encodeURIComponent(r.cover_url)}&api_key=${localStorage.getItem('manga-api-key') || ''}`}
-            alt={r.title}
+            alt=""
             loading="lazy"
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: 0, transition: 'opacity 0.25s ease' }}
             className="group-hover:scale-105 transition-transform duration-400"
+            onLoad={e => { (e.currentTarget as HTMLImageElement).style.opacity = '1' }}
             onError={() => setCoverError(true)}
           />
         ) : (
           <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface)' }}>
             <BookOpen style={{ width: 28, height: 28, color: 'var(--muted3)' }} />
+          </div>
+        )}
+        {isNovel && (
+          <div style={{ position: 'absolute', top: 6, left: 6, background: 'rgba(139,92,246,0.92)', backdropFilter: 'blur(6px)', padding: '2px 7px', borderRadius: 6, fontSize: 8.5, fontWeight: 900, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.08em', zIndex: 2, boxShadow: '0 2px 6px rgba(0,0,0,0.3)' }}>
+            Novel
           </div>
         )}
         <div style={{ position: 'absolute', bottom: 6, left: 6, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)', padding: '2px 6px', borderRadius: 6, fontSize: 9, fontWeight: 800, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
@@ -176,9 +199,13 @@ function MangaCard({ r, idx, onSubscribe, subscribed, subscribing, navigate }: {
 // ── Main Page ──────────────────────────────────────────────────────────────
 
 export default function SearchPage() {
-  usePageTitle('Browse')
   const navigate = useNavigate()
   const { show: toast } = useToast()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const initialMode = searchParams.get('mode') === 'novel' ? 'novel' : 'manga'
+  const [searchMode, setSearchMode] = useState<'manga' | 'novel'>(initialMode)
+  usePageTitle(searchMode === 'novel' ? 'Browse Web Novels' : 'Browse Manga')
+
   const {
     searchQuery, setSearchQuery,
     searchResults, setSearchResults,
@@ -214,8 +241,6 @@ export default function SearchPage() {
   const [sourceFilters] = useState<FilterDef[]>([])
   const [activeFilters, setActiveFilters] = useState<Record<string, string>>({})
 
-  const [searchParams] = useSearchParams()
-
   // Discovery feed — per-source data, survives back-nav via module-level cache
   const [discoveryBySource, setDiscoveryBySource] = useState<Record<string, { popular: MangaResult[]; latest: MangaResult[] }>>(_discoveryBySource)
   const [discoveryLoading, setDiscoveryLoading] = useState(!_discoveryFetched)
@@ -239,35 +264,60 @@ export default function SearchPage() {
 
   const activeProviders = useMemo(() => {
     const manager = ExtensionManager.getInstance()
-    if (manager.extensions.size === 0) return FALLBACK_PROVIDERS
-    return Array.from(manager.extensions.values()).map(ext => ({ id: ext.id, name: ext.name }))
-  }, [extCount])
+    if (manager.extensions.size === 0) {
+      return searchMode === 'novel' ? NOVEL_PROVIDERS : FALLBACK_PROVIDERS
+    }
+    const all = Array.from(manager.extensions.values())
+    if (searchMode === 'novel') {
+      const novels = all
+        .filter(ext => ext.type === 'novel' || NOVEL_PROVIDER_IDS.includes(ext.id))
+        .map(ext => ({ id: ext.id, name: ext.name }))
+      return novels.length > 0 ? novels : NOVEL_PROVIDERS
+    }
+    return all
+      .filter(ext => ext.type !== 'novel' && !NOVEL_PROVIDER_IDS.includes(ext.id))
+      .map(ext => ({ id: ext.id, name: ext.name }))
+  }, [extCount, searchMode])
 
-  // Aggregate popular/latest — only enabled sources (except MangaDex), interleaved
+  // Aggregate popular/latest — interleaved
   const aggregatePopular = useMemo(() => {
+    if (searchMode === 'novel') {
+      const cols = Object.entries(discoveryBySource)
+        .filter(([id]) => NOVEL_PROVIDER_IDS.includes(id))
+        .map(([, v]) => (v.popular ?? []).map(r => ({ ...r, type: 'novel' as const })))
+      return _interleave(cols)
+    }
     const cols = Object.entries(discoveryBySource)
-      .filter(([id]) => id !== 'mangadex' && enabledSources.includes(id))
+      .filter(([id]) => id !== 'mangadex' && !NOVEL_PROVIDER_IDS.includes(id) && enabledSources.includes(id))
       .map(([, v]) => v.popular ?? [])
     return _interleave(cols)
-  }, [discoveryBySource, enabledSources])
+  }, [discoveryBySource, enabledSources, searchMode])
 
   const aggregateLatest = useMemo(() => {
+    if (searchMode === 'novel') {
+      const cols = Object.entries(discoveryBySource)
+        .filter(([id]) => NOVEL_PROVIDER_IDS.includes(id))
+        .map(([, v]) => (v.latest ?? []).map(r => ({ ...r, type: 'novel' as const })))
+      return _interleave(cols)
+    }
     const cols = Object.entries(discoveryBySource)
-      .filter(([id]) => id !== 'mangadex' && enabledSources.includes(id))
+      .filter(([id]) => id !== 'mangadex' && !NOVEL_PROVIDER_IDS.includes(id) && enabledSources.includes(id))
       .map(([, v]) => v.latest ?? [])
     return _interleave(cols)
-  }, [discoveryBySource, enabledSources])
+  }, [discoveryBySource, enabledSources, searchMode])
 
   useEffect(() => {
     if (activeProviders.length > 0) {
       if (selectedProvider && !activeProviders.some(p => p.id === selectedProvider)) setSelectedProvider(null)
-      setEnabledSources(prev => {
-        const availableIds = activeProviders.map(p => p.id)
-        const valid = prev.filter(id => availableIds.includes(id))
-        return valid.length > 0 ? valid : getEnabledSources(availableIds)
-      })
+      if (searchMode === 'manga') {
+        setEnabledSources(prev => {
+          const availableIds = activeProviders.map(p => p.id)
+          const valid = prev.filter(id => availableIds.includes(id))
+          return valid.length > 0 ? valid : getEnabledSources(availableIds)
+        })
+      }
     }
-  }, [activeProviders, selectedProvider, setSelectedProvider])
+  }, [activeProviders, selectedProvider, setSelectedProvider, searchMode])
 
   // Fetch discovery feed once on mount — stores per-source data
   useEffect(() => {
@@ -358,8 +408,26 @@ export default function SearchPage() {
     finally { setSubscribing(prev => prev.filter(k => k !== key)) }
   }
 
-  const performSearch = useCallback(async (query: string) => {
+  const handleSwitchMode = (mode: 'manga' | 'novel') => {
+    if (mode === searchMode) return
+    setSearchMode(mode)
+    setSelectedProvider(null)
+    const nextParams = new URLSearchParams(searchParams)
+    if (mode === 'novel') nextParams.set('mode', 'novel')
+    else nextParams.delete('mode')
+    setSearchParams(nextParams, { replace: true })
+    if (searchQuery.trim()) {
+      performSearch(searchQuery.trim(), mode, null)
+    } else {
+      setSearchResults([])
+      setHasSearched(false)
+    }
+  }
+
+  const performSearch = useCallback(async (query: string, overrideMode?: 'manga' | 'novel', overrideProvider?: string | null) => {
     if (!query) return
+    const mode = overrideMode ?? searchMode
+    const providerToUse = overrideProvider !== undefined ? overrideProvider : selectedProvider
     setLoading(true)
     setHasSearched(false)
     try {
@@ -367,34 +435,57 @@ export default function SearchPage() {
       if (manager.extensions.size === 0) await manager.init()
       if (manager.extensions.size === 0) { toast('No sources loaded. Check your API Key in Settings.', 'warning'); setLoading(false); return }
 
-      if (selectedProvider) {
-        const ext = manager.extensions.get(selectedProvider)
-        const results = ext ? await ext.search(query, 1) as MangaResult[] : []
-        setSearchResults(sortResultsByRelevance(results, query))
-      } else {
-        const allExts = Array.from(manager.extensions.values())
-        const targetExts = allExts.filter(ext => enabledSources.includes(ext.id))
-        const finalExts = targetExts.length > 0 ? targetExts : allExts
-
-        const settled = await Promise.allSettled(finalExts.map(ext => ext.search(query, 1) as Promise<MangaResult[]>))
-        settled.forEach((r, i) => { if (r.status === 'rejected') console.error(`[Search] ${finalExts[i].name} failed:`, r.reason) })
-        const merged = settled.flatMap(r => r.status === 'fulfilled' ? r.value : [])
-        if (merged.length === 0 && settled.some(r => r.status === 'rejected')) {
-          const firstError = settled.find(r => r.status === 'rejected') as PromiseRejectedResult
-          if (String(firstError?.reason).includes('403')) toast('Search failed (403). Check your API Key in Settings.', 'error')
+      if (mode === 'novel') {
+        if (providerToUse) {
+          const ext = manager.extensions.get(providerToUse)
+          const results = ext ? ((await ext.search(query, 1)) as MangaResult[]).map(r => ({ ...r, type: 'novel' as const })) : []
+          setSearchResults(sortResultsByRelevance(results, query))
+        } else {
+          const novelExts = Array.from(manager.extensions.values()).filter(
+            ext => ext.type === 'novel' || NOVEL_PROVIDER_IDS.includes(ext.id)
+          )
+          const targetExts = novelExts.length > 0 ? novelExts : []
+          const settled = await Promise.allSettled(targetExts.map(ext => ext.search(query, 1) as Promise<MangaResult[]>))
+          settled.forEach((r, i) => { if (r.status === 'rejected') console.error(`[Search] Novel ${targetExts[i].name} failed:`, r.reason) })
+          const merged = settled.flatMap(r => r.status === 'fulfilled' ? r.value : []).map(r => ({ ...r, type: 'novel' as const }))
+          if (merged.length === 0 && settled.some(r => r.status === 'rejected')) {
+            const firstError = settled.find(r => r.status === 'rejected') as PromiseRejectedResult
+            if (String(firstError?.reason).includes('403')) toast('Search failed (403). Check your API Key in Settings.', 'error')
+          }
+          setSearchResults(sortResultsByRelevance(merged, query))
         }
-        setSearchResults(sortResultsByRelevance(merged, query))
+      } else {
+        if (providerToUse) {
+          const ext = manager.extensions.get(providerToUse)
+          const results = ext ? await ext.search(query, 1) as MangaResult[] : []
+          setSearchResults(sortResultsByRelevance(results, query))
+        } else {
+          const allExts = Array.from(manager.extensions.values()).filter(
+            ext => ext.type !== 'novel' && !NOVEL_PROVIDER_IDS.includes(ext.id)
+          )
+          const targetExts = allExts.filter(ext => enabledSources.includes(ext.id))
+          const finalExts = targetExts.length > 0 ? targetExts : allExts
+
+          const settled = await Promise.allSettled(finalExts.map(ext => ext.search(query, 1) as Promise<MangaResult[]>))
+          settled.forEach((r, i) => { if (r.status === 'rejected') console.error(`[Search] ${finalExts[i].name} failed:`, r.reason) })
+          const merged = settled.flatMap(r => r.status === 'fulfilled' ? r.value : [])
+          if (merged.length === 0 && settled.some(r => r.status === 'rejected')) {
+            const firstError = settled.find(r => r.status === 'rejected') as PromiseRejectedResult
+            if (String(firstError?.reason).includes('403')) toast('Search failed (403). Check your API Key in Settings.', 'error')
+          }
+          setSearchResults(sortResultsByRelevance(merged, query))
+        }
       }
       setHasSearched(true)
     } catch (err) { console.error(err) }
     finally { setLoading(false) }
-  }, [selectedProvider, enabledSources, setSearchResults, setHasSearched, toast])
+  }, [searchMode, selectedProvider, enabledSources, setSearchResults, setHasSearched, toast])
 
   const isFirstSourceMount = useRef(true)
   useEffect(() => {
     if (isFirstSourceMount.current) { isFirstSourceMount.current = false; return }
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (searchQuery.trim()) performSearch(searchQuery.trim())
+    if (searchQuery.trim()) performSearch(searchQuery.trim(), searchMode, selectedProvider)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProvider, enabledSources])
 
@@ -422,14 +513,18 @@ export default function SearchPage() {
         {/* Page heading */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }} style={{ marginBottom: 20 }}>
           <h1 style={{ fontSize: 'clamp(24px, 5vw, 36px)', fontWeight: 900, color: 'var(--fg)', lineHeight: 1.1, marginBottom: 3, fontStyle: 'normal', textWrap: 'balance' }}>
-            Discover Manga
+            {searchMode === 'novel' ? 'Discover Web Novels' : 'Discover Manga'}
           </h1>
-          <p className="hidden md:block" style={{ fontSize: 13, color: 'var(--muted2)' }}>Search across multiple sources to find your next read.</p>
+          <p className="hidden md:block" style={{ fontSize: 13, color: 'var(--muted2)' }}>
+            {searchMode === 'novel'
+              ? 'Read web novels and light novels directly in your browser.'
+              : 'Search across multiple sources to find your next read.'}
+          </p>
         </motion.div>
 
         {/* ── Search bar ─────────────────────────────────────────────────── */}
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }} style={{ marginBottom: 20 }}>
-          <form onSubmit={(e) => { e.preventDefault(); performSearch(searchQuery.trim()) }}
+          <form onSubmit={(e) => { e.preventDefault(); performSearch(searchQuery.trim(), searchMode) }}
             style={{ display: 'flex', gap: 8, alignItems: 'center' }}
           >
             {/* Input container — cinema dark with blur + focus glow */}
@@ -452,7 +547,7 @@ export default function SearchPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => setSearchFocused(true)}
                 onBlur={() => setSearchFocused(false)}
-                placeholder="Search your titles"
+                placeholder={searchMode === 'novel' ? "Search web novel titles…" : "Search your titles"}
                 style={{ width: '100%', padding: '14px 48px 14px 42px', borderRadius: 18, border: 'none', background: 'transparent', fontSize: 15, color: 'var(--fg)', outline: 'none', boxSizing: 'border-box', fontWeight: 500 }}
               />
               <button
@@ -465,18 +560,20 @@ export default function SearchPage() {
               </button>
             </div>
 
-            {/* Sources modal button */}
-            <button
-              type="button"
-              onClick={() => setShowSourceModal(true)}
-              aria-label="Manage Search Sources"
-              style={{ flexShrink: 0, position: 'relative', width: 48, height: 48, borderRadius: 16, border: '1.5px solid var(--border)', background: 'var(--surface)', backdropFilter: 'blur(8px)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted2)' }}
-            >
-              <Layers style={{ width: 17, height: 17, color: 'var(--accent)' }} />
-              <span style={{ position: 'absolute', top: 5, right: 5, minWidth: 14, height: 14, borderRadius: 7, background: 'var(--accent)', color: '#fff', fontSize: 9, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
-                {enabledSources.length}
-              </span>
-            </button>
+            {/* Sources modal button (Manga only) */}
+            {searchMode === 'manga' && (
+              <button
+                type="button"
+                onClick={() => setShowSourceModal(true)}
+                aria-label="Manage Search Sources"
+                style={{ flexShrink: 0, position: 'relative', width: 48, height: 48, borderRadius: 16, border: '1.5px solid var(--border)', background: 'var(--surface)', backdropFilter: 'blur(8px)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted2)' }}
+              >
+                <Layers style={{ width: 17, height: 17, color: 'var(--accent)' }} />
+                <span style={{ position: 'absolute', top: 5, right: 5, minWidth: 14, height: 14, borderRadius: 7, background: 'var(--accent)', color: '#fff', fontSize: 9, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
+                  {enabledSources.length}
+                </span>
+              </button>
+            )}
 
             {/* View switcher */}
             <button
@@ -488,22 +585,66 @@ export default function SearchPage() {
               {searchViewMode === 'lanes' ? <LayoutGrid style={{ width: 17, height: 17 }} /> : <LayoutList style={{ width: 17, height: 17 }} />}
             </button>
 
-            {/* Filter panel */}
-            <button type="button" onClick={() => setShowFilterPanel(true)} aria-label="Search filters" aria-expanded={showFilterPanel} aria-haspopup="dialog"
-              style={{ flexShrink: 0, width: 48, height: 48, borderRadius: 16, border: `1.5px solid ${hasSearchFilters ? 'var(--accent)' : 'var(--border)'}`, background: hasSearchFilters ? 'rgba(220,38,38,0.08)' : 'var(--surface)', backdropFilter: 'blur(8px)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: hasSearchFilters ? 'var(--accent)' : 'var(--muted2)' }}
-            >
-              <SlidersHorizontal style={{ width: 17, height: 17 }} />
-            </button>
+            {/* Filter panel (Manga only) */}
+            {searchMode === 'manga' && (
+              <button type="button" onClick={() => setShowFilterPanel(true)} aria-label="Search filters" aria-expanded={showFilterPanel} aria-haspopup="dialog"
+                style={{ flexShrink: 0, width: 48, height: 48, borderRadius: 16, border: `1.5px solid ${hasSearchFilters ? 'var(--accent)' : 'var(--border)'}`, background: hasSearchFilters ? 'rgba(220,38,38,0.08)' : 'var(--surface)', backdropFilter: 'blur(8px)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: hasSearchFilters ? 'var(--accent)' : 'var(--muted2)' }}
+              >
+                <SlidersHorizontal style={{ width: 17, height: 17 }} />
+              </button>
+            )}
           </form>
 
-          {/* Source filter pills — only visible when results are showing */}
+          {/* Media Type Switcher: Manga vs Web Novels */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
+            <button
+              type="button"
+              onClick={() => handleSwitchMode('manga')}
+              aria-pressed={searchMode === 'manga'}
+              className={cn('filter-pill flex items-center gap-1.5 transition-all', searchMode === 'manga' && 'active')}
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                padding: '6px 14px',
+                borderRadius: 20,
+                background: searchMode === 'manga' ? 'var(--accent)' : 'var(--surface)',
+                color: searchMode === 'manga' ? '#fff' : 'var(--muted2)',
+                border: `1px solid ${searchMode === 'manga' ? 'var(--accent)' : 'var(--border)'}`,
+              }}
+            >
+              <BookOpen style={{ width: 13, height: 13 }} />
+              <span>Manga</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSwitchMode('novel')}
+              aria-pressed={searchMode === 'novel'}
+              className={cn('filter-pill flex items-center gap-1.5 transition-all', searchMode === 'novel' && 'active')}
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                padding: '6px 14px',
+                borderRadius: 20,
+                background: searchMode === 'novel' ? 'var(--accent)' : 'var(--surface)',
+                color: searchMode === 'novel' ? '#fff' : 'var(--muted2)',
+                border: `1px solid ${searchMode === 'novel' ? 'var(--accent)' : 'var(--border)'}`,
+              }}
+            >
+              <BookMarked style={{ width: 13, height: 13 }} />
+              <span>Web Novels</span>
+            </button>
+          </div>
+
+          {/* Source filter pills — only visible when results are showing or query entered */}
           {(hasSearched || searchQuery.trim()) && activeProviders.length > 0 && (() => {
-            const visibleProviders = activeProviders.filter(p => enabledSources.includes(p.id))
+            const visibleProviders = searchMode === 'novel'
+              ? activeProviders
+              : activeProviders.filter(p => enabledSources.includes(p.id))
             const DEFAULT_VISIBLE = 4
             const shown = visibleProviders.slice(0, DEFAULT_VISIBLE)
             const hidden = visibleProviders.slice(DEFAULT_VISIBLE)
             return (
-              <div style={{ display: 'flex', gap: 6, overflowX: 'auto', flexWrap: 'nowrap', marginTop: 12, paddingBottom: 4, WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
+              <div style={{ display: 'flex', gap: 6, overflowX: 'auto', flexWrap: 'nowrap', marginTop: 10, paddingBottom: 4, WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
                 <button onClick={() => setSelectedProvider(null)} aria-pressed={!selectedProvider} className={cn('filter-pill', !selectedProvider && 'active')} style={{ flexShrink: 0 }}>All</button>
                 {shown.map(p => (
                   <button key={p.id} onClick={() => setSelectedProvider(p.id)} aria-pressed={selectedProvider === p.id} className={cn('filter-pill', selectedProvider === p.id && 'active')} style={{ textTransform: 'uppercase', fontSize: 11, flexShrink: 0 }}>
@@ -529,42 +670,44 @@ export default function SearchPage() {
         {/* ── Discovery Feed (idle state) ─────────────────────────────── */}
         {isIdle && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}>
-            {/* Aggregate rows — all sources except MangaDex */}
+            {/* Aggregate rows */}
             <DiscoverySwimlane
-              title="Popular Now"
+              title={searchMode === 'novel' ? "Popular Web Novels" : "Popular Now"}
               items={aggregatePopular}
               loading={discoveryLoading}
-              browseHref="/browse/popular"
+              browseHref={searchMode === 'novel' ? undefined : "/browse/popular"}
               renderCard={(r, i) => (
                 <DiscoveryCard key={`${r.provider}:${r.id}`} r={r} idx={i} navigate={navigate} />
               )}
             />
             <DiscoverySwimlane
-              title="Latest Updates"
+              title={searchMode === 'novel' ? "Latest Web Novels" : "Latest Updates"}
               items={aggregateLatest}
               loading={discoveryLoading}
-              browseHref="/browse/latest"
+              browseHref={searchMode === 'novel' ? undefined : "/browse/latest"}
               renderCard={(r, i) => (
                 <DiscoveryCard key={`${r.provider}:${r.id}`} r={r} idx={i} navigate={navigate} />
               )}
             />
-            {/* Per-source swimlanes — one per installed source that has data */}
-            {activeProviders.filter(p => enabledSources.includes(p.id)).map(source => {
-              const data = discoveryBySource[source.id]
-              const hasData = (data?.popular?.length ?? 0) > 0
-              if (!hasData && !discoveryLoading) return null
-              return (
-                <DiscoverySwimlane
-                  key={source.id}
-                  title={source.name}
-                  items={data?.popular ?? []}
-                  loading={discoveryLoading && !data}
-                  browseHref={`/browse/source/${source.id}`}
-                  renderCard={(r, i) => (
-                    <DiscoveryCard key={`${r.provider}:${r.id}`} r={r} idx={i} navigate={navigate} />
-                  )}
-                />
-              )
+            {/* Per-source swimlanes */}
+            {activeProviders
+              .filter(p => searchMode === 'novel' ? true : enabledSources.includes(p.id))
+              .map(source => {
+                const data = discoveryBySource[source.id]
+                const hasData = (data?.popular?.length ?? 0) > 0
+                if (!hasData && !discoveryLoading) return null
+                return (
+                  <DiscoverySwimlane
+                    key={source.id}
+                    title={source.name}
+                    items={(data?.popular ?? []).map(r => searchMode === 'novel' ? { ...r, type: 'novel' as const } : r)}
+                    loading={discoveryLoading && !data}
+                    browseHref={searchMode === 'novel' ? undefined : `/browse/source/${source.id}`}
+                    renderCard={(r, i) => (
+                      <DiscoveryCard key={`${r.provider}:${r.id}`} r={r} idx={i} navigate={navigate} />
+                    )}
+                  />
+                )
             })}
           </motion.div>
         )}

@@ -36,9 +36,10 @@ function BrowseCard({ r, idx, navigate }: { r: MangaResult; idx: number; navigat
         {coverSrc && !coverError ? (
           <img
             src={coverSrc}
-            alt={r.title}
+            alt=""
             loading="lazy"
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: 0, transition: 'opacity 0.25s ease' }}
+            onLoad={e => { (e.currentTarget as HTMLImageElement).style.opacity = '1' }}
             onError={() => setCoverError(true)}
           />
         ) : (

@@ -16,7 +16,7 @@ interface DiscoverySwimlaneProps {
   title: string
   items: MangaResult[]
   loading?: boolean
-  browseHref: string
+  browseHref?: string
   renderCard: (r: MangaResult, idx: number) => React.ReactNode
 }
 
@@ -80,7 +80,7 @@ export function DiscoverySwimlane({ title, items, loading, browseHref, renderCar
       {/* Row header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, padding: '0 2px' }}>
         <h2 style={{ fontSize: 15, fontWeight: 800, color: 'var(--fg)', lineHeight: 1.2, margin: 0 }}>{title}</h2>
-        {showBrowse && (
+        {showBrowse && browseHref && (
           <motion.button
             initial={{ opacity: 0, x: 6 }}
             animate={{ opacity: 1, x: 0 }}
