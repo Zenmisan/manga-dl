@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, BookOpen } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { ArrowLeft, BookOpen, Search as SearchIcon, X } from 'lucide-react'
 import { motion } from 'framer-motion'
 import api from '../lib/api'
 import { ExtensionManager } from '../lib/extensions'
@@ -145,94 +145,218 @@ function AggregateBrowse({ isPopular }: { isPopular: boolean }) {
   )
 }
 
-// ── Per-source browse ─────────────────────────────────────────────────────────
+// ── Per-source browse (Tachiyomi-style) ──────────────────────────────────────
 
-function SourceBrowse({ sourceId }: { sourceId: string }) {
+type BrowseMode = 'popular' | 'latest' | 'search'
+
+function SourceBrowse({ sourceId, onNameResolved }: { sourceId: string; onNameResolved: (name: string) => void }) {
   const navigate = useNavigate()
-  const [tab, setTab] = useState<'popular' | 'latest'>('popular')
-  const [popular, setPopular] = useState<MangaResult[]>([])
-  const [latest, setLatest] = useState<MangaResult[]>([])
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  const initialMode = (searchParams.get('listing') as BrowseMode | null) ?? 'popular'
+  const [mode, setMode] = useState<BrowseMode>(initialMode)
+  const [searchInput, setSearchInput] = useState('')
+  const [activeQuery, setActiveQuery] = useState('')
+  const [items, setItems] = useState<MangaResult[]>([])
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
 
+  // Refs so callbacks read current values without stale closure issues
+  const modeRef = useRef<BrowseMode>(mode)
+  const queryRef = useRef(activeQuery)
+  const fetchCountRef = useRef(0) // cancels stale fetches on mode/query change
+  const sentinelRef = useRef<HTMLDivElement>(null)
+  const extRef = useRef<ReturnType<typeof ExtensionManager.prototype.extensions.get>>(undefined)
+
+  // Init extension once
   useEffect(() => {
-    const run = async () => {
-      setLoading(true)
-      const manager = ExtensionManager.getInstance()
+    const manager = ExtensionManager.getInstance()
+    const init = async () => {
       if (manager.extensions.size === 0) await manager.init()
-
-      // Try backend cache first
-      const data: DiscoveryResponse = await api
-        .get(`/sources/discovery?providers=${sourceId}`)
-        .then(r => r.data as DiscoveryResponse)
-        .catch(() => ({} as DiscoveryResponse))
-
-      const cached = data[sourceId]
-      const hasCachedPopular = (cached?.popular?.length ?? 0) > 0
-      const hasCachedLatest = (cached?.latest?.length ?? 0) > 0
-
-      if (hasCachedPopular) setPopular(cached.popular)
-      if (hasCachedLatest) setLatest(cached.latest)
-
-      // Fall back to browser-side extension for uncovered sources
       const ext = manager.extensions.get(sourceId)
-      if (ext) {
-        const fetches: Promise<void>[] = []
-        if (!hasCachedPopular && ext.getPopular) {
-          fetches.push(
-            (ext.getPopular(1) as Promise<MangaResult[]>)
-              .then(r => setPopular(r))
-              .catch(() => {})
-          )
-        }
-        if (!hasCachedLatest && ext.getLatest) {
-          fetches.push(
-            (ext.getLatest(1) as Promise<MangaResult[]>)
-              .then(r => setLatest(r))
-              .catch(() => {})
-          )
-        }
-        await Promise.all(fetches)
-      }
-
-      setLoading(false)
+      extRef.current = ext
+      if (ext) onNameResolved(ext.name)
     }
-    run()
+    init()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sourceId])
 
-  const items = tab === 'popular' ? popular : latest
+  const fetchPage = useCallback(async (targetPage: number, isReset: boolean) => {
+    const fetchId = ++fetchCountRef.current
+    const currentMode = modeRef.current
+    const currentQuery = queryRef.current
+
+    if (isReset) { setLoading(true); setItems([]) }
+    else setLoadingMore(true)
+
+    try {
+      const manager = ExtensionManager.getInstance()
+      if (manager.extensions.size === 0) await manager.init()
+      const ext = manager.extensions.get(sourceId)
+      if (!ext || fetchCountRef.current !== fetchId) return
+
+      let results: MangaResult[]
+      if (currentMode === 'search') {
+        results = (await (ext.search(currentQuery, targetPage) as Promise<MangaResult[]>))
+      } else if (currentMode === 'latest') {
+        results = ext.getLatest
+          ? (await (ext.getLatest(targetPage) as Promise<MangaResult[]>))
+          : []
+      } else {
+        results = ext.getPopular
+          ? (await (ext.getPopular(targetPage) as Promise<MangaResult[]>))
+          : []
+      }
+
+      if (fetchCountRef.current !== fetchId) return
+
+      setHasMore(results.length >= 16)
+      setPage(targetPage)
+      setItems(prev => isReset ? results : [...prev, ...results])
+    } catch (err) {
+      console.error('[Browse] fetch failed:', err)
+    } finally {
+      if (fetchCountRef.current === fetchId) {
+        setLoading(false)
+        setLoadingMore(false)
+      }
+    }
+  }, [sourceId])
+
+  // Refetch when mode / activeQuery changes
+  useEffect(() => {
+    modeRef.current = mode
+    queryRef.current = activeQuery
+    setHasMore(true)
+    fetchPage(1, true)
+  // fetchPage is stable (useCallback with only sourceId dep)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, activeQuery])
+
+  // Infinite scroll sentinel
+  useEffect(() => {
+    const sentinel = sentinelRef.current
+    if (!sentinel) return
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && hasMore && !loading && !loadingMore) {
+          fetchPage(page + 1, false)
+        }
+      },
+      { rootMargin: '300px' }
+    )
+    obs.observe(sentinel)
+    return () => obs.disconnect()
+  }, [hasMore, loading, loadingMore, page, fetchPage])
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    const q = searchInput.trim()
+    if (!q) return
+    setActiveQuery(q)
+    setMode('search')
+  }
+
+  const switchMode = (next: 'popular' | 'latest') => {
+    setSearchInput('')
+    setActiveQuery('')
+    setMode(next)
+    setSearchParams(next === 'latest' ? { listing: 'latest' } : {}, { replace: true })
+  }
+
+  const clearSearch = () => {
+    setSearchInput('')
+    setActiveQuery('')
+    setMode('popular')
+    setSearchParams({}, { replace: true })
+  }
+
   const GRID = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 16 } as const
 
   return (
     <>
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-        {(['popular', 'latest'] as const).map(t => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
+      {/* Inline search bar */}
+      <form onSubmit={handleSearch} style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+        <div style={{ flex: 1, position: 'relative' }}>
+          <SearchIcon style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', width: 14, height: 14, color: 'var(--muted3)', pointerEvents: 'none' }} />
+          <input
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
+            placeholder="Search this source…"
             style={{
-              padding: '6px 16px', borderRadius: 20, border: 'none', cursor: 'pointer',
-              fontSize: 12, fontWeight: 800, textTransform: 'capitalize',
-              background: tab === t ? 'var(--accent)' : 'var(--surface)',
-              color: tab === t ? '#fff' : 'var(--muted2)',
-              transition: 'all 0.15s',
+              width: '100%', padding: '9px 12px 9px 32px', borderRadius: 10,
+              border: '1px solid var(--border)', background: 'var(--surface)',
+              color: 'var(--fg)', fontSize: 13, outline: 'none', boxSizing: 'border-box',
             }}
-          >
-            {t === 'popular' ? 'Popular' : 'Latest'}
-          </button>
-        ))}
+          />
+          {searchInput && (
+            <button type="button" onClick={() => setSearchInput('')}
+              style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted3)', padding: 2, display: 'flex' }}>
+              <X style={{ width: 13, height: 13 }} />
+            </button>
+          )}
+        </div>
+        <button type="submit"
+          style={{ padding: '9px 16px', borderRadius: 10, background: 'var(--accent)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 800, flexShrink: 0 }}>
+          Search
+        </button>
+      </form>
+
+      {/* Mode chips — Popular / Latest (hidden while in search) */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 18, alignItems: 'center' }}>
+        {mode === 'search' ? (
+          <>
+            <span style={{ fontSize: 12, color: 'var(--muted2)' }}>Results for <strong style={{ color: 'var(--fg)' }}>"{activeQuery}"</strong></span>
+            <button onClick={clearSearch}
+              style={{ marginLeft: 6, padding: '3px 10px', borderRadius: 20, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--muted2)', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+              Clear
+            </button>
+          </>
+        ) : (
+          (['popular', 'latest'] as const).map(t => (
+            <button key={t} onClick={() => switchMode(t)}
+              style={{
+                padding: '5px 16px', borderRadius: 20, border: 'none', cursor: 'pointer',
+                fontSize: 12, fontWeight: 800, textTransform: 'capitalize',
+                background: mode === t ? 'var(--accent)' : 'var(--surface)',
+                color: mode === t ? '#fff' : 'var(--muted2)',
+                transition: 'background 0.15s, color 0.15s',
+              }}>
+              {t === 'popular' ? 'Popular' : 'Latest'}
+            </button>
+          ))
+        )}
       </div>
 
+      {/* Content */}
       {loading ? (
         <div style={GRID}>{Array.from({ length: 20 }).map((_, i) => <SkeletonCard key={i} />)}</div>
-      ) : items.length > 0 ? (
-        <div style={GRID}>
-          {items.map((r, i) => <BrowseCard key={`${r.provider}:${r.id}`} r={r} idx={i} navigate={navigate} />)}
+      ) : items.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '80px 24px', color: 'var(--muted2)', fontSize: 14 }}>
+          {mode === 'search' ? `No results for "${activeQuery}"` : 'No results — source may not support this listing.'}
         </div>
       ) : (
-        <div style={{ textAlign: 'center', padding: '80px 24px', color: 'var(--muted2)', fontSize: 14 }}>
-          No results — source may not support this list.
-        </div>
+        <>
+          <div style={GRID}>
+            {items.map((r, i) => (
+              <BrowseCard key={`${r.provider}:${r.id}:${i}`} r={r} idx={i % 20} navigate={navigate} />
+            ))}
+          </div>
+          {loadingMore && (
+            <div style={{ ...GRID, marginTop: 16 }}>
+              {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)}
+            </div>
+          )}
+          {/* Sentinel for infinite scroll */}
+          <div ref={sentinelRef} style={{ height: 1, marginTop: 8 }} />
+          {!hasMore && items.length > 0 && (
+            <p style={{ textAlign: 'center', fontSize: 11, color: 'var(--muted3)', marginTop: 24, paddingBottom: 8 }}>
+              End of catalogue
+            </p>
+          )}
+        </>
       )}
     </>
   )
@@ -243,11 +367,17 @@ function SourceBrowse({ sourceId }: { sourceId: string }) {
 export default function BrowsePage() {
   const { category, sourceId } = useParams<{ category?: string; sourceId?: string }>()
   const navigate = useNavigate()
+  const [resolvedSourceName, setResolvedSourceName] = useState<string | null>(null)
 
   const isSourceMode = !!sourceId
   const isPopular = !isSourceMode && category !== 'latest'
-  const pageTitle = isSourceMode
+
+  // For source mode: show resolved name; fall back to prettified slug while loading
+  const slugTitle = sourceId
     ? sourceId.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+    : null
+  const pageTitle = isSourceMode
+    ? (resolvedSourceName ?? slugTitle ?? sourceId!)
     : isPopular ? 'Popular Now' : 'Latest Updates'
 
   usePageTitle(pageTitle)
@@ -255,7 +385,7 @@ export default function BrowsePage() {
   return (
     <div className="min-h-full flex flex-col">
       <div className="px-4 md:px-6 pt-5 pb-28 flex-1">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
           <button
             onClick={() => navigate(-1)}
             aria-label="Go back"
@@ -267,7 +397,7 @@ export default function BrowsePage() {
         </div>
 
         {isSourceMode
-          ? <SourceBrowse sourceId={sourceId} />
+          ? <SourceBrowse sourceId={sourceId!} onNameResolved={setResolvedSourceName} />
           : <AggregateBrowse isPopular={isPopular} />
         }
       </div>

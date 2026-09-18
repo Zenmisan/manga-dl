@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useBuiltinSources, useMarketSources } from '../lib/queries'
-import { Download, Search, ShieldAlert, Trash2, RefreshCw, PowerOff, Power, Zap, X, EyeOff, Plus, Link2 } from 'lucide-react'
+import { Download, Search, ShieldAlert, Trash2, RefreshCw, PowerOff, Power, Zap, X, EyeOff, Plus, Link2, ChevronRight } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ThemedSpinner } from '../components/common/ThemedLoader'
 import { cn } from '../lib/utils'
@@ -60,6 +61,7 @@ function saveInstalledMeta(list: InstalledMeta[]) {
 
 export default function SourcesPage() {
   usePageTitle('Sources')
+  const navigate = useNavigate()
   const { data: rawSources = [], isLoading: loading } = useMarketSources()
   const sources = rawSources as Source[]
   const { data: builtinsRaw = [] } = useBuiltinSources()
@@ -414,7 +416,11 @@ export default function SourcesPage() {
               {activeInstalled.map((m) => {
                 const src = sources.find(s => s.id === m.id)
                 return (
-                  <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 14px', borderRadius: 14, border: '1px solid var(--border)', background: 'var(--surface)', marginBottom: 4 }}>
+                  <button
+                    key={m.id}
+                    onClick={() => navigate(`/browse/source/${m.id}`)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 14px', borderRadius: 14, border: '1px solid var(--border)', background: 'var(--surface)', marginBottom: 4, width: '100%', textAlign: 'left', cursor: 'pointer' }}
+                  >
                     <div style={{ width: 42, height: 42, borderRadius: 12, overflow: 'hidden', flexShrink: 0, background: 'var(--surface-hover)', border: '1px solid var(--border)', padding: 6, boxSizing: 'border-box' }}>
                       {src?.icon ? (
                         <img src={src.icon} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} onError={e => { (e.target as HTMLImageElement).src = FALLBACK_ICON }} />
@@ -427,7 +433,7 @@ export default function SourcesPage() {
                       <div style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted3)', marginTop: 2 }}>{m.lang} · v{m.version}</div>
                     </div>
                     <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'rgb(74,222,128)', flexShrink: 0 }} />
-                  </div>
+                  </button>
                 )
               })}
             </div>
@@ -454,17 +460,25 @@ export default function SourcesPage() {
                         const isDisabled = disabledIds.includes(s.id)
                         return (
                           <motion.div key={s.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 14px', borderRadius: 14, border: '1px solid var(--border)', background: 'var(--surface)', opacity: isDisabled ? 0.5 : 1 }}>
-                            <div style={{ width: 42, height: 42, borderRadius: 12, overflow: 'hidden', flexShrink: 0, background: 'var(--surface-hover)', border: '1px solid var(--border)', padding: 6, boxSizing: 'border-box' }}>
-                              <img src={s.icon} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} onError={e => { (e.target as HTMLImageElement).src = FALLBACK_ICON }} />
-                            </div>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                <span style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
-                                <span aria-hidden="true" style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', padding: '2px 6px', borderRadius: 5, background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.2)', color: '#ef4444', flexShrink: 0 }}>built-in</span>
-                                {s.nsfw && <NsfwBadge />}
+                            {/* Clickable area → browse source catalogue */}
+                            <button
+                              onClick={() => navigate(`/browse/source/${s.id}`)}
+                              style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1, minWidth: 0, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0 }}
+                              title={`Browse ${s.name}`}
+                            >
+                              <div style={{ width: 42, height: 42, borderRadius: 12, overflow: 'hidden', flexShrink: 0, background: 'var(--surface-hover)', border: '1px solid var(--border)', padding: 6, boxSizing: 'border-box' }}>
+                                <img src={s.icon} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} onError={e => { (e.target as HTMLImageElement).src = FALLBACK_ICON }} />
                               </div>
-                              <div style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted3)', marginTop: 2 }}>{s.lang} · v{s.version}{isDisabled ? ' · deactivated' : ''}</div>
-                            </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <span style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
+                                  <span aria-hidden="true" style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', padding: '2px 6px', borderRadius: 5, background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.2)', color: '#ef4444', flexShrink: 0 }}>built-in</span>
+                                  {s.nsfw && <NsfwBadge />}
+                                </div>
+                                <div style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted3)', marginTop: 2 }}>{s.lang} · v{s.version}{isDisabled ? ' · deactivated' : ''}</div>
+                              </div>
+                              <ChevronRight style={{ width: 14, height: 14, color: 'var(--muted3)', flexShrink: 0 }} />
+                            </button>
                             <button
                               onClick={() => handleToggleDisable(s.id)}
                               aria-label={isDisabled ? `Activate ${s.name}` : `Deactivate ${s.name}`}
@@ -495,17 +509,25 @@ export default function SourcesPage() {
                         const isConfirmingUninstall = confirmUninstall === s.id
                         return (
                           <motion.div key={s.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 14px', borderRadius: 14, border: '1px solid var(--border)', background: 'var(--surface)', opacity: isDisabled ? 0.5 : 1 }}>
-                            <div style={{ width: 42, height: 42, borderRadius: 12, overflow: 'hidden', flexShrink: 0, background: 'var(--surface-hover)', border: '1px solid var(--border)', padding: 6, boxSizing: 'border-box' }}>
-                              <img src={s.icon} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} onError={e => { (e.target as HTMLImageElement).src = FALLBACK_ICON }} />
-                            </div>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                <span style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
-                                {hasUpdate && <span aria-hidden="true" style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', padding: '2px 6px', borderRadius: 5, background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.25)', color: 'rgb(251,191,36)', flexShrink: 0 }}>Update</span>}
-                                {s.nsfw && <NsfwBadge />}
+                            {/* Clickable area → browse source catalogue */}
+                            <button
+                              onClick={() => navigate(`/browse/source/${s.id}`)}
+                              style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1, minWidth: 0, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0 }}
+                              title={`Browse ${s.name}`}
+                            >
+                              <div style={{ width: 42, height: 42, borderRadius: 12, overflow: 'hidden', flexShrink: 0, background: 'var(--surface-hover)', border: '1px solid var(--border)', padding: 6, boxSizing: 'border-box' }}>
+                                <img src={s.icon} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} onError={e => { (e.target as HTMLImageElement).src = FALLBACK_ICON }} />
                               </div>
-                              <div style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted3)', marginTop: 2 }}>{s.lang} · v{s.version}{isDisabled ? ' · disabled' : ''}</div>
-                            </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <span style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
+                                  {hasUpdate && <span aria-hidden="true" style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', padding: '2px 6px', borderRadius: 5, background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.25)', color: 'rgb(251,191,36)', flexShrink: 0 }}>Update</span>}
+                                  {s.nsfw && <NsfwBadge />}
+                                </div>
+                                <div style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted3)', marginTop: 2 }}>{s.lang} · v{s.version}{isDisabled ? ' · disabled' : ''}</div>
+                              </div>
+                              <ChevronRight style={{ width: 14, height: 14, color: 'var(--muted3)', flexShrink: 0 }} />
+                            </button>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                               {isConfirmingUninstall ? (
                                 <>
