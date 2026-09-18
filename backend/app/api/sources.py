@@ -116,7 +116,6 @@ async def get_extension_code(pkg_id: str, request: Request):
             return Response(status_code=304, headers={"ETag": etag, "Cache-Control": "public, max-age=86400"})
         return JSONResponse(content=res, headers={"Cache-Control": "public, max-age=86400", "ETag": etag})
     raise HTTPException(status_code=404, detail="Extension code not found")
-    raise HTTPException(status_code=404, detail="Extension code not found")
 
 
 class KomgaConfig(BaseModel):

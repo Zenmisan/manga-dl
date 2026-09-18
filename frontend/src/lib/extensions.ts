@@ -74,10 +74,26 @@ export const NOVEL_EXTENSION_IDS = new Set([
   'wuxiaworld',
 ])
 
+function getInitialUserId(): string {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)
+      if (k && k.startsWith('sb-') && k.endsWith('-auth-token')) {
+        const item = localStorage.getItem(k)
+        if (item) {
+          const parsed = JSON.parse(item)
+          if (parsed?.user?.id) return parsed.user.id
+        }
+      }
+    }
+  } catch {}
+  return 'guest'
+}
+
 export class ExtensionManager {
   private static instance: ExtensionManager
   public extensions: Map<string, MangaExtension> = new Map()
-  private userId = 'guest'
+  private userId = getInitialUserId()
   private builtinIds = new Set<string>()
 
   private constructor() {}
@@ -87,7 +103,7 @@ export class ExtensionManager {
     return this.instance
   }
 
-  private get storageKey() {
+  public get storageKey() {
     return `extensions-${this.userId}`
   }
 
@@ -379,14 +395,14 @@ export class ExtensionManager {
     if (installed.length !== rawInstalled.length) {
       localStorage.setItem(this.storageKey, JSON.stringify(installed))
     }
-    for (const ext of installed) {
+    await Promise.all(installed.map(async ext => {
       if (ext.disabled) {
         this.extensions.delete(ext.id)
-        continue
+        return
       }
       if (!this.extensions.has(ext.id)) {
         await this.install(ext.id, ext.name, ext.lang, ext.version, true)
       }
-    }
+    }))
   }
 }

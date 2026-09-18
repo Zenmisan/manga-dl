@@ -126,7 +126,18 @@ export function useLibraryStats() {
 export function useBuiltinSources() {
   return useQuery<unknown>({
     queryKey: QK.sources,
-    queryFn: () => api.get('/sources/builtins').then(r => r.data),
+    queryFn: async () => {
+      const res = await api.get('/sources/builtins')
+      try { localStorage.setItem('cache:sources:builtins', JSON.stringify(res.data)) } catch {}
+      return res.data
+    },
+    initialData: () => {
+      try {
+        const raw = localStorage.getItem('cache:sources:builtins')
+        if (raw) return JSON.parse(raw)
+      } catch {}
+      return undefined
+    },
     staleTime: STALE.sources,
   })
 }
@@ -134,7 +145,18 @@ export function useBuiltinSources() {
 export function useMarketSources() {
   return useQuery<unknown>({
     queryKey: QK.sourcesMarket,
-    queryFn: () => api.get('/sources/market').then(r => r.data),
+    queryFn: async () => {
+      const res = await api.get('/sources/market')
+      try { localStorage.setItem('cache:sources:market', JSON.stringify(res.data)) } catch {}
+      return res.data
+    },
+    initialData: () => {
+      try {
+        const raw = localStorage.getItem('cache:sources:market')
+        if (raw) return JSON.parse(raw)
+      } catch {}
+      return undefined
+    },
     staleTime: STALE.sourcesMarket,
   })
 }
