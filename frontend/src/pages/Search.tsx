@@ -829,7 +829,7 @@ export default function SearchPage() {
                   {Object.keys(searchResults.reduce<Record<string, MangaResult[]>>((acc, r) => { ;(acc[r.provider] ??= []).push(r); return acc }, {})).length > 1 && (
                     <SourceSwimlane title="Top Matches" isTopMatches count={Math.min(searchResults.length, 10)}>
                       {searchResults.slice(0, 10).map((r, idx) => (
-                        <div key={'top-' + r.id + r.provider} className="w-[140px] sm:w-[155px] min-w-[140px] sm:min-w-[155px] shrink-0 snap-start">
+                        <div key={'top-' + r.id + r.provider} className="w-35 sm:w-38.75 min-w-35 sm:min-w-38.75 shrink-0 snap-start">
                           <MangaCard r={r} idx={idx} onSubscribe={handleSubscribe} subscribed={subscribed} subscribing={subscribing} navigate={navigate} />
                         </div>
                       ))}
@@ -846,7 +846,7 @@ export default function SearchPage() {
                         onViewAll={() => setSelectedProvider(provider)}
                       >
                         {results.map((r, idx) => (
-                          <div key={r.id + r.provider} className="w-[140px] sm:w-[155px] min-w-[140px] sm:min-w-[155px] shrink-0 snap-start">
+                          <div key={r.id + r.provider} className="w-35 sm:w-38.75 min-w-35 sm:min-w-38.75 shrink-0 snap-start">
                             <MangaCard r={r} idx={idx} onSubscribe={handleSubscribe} subscribed={subscribed} subscribing={subscribing} navigate={navigate} />
                           </div>
                         ))}
@@ -880,7 +880,7 @@ export default function SearchPage() {
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 300 }}
               style={{ position: 'fixed', bottom: 76, left: 0, right: 0, background: 'var(--bg)', borderTop: '1px solid var(--border)', borderRadius: '20px 20px 0 0', zIndex: 50, maxHeight: 'calc(85vh - 76px)', display: 'flex', flexDirection: 'column' }}
-              className="md:!bottom-0 md:!max-h-[85vh]"
+              className="md:bottom-0! md:max-h-[85vh]!"
             >
               <div style={{ overflowY: 'auto', flex: 1, padding: '0 20px' }}>
                 <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 16px' }}>
