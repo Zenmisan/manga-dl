@@ -613,7 +613,7 @@ export default function SourcesPage() {
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                               <span style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
-                              {s.customRepo && <span aria-hidden="true" style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', padding: '2px 6px', borderRadius: 5, background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.25)', color: 'rgb(139,92,246)', flexShrink: 0 }}>custom</span>}
+                              {'customRepo' in s && s.customRepo && <span aria-hidden="true" style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', padding: '2px 6px', borderRadius: 5, background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.25)', color: 'rgb(139,92,246)', flexShrink: 0 }}>custom</span>}
                               {s.nsfw && <NsfwBadge />}
                             </div>
                             <div style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted3)', marginTop: 2 }}>{s.lang} · v{s.version}</div>

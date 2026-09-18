@@ -494,6 +494,9 @@ export default function SearchPage() {
 
       // AniList alt-title variants (manga mode only, fires in parallel, adds zero wait)
       let anilistVariants: string[] = []
+      // Accumulator for streaming results — needed because setSearchResults is not a state setter
+      const acc: MangaResult[] = []
+
       if (mode !== 'novel') {
         ;(async () => {
           try {
@@ -517,10 +520,12 @@ export default function SearchPage() {
             ].filter(Boolean) as string[]
             if (variants.length === 0) return
             anilistVariants = variants
-            // Re-sort whatever results exist with the richer variant set
-            setSearchResults(prev =>
-              prev.length > 0 ? sortResultsByRelevance(prev, query, anilistVariants) : prev
-            )
+            // Re-sort accumulated results with the richer variant set
+            if (acc.length > 0 && searchIdRef.current === searchId) {
+              const resorted = sortResultsByRelevance(acc, query, anilistVariants)
+              acc.splice(0, acc.length, ...resorted)
+              setSearchResults(resorted)
+            }
           } catch {
             // AniList failure is silent — doesn't degrade search quality
           }
@@ -535,9 +540,9 @@ export default function SearchPage() {
         if (searchIdRef.current !== searchId) return
         remaining--
         if (newResults.length > 0) {
-          setSearchResults(prev =>
-            sortResultsByRelevance([...prev, ...newResults], query, anilistVariants)
-          )
+          const merged = sortResultsByRelevance([...acc, ...newResults], query, anilistVariants)
+          acc.splice(0, acc.length, ...merged)
+          setSearchResults(merged)
         }
         if (remaining === 0) {
           setLoading(false)
