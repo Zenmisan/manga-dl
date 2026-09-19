@@ -1,10 +1,11 @@
 import logging
 from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete, func, distinct
+from sqlalchemy import select, delete, func, distinct, or_
 
 from app.models.reading_progress import ReadingProgress
 from app.models.manga_override import MangaOverride
+from app.models.profiles import UserProfile
 
 log = logging.getLogger(__name__)
 
@@ -156,15 +157,43 @@ async def fetch_user_reading_stats(user_id: str, db: AsyncSession) -> dict:
     }
 
 
-async def fetch_public_user_profile(user_id: str, db: AsyncSession) -> dict:
-    """Fetch publicly shareable profile data."""
+async def fetch_public_user_profile(identifier: str, db: AsyncSession) -> dict:
+    """Fetch publicly shareable profile data by user_id or username."""
+    profile = None
+    try:
+        res = await db.execute(select(UserProfile).where(UserProfile.user_id == identifier))
+        profile = res.scalar_one_or_none()
+        if not profile:
+            res = await db.execute(select(UserProfile).where(func.lower(UserProfile.username) == identifier.lower()))
+            profile = res.scalar_one_or_none()
+    except Exception as exc:
+        log.warning("UserProfile lookup failed (%s)", exc)
+
+    if profile:
+        target_user_id = profile.user_id
+        username = profile.username
+        display_name = profile.display_name or profile.username
+        bio = getattr(profile, "bio", None) or ""
+        avatar_url = getattr(profile, "avatar_url", None) or ""
+    else:
+        target_user_id = identifier
+        username = identifier if len(identifier) <= 30 and "-" not in identifier else None
+        display_name = username or f"Reader #{identifier[:8].upper()}"
+        bio = ""
+        avatar_url = ""
+
+    user_cond = or_(
+        ReadingProgress.user_id == target_user_id,
+        ReadingProgress.user_id == identifier,
+    ) if target_user_id != identifier else (ReadingProgress.user_id == target_user_id)
+
     chapters_read = await db.scalar(
-        select(func.count()).select_from(ReadingProgress).where(ReadingProgress.user_id == user_id)
+        select(func.count()).select_from(ReadingProgress).where(user_cond)
     ) or 0
 
     manga_result = await db.execute(
         select(ReadingProgress.manga_id, ReadingProgress.provider, ReadingProgress.manga_title)
-        .where(ReadingProgress.user_id == user_id)
+        .where(user_cond)
         .distinct()
     )
     manga_rows = manga_result.all()
@@ -172,7 +201,7 @@ async def fetch_public_user_profile(user_id: str, db: AsyncSession) -> dict:
 
     recent_result = await db.execute(
         select(ReadingProgress)
-        .where(ReadingProgress.user_id == user_id)
+        .where(user_cond)
         .order_by(ReadingProgress.updated_at.desc())
         .limit(10)
     )
@@ -180,7 +209,7 @@ async def fetch_public_user_profile(user_id: str, db: AsyncSession) -> dict:
 
     streak_result = await db.execute(
         select(func.date(ReadingProgress.updated_at))
-        .where(ReadingProgress.user_id == user_id)
+        .where(user_cond)
         .distinct()
         .order_by(func.date(ReadingProgress.updated_at).desc())
     )
@@ -198,7 +227,11 @@ async def fetch_public_user_profile(user_id: str, db: AsyncSession) -> dict:
                 break
 
     return {
-        "user_id": user_id,
+        "user_id": target_user_id,
+        "username": username,
+        "display_name": display_name,
+        "bio": bio,
+        "avatar_url": avatar_url,
         "chapters_read": chapters_read,
         "manga_count": manga_count,
         "streak_days": streak,
@@ -212,3 +245,51 @@ async def fetch_public_user_profile(user_id: str, db: AsyncSession) -> dict:
             for r in recent
         ],
     }
+
+
+async def search_public_profiles(query: str, limit: int, db: AsyncSession) -> list[dict]:
+    """Search user profiles by username or display name."""
+    clean_q = query.strip().lower()
+    if not clean_q:
+        return []
+
+    pattern = f"%{clean_q}%"
+    try:
+        stmt = (
+            select(UserProfile)
+            .where(
+                or_(
+                    func.lower(UserProfile.username).like(pattern),
+                    func.lower(UserProfile.display_name).like(pattern),
+                )
+            )
+            .limit(limit)
+        )
+        res = await db.execute(stmt)
+        profiles = res.scalars().all()
+    except Exception as exc:
+        log.warning("search_public_profiles error: %s", exc)
+        profiles = []
+
+    results = []
+    for p in profiles:
+        read_count = await db.scalar(
+            select(func.count()).select_from(ReadingProgress).where(
+                or_(ReadingProgress.user_id == p.user_id, ReadingProgress.user_id == p.username)
+            )
+        ) or 0
+        manga_cnt = await db.scalar(
+            select(func.count(distinct(ReadingProgress.manga_id))).where(
+                or_(ReadingProgress.user_id == p.user_id, ReadingProgress.user_id == p.username)
+            )
+        ) or 0
+        results.append({
+            "user_id": p.user_id,
+            "username": p.username,
+            "display_name": p.display_name or p.username,
+            "bio": getattr(p, "bio", "") or "",
+            "avatar_url": getattr(p, "avatar_url", "") or "",
+            "chapters_read": read_count,
+            "manga_count": manga_cnt,
+        })
+    return results

@@ -102,8 +102,8 @@ function getSteps(isMob: boolean): TourStep[] {
       id: 'sources',
       targetSelector: '[data-tour="sources"]',
       icon: Globe,
-      title: 'Install sources',
-      body: 'Sources are manga providers — install them here to unlock search and discovery across 50+ sites.',
+      title: 'Browse & install sources',
+      body: 'Sources provide content for manga and light novels. Browse, enable, and install extensions here to discover titles across 30+ sources.',
       tooltipSide: 'above',
     },
     {
@@ -119,7 +119,7 @@ function getSteps(isMob: boolean): TourStep[] {
       targetSelector: '[data-tour="library"]',
       icon: Library,
       title: 'Your library',
-      body: "Tap + on any manga's detail page to add it to your library. It syncs across devices when you're signed in.",
+      body: "Tap 'Add to Library' on any title's detail page to save it. Your reading list syncs across devices when you're signed in.",
       tooltipSide: 'above',
     },
     {
@@ -138,7 +138,7 @@ function getSteps(isMob: boolean): TourStep[] {
       targetSelector: '[data-tour="downloads"]',
       icon: Download,
       title: 'Download for offline',
-      body: 'Download chapters from any manga detail page. Read them here with no internet needed.',
+      body: 'Download chapters from any title or chapter list. Read them offline anytime with no internet needed.',
       tooltipSide: 'above',
     },
     {
@@ -154,7 +154,7 @@ function getSteps(isMob: boolean): TourStep[] {
       targetSelector: null,
       icon: BookOpen,
       title: "You're all set.",
-      body: "That's everything. Find this tour again any time in Settings → Help.",
+      body: "That's everything. You're ready to start reading. Find guides, controls, and shortcuts anytime in Help.",
       tooltipSide: 'center',
     },
   ]
@@ -292,7 +292,7 @@ export default function AppTour({ onDone }: Props) {
   const cardStyle: React.CSSProperties = {
     position: 'fixed',
     zIndex: 10001,
-    maxWidth: mobile ? '100%' : 340,
+    maxWidth: mobile ? '100%' : 380,
     width: mobile ? '100%' : 'calc(100vw - 32px)',
     maxHeight: 'calc(100dvh - 80px)',
     overflowY: 'auto',
@@ -334,12 +334,12 @@ export default function AppTour({ onDone }: Props) {
       // Desktop: sidebar item — position card to the right of the sidebar
       cardStyle.top = Math.max(16, Math.min(rect.top - 20, window.innerHeight - 280))
       const targetLeft = rect.left + rect.width + 16
-      if (targetLeft + 340 > window.innerWidth) {
-        cardStyle.left = Math.max(16, window.innerWidth - 360)
+      if (targetLeft + 380 > window.innerWidth) {
+        cardStyle.left = Math.max(16, window.innerWidth - 400)
       } else {
         cardStyle.left = targetLeft
       }
-      cardStyle.maxWidth = 340
+      cardStyle.maxWidth = 380
     }
     cardStyle.borderRadius = 18
   } else {
@@ -456,27 +456,27 @@ export default function AppTour({ onDone }: Props) {
               ))}
             </div>
 
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
               {isFirst ? (
                 <button
                   onClick={dismiss}
-                  style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '7px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--muted2)', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '7px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--muted2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
                 >
                   Skip
                 </button>
               ) : (
                 <button
                   onClick={prev}
-                  style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '7px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--muted2)', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '7px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--muted2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
                 >
-                  <ChevronLeft style={{ width: 14, height: 14 }} /> Back
+                  <ChevronLeft style={{ width: 14, height: 14, flexShrink: 0 }} /> Back
                 </button>
               )}
               <button
                 onClick={next}
-                style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '7px 16px', borderRadius: 10, border: 'none', background: 'var(--accent)', color: '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}
+                style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '7px 16px', borderRadius: 10, border: 'none', background: 'var(--accent)', color: '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
               >
-                {isLast ? 'Start Reading' : 'Next'} <ChevronRight style={{ width: 14, height: 14 }} />
+                {isLast ? 'Start Reading' : 'Next'} <ChevronRight style={{ width: 14, height: 14, flexShrink: 0 }} />
               </button>
             </div>
           </div>

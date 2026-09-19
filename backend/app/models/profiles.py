@@ -10,5 +10,7 @@ class UserProfile(Base):
     user_id: Mapped[str] = mapped_column(String, primary_key=True)
     username: Mapped[str] = mapped_column(String, unique=True, index=True)
     display_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    bio: Mapped[str | None] = mapped_column(String, nullable=True)
+    avatar_url: Mapped[str | None] = mapped_column(String, nullable=True)
     liked_comments: Mapped[list] = mapped_column(JSON, default=list)  # list of comment ids
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

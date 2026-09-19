@@ -4,7 +4,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Book, Server, Key, ChevronRight, Check, Sparkles, Loader2, AtSign, AlertTriangle, Dices } from 'lucide-react'
+import { Book, Server, Key, ChevronRight, Check, Download, Loader2, AtSign, AlertTriangle, Dices } from 'lucide-react'
 import api, { resolveBaseURL } from '../lib/api'
 
 const STEPS = ['welcome', 'backend', 'username', 'done'] as const
@@ -165,13 +165,13 @@ export default function OnboardingPage() {
             <p style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 10 }}>Welcome</p>
             <h1 style={{ fontSize: 'clamp(24px,5vw,32px)', fontWeight: 800, color: 'var(--fg)', lineHeight: 1.15, marginBottom: 12, overflowWrap: 'anywhere', minWidth: 0 }}>Your manga, everywhere.</h1>
             <p style={{ fontSize: 13, color: 'var(--muted2)', marginBottom: 32, lineHeight: 1.7, maxWidth: 300, margin: '0 auto 32px' }}>
-              Search, download, and read across 50+ sources — on web, desktop, and Android.
+              Search, download, and read across 30+ manga and novel sources on web, desktop, and mobile.
             </p>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 10, marginBottom: 32 }}>
               {[
                 { icon: Book, label: 'Library', desc: 'Cloud + local' },
-                { icon: Sparkles, label: 'Enhance', desc: 'Sharper local scans' },
+                { icon: Download, label: 'Offline', desc: 'Read anywhere' },
                 { icon: Server, label: 'Self-host', desc: 'Your server' },
               ].map(item => (
                 <div key={item.label} style={{ padding: '14px 10px', borderRadius: 16, border: '1px solid var(--border)', background: 'var(--surface)', textAlign: 'center' }}>
@@ -326,7 +326,7 @@ export default function OnboardingPage() {
             <p style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 10 }}>Ready</p>
             <h2 style={{ fontSize: 'clamp(22px,5vw,30px)', fontWeight: 800, color: 'var(--fg)', marginBottom: 12, overflowWrap: 'anywhere', minWidth: 0 }}>You're all set.</h2>
             <p style={{ fontSize: 13, color: 'var(--muted2)', marginBottom: 36, lineHeight: 1.6 }}>
-              Search for manga, subscribe to series, download chapters and read anywhere.
+              Search for manga and novels, bookmark series, download chapters, and read anywhere.
             </p>
             <button
               onClick={finish}

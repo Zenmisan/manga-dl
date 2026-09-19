@@ -21,6 +21,7 @@ from app.services.user_service import (
     clear_user_history,
     fetch_user_reading_stats,
     fetch_public_user_profile,
+    search_public_profiles,
 )
 from app.services.email_service import send_email, welcome_email
 
@@ -256,8 +257,52 @@ async def get_my_reading_stats(
 
 @router.get("/profile/{user_id}")
 async def get_public_profile(user_id: str, db: AsyncSession = Depends(get_db)):
-    """Return publicly shareable reading stats for a user."""
+    """Return publicly shareable reading stats and metadata for a user."""
     return await fetch_public_user_profile(user_id, db)
+
+
+class ProfileUpdate(BaseModel):
+    display_name: str | None = None
+    bio: str | None = None
+    avatar_url: str | None = None
+
+
+@router.get("/search")
+async def search_users(
+    q: str = Query(..., min_length=1),
+    limit: int = Query(20, le=50),
+    db: AsyncSession = Depends(get_db),
+):
+    """Search user profiles by username or display name."""
+    return await search_public_profiles(q, limit, db)
+
+
+@router.put("/profile")
+async def update_my_profile(
+    body: ProfileUpdate,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update display name, bio, and avatar."""
+    profile = (await db.execute(select(UserProfile).where(UserProfile.user_id == user_id))).scalar_one_or_none()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found. Set up username first.")
+
+    if body.display_name is not None:
+        profile.display_name = body.display_name.strip() or None
+    if body.bio is not None:
+        profile.bio = body.bio.strip() or None
+    if body.avatar_url is not None:
+        profile.avatar_url = body.avatar_url.strip() or None
+
+    await db.commit()
+    return {
+        "user_id": profile.user_id,
+        "username": profile.username,
+        "display_name": profile.display_name,
+        "bio": profile.bio,
+        "avatar_url": profile.avatar_url,
+    }
 
 
 @router.get("/me/profile-slug")

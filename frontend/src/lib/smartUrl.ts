@@ -230,12 +230,17 @@ export function buildSmartMangaUrl(
   mangaId: string = '',
   mangaTitle: string = 'manga'
 ): string {
-  if (!mangaTitle || mangaTitle === 'manga') {
-    return `/manga/${provider}/${encodeURIComponent(mangaId)}`
+  let cleanTitle = (mangaTitle || '').trim()
+  if (!cleanTitle || cleanTitle === 'manga' || /^[\d.]+$/.test(cleanTitle)) {
+    if (mangaId && !/^[\d.]+$/.test(mangaId)) {
+      cleanTitle = mangaId.replace(/-[a-f0-9]{6,8}$/, '').replace(/[-_]/g, ' ')
+    } else {
+      return `/manga/${provider}/${encodeURIComponent(mangaId)}`
+    }
   }
 
-  const smartSlug = createSmartSlug(mangaTitle, provider)
-  const meta = JSON.stringify({ provider, mangaId, title: mangaTitle })
+  const smartSlug = createSmartSlug(cleanTitle, provider)
+  const meta = JSON.stringify({ provider, mangaId, title: cleanTitle })
 
   if (typeof localStorage !== 'undefined') {
     try {

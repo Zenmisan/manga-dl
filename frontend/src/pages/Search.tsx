@@ -6,7 +6,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useToast } from '../components/common/Toast'
 import api from '../lib/api'
 import { ExtensionManager } from '../lib/extensions'
-import { Search as SearchIcon, Globe, BookOpen, BookMarked, Check, SlidersHorizontal, X, LayoutGrid, LayoutList, Layers } from 'lucide-react'
+import { Search as SearchIcon, Globe, BookOpen, BookMarked, Check, SlidersHorizontal, X, LayoutGrid, LayoutList, Layers, Users, Flame } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
 import { useAppStore } from '../lib/store'
@@ -218,9 +218,9 @@ export default function SearchPage() {
   const navigate = useNavigate()
   const { show: toast } = useToast()
   const [searchParams, setSearchParams] = useSearchParams()
-  const initialMode = searchParams.get('mode') === 'novel' ? 'novel' : 'manga'
-  const [searchMode, setSearchMode] = useState<'manga' | 'novel'>(initialMode)
-  usePageTitle(searchMode === 'novel' ? 'Browse Web Novels' : 'Browse Manga')
+  const initialMode = searchParams.get('mode') === 'novel' ? 'novel' : searchParams.get('mode') === 'readers' ? 'readers' : 'manga'
+  const [searchMode, setSearchMode] = useState<'manga' | 'novel' | 'readers'>(initialMode)
+  usePageTitle(searchMode === 'novel' ? 'Browse Web Novels' : searchMode === 'readers' ? 'Find Readers' : 'Browse Manga')
 
   const {
     searchQuery, setSearchQuery,
@@ -228,6 +228,21 @@ export default function SearchPage() {
     selectedProvider, setSelectedProvider,
     hasSearched, setHasSearched,
   } = useAppStore()
+
+  interface ReaderResult {
+    user_id: string
+    username: string
+    display_name: string
+    bio: string
+    avatar_url: string
+    chapters_read: number
+    manga_count: number
+    streak_days: number
+  }
+
+  const [readerResults, setReaderResults] = useState<ReaderResult[]>([])
+  const [readerLoading, setReaderLoading] = useState(false)
+  const [readerHasSearched, setReaderHasSearched] = useState(false)
 
   const [loading, setLoading] = useState(false)
   const [subscribing, setSubscribing] = useState<string[]>([])
@@ -284,6 +299,7 @@ export default function SearchPage() {
       return searchMode === 'novel' ? NOVEL_PROVIDERS : FALLBACK_PROVIDERS
     }
     const all = Array.from(manager.extensions.values())
+    if (searchMode === 'readers') return []
     if (searchMode === 'novel') {
       const novels = all
         .filter(ext => ext.type === 'novel' || NOVEL_PROVIDER_IDS.includes(ext.id))
@@ -426,28 +442,71 @@ export default function SearchPage() {
     finally { setSubscribing(prev => prev.filter(k => k !== key)) }
   }
 
-  const handleSwitchMode = (mode: 'manga' | 'novel') => {
+  const performReaderSearch = useCallback(async (query: string) => {
+    if (!query) return
+    setReaderLoading(true)
+    setReaderHasSearched(true)
+    try {
+      const res = await api.get(`/users/search?q=${encodeURIComponent(query)}`)
+      setReaderResults(res.data || [])
+    } catch {
+      setReaderResults([])
+    } finally {
+      setReaderLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (searchMode !== 'readers') return
+    const q = searchQuery.trim()
+    if (!q) {
+      setReaderResults([])
+      setReaderHasSearched(false)
+      setReaderLoading(false)
+      return
+    }
+    const timer = setTimeout(() => {
+      performReaderSearch(q)
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [searchQuery, searchMode, performReaderSearch])
+
+  const handleSwitchMode = (mode: 'manga' | 'novel' | 'readers') => {
     if (mode === searchMode) return
     setSearchMode(mode)
     setSelectedProvider(null)
     const nextParams = new URLSearchParams(searchParams)
     if (mode === 'novel') nextParams.set('mode', 'novel')
+    else if (mode === 'readers') nextParams.set('mode', 'readers')
     else nextParams.delete('mode')
     setSearchParams(nextParams, { replace: true })
     if (searchQuery.trim()) {
-      performSearch(searchQuery.trim(), mode, null)
+      if (mode === 'readers') {
+        performReaderSearch(searchQuery.trim())
+      } else {
+        performSearch(searchQuery.trim(), mode, null)
+      }
     } else {
-      setSearchResults([])
-      setHasSearched(false)
+      if (mode === 'readers') {
+        setReaderResults([])
+        setReaderHasSearched(false)
+      } else {
+        setSearchResults([])
+        setHasSearched(false)
+      }
     }
   }
 
   // Incremented on every new search to discard stale results from previous calls
   const searchIdRef = useRef(0)
 
-  const performSearch = useCallback((query: string, overrideMode?: 'manga' | 'novel', overrideProvider?: string | null) => {
+  const performSearch = useCallback((query: string, overrideMode?: 'manga' | 'novel' | 'readers', overrideProvider?: string | null) => {
     if (!query) return
     const mode = overrideMode ?? searchMode
+    if (mode === 'readers') {
+      performReaderSearch(query)
+      return
+    }
     const providerToUse = overrideProvider !== undefined ? overrideProvider : selectedProvider
     const searchId = ++searchIdRef.current
 
@@ -580,7 +639,7 @@ export default function SearchPage() {
   const isFirstSourceMount = useRef(true)
   useEffect(() => {
     if (isFirstSourceMount.current) { isFirstSourceMount.current = false; return }
-    if (searchQuery.trim()) performSearch(searchQuery.trim(), searchMode, selectedProvider)
+    if (searchQuery.trim() && searchMode !== 'readers') performSearch(searchQuery.trim(), searchMode, selectedProvider)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProvider, enabledSources])
 

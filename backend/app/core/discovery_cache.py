@@ -6,6 +6,7 @@ an in-memory dict. Refreshed every 30 minutes via a background asyncio task.
 """
 import asyncio
 import logging
+import re
 from typing import Any
 
 import httpx
@@ -112,22 +113,33 @@ def _parse_asurascans(html: str, mode: str) -> list[dict]:
         if "/chapter/" in href:
             continue
         slug = href.split("/comics/")[-1].rstrip("/")
-        if not slug or slug in seen:
+        if not slug or slug in seen or re.match(r"^\d+$", slug):
             continue
         seen.add(slug)
         img = a.find("img")
         cover = img.get("src") if img else None
         if not cover or cover.startswith("data:") or len(cover) < 10:
             cover = None
-        # Extract title: try explicit text elements inside a, fall back to alt or slug
-        title_el = (a.find(["h3", "h4", "h2"])
-                    or a.find("span", class_=lambda c: c and "font-bold" in c))
-        if title_el:
-            title = title_el.get_text(strip=True)
-        elif img and img.get("alt"):
-            title = img["alt"]
+
+        # Title extraction:
+        # 1. img alt attribute (cleanest source on AsuraScans)
+        alt = img.get("alt", "").strip() if img else ""
+        if alt and not re.match(r"^[\d.]+$", alt):
+            title = alt
         else:
-            title = slug.replace("-", " ").title()
+            # 2. Text elements inside card (avoiding tabular-nums, rank numbers, ratings)
+            title_el = (
+                a.find(["h3", "h4", "h2"])
+                or a.find("span", class_=lambda c: c and ("font-semibold" in c or "truncate" in c) and "tabular-nums" not in c)
+            )
+            raw_title = title_el.get_text(strip=True) if title_el else ""
+            if raw_title and not re.match(r"^[\d.]+$", raw_title):
+                title = raw_title
+            else:
+                # 3. Slug fallback: strip trailing 6-8 hex hash and title-case
+                clean_slug = re.sub(r"-[a-f0-9]{6,8}$", "", slug)
+                title = clean_slug.replace("-", " ").title()
+
         results.append({
             "id": slug,
             "title": title,

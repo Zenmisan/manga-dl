@@ -255,9 +255,11 @@ export const DashboardMangaCard = memo(function DashboardMangaCard({
           <h3 className="manga-card-title">
             {item.title}
           </h3>
-          <p style={{ fontSize: 11, color: 'var(--muted3)', margin: '3px 0 0', fontWeight: 500 }}>
-            {item.isLocal ? 'Local' : chapterCount > 0 ? `Ch. ${chapterCount}` : '—'}
-          </p>
+          {(item.isLocal || chapterCount > 0) && (
+            <p style={{ fontSize: 11, color: 'var(--muted3)', margin: '3px 0 0', fontWeight: 500 }}>
+              {item.isLocal ? 'Local' : `Ch. ${chapterCount}`}
+            </p>
+          )}
           {lastRead && (
             <button
               onClick={(e) => {
