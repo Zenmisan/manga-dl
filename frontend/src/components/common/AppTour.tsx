@@ -5,7 +5,7 @@ import { X, ChevronRight, ChevronLeft, Globe, Search, Library, Download, BookOpe
 
 interface TourStep {
   id: string
-  targetSelector: string | null  // null = full-screen modal (no spotlight)
+  targetSelector: string | null  // null = full-screen modal / bottom sheet (no spotlight)
   title: string
   body: string
   icon: typeof Globe | null
@@ -13,7 +13,40 @@ interface TourStep {
   tooltipSide?: 'above' | 'below' | 'center'
 }
 
-const isMobile = () => window.innerWidth < 768
+function useIsMobile(): boolean {
+  const [mobile, setMobile] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth < 768 : false
+  )
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const mql = window.matchMedia('(max-width: 767px)')
+    const onChange = (e: MediaQueryListEvent) => setMobile(e.matches)
+
+    if (mql.addEventListener) {
+      mql.addEventListener('change', onChange)
+    } else {
+      mql.addListener(onChange)
+    }
+
+    const onResize = () => setMobile(window.innerWidth < 768)
+    window.addEventListener('resize', onResize)
+
+    setMobile(mql.matches)
+
+    return () => {
+      if (mql.removeEventListener) {
+        mql.removeEventListener('change', onChange)
+      } else {
+        mql.removeListener(onChange)
+      }
+      window.removeEventListener('resize', onResize)
+    }
+  }, [])
+
+  return mobile
+}
 
 const READER_CONTROLS_DESKTOP = (
   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 12 }}>
@@ -40,7 +73,7 @@ const READER_CONTROLS_MOBILE = (
       { label: 'Toggle UI', left: '50%', top: '50%', transform: 'translate(-50%,-50%)' },
       { label: 'Next →', right: '8%', top: '50%', transform: 'translateY(-50%)' },
     ].map(({ label, ...style }) => (
-      <div key={label} style={{ position: 'absolute', fontSize: 11, color: 'var(--muted2)', fontWeight: 700, ...style as React.CSSProperties }}>
+      <div key={label} style={{ position: 'absolute', fontSize: 11, color: 'var(--muted2)', fontWeight: 700, ...(style as React.CSSProperties) }}>
         {label}
       </div>
     ))}
@@ -55,92 +88,148 @@ const READER_CONTROLS_MOBILE = (
   </div>
 )
 
-const STEPS: TourStep[] = [
-  {
-    id: 'welcome',
-    targetSelector: null,
-    icon: null,
-    title: "Here's a quick tour",
-    body: "30 seconds. We'll show you where everything lives so you can start reading right away.",
-    tooltipSide: 'center',
-  },
-  {
-    id: 'sources',
-    targetSelector: '[data-tour="sources"]',
-    icon: Globe,
-    title: 'Install sources',
-    body: 'Sources are manga providers — install them here to unlock search and discovery across 50+ sites.',
-    tooltipSide: 'above',
-  },
-  {
-    id: 'search',
-    targetSelector: '[data-tour="search"]',
-    icon: Search,
-    title: 'Search & discover',
-    body: 'Search across all your active sources at once. The Popular Now and Latest Updates rows update automatically — no search needed.',
-    tooltipSide: 'above',
-  },
-  {
-    id: 'library',
-    targetSelector: '[data-tour="library"]',
-    icon: Library,
-    title: 'Your library',
-    body: "Tap + on any manga's detail page to add it to your library. It syncs across devices when you're signed in.",
-    tooltipSide: 'above',
-  },
-  {
-    id: 'reader',
-    targetSelector: null,
-    icon: isMobile() ? Smartphone : Keyboard,
-    title: 'Reader controls',
-    body: isMobile()
-      ? 'Tap the left or right third of the screen to turn pages. Tap the center to show or hide the UI. Swipe down from the top edge to search.'
-      : 'Use arrow keys to turn pages. Hold Ctrl to jump between chapters.',
-    tooltipSide: 'center',
-    extra: isMobile() ? READER_CONTROLS_MOBILE : READER_CONTROLS_DESKTOP,
-  },
-  {
-    id: 'downloads',
-    targetSelector: '[data-tour="downloads"]',
-    icon: Download,
-    title: 'Download for offline',
-    body: 'Download chapters from any manga detail page. Read them here with no internet needed.',
-    tooltipSide: 'above',
-  },
-  {
-    id: 'trackers',
-    targetSelector: null,
-    icon: null,
-    title: 'Sync with AniList & MAL',
-    body: 'Connect AniList or MyAnimeList in Settings → Trackers. Your reading progress syncs automatically when you finish a chapter.',
-    tooltipSide: 'center',
-  },
-  {
-    id: 'done',
-    targetSelector: null,
-    icon: BookOpen,
-    title: "You're all set.",
-    body: "That's everything. Find this tour again any time in Settings → Help.",
-    tooltipSide: 'center',
-  },
-]
+function getSteps(isMob: boolean): TourStep[] {
+  return [
+    {
+      id: 'welcome',
+      targetSelector: null,
+      icon: null,
+      title: "Here's a quick tour",
+      body: "30 seconds. We'll show you where everything lives so you can start reading right away.",
+      tooltipSide: 'center',
+    },
+    {
+      id: 'sources',
+      targetSelector: '[data-tour="sources"]',
+      icon: Globe,
+      title: 'Install sources',
+      body: 'Sources are manga providers — install them here to unlock search and discovery across 50+ sites.',
+      tooltipSide: 'above',
+    },
+    {
+      id: 'search',
+      targetSelector: '[data-tour="search"]',
+      icon: Search,
+      title: 'Search & discover',
+      body: 'Search across all your active sources at once. The Popular Now and Latest Updates rows update automatically — no search needed.',
+      tooltipSide: 'above',
+    },
+    {
+      id: 'library',
+      targetSelector: '[data-tour="library"]',
+      icon: Library,
+      title: 'Your library',
+      body: "Tap + on any manga's detail page to add it to your library. It syncs across devices when you're signed in.",
+      tooltipSide: 'above',
+    },
+    {
+      id: 'reader',
+      targetSelector: null,
+      icon: isMob ? Smartphone : Keyboard,
+      title: 'Reader controls',
+      body: isMob
+        ? 'Tap the left or right third of the screen to turn pages. Tap the center to show or hide the UI. Swipe down from the top edge to search.'
+        : 'Use arrow keys to turn pages. Hold Ctrl to jump between chapters.',
+      tooltipSide: 'center',
+      extra: isMob ? READER_CONTROLS_MOBILE : READER_CONTROLS_DESKTOP,
+    },
+    {
+      id: 'downloads',
+      targetSelector: '[data-tour="downloads"]',
+      icon: Download,
+      title: 'Download for offline',
+      body: 'Download chapters from any manga detail page. Read them here with no internet needed.',
+      tooltipSide: 'above',
+    },
+    {
+      id: 'trackers',
+      targetSelector: null,
+      icon: null,
+      title: 'Sync with AniList & MAL',
+      body: 'Connect AniList or MyAnimeList in Settings → Trackers. Your reading progress syncs automatically when you finish a chapter.',
+      tooltipSide: 'center',
+    },
+    {
+      id: 'done',
+      targetSelector: null,
+      icon: BookOpen,
+      title: "You're all set.",
+      body: "That's everything. Find this tour again any time in Settings → Help.",
+      tooltipSide: 'center',
+    },
+  ]
+}
 
-interface SpotlightRect { top: number; left: number; width: number; height: number }
+interface SpotlightRect {
+  top: number
+  left: number
+  width: number
+  height: number
+}
 
 function useSpotlight(selector: string | null): SpotlightRect | null {
   const [rect, setRect] = useState<SpotlightRect | null>(null)
 
   useEffect(() => {
-    if (!selector) { setRect(null); return }
-    const measure = () => {
-      const el = document.querySelector(selector)
-      if (!el) { setRect(null); return }
-      const r = el.getBoundingClientRect()
-      setRect({ top: r.top, left: r.left, width: r.width, height: r.height })
+    if (!selector) {
+      setRect(null)
+      return
     }
+
+    const measure = () => {
+      // Find all matching elements (both desktop sidebar and mobile bottom nav may have data-tour)
+      const elements = Array.from(document.querySelectorAll<HTMLElement>(selector))
+      if (elements.length === 0) {
+        setRect(null)
+        return
+      }
+
+      // Filter for elements that are actually visible on screen
+      let visibleEl: HTMLElement | null = null
+      let visibleRect: DOMRect | null = null
+
+      for (const el of elements) {
+        // Elements in display:none containers have 0 client rects
+        if (el.getClientRects().length === 0) continue
+
+        const r = el.getBoundingClientRect()
+        // Must have non-zero dimensions
+        if (r.width <= 0 || r.height <= 0) continue
+
+        // Check computed visibility
+        const style = window.getComputedStyle(el)
+        if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+          continue
+        }
+
+        visibleEl = el
+        visibleRect = r
+        break
+      }
+
+      if (!visibleEl || !visibleRect) {
+        setRect(null)
+        return
+      }
+
+      setRect({
+        top: visibleRect.top,
+        left: visibleRect.left,
+        width: visibleRect.width,
+        height: visibleRect.height,
+      })
+    }
+
     measure()
+    const rafId = requestAnimationFrame(measure)
     window.addEventListener('resize', measure)
-    return () => window.removeEventListener('resize', measure)
+    window.addEventListener('scroll', measure, true)
+
+    return () => {
+      cancelAnimationFrame(rafId)
+      window.removeEventListener('resize', measure)
+      window.removeEventListener('scroll', measure, true)
+    }
   }, [selector])
 
   return rect
@@ -152,12 +241,14 @@ interface Props {
 
 export default function AppTour({ onDone }: Props) {
   const navigate = useNavigate()
+  const mobile = useIsMobile()
+  const steps = getSteps(mobile)
   const [stepIdx, setStepIdx] = useState(0)
   const cardRef = useRef<HTMLDivElement>(null)
-  const step = STEPS[stepIdx]
+  const step = steps[stepIdx] || steps[0]
   const rect = useSpotlight(step.targetSelector)
   const isFirst = stepIdx === 0
-  const isLast = stepIdx === STEPS.length - 1
+  const isLast = stepIdx === steps.length - 1
   const PAD = 4
 
   const dismiss = useCallback(() => {
@@ -198,7 +289,6 @@ export default function AppTour({ onDone }: Props) {
   }, [next, prev, dismiss])
 
   // Compute tooltip card position
-  const mobile = isMobile()
   const cardStyle: React.CSSProperties = {
     position: 'fixed',
     zIndex: 10001,
@@ -208,7 +298,9 @@ export default function AppTour({ onDone }: Props) {
     overflowY: 'auto',
   }
 
-  if (!rect || step.tooltipSide === 'center') {
+  const hasValidSpotlight = rect && rect.width > 0 && rect.height > 0
+
+  if (!hasValidSpotlight || step.tooltipSide === 'center') {
     if (mobile) {
       // Bottom sheet on mobile — safe area aware
       cardStyle.bottom = 0
@@ -224,17 +316,29 @@ export default function AppTour({ onDone }: Props) {
     }
   } else if (step.tooltipSide === 'above') {
     if (mobile) {
-      // Above bottom-nav items — position above the element
-      const fromBottom = window.innerHeight - rect.top + PAD + 16
-      cardStyle.bottom = fromBottom
+      // On mobile: if target is in bottom half of screen (e.g. bottom nav),
+      // position card safely above it.
+      if (rect.top > 160) {
+        const fromBottom = window.innerHeight - rect.top + PAD + 14
+        const maxFromBottom = window.innerHeight - 200
+        cardStyle.bottom = Math.max(16, Math.min(fromBottom, maxFromBottom))
+      } else {
+        // If target is in top half, position below it
+        cardStyle.top = Math.max(16, rect.top + rect.height + PAD + 14)
+      }
       cardStyle.left = 16
       cardStyle.right = 16
       cardStyle.width = 'auto'
       cardStyle.maxWidth = 'calc(100vw - 32px)'
     } else {
       // Desktop: sidebar item — position card to the right of the sidebar
-      cardStyle.top = Math.max(16, rect.top - 20)
-      cardStyle.left = rect.left + rect.width + 16
+      cardStyle.top = Math.max(16, Math.min(rect.top - 20, window.innerHeight - 280))
+      const targetLeft = rect.left + rect.width + 16
+      if (targetLeft + 340 > window.innerWidth) {
+        cardStyle.left = Math.max(16, window.innerWidth - 360)
+      } else {
+        cardStyle.left = targetLeft
+      }
       cardStyle.maxWidth = 340
     }
     cardStyle.borderRadius = 18
@@ -251,7 +355,7 @@ export default function AppTour({ onDone }: Props) {
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 10000 }}>
       {/* Scrim with spotlight cutout */}
-      {rect ? (
+      {hasValidSpotlight ? (
         <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
           <defs>
             <mask id="tour-mask">
@@ -338,7 +442,7 @@ export default function AppTour({ onDone }: Props) {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 18 }}>
             {/* Dot progress */}
             <div style={{ display: 'flex', gap: 5 }}>
-              {STEPS.map((_, i) => (
+              {steps.map((_, i) => (
                 <div
                   key={i}
                   style={{

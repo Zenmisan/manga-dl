@@ -239,7 +239,7 @@ export default function SettingsLayout() {
           })}
         </nav>
 
-        <main style={{ flex: 1, padding: '32px 28px 80px', maxWidth: 700, overflowY: 'auto' }}>
+        <main style={{ flex: 1, padding: '32px 28px 80px', maxWidth: 880, overflowY: 'auto' }}>
           <Outlet />
         </main>
       </div>
