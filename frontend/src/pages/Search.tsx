@@ -667,18 +667,27 @@ export default function SearchPage() {
         {/* Page heading */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }} style={{ marginBottom: 20 }}>
           <h1 style={{ fontSize: 'clamp(24px, 5vw, 36px)', fontWeight: 900, color: 'var(--fg)', lineHeight: 1.1, marginBottom: 3, fontStyle: 'normal', textWrap: 'balance' }}>
-            {searchMode === 'novel' ? 'Discover Web Novels' : 'Discover Manga'}
+            {searchMode === 'novel' ? 'Discover Web Novels' : searchMode === 'readers' ? 'Find Readers' : 'Discover Manga'}
           </h1>
           <p className="hidden md:block" style={{ fontSize: 13, color: 'var(--muted2)' }}>
             {searchMode === 'novel'
               ? 'Read web novels and light novels directly in your browser.'
+              : searchMode === 'readers'
+              ? 'Search for other manga fans, explore their public profiles, streaks, and reading history.'
               : 'Search across multiple sources to find your next read.'}
           </p>
         </motion.div>
 
         {/* ── Search bar ─────────────────────────────────────────────────── */}
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }} style={{ marginBottom: 20 }}>
-          <form onSubmit={(e) => { e.preventDefault(); performSearch(searchQuery.trim(), searchMode) }}
+          <form onSubmit={(e) => {
+            e.preventDefault()
+            if (searchMode === 'readers') {
+              performReaderSearch(searchQuery.trim())
+            } else {
+              performSearch(searchQuery.trim(), searchMode)
+            }
+          }}
             style={{ display: 'flex', gap: 8, alignItems: 'center' }}
           >
             {/* Input container — cinema dark with blur + focus glow */}
@@ -701,16 +710,16 @@ export default function SearchPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => setSearchFocused(true)}
                 onBlur={() => setSearchFocused(false)}
-                placeholder={searchMode === 'novel' ? "Search web novel titles…" : "Search your titles"}
+                placeholder={searchMode === 'novel' ? "Search web novel titles…" : searchMode === 'readers' ? "Search readers by @username or display name…" : "Search your titles"}
                 style={{ width: '100%', padding: '14px 48px 14px 42px', borderRadius: 18, border: 'none', background: 'transparent', fontSize: 15, color: 'var(--fg)', outline: 'none', boxSizing: 'border-box', fontWeight: 500 }}
               />
               <button
                 type="submit"
-                disabled={loading}
+                disabled={searchMode === 'readers' ? readerLoading : loading}
                 aria-label="Search"
                 style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', width: 34, height: 34, borderRadius: 12, border: 'none', background: searchQuery.trim() ? 'var(--accent)' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: searchQuery.trim() ? '#fff' : 'var(--muted3)', transition: 'background 0.15s, color 0.15s' }}
               >
-                {loading ? <ThemedSpinner size="xs" /> : <SearchIcon style={{ width: 14, height: 14 }} />}
+                {(searchMode === 'readers' ? readerLoading : loading) ? <ThemedSpinner size="xs" /> : <SearchIcon style={{ width: 14, height: 14 }} />}
               </button>
             </div>
 
@@ -729,15 +738,17 @@ export default function SearchPage() {
               </button>
             )}
 
-            {/* View switcher */}
-            <button
-              type="button"
-              onClick={handleToggleViewMode}
-              aria-label={searchViewMode === 'lanes' ? 'Switch to Grid View' : 'Switch to Swimlane View'}
-              style={{ flexShrink: 0, width: 48, height: 48, borderRadius: 16, border: '1.5px solid var(--border)', background: 'var(--surface)', backdropFilter: 'blur(8px)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted2)' }}
-            >
-              {searchViewMode === 'lanes' ? <LayoutGrid style={{ width: 17, height: 17 }} /> : <LayoutList style={{ width: 17, height: 17 }} />}
-            </button>
+            {/* View switcher (Manga & Novel only) */}
+            {searchMode !== 'readers' && (
+              <button
+                type="button"
+                onClick={handleToggleViewMode}
+                aria-label={searchViewMode === 'lanes' ? 'Switch to Grid View' : 'Switch to Swimlane View'}
+                style={{ flexShrink: 0, width: 48, height: 48, borderRadius: 16, border: '1.5px solid var(--border)', background: 'var(--surface)', backdropFilter: 'blur(8px)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted2)' }}
+              >
+                {searchViewMode === 'lanes' ? <LayoutGrid style={{ width: 17, height: 17 }} /> : <LayoutList style={{ width: 17, height: 17 }} />}
+              </button>
+            )}
 
             {/* Filter panel (Manga only) */}
             {searchMode === 'manga' && (
@@ -749,7 +760,7 @@ export default function SearchPage() {
             )}
           </form>
 
-          {/* Media Type Switcher: Manga vs Web Novels */}
+          {/* Media Type Switcher: Manga vs Web Novels vs Readers */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
             <button
               type="button"
@@ -787,10 +798,28 @@ export default function SearchPage() {
               <BookMarked style={{ width: 13, height: 13 }} />
               <span>Web Novels</span>
             </button>
+            <button
+              type="button"
+              onClick={() => handleSwitchMode('readers')}
+              aria-pressed={searchMode === 'readers'}
+              className={cn('filter-pill flex items-center gap-1.5 transition-all', searchMode === 'readers' && 'active')}
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                padding: '6px 14px',
+                borderRadius: 20,
+                background: searchMode === 'readers' ? 'var(--accent)' : 'var(--surface)',
+                color: searchMode === 'readers' ? '#fff' : 'var(--muted2)',
+                border: `1px solid ${searchMode === 'readers' ? 'var(--accent)' : 'var(--border)'}`,
+              }}
+            >
+              <Users style={{ width: 13, height: 13 }} />
+              <span>Readers</span>
+            </button>
           </div>
 
           {/* Source filter pills — only visible when results are showing or query entered */}
-          {(hasSearched || searchQuery.trim()) && activeProviders.length > 0 && (() => {
+          {searchMode !== 'readers' && (hasSearched || searchQuery.trim()) && activeProviders.length > 0 && (() => {
             const visibleProviders = searchMode === 'novel'
               ? activeProviders
               : activeProviders.filter(p => enabledSources.includes(p.id))
@@ -821,107 +850,193 @@ export default function SearchPage() {
           })()}
         </motion.div>
 
-        {/* ── Discovery Feed (idle state) ─────────────────────────────── */}
-        {isIdle && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}>
-            {/* Aggregate rows */}
-            <DiscoverySwimlane
-              title={searchMode === 'novel' ? "Popular Web Novels" : "Popular Now"}
-              items={aggregatePopular}
-              loading={discoveryLoading}
-              browseHref={searchMode === 'novel' ? undefined : "/browse/popular"}
-              renderCard={(r, i) => (
-                <DiscoveryCard key={`${r.provider}:${r.id}`} r={r} idx={i} navigate={navigate} />
-              )}
-            />
-            <DiscoverySwimlane
-              title={searchMode === 'novel' ? "Latest Web Novels" : "Latest Updates"}
-              items={aggregateLatest}
-              loading={discoveryLoading}
-              browseHref={searchMode === 'novel' ? undefined : "/browse/latest"}
-              renderCard={(r, i) => (
-                <DiscoveryCard key={`${r.provider}:${r.id}`} r={r} idx={i} navigate={navigate} />
-              )}
-            />
-            {/* Per-source swimlanes */}
-            {activeProviders
-              .filter(p => searchMode === 'novel' ? true : enabledSources.includes(p.id))
-              .map(source => {
-                const data = discoveryBySource[source.id]
-                const hasData = (data?.popular?.length ?? 0) > 0
-                if (!hasData && !discoveryLoading) return null
-                return (
-                  <DiscoverySwimlane
-                    key={source.id}
-                    title={source.name}
-                    items={(data?.popular ?? []).map(r => searchMode === 'novel' ? { ...r, type: 'novel' as const } : r)}
-                    loading={discoveryLoading && !data}
-                    browseHref={searchMode === 'novel' ? undefined : `/browse/source/${source.id}`}
-                    renderCard={(r, i) => (
-                      <DiscoveryCard key={`${r.provider}:${r.id}`} r={r} idx={i} navigate={navigate} />
-                    )}
-                  />
-                )
-            })}
-          </motion.div>
-        )}
-
-        {/* ── Search results ──────────────────────────────────────────── */}
-        {!isIdle && (
+        {/* ── Readers Mode ────────────────────────────────────────── */}
+        {searchMode === 'readers' ? (
           <>
-            {(searchResults.length > 0 || hasSearched) && (
-              <p aria-live="polite" aria-atomic="true" style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted2)', marginBottom: 12, letterSpacing: '0.04em' }}>
-                {searchResults.length} result{searchResults.length !== 1 ? 's' : ''}{loading ? ' · searching more sources…' : ''}
-              </p>
-            )}
-            {searchResults.length > 0 ? (
-              selectedProvider || searchViewMode === 'grid' ? (
-                <div style={GRID_STYLE}>
-                  <AnimatePresence mode="popLayout">
-                    {searchResults.map((r, idx) => (
-                      <MangaCard key={r.id + r.provider} r={r} idx={idx} onSubscribe={handleSubscribe} subscribed={subscribed} subscribing={subscribing} navigate={navigate} />
-                    ))}
-                  </AnimatePresence>
+            {!searchQuery.trim() && !readerHasSearched ? (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="mt-8">
+                <div className="glass-card p-8 text-center max-w-lg mx-auto border-white/10 space-y-4">
+                  <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-500 flex items-center justify-center mx-auto">
+                    <Users className="w-8 h-8" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-black text-white">Find Fellow Readers</h2>
+                    <p className="text-xs text-zinc-400 mt-1.5 max-w-sm mx-auto leading-relaxed">
+                      Search for friends and readers across manga-dl by typing their <span className="text-red-400 font-mono font-bold">@username</span> or display name.
+                    </p>
+                  </div>
                 </div>
-              ) : (
-                <div className="flex flex-col">
-                  {Object.keys(searchResults.reduce<Record<string, MangaResult[]>>((acc, r) => { ;(acc[r.provider] ??= []).push(r); return acc }, {})).length > 1 && (
-                    <SourceSwimlane title="Top Matches" isTopMatches count={Math.min(searchResults.length, 10)}>
-                      {searchResults.slice(0, 10).map((r, idx) => (
-                        <div key={'top-' + r.id + r.provider} className="w-35 sm:w-38.75 min-w-35 sm:min-w-38.75 shrink-0 snap-start">
-                          <MangaCard r={r} idx={idx} onSubscribe={handleSubscribe} subscribed={subscribed} subscribing={subscribing} navigate={navigate} />
-                        </div>
-                      ))}
-                    </SourceSwimlane>
-                  )}
-                  {Object.entries(searchResults.reduce<Record<string, MangaResult[]>>((acc, r) => { ;(acc[r.provider] ??= []).push(r); return acc }, {}))
-                    .filter(([, results]) => results.length > 0)
-                    .map(([provider, results]) => (
-                      <SourceSwimlane
-                        key={provider}
-                        title={activeProviders.find((p: { id: string; name: string }) => p.id === provider)?.name || provider}
-                        providerId={provider}
-                        count={results.length}
-                        onViewAll={() => setSelectedProvider(provider)}
-                      >
-                        {results.map((r, idx) => (
-                          <div key={r.id + r.provider} className="w-35 sm:w-38.75 min-w-35 sm:min-w-38.75 shrink-0 snap-start">
-                            <MangaCard r={r} idx={idx} onSubscribe={handleSubscribe} subscribed={subscribed} subscribing={subscribing} navigate={navigate} />
+              </motion.div>
+            ) : readerLoading ? (
+              <ThemedSkeletonGrid count={6} />
+            ) : readerResults.length > 0 ? (
+              <div>
+                <p aria-live="polite" aria-atomic="true" style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted2)', marginBottom: 14, letterSpacing: '0.04em' }}>
+                  {readerResults.length} reader{readerResults.length !== 1 ? 's' : ''} found
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                  {readerResults.map((u, idx) => (
+                    <motion.div
+                      key={u.user_id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: Math.min(idx * 0.04, 0.3) }}
+                      onClick={() => navigate(`/profile/${u.username || u.user_id}`)}
+                      className="glass-card p-4 hover:border-white/20 transition-all cursor-pointer group flex flex-col justify-between"
+                    >
+                      <div className="flex items-center gap-3.5">
+                        {u.avatar_url ? (
+                          <img src={u.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover border-2 border-red-500/30 flex-shrink-0" />
+                        ) : (
+                          <div className="w-12 h-12 rounded-full bg-red-500/10 border-2 border-red-500/30 flex items-center justify-center text-red-500 font-black text-sm flex-shrink-0">
+                            {(u.display_name || u.username || 'U').slice(0, 2).toUpperCase()}
                           </div>
-                        ))}
-                      </SourceSwimlane>
-                    ))}
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <h3 className="text-sm font-black text-white group-hover:text-red-400 transition-colors truncate">
+                            {u.display_name || u.username}
+                          </h3>
+                          {u.username && (
+                            <p className="text-xs font-mono font-bold text-red-400/90 truncate">
+                              @{u.username}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {u.bio && (
+                        <p className="text-xs text-zinc-300 line-clamp-2 mt-3 leading-relaxed">
+                          {u.bio}
+                        </p>
+                      )}
+
+                      <div className="flex items-center gap-2 mt-3.5 pt-2.5 border-t border-white/5 text-[10px] font-bold text-zinc-400">
+                        <span className="flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded-md">
+                          <BookOpen className="w-3 h-3 text-red-400" /> {u.chapters_read || 0} chapters
+                        </span>
+                        {u.streak_days > 0 && (
+                          <span className="flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded-md">
+                            <Flame className="w-3 h-3 text-amber-400" /> {u.streak_days}d streak
+                          </span>
+                        )}
+                      </div>
+                    </motion.div>
+                  ))}
                 </div>
-              )
-            ) : loading ? (
-              <ThemedSkeletonGrid count={12} />
-            ) : hasSearched ? (
+              </div>
+            ) : readerHasSearched ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '80px 24px', gap: 12 }}>
-                <Globe style={{ width: 52, height: 52, color: 'var(--muted3)', opacity: 0.35 }} />
-                <p style={{ fontSize: 16, fontWeight: 800, color: 'var(--fg)' }}>No results found</p>
-                <p style={{ fontSize: 13, color: 'var(--muted2)' }}>Couldn't find "{searchQuery}". Try another spelling.</p>
+                <Users style={{ width: 48, height: 48, color: 'var(--muted3)', opacity: 0.35 }} />
+                <p style={{ fontSize: 16, fontWeight: 800, color: 'var(--fg)' }}>No readers found</p>
+                <p style={{ fontSize: 13, color: 'var(--muted2)' }}>Couldn't find any readers matching "{searchQuery}".</p>
               </div>
             ) : null}
+          </>
+        ) : (
+          <>
+            {/* ── Discovery Feed (idle state) ─────────────────────────────── */}
+            {isIdle && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}>
+                {/* Aggregate rows */}
+                <DiscoverySwimlane
+                  title={searchMode === 'novel' ? "Popular Web Novels" : "Popular Now"}
+                  items={aggregatePopular}
+                  loading={discoveryLoading}
+                  browseHref={searchMode === 'novel' ? undefined : "/browse/popular"}
+                  renderCard={(r, i) => (
+                    <DiscoveryCard key={`${r.provider}:${r.id}`} r={r} idx={i} navigate={navigate} />
+                  )}
+                />
+                <DiscoverySwimlane
+                  title={searchMode === 'novel' ? "Latest Web Novels" : "Latest Updates"}
+                  items={aggregateLatest}
+                  loading={discoveryLoading}
+                  browseHref={searchMode === 'novel' ? undefined : "/browse/latest"}
+                  renderCard={(r, i) => (
+                    <DiscoveryCard key={`${r.provider}:${r.id}`} r={r} idx={i} navigate={navigate} />
+                  )}
+                />
+                {/* Per-source swimlanes */}
+                {activeProviders
+                  .filter(p => searchMode === 'novel' ? true : enabledSources.includes(p.id))
+                  .map(source => {
+                    const data = discoveryBySource[source.id]
+                    const hasData = (data?.popular?.length ?? 0) > 0
+                    if (!hasData && !discoveryLoading) return null
+                    return (
+                      <DiscoverySwimlane
+                        key={source.id}
+                        title={source.name}
+                        items={(data?.popular ?? []).map(r => searchMode === 'novel' ? { ...r, type: 'novel' as const } : r)}
+                        loading={discoveryLoading && !data}
+                        browseHref={searchMode === 'novel' ? undefined : `/browse/source/${source.id}`}
+                        renderCard={(r, i) => (
+                          <DiscoveryCard key={`${r.provider}:${r.id}`} r={r} idx={i} navigate={navigate} />
+                        )}
+                      />
+                    )
+                })}
+              </motion.div>
+            )}
+
+            {/* ── Search results ──────────────────────────────────────────── */}
+            {!isIdle && (
+              <>
+                {(searchResults.length > 0 || hasSearched) && (
+                  <p aria-live="polite" aria-atomic="true" style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted2)', marginBottom: 12, letterSpacing: '0.04em' }}>
+                    {searchResults.length} result{searchResults.length !== 1 ? 's' : ''}{loading ? ' · searching more sources…' : ''}
+                  </p>
+                )}
+                {searchResults.length > 0 ? (
+                  selectedProvider || searchViewMode === 'grid' ? (
+                    <div style={GRID_STYLE}>
+                      <AnimatePresence mode="popLayout">
+                        {searchResults.map((r, idx) => (
+                          <MangaCard key={r.id + r.provider} r={r} idx={idx} onSubscribe={handleSubscribe} subscribed={subscribed} subscribing={subscribing} navigate={navigate} />
+                        ))}
+                      </AnimatePresence>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col">
+                      {Object.keys(searchResults.reduce<Record<string, MangaResult[]>>((acc, r) => { ;(acc[r.provider] ??= []).push(r); return acc }, {})).length > 1 && (
+                        <SourceSwimlane title="Top Matches" isTopMatches count={Math.min(searchResults.length, 10)}>
+                          {searchResults.slice(0, 10).map((r, idx) => (
+                            <div key={'top-' + r.id + r.provider} className="w-35 sm:w-38.75 min-w-35 sm:min-w-38.75 shrink-0 snap-start">
+                              <MangaCard r={r} idx={idx} onSubscribe={handleSubscribe} subscribed={subscribed} subscribing={subscribing} navigate={navigate} />
+                            </div>
+                          ))}
+                        </SourceSwimlane>
+                      )}
+                      {Object.entries(searchResults.reduce<Record<string, MangaResult[]>>((acc, r) => { ;(acc[r.provider] ??= []).push(r); return acc }, {}))
+                        .filter(([, results]) => results.length > 0)
+                        .map(([provider, results]) => (
+                          <SourceSwimlane
+                            key={provider}
+                            title={activeProviders.find((p: { id: string; name: string }) => p.id === provider)?.name || provider}
+                            providerId={provider}
+                            count={results.length}
+                            onViewAll={() => setSelectedProvider(provider)}
+                          >
+                            {results.map((r, idx) => (
+                              <div key={r.id + r.provider} className="w-35 sm:w-38.75 min-w-35 sm:min-w-38.75 shrink-0 snap-start">
+                                <MangaCard r={r} idx={idx} onSubscribe={handleSubscribe} subscribed={subscribed} subscribing={subscribing} navigate={navigate} />
+                              </div>
+                            ))}
+                          </SourceSwimlane>
+                        ))}
+                    </div>
+                  )
+                ) : loading ? (
+                  <ThemedSkeletonGrid count={12} />
+                ) : hasSearched ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '80px 24px', gap: 12 }}>
+                    <Globe style={{ width: 52, height: 52, color: 'var(--muted3)', opacity: 0.35 }} />
+                    <p style={{ fontSize: 16, fontWeight: 800, color: 'var(--fg)' }}>No results found</p>
+                    <p style={{ fontSize: 13, color: 'var(--muted2)' }}>Couldn't find "{searchQuery}". Try another spelling.</p>
+                  </div>
+                ) : null}
+              </>
+            )}
           </>
         )}
       </div>
