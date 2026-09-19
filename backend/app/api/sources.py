@@ -17,6 +17,7 @@ from app.services.js_extensions import (
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/sources", tags=["sources"])
+public_router = APIRouter(prefix="/sources", tags=["sources"])
 
 _market_cache: list[dict] | None = None
 _market_cache_time: float = 0
@@ -150,9 +151,22 @@ class ComixtoToken(BaseModel):
     token: str
 
 
-@router.post("/comixto/token")
+class ComixtoCache(BaseModel):
+    url: str
+    data: dict | list
+
+
+@public_router.post("/comixto/token")
 async def set_comixto_token(body: ComixtoToken):
-    """Update the comixto _= API token at runtime without server restart."""
+    """Update the comixto _= API token at runtime. No auth — called by browser userscript."""
     from app.services.proxy_service import set_runtime_token
     set_runtime_token("comixto", body.token.strip())
     return {"status": "ok", "token_length": len(body.token.strip())}
+
+
+@public_router.post("/comixto/cache")
+async def cache_comixto_response(body: ComixtoCache):
+    """Store a comixto API response relayed by the browser userscript."""
+    from app.services.proxy_service import cache_api_response
+    cache_api_response(body.url, body.data)
+    return {"status": "ok", "url": body.url}

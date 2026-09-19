@@ -549,7 +549,7 @@ export default function SearchPage() {
         if (remaining === 0) {
           setLoading(false)
           setHasSearched(true)
-          if (hasError403) toast('Search failed (403). Check your API Key in Settings.', 'error')
+          if (hasError403 && acc.length === 0) toast('Search failed (403). Check your API Key in Settings.', 'error')
         }
       }
 

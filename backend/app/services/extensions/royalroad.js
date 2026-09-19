@@ -80,7 +80,7 @@ var extension = {
 
     // Chapters: use data-url on <tr> rows (QuickNovel approach — more reliable than <a> href)
     var chapters = [];
-    doc.querySelectorAll('div.portlet-body table tbody tr, #chapters tr.chapter-row, table#chapters tbody tr').forEach(function(row) {
+    doc.querySelectorAll('div.portlet-body table tbody tr, #chapters tr.chapter-row, table#chapters tbody tr').forEach(function(row, idx) {
       var url = row.getAttribute('data-url');
       if (!url) {
         var a = row.querySelector('td:first-child a');
@@ -88,26 +88,31 @@ var extension = {
         url = a.getAttribute('href');
       }
       if (!url) return;
-      var chIdMatch = url.match(/\/fiction\/\d+\/chapter\/(\d+)/);
+      var chIdMatch = url.match(/\/chapter\/(\d+)/);
       if (!chIdMatch) return;
       var chId = novelId + '/chapter/' + chIdMatch[1];
       var nameEl = row.querySelector('td:first-child a');
       var chTitle = nameEl ? nameEl.textContent.trim() : ('Chapter ' + chIdMatch[1]);
-      var numMatch = chTitle.match(/chapter\s+([\d.]+)/i);
-      var num = numMatch ? parseFloat(numMatch[1]) : chapters.length + 1;
+      var numMatch = chTitle.match(/chapter\s+([\d.]+)/i) || chTitle.match(/^(\d+(?:\.\d+)?)/) || chTitle.match(/([\d.]+)/);
+      var num = numMatch ? parseFloat(numMatch[1]) : (idx + 1);
       var dateEl = row.querySelector('time');
       chapters.push({ id: chId, title: chTitle, number: num, published_at: dateEl ? (dateEl.getAttribute('datetime') || dateEl.textContent.trim()) : null });
     });
-    chapters.reverse();
 
     return { id: novelId, title: title, cover_url: cover, description: desc, status: status, genres: genres, authors: authors, provider: 'royalroad', url: _RR + '/fiction/' + novelId, chapters: chapters };
   },
 
   async getChapterText(chapterId) {
-    var parts = chapterId.split('/chapter/');
-    var novelId = parts[0];
-    var chId = parts[1];
-    var data = await apiFetch('/manga/proxy/html?url=' + encodeURIComponent(_RR + '/fiction/' + novelId + '/chapter/' + chId));
+    var url;
+    if (chapterId.startsWith('/fiction/')) {
+      url = _RR + chapterId;
+    } else {
+      var parts = chapterId.split('/chapter/');
+      var novelId = parts[0];
+      var chId = parts[1];
+      url = _RR + '/fiction/' + novelId + '/chapter/' + chId;
+    }
+    var data = await apiFetch('/manga/proxy/html?url=' + encodeURIComponent(url));
     var doc = new DOMParser().parseFromString(data.html, 'text/html');
     var contentEl = doc.querySelector('.chapter-content');
     if (!contentEl) contentEl = doc.querySelector('.chapter-inner, .prose');

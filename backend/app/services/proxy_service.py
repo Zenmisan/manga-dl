@@ -1,6 +1,8 @@
 import asyncio
 import logging
 import ipaddress
+import json
+import os
 from functools import partial
 from urllib.parse import urlparse
 from fastapi import HTTPException
@@ -13,12 +15,97 @@ log = logging.getLogger(__name__)
 
 MAX_RETRIES = 2
 
-# Runtime-settable token overrides (survive without server restart)
+_TOKEN_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "runtime_tokens.json")
+_TOKEN_FILE = os.path.normpath(_TOKEN_FILE)
+
+# Runtime-settable token overrides — persisted to file so reloads don't clear them
 _runtime_tokens: dict[str, str] = {}
+
+
+def _load_tokens() -> None:
+    try:
+        if os.path.exists(_TOKEN_FILE):
+            with open(_TOKEN_FILE) as f:
+                _runtime_tokens.update(json.load(f))
+    except Exception:
+        pass
+
+
+def _save_tokens() -> None:
+    try:
+        with open(_TOKEN_FILE, "w") as f:
+            json.dump(_runtime_tokens, f)
+    except Exception:
+        pass
+
+
+_load_tokens()
 
 
 def set_runtime_token(site: str, token: str) -> None:
     _runtime_tokens[site] = token
+    _save_tokens()
+
+
+_CACHE_FILE = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "runtime_cache.json"))
+
+# Persisted response cache: normalized URL → parsed JSON data
+_response_cache: dict[str, any] = {}
+
+
+def _load_cache() -> None:
+    try:
+        if os.path.exists(_CACHE_FILE):
+            with open(_CACHE_FILE) as f:
+                _response_cache.update(json.load(f))
+            log.info("Loaded %d comixto cached responses from disk", len(_response_cache))
+    except Exception:
+        pass
+
+
+def _save_cache() -> None:
+    try:
+        with open(_CACHE_FILE, "w") as f:
+            json.dump(_response_cache, f)
+    except Exception:
+        pass
+
+
+_load_cache()
+
+
+def cache_api_response(url: str, data: any) -> None:
+    """Store a comixto API response keyed by normalized URL (no _= param)."""
+    _response_cache[url] = data
+    _save_cache()
+
+
+def _normalize_comixto_url(url: str) -> str:
+    """Strip _= query param for cache lookup."""
+    from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+    parsed = urlparse(url)
+    params = parse_qs(parsed.query, keep_blank_values=True)
+    params.pop("_", None)
+    new_query = urlencode({k: v[0] for k, v in params.items()})
+    return urlunparse(parsed._replace(query=new_query))
+
+
+def _find_cached_comixto(url: str) -> "dict | list | None":
+    """Exact URL match first; fall back to same-path match (ignores query params)."""
+    key = _normalize_comixto_url(url)
+    if key in _response_cache:
+        return _response_cache[key]
+    # Path-only fallback: comixto's page may request same path with different params
+    from urllib.parse import urlparse
+    parsed = urlparse(url)
+    path = parsed.path
+    netloc = parsed.netloc
+    for cached_url, data in _response_cache.items():
+        cp = urlparse(cached_url)
+        if cp.netloc == netloc and cp.path == path:
+            log.debug("comixto cache path-fallback hit: %s → %s", url, cached_url)
+            return data
+    return None
 
 PRIVATE_NETWORKS = (
     ipaddress.ip_network("127.0.0.0/8"),
@@ -159,6 +246,13 @@ async def proxy_html_content(
 
 async def proxy_json_content(url: str) -> dict | list:
     """Proxy JSON API responses for JS extensions."""
+    # For comixto: check userscript response cache before injecting token + making live request
+    parsed_pre = urlparse(url)
+    if "comix.to" in (parsed_pre.hostname or "") and "/api/v1/" in parsed_pre.path:
+        cached = _find_cached_comixto(url)
+        if cached is not None:
+            return cached
+
     url = _inject_api_token(url)
     validate_proxy_url(url)
     parsed = urlparse(url)

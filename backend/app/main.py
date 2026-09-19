@@ -104,6 +104,9 @@ app.include_router(downloads.router, prefix="/api", dependencies=api_deps)
 app.include_router(settings_router.router, prefix="/api", dependencies=api_deps)
 app.include_router(library.router, prefix="/api", dependencies=api_deps)
 app.include_router(sources.router, prefix="/api", dependencies=api_deps)
+# Public token sync endpoint (no auth — localhost-only, called by userscript)
+from app.api.sources import public_router as sources_public_router
+app.include_router(sources_public_router, prefix="/api")
 app.include_router(auth.router, prefix="/api", dependencies=api_deps)
 app.include_router(users.router, prefix="/api")  # Uses Supabase JWT auth, not API key
 app.include_router(backup.router, prefix="/api")
