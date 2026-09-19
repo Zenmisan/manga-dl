@@ -64,3 +64,9 @@ backend/*.db
 # Comix.to reverse engineering & userscripts
 COMIXTO_INVESTIGATION.md
 comixto-token-sync.user.js
+
+# Runtime cache & tokens
+*runtime_cache.json
+*runtime_tokens.json
+backend/runtime_cache.json
+backend/runtime_tokens.json

@@ -1,5 +1,4 @@
 import { useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
 import {
   Download, Settings, BarChart2, Tag, HelpCircle, Clock,
   EyeOff, ChevronRight, Info, ExternalLink, User, LogOut,
@@ -25,10 +24,10 @@ export default function MorePage() {
   const [userId, setUserId] = useState<string | null>(null)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setEmail(session?.user.email ?? null)
-      setUserId(session?.user.id ?? null)
-    })
+    supabase.auth.getSession().then(({ data }) => {
+      setEmail(data?.session?.user?.email ?? null)
+      setUserId(data?.session?.user?.id ?? null)
+    }).catch(() => {})
   }, [])
 
   const rows: NavRow[] = [
@@ -51,7 +50,7 @@ export default function MorePage() {
 
   return (
     <div className="p-4 sm:p-6 md:p-12 max-w-xl mx-auto min-h-full">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
+      <div>
         <h1 className="page-title mb-10">
           More
         </h1>
@@ -141,14 +140,11 @@ export default function MorePage() {
         <section>
           <p className="text-[10px] font-black uppercase tracking-[.2em] text-white/25 mb-3 px-1">Navigation</p>
           <div className="space-y-1">
-            {filteredRows.map((row, i) => (
-              <motion.button
+            {filteredRows.map((row) => (
+              <button
                 key={row.label}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: i * 0.03 }}
                 onClick={() => navigate(row.path)}
-                className="w-full flex items-center gap-4 p-4 glass-panel border-white/5 hover:border-white/10 hover:bg-white/[.06] transition-all group text-left"
+                className="w-full flex items-center gap-4 p-4 glass-panel border-white/5 hover:border-white/10 hover:bg-white/[.06] transition-all group text-left cursor-pointer"
               >
                 <row.icon className={`w-5 h-5 ${row.color ?? 'text-white/40'}`} />
                 <span className="flex-1 font-bold text-sm text-white/80 group-hover:text-white transition-colors">{row.label}</span>
@@ -156,7 +152,7 @@ export default function MorePage() {
                   <span className="px-2 py-0.5 rounded-full bg-red-600/20 text-red-400 text-[10px] font-black">{row.badge}</span>
                 )}
                 <ChevronRight className="w-4 h-4 text-white/20 group-hover:text-white/40 group-hover:translate-x-0.5 transition-all" />
-              </motion.button>
+              </button>
             ))}
           </div>
         </section>
@@ -173,7 +169,7 @@ export default function MorePage() {
             Open Source · v1.0.0
           </a>
         </div>
-      </motion.div>
+      </div>
     </div>
   )
 }

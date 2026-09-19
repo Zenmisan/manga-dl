@@ -31,6 +31,23 @@ const INPUT_STYLE: React.CSSProperties = {
   transition: 'border-color 0.15s, box-shadow 0.15s',
 }
 
+function formatRelativeTime(iso: string | null): string {
+  if (!iso) return ''
+  try {
+    const diff = Date.now() - new Date(iso).getTime()
+    const m = Math.floor(diff / 60000)
+    if (m < 1) return 'Just now'
+    if (m < 60) return `${m}m ago`
+    const h = Math.floor(m / 60)
+    if (h < 24) return `${h}h ago`
+    const d = Math.floor(h / 24)
+    if (d < 30) return `${d}d ago`
+    return `${Math.floor(d / 30)}mo ago`
+  } catch {
+    return ''
+  }
+}
+
 function CardLabel({ icon: Icon, title, badge }: { icon: React.ElementType; title: string; badge?: React.ReactNode }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
@@ -88,6 +105,16 @@ export default function AccountProfileSettings() {
   const signOutTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [stats, setStats] = useState({ chapters_read: 0, manga_count: 0, streak_days: 1 })
+  const [userComments, setUserComments] = useState<Array<{
+    id: string
+    provider: string
+    manga_id: string
+    chapter_id?: string | null
+    body: string
+    likes: number
+    created_at: string
+  }>>([])
+  const [commentsLoading, setCommentsLoading] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -132,6 +159,14 @@ export default function AccountProfileSettings() {
         }))
       }
     }).catch(() => {})
+
+    setCommentsLoading(true)
+    api.get('/comments/mine')
+      .then(r => {
+        if (Array.isArray(r.data)) setUserComments(r.data)
+      })
+      .catch(() => {})
+      .finally(() => setCommentsLoading(false))
   }, [user])
 
   const handleSave = async () => {
@@ -425,23 +460,6 @@ export default function AccountProfileSettings() {
                       >
                         {displayName || username || user.email?.split('@')[0]}
                       </h2>
-                      {username && (
-                        <span
-                          style={{
-                            fontSize: 10,
-                            fontWeight: 900,
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.08em',
-                            color: 'var(--accent)',
-                            background: 'var(--accent-muted)',
-                            border: '1px solid var(--border)',
-                            padding: '2px 8px',
-                            borderRadius: 6,
-                          }}
-                        >
-                          Verified Reader
-                        </span>
-                      )}
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4, flexWrap: 'wrap' }}>
@@ -707,7 +725,7 @@ export default function AccountProfileSettings() {
                     </p>
                   </div>
 
-                  {/* ── Live Community Discussion Preview ── */}
+                  {/* ── Real User Comments ── */}
                   <div
                     style={{
                       padding: '14px 16px',
@@ -737,44 +755,77 @@ export default function AccountProfileSettings() {
                         }}
                       >
                         <MessageSquare style={{ width: 12, height: 12, color: 'var(--accent)' }} />
-                        Live Preview · Chapter Comments
+                        Your Recent Comments
                       </span>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted3)' }}>Public</span>
+                      {userComments.length > 0 && (
+                        <span
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 800,
+                            color: 'var(--accent)',
+                            background: 'var(--accent-muted)',
+                            padding: '2px 7px',
+                            borderRadius: 6,
+                          }}
+                        >
+                          {userComments.length} {userComments.length === 1 ? 'comment' : 'comments'}
+                        </span>
+                      )}
                     </div>
 
-                    <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                      <div
-                        style={{
-                          width: 34,
-                          height: 34,
-                          borderRadius: 10,
-                          background: 'var(--accent)',
-                          color: '#fff',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: 14,
-                          fontWeight: 800,
-                          flexShrink: 0,
-                        }}
-                      >
-                        {(displayNameInput || usernameInput || user.email || 'R')[0].toUpperCase()}
+                    {commentsLoading ? (
+                      <div style={{ display: 'flex', justifyContent: 'center', padding: '16px 0' }}>
+                        <ThemedSpinner size="xs" />
                       </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--fg)' }}>
-                            {displayNameInput || displayName || username || 'Shadow Reader'}
-                          </span>
-                          <span style={{ fontSize: 11, color: 'var(--muted2)' }}>
-                            @{username || usernameInput || 'handle'}
-                          </span>
-                          <span style={{ fontSize: 10, color: 'var(--muted3)' }}>· Just now</span>
-                        </div>
-                        <p style={{ fontSize: 12, color: 'var(--muted1)', marginTop: 4, lineHeight: 1.4, margin: '4px 0 0' }}>
-                          "Can't believe that plot twist at the end! Peak fiction right here 🔥"
+                    ) : userComments.length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {userComments.slice(0, 3).map((c) => (
+                          <div
+                            key={c.id}
+                            style={{
+                              padding: '10px 12px',
+                              borderRadius: 10,
+                              background: 'var(--surface)',
+                              border: '1px solid var(--border)',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                                <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {c.manga_id?.replace(/-/g, ' ')}
+                                </span>
+                                {c.chapter_id && (
+                                  <span style={{ fontSize: 10, color: 'var(--muted2)' }}>
+                                    · Ch. {c.chapter_id}
+                                  </span>
+                                )}
+                              </div>
+                              <span style={{ fontSize: 10, color: 'var(--muted3)', flexShrink: 0 }}>
+                                {formatRelativeTime(c.created_at)}
+                              </span>
+                            </div>
+                            <p style={{ fontSize: 12, color: 'var(--fg)', lineHeight: 1.4, margin: '2px 0 0', wordBreak: 'break-word' }}>
+                              {c.body}
+                            </p>
+                            {c.likes > 0 && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4, fontSize: 10, color: 'var(--accent)', fontWeight: 700 }}>
+                                <span>♥</span>
+                                <span>{c.likes}</span>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ padding: '12px 6px', textAlign: 'center' }}>
+                        <p style={{ fontSize: 12, color: 'var(--muted2)', margin: '0 0 4px', lineHeight: 1.5 }}>
+                          You haven't posted any comments yet.
+                        </p>
+                        <p style={{ fontSize: 11, color: 'var(--muted3)', margin: 0 }}>
+                          Join the discussion on any manga or chapter, and your comments will appear here.
                         </p>
                       </div>
-                    </div>
+                    )}
                   </div>
 
                   {/* Save Action */}

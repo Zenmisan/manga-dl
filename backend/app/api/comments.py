@@ -125,6 +125,24 @@ async def list_comments(
     return {"comments": result, "total": total, "offset": offset, "limit": limit}
 
 
+@router.get("/mine")
+async def get_my_comments(
+    limit: int = Query(default=10, le=50),
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List recent comments posted by the current user."""
+    q = (
+        select(Comment)
+        .where(Comment.user_id == user_id)
+        .order_by(Comment.created_at.desc())
+        .limit(limit)
+    )
+    rows = (await db.execute(q)).scalars().all()
+    liked_ids = await _get_liked_ids(user_id, db)
+    return [_serialize(c, liked_ids) for c in rows]
+
+
 @router.post("", status_code=201)
 async def post_comment(
     body: PostComment,

@@ -468,7 +468,7 @@ function App() {
 
       {/* Main content */}
       <main className={cn('flex-1 min-w-0 overflow-x-hidden', !isReader && 'pb-[76px] md:pb-0')}>
-        <AnimatePresence mode="sync">
+        <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}
             initial={{ opacity: 0 }}

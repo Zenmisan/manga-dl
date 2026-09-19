@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Download, Bell, BellOff, ListPlus, Play,
+  Download, Bell, BellOff, ListPlus,
   ArrowUpDown, Search as SearchIcon, Bookmark, BookmarkCheck,
-  Eye, EyeOff, Filter, CheckCircle2, Check, Copy, RotateCcw, ChevronDown,
+  Eye, EyeOff, Filter, CheckCircle2, Check, Copy, ChevronDown,
 } from 'lucide-react'
 import { ThemedSpinner } from '../common/ThemedLoader'
 import { cn } from '../../lib/utils'
@@ -151,6 +151,7 @@ export function MangaChaptersSection({
   toggleBookmark, toggleReadStatus, handleDownload, swipedChapterId, setSwipedChapterId, swipeStartX,
 }: Props) {
   const swipeStartXRef = swipeStartX
+  const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; chapter: Chapter } | null>(null)
   const [hiddenChapters, setHiddenChapters] = useState<Set<string>>(new Set())
   const [copiedNotification, setCopiedNotification] = useState(false)
@@ -189,8 +190,36 @@ export function MangaChaptersSection({
       longPressTimerRef.current = null
     }
     const delta = e.changedTouches[0].clientX - swipeStartXRef.current
-    if (delta < -60) setSwipedChapterId(chapter.id)
-    else if (delta > 60) setSwipedChapterId(null)
+
+    // Quick strong swipe right: directly trigger download
+    if (delta > 110) {
+      handleDownload(chapter)
+      setSwipedChapterId(null)
+      setSwipeDirection(null)
+      return
+    }
+    // Quick strong swipe left: directly toggle read status
+    if (delta < -110) {
+      const dummyEvent = { stopPropagation: () => {} } as unknown as React.MouseEvent
+      toggleReadStatus(chapter.id, dummyEvent)
+      setSwipedChapterId(null)
+      setSwipeDirection(null)
+      return
+    }
+
+    // Partial swipe left -> reveal Mark Read / Unread
+    if (delta < -50) {
+      setSwipedChapterId(chapter.id)
+      setSwipeDirection('left')
+    }
+    // Partial swipe right -> reveal Download
+    else if (delta > 50) {
+      setSwipedChapterId(chapter.id)
+      setSwipeDirection('right')
+    } else {
+      setSwipedChapterId(null)
+      setSwipeDirection(null)
+    }
   }
 
   const handleMarkPreviousAsRead = (chapter: Chapter) => {
@@ -408,6 +437,8 @@ export function MangaChaptersSection({
             const isBookmarked = bookmarks.has(chapter.id)
             const isChRead = readChapters.has(chapter.id)
             const isSwiped = swipedChapterId === chapter.id
+            const isSwipedLeft = isSwiped && swipeDirection === 'left'
+            const isSwipedRight = isSwiped && swipeDirection === 'right'
             const pgKey = `manga-dl-pg:${provider}:${manga.id}:${chapter.id}`
             const totalKey = `manga-dl-pg-total:${provider}:${manga.id}:${chapter.id}`
             let readPct = 0
@@ -427,27 +458,61 @@ export function MangaChaptersSection({
                 onTouchMove={handleTouchMove}
                 onTouchEnd={(e) => handleTouchEnd(e, chapter)}
               >
-                {/* Swipe background — only rendered while the row is being swiped */}
-                {isSwiped && (
+                {/* Swipe background: Left swipe reveals Mark Read / Unread */}
+                {isSwipedLeft && (
                   <div
-                    onClick={(e) => { toggleReadStatus(chapter.id, e); setSwipedChapterId(null) }}
-                    className="absolute inset-0 bg-red-600/30 flex items-center justify-end pr-6 text-white font-bold text-xs gap-2 cursor-pointer"
+                    onClick={(e) => {
+                      toggleReadStatus(chapter.id, e)
+                      setSwipedChapterId(null)
+                      setSwipeDirection(null)
+                    }}
+                    className="absolute inset-0 bg-red-600/30 flex items-center justify-end pr-6 text-red-400 font-extrabold text-xs gap-2 cursor-pointer transition-colors hover:bg-red-600/40 select-none"
                   >
-                    <Eye className="w-4 h-4" /> {isChRead ? 'Mark Unread' : 'Mark Read'}
+                    {isChRead ? (
+                      <>
+                        <EyeOff className="w-4 h-4" /> <span>Mark Unread</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4" /> <span>Mark Read</span>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* Swipe background: Right swipe reveals Download Chapter */}
+                {isSwipedRight && (
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleDownload(chapter)
+                      setSwipedChapterId(null)
+                      setSwipeDirection(null)
+                    }}
+                    className="absolute inset-0 bg-emerald-600/30 flex items-center justify-start pl-6 text-emerald-400 font-extrabold text-xs gap-2 cursor-pointer transition-colors hover:bg-emerald-600/40 select-none"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>{isDownloading ? 'Downloading...' : 'Download'}</span>
                   </div>
                 )}
 
                 <div
                   onClick={() => {
+                    if (isSwiped) {
+                      setSwipedChapterId(null)
+                      setSwipeDirection(null)
+                      return
+                    }
                     const targetUrl = manga.type === 'novel'
                       ? buildNovelReadUrl(provider || '', manga.id, chapter.id, manga.title, chapter.title)
                       : buildSmartReadUrl(provider || '', manga.id, chapter.id, manga.title, chapter.title)
                     navigate(targetUrl)
                   }}
                   className={cn(
-                    "relative flex items-center justify-between p-3 sm:p-5 md:p-6 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl hover:bg-white/[0.08] cursor-pointer group transition-all overflow-hidden",
+                    "relative flex items-center justify-between p-3 sm:p-5 md:p-6 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl hover:bg-white/[0.08] cursor-pointer group transition-all duration-200 overflow-hidden",
                     "border-l-4 border-l-red-500",
-                    isSwiped && "-translate-x-28"
+                    isSwipedLeft && "-translate-x-28",
+                    isSwipedRight && "translate-x-28"
                   )}
                 >
                   {readPct > 0 && readPct < 100 && (
@@ -493,14 +558,14 @@ export function MangaChaptersSection({
                     </div>
                   </div>
 
-                  {/* Stitch Action Buttons (Read vs Re-read) */}
-                  <div className="flex items-center gap-2 shrink-0">
-                    {isAdmin && (
+                  {/* Action Button (Download) */}
+                  {(isAdmin || isDownloading) && (
+                    <div className="flex items-center gap-2 shrink-0">
                       <button
                         onClick={(e) => { e.stopPropagation(); handleDownload(chapter) }}
                         disabled={isDownloading}
                         className={cn(
-                          "p-2.5 rounded-xl transition-all border border-white/10 bg-white/5 hover:bg-white/10 text-zinc-300",
+                          "p-2.5 rounded-xl transition-all border border-white/10 bg-white/5 hover:bg-white/10 text-zinc-300 cursor-pointer",
                           isDownloading && "border-red-500/40 text-red-400 bg-red-500/10"
                         )}
                         aria-label="Download Chapter"
@@ -511,42 +576,8 @@ export function MangaChaptersSection({
                           <Download className="w-4 h-4" />
                         )}
                       </button>
-                    )}
-
-                    {isChRead ? (
-                      /* Read state -> Re-read button */
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          const targetUrl = manga.type === 'novel'
-                            ? buildNovelReadUrl(provider || '', manga.id, chapter.id, manga.title, chapter.title)
-                            : buildSmartReadUrl(provider || '', manga.id, chapter.id, manga.title, chapter.title)
-                          navigate(targetUrl)
-                        }}
-                        className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-zinc-200 font-extrabold text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer border border-white/10"
-                        aria-label="Re-read Chapter"
-                      >
-                        <RotateCcw className="w-3.5 h-3.5 text-zinc-400" />
-                        <span>Re-read</span>
-                      </button>
-                    ) : (
-                      /* Unread state -> Stitch Red Primary Read button */
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          const targetUrl = manga.type === 'novel'
-                            ? buildNovelReadUrl(provider || '', manga.id, chapter.id, manga.title, chapter.title)
-                            : buildSmartReadUrl(provider || '', manga.id, chapter.id, manga.title, chapter.title)
-                          navigate(targetUrl)
-                        }}
-                        className="px-4 py-2 rounded-xl border border-red-500/50 text-red-400 hover:bg-red-500/10 font-extrabold text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer"
-                        aria-label="Read Chapter"
-                      >
-                        <Play className="w-3.5 h-3.5 fill-current" />
-                        <span>Read</span>
-                      </button>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )

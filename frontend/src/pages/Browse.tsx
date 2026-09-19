@@ -103,7 +103,7 @@ function AggregateBrowse({ isPopular }: { isPopular: boolean }) {
     let cancelled = false
     const fetch = async (attempt = 0) => {
       const manager = ExtensionManager.getInstance()
-      if (manager.extensions.size === 0) await manager.init()
+      await manager.init()
       const providerIds = Array.from(manager.extensions.keys()).join(',')
 
       const data: DiscoveryResponse = await api
@@ -113,14 +113,13 @@ function AggregateBrowse({ isPopular }: { isPopular: boolean }) {
 
       const key = isPopular ? 'popular' : 'latest'
       const cols = Object.entries(data)
-        .filter(([id]) => id !== 'mangadex')
         .map(([, v]) => v[key] ?? [])
       const all = interleave(cols)
 
       if (cancelled) return
-      if (all.length === 0 && attempt < 3) {
-        // Cache still warming — retry with backoff
-        setTimeout(() => { if (!cancelled) fetch(attempt + 1) }, (attempt + 1) * 5000)
+      if (all.length === 0 && attempt < 2) {
+        // Cache warming — brief backoff retry
+        setTimeout(() => { if (!cancelled) fetch(attempt + 1) }, 2500)
         return
       }
       setItems(all)
@@ -171,19 +170,6 @@ function SourceBrowse({ sourceId, onNameResolved }: { sourceId: string; onNameRe
   const sentinelRef = useRef<HTMLDivElement>(null)
   const extRef = useRef<ReturnType<typeof ExtensionManager.prototype.extensions.get>>(undefined)
 
-  // Init extension once
-  useEffect(() => {
-    const manager = ExtensionManager.getInstance()
-    const init = async () => {
-      if (manager.extensions.size === 0) await manager.init()
-      const ext = manager.extensions.get(sourceId)
-      extRef.current = ext
-      if (ext) onNameResolved(ext.name)
-    }
-    init()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sourceId])
-
   const fetchPage = useCallback(async (targetPage: number, isReset: boolean) => {
     const fetchId = ++fetchCountRef.current
     const currentMode = modeRef.current
@@ -194,9 +180,16 @@ function SourceBrowse({ sourceId, onNameResolved }: { sourceId: string; onNameRe
 
     try {
       const manager = ExtensionManager.getInstance()
-      if (manager.extensions.size === 0) await manager.init()
-      const ext = manager.extensions.get(sourceId)
-      if (!ext || fetchCountRef.current !== fetchId) return
+      const ext = await manager.getExtension(sourceId)
+      if (fetchCountRef.current !== fetchId) return
+
+      if (!ext) {
+        setFetchError(`Source "${sourceId}" is not available or could not be loaded.`)
+        return
+      }
+
+      extRef.current = ext
+      onNameResolved(ext.name)
 
       let results: MangaResult[]
       if (currentMode === 'search') {
@@ -227,18 +220,16 @@ function SourceBrowse({ sourceId, onNameResolved }: { sourceId: string; onNameRe
         setLoadingMore(false)
       }
     }
-  }, [sourceId])
+  }, [sourceId, onNameResolved])
 
-  // Refetch when mode / activeQuery changes
+  // Refetch when mode / activeQuery changes or on mount
   useEffect(() => {
     modeRef.current = mode
     queryRef.current = activeQuery
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setHasMore(true)
     fetchPage(1, true)
-  // fetchPage is stable (useCallback with only sourceId dep)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, activeQuery])
+  }, [mode, activeQuery, fetchPage])
 
   // Infinite scroll sentinel
   useEffect(() => {
@@ -411,8 +402,8 @@ export default function BrowsePage() {
         </div>
 
         {isSourceMode
-          ? <SourceBrowse sourceId={sourceId!} onNameResolved={setResolvedSourceName} />
-          : <AggregateBrowse isPopular={isPopular} />
+          ? <SourceBrowse key={sourceId} sourceId={sourceId!} onNameResolved={setResolvedSourceName} />
+          : <AggregateBrowse key={category || (isPopular ? 'popular' : 'latest')} isPopular={isPopular} />
         }
       </div>
     </div>

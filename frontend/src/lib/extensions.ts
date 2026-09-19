@@ -145,7 +145,15 @@ export class ExtensionManager {
   async getExtension(pkgId: string): Promise<MangaExtension | undefined> {
     if (this.extensions.has(pkgId)) return this.extensions.get(pkgId)
     await this.init()
-    return this.extensions.get(pkgId)
+    if (this.extensions.has(pkgId)) return this.extensions.get(pkgId)
+    // On-demand load/install if not already cached
+    try {
+      const ok = await this.install(pkgId, pkgId, 'en', '1.0.0', true)
+      if (ok) return this.extensions.get(pkgId)
+    } catch {
+      // non-fatal
+    }
+    return undefined
   }
 
   reinit() {
@@ -234,11 +242,17 @@ export class ExtensionManager {
       
       const apiKey: string = localStorage.getItem('manga-api-key') || ''
 
-      const apiFetch = async (path: string, opts = {}) => {
+      const apiFetch = async (path: string, opts: RequestInit = {}) => {
         const url = apiBaseURL + path + (path.includes('?') ? '&' : '?') + 'api_key=' + apiKey
-        const res = await fetch(url, opts)
-        if (!res.ok) throw new Error('API error: ' + res.status)
-        return res.json()
+        const controller = new AbortController()
+        const timer = setTimeout(() => controller.abort(), 20000)
+        try {
+          const res = await fetch(url, { ...opts, signal: opts.signal || controller.signal })
+          if (!res.ok) throw new Error('API error: ' + res.status)
+          return await res.json()
+        } finally {
+          clearTimeout(timer)
+        }
       }
 
       // Evaluate extension code on the main thread so that it has full access to Web APIs like DOMParser
@@ -299,11 +313,17 @@ export class ExtensionManager {
       if (apiBaseURL.startsWith('/')) apiBaseURL = window.location.origin + apiBaseURL
       const apiKey: string = localStorage.getItem('manga-api-key') || ''
 
-      const apiFetch = async (path: string, opts = {}) => {
+      const apiFetch = async (path: string, opts: RequestInit = {}) => {
         const url = apiBaseURL + path + (path.includes('?') ? '&' : '?') + 'api_key=' + apiKey
-        const r = await fetch(url, opts)
-        if (!r.ok) throw new Error('API error: ' + r.status)
-        return r.json()
+        const controller = new AbortController()
+        const timer = setTimeout(() => controller.abort(), 20000)
+        try {
+          const r = await fetch(url, { ...opts, signal: opts.signal || controller.signal })
+          if (!r.ok) throw new Error('API error: ' + r.status)
+          return await r.json()
+        } finally {
+          clearTimeout(timer)
+        }
       }
 
       const runner = new Function('apiFetch', `${jsCode}\nif (typeof extension !== 'undefined') return extension;\nthrow new Error('Extension object not found');`)
