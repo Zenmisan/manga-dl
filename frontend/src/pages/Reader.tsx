@@ -16,7 +16,7 @@ import { ReaderSettingsSheet } from '../components/reader/ReaderSettingsSheet'
 import CommentSheet from '../components/comments/CommentSheet'
 import { startSession, endSession } from '../lib/readingSession'
 import { markRead } from '../lib/readTracking'
-import { buildSmartReadUrl } from '../lib/smartUrl'
+import { buildSmartReadUrl, buildSmartMangaUrl, resolveSmartManga, resolveSmartContext } from '../lib/smartUrl'
 import { usePageTitle } from '../lib/usePageTitle'
 
 const fac = new FastAverageColor()
@@ -111,7 +111,93 @@ export default function Reader() {
     : (localTitle ?? null)
   usePageTitle(readerTitle)
 
-  useAndroidFeatures({ navigate, ambilightColor })
+  const handleBack = useCallback(() => {
+    // 1. If onlinePartsRef has resolved provider and mangaId:
+    const parts = onlinePartsRef.current
+    if (parts) {
+      if (parts.provider === 'local') {
+        navigate(`/local/${encodeURIComponent(parts.mangaId)}`)
+        return
+      }
+      if (parts.provider && parts.mangaId) {
+        navigate(buildSmartMangaUrl(parts.provider, parts.mangaId, parts.mangaTitle || resolvedMangaTitle || ''))
+        return
+      }
+    }
+
+    // 2. If reading local manga archive (/read/local/:archiveId or /read/local/:archiveId:chapterId)
+    if (mangaTitle === 'local' && filename) {
+      const localId = filename.split(':')[0]
+      if (localId) {
+        navigate(`/local/${encodeURIComponent(localId)}`)
+        return
+      }
+    }
+
+    // 3. If reading legacy base64 online param (/read/online/:base64)
+    if (mangaTitle === 'online' && filename) {
+      try {
+        let decoded: string
+        try {
+          decoded = decodeURIComponent(escape(atob(filename)))
+        } catch {
+          decoded = atob(filename)
+        }
+        const p = decoded.split(/[:|]/)
+        if (p[0] === 'local' && p[1]) {
+          navigate(`/local/${encodeURIComponent(p[1])}`)
+          return
+        }
+        if (p[0] && p[1]) {
+          navigate(buildSmartMangaUrl(p[0], p[1], p[3] || resolvedMangaTitle || ''))
+          return
+        }
+      } catch { /* ignore decoding failure */ }
+    }
+
+    // 4. If smart context exists (either in ?ctx= param or localStorage)
+    if (mangaTitle && filename && mangaTitle !== 'local') {
+      const queryParams = new URLSearchParams(location.search)
+      const ctxParam = queryParams.get('ctx')
+      const ctx = resolveSmartContext(mangaTitle, filename, ctxParam)
+      if (ctx) {
+        try {
+          let decoded: string
+          try {
+            decoded = decodeURIComponent(escape(atob(ctx)))
+          } catch {
+            decoded = atob(ctx)
+          }
+          const p = decoded.split(/[:|]/)
+          if (p[0] === 'local' && p[1]) {
+            navigate(`/local/${encodeURIComponent(p[1])}`)
+            return
+          }
+          if (p[0] && p[1]) {
+            navigate(buildSmartMangaUrl(p[0], p[1], p[3] || resolvedMangaTitle || ''))
+            return
+          }
+        } catch { /* ignore decoding failure */ }
+      }
+    }
+
+    // 5. If mangaTitle is a smart slug in localStorage
+    if (mangaTitle && mangaTitle !== 'local' && mangaTitle !== 'online') {
+      const cached = resolveSmartManga(mangaTitle)
+      if (cached?.provider && cached?.mangaId) {
+        navigate(buildSmartMangaUrl(cached.provider, cached.mangaId, cached.title || resolvedMangaTitle || mangaTitle))
+        return
+      }
+      // Direct smart slug route (/manga/:smartSlug)
+      navigate(`/manga/${mangaTitle}`)
+      return
+    }
+
+    // 6. Fallback
+    navigate(-1)
+  }, [navigate, mangaTitle, filename, location.search, resolvedMangaTitle, onlinePartsRef])
+
+  useAndroidFeatures({ navigate, ambilightColor, onBack: handleBack })
 
   const {
     nextPage, prevPage,
@@ -122,7 +208,7 @@ export default function Reader() {
     pages, currentPage, setCurrentPage,
     readingMode, dualPageSpread, tapZoneLayout, hapticFeedback, skipReadChapters,
     onlinePartsRef, chapterListRef, nextChapterId, prevChapterId, mangaTitle, navigate,
-    readerFilters, setReaderFilters, isWidePage,
+    readerFilters, setReaderFilters, isWidePage, onExit: handleBack,
   })
 
   // Keep a live ref to currentPage so the session cleanup can read the final page reached
@@ -258,7 +344,7 @@ export default function Reader() {
             {fetchError || 'No image pages were found in this chapter or the provider request failed.'}
           </p>
           <div className="flex gap-3">
-            <button onClick={() => navigate(-1)} className="flex-1 btn-secondary text-xs uppercase tracking-widest font-bold py-3">Go Back</button>
+            <button onClick={handleBack} className="flex-1 btn-secondary text-xs uppercase tracking-widest font-bold py-3">Go Back</button>
             <button onClick={() => window.location.reload()} className="flex-1 btn-primary text-xs uppercase tracking-widest font-bold py-3">Retry</button>
           </div>
         </motion.div>
@@ -316,7 +402,7 @@ export default function Reader() {
         handleConvertToPdf={() => openLibraryUrl('library/pdf')}
         readingMode={readingMode}
         setReadingMode={setReadingMode}
-        onBack={() => navigate(-1)}
+        onBack={handleBack}
         onOpenSettings={() => setShowSettingsSheet(true)}
         onOpenComments={onlinePartsRef.current && mangaTitle !== 'local' ? () => setShowCommentSheet(true) : undefined}
       />

@@ -10,14 +10,28 @@ function extractHex(rgba: string): string {
   return '#' + [m[1], m[2], m[3]].map(n => parseInt(n).toString(16).padStart(2, '0')).join('')
 }
 
-export function useAndroidFeatures({ navigate, ambilightColor }: { navigate: NavigateFunction; ambilightColor: string }) {
+export function useAndroidFeatures({
+  navigate,
+  ambilightColor,
+  onBack,
+}: {
+  navigate: NavigateFunction
+  ambilightColor: string
+  onBack?: () => void
+}) {
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return
     import('@capacitor/app').then(({ App }) => {
-      const sub = App.addListener('backButton', () => navigate(-1))
+      const sub = App.addListener('backButton', () => {
+        if (onBack) {
+          onBack()
+        } else {
+          navigate(-1)
+        }
+      })
       return () => { sub.then((h: { remove(): void }) => h.remove()) }
     }).catch(() => {})
-  }, [navigate])
+  }, [navigate, onBack])
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return

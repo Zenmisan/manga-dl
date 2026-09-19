@@ -33,13 +33,14 @@ interface Params {
   readerFilters: ReaderFilters
   setReaderFilters: (partial: Partial<ReaderFilters>) => void
   isWidePage: boolean[]
+  onExit?: () => void
 }
 
 export function useReaderNavigation({
   pages, currentPage, setCurrentPage,
   readingMode, dualPageSpread, tapZoneLayout, hapticFeedback, skipReadChapters,
   onlinePartsRef, chapterListRef, nextChapterId, prevChapterId, mangaTitle, navigate,
-  readerFilters, setReaderFilters, isWidePage,
+  readerFilters, setReaderFilters, isWidePage, onExit,
 }: Params) {
   const [isLandscape, setIsLandscape] = useState(window.innerWidth > window.innerHeight)
   const [volumeKeyMode, setVolumeKeyMode] = useState<'navigation' | 'brightness'>('navigation')
@@ -134,7 +135,7 @@ export function useReaderNavigation({
   useReaderKeybindings({
     readingMode, volumeKeyMode, readerFilters, setReaderFilters,
     pagesLength: pages.length, setCurrentPage, prevPage, nextPage,
-    onExit: () => navigate(-1),
+    onExit: onExit || (() => navigate(-1)),
     onNextChapter: navigateToNextChapter,
     onPrevChapter: navigateToPrevChapter,
   })

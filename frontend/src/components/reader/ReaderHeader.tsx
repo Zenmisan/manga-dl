@@ -124,7 +124,7 @@ export function ReaderHeader({
             {/* Back */}
             <button
               onClick={onBack}
-              aria-label="Back to library"
+              aria-label="Back to manga details"
               className={cn(
                 'p-2 sm:p-2.5 hover:bg-white/10 rounded-xl transition-all text-white/60 hover:text-white shrink-0',
                 FOCUS_RING
