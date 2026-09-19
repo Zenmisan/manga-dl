@@ -6,7 +6,7 @@ import logging
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, Request, Depends, Query
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -168,17 +168,52 @@ async def setup_profile(
     if not re.match(r'^[a-z0-9_]{3,24}$', username):
         raise HTTPException(status_code=422, detail="Username must be 3–24 characters: letters, numbers, underscores only.")
 
-    existing = (await db.execute(select(UserProfile).where(UserProfile.user_id == user_id))).scalar_one_or_none()
-    if existing:
-        raise HTTPException(status_code=409, detail="Profile already set up. Username cannot be changed.")
+    # Check if username is already taken (query only user_id to avoid querying unmigrated columns)
+    try:
+        taken = (await db.execute(select(UserProfile.user_id).where(UserProfile.username == username))).scalar_one_or_none()
+        if taken and taken != user_id:
+            raise HTTPException(status_code=409, detail="Username already taken.")
 
-    taken = (await db.execute(select(UserProfile).where(UserProfile.username == username))).scalar_one_or_none()
-    if taken:
-        raise HTTPException(status_code=409, detail="Username already taken.")
+        # Check if current user already set up a profile
+        existing = (await db.execute(select(UserProfile.user_id).where(UserProfile.user_id == user_id))).scalar_one_or_none()
+        if existing:
+            raise HTTPException(status_code=409, detail="Profile already set up. Username cannot be changed.")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        log.warning("Pre-check failed in setup_profile (%s), attempting raw query", exc)
+        await db.rollback()
+        # Fallback to direct raw query in case schema cache is stale
+        res = (await db.execute(text("SELECT user_id FROM profiles WHERE username = :un"), {"un": username})).scalar_one_or_none()
+        if res and res != user_id:
+            raise HTTPException(status_code=409, detail="Username already taken.")
+        res_existing = (await db.execute(text("SELECT user_id FROM profiles WHERE user_id = :u"), {"u": user_id})).scalar_one_or_none()
+        if res_existing:
+            raise HTTPException(status_code=409, detail="Profile already set up. Username cannot be changed.")
 
-    profile = UserProfile(user_id=user_id, username=username)
-    db.add(profile)
-    await db.commit()
+    try:
+        profile = UserProfile(user_id=user_id, username=username)
+        db.add(profile)
+        await db.commit()
+    except Exception as exc:
+        await db.rollback()
+        log.warning("Profile setup standard insert failed (%s), running safe column migration and retry", exc)
+        try:
+            # Auto-migrate missing columns in database if not yet applied
+            await db.execute(text("ALTER TABLE profiles ADD COLUMN IF NOT EXISTS display_name VARCHAR"))
+            await db.execute(text("ALTER TABLE profiles ADD COLUMN IF NOT EXISTS liked_comments JSON DEFAULT '[]'"))
+            await db.commit()
+            profile = UserProfile(user_id=user_id, username=username)
+            db.add(profile)
+            await db.commit()
+        except Exception as exc2:
+            await db.rollback()
+            log.warning("Auto-migration fallback failed (%s), performing direct raw insert", exc2)
+            await db.execute(
+                text("INSERT INTO profiles (user_id, username, created_at) VALUES (:u, :un, NOW())"),
+                {"u": user_id, "un": username}
+            )
+            await db.commit()
 
     user_email = await get_current_user_email(request)
     if user_email:
@@ -194,11 +229,19 @@ async def get_my_profile(
     db: AsyncSession = Depends(get_db),
 ):
     """Return current user's profile."""
-    profile = (await db.execute(select(UserProfile).where(UserProfile.user_id == user_id))).scalar_one_or_none()
+    try:
+        username = (await db.execute(select(UserProfile.username).where(UserProfile.user_id == user_id))).scalar_one_or_none()
+    except Exception as exc:
+        log.warning("get_my_profile query failed (%s)", exc)
+        try:
+            username = (await db.execute(text("SELECT username FROM profiles WHERE user_id = :u"), {"u": user_id})).scalar_one_or_none()
+        except Exception:
+            username = None
+
     return {
         "user_id": user_id,
-        "username": profile.username if profile else None,
-        "profile_set": profile is not None,
+        "username": username,
+        "profile_set": username is not None,
     }
 
 

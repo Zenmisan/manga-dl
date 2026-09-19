@@ -56,4 +56,9 @@ async def _migrate_add_columns():
     async with engine.begin() as conn:
         await _safe_add(conn, "manga", "user_id", "VARCHAR")
         await _safe_add(conn, "downloads", "user_id", "VARCHAR")
+        await _safe_add(conn, "downloads", "file_size_bytes", "INTEGER DEFAULT 0")
+        await _safe_add(conn, "downloads", "pinned", "BOOLEAN DEFAULT FALSE")
+        await _safe_add(conn, "downloads", "last_page_read", "INTEGER DEFAULT 0")
+        await _safe_add(conn, "profiles", "display_name", "VARCHAR")
+        await _safe_add(conn, "profiles", "liked_comments", "JSON DEFAULT '[]'")
     log.info("DB column migration complete")

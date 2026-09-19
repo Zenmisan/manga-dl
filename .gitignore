@@ -60,3 +60,7 @@ backend/*.db
 # Caches
 .firebase/
 **/.firebase/
+
+# Comix.to reverse engineering & userscripts
+COMIXTO_INVESTIGATION.md
+comixto-token-sync.user.js

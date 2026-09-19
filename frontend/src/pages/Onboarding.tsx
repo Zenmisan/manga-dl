@@ -118,8 +118,14 @@ export default function OnboardingPage() {
       localStorage.setItem('manga-username', trimmed)
       setStep('done')
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail || 'Failed to set username.'
-      setUsernameError(msg)
+      const resp = (err as { response?: { status?: number; data?: { detail?: string } } })?.response
+      const msg = resp?.data?.detail
+      if (resp?.status === 500 || msg === 'Internal server error') {
+        localStorage.setItem('manga-username', trimmed)
+        setUsernameError('Server database error. Your username was saved locally — you can proceed or retry.')
+      } else {
+        setUsernameError(msg || 'Failed to set username. You can skip for now.')
+      }
     } finally {
       setUsernameLoading(false)
     }
