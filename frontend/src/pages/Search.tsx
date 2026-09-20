@@ -6,8 +6,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useToast } from '../components/common/Toast'
 import api from '../lib/api'
 import { ExtensionManager } from '../lib/extensions'
-import { Search as SearchIcon, Globe, BookOpen, BookMarked, Check, SlidersHorizontal, X, LayoutGrid, LayoutList, Layers, Users, Flame } from 'lucide-react'
+import { Search as SearchIcon, Globe, BookOpen, BookMarked, Check, SlidersHorizontal, X, LayoutGrid, LayoutList, Layers, Users, Flame, Trophy, Crown, Medal, Award, Zap, Shield, Sparkles, Pin, ChevronRight } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { MILESTONES } from '../lib/milestones'
 import { cn } from '../lib/utils'
 import { useAppStore } from '../lib/store'
 import { buildSmartMangaUrl } from '../lib/smartUrl'
@@ -212,6 +213,55 @@ function MangaCard({ r, idx, onSubscribe, subscribed, subscribing, navigate }: {
   )
 }
 
+function getHunterBadgeStyle(tier: string, code: string) {
+  if (code === 'MONARCH') {
+    return {
+      border: 'border-purple-500/50',
+      bg: 'bg-purple-950/50',
+      text: 'text-purple-300',
+      glow: 'rgba(168, 85, 247, 0.45)',
+    }
+  }
+  switch (tier) {
+    case 'diamond':
+      return {
+        border: 'border-purple-400/40',
+        bg: 'bg-purple-900/30',
+        text: 'text-purple-300',
+        glow: 'rgba(168, 85, 247, 0.3)',
+      }
+    case 'platinum':
+      return {
+        border: 'border-sky-400/40',
+        bg: 'bg-sky-900/30',
+        text: 'text-sky-300',
+        glow: 'rgba(56, 189, 248, 0.3)',
+      }
+    case 'gold':
+      return {
+        border: 'border-amber-400/40',
+        bg: 'bg-amber-900/30',
+        text: 'text-amber-300',
+        glow: 'rgba(245, 158, 11, 0.3)',
+      }
+    case 'silver':
+      return {
+        border: 'border-slate-400/40',
+        bg: 'bg-slate-800/40',
+        text: 'text-slate-300',
+        glow: 'rgba(148, 163, 184, 0.25)',
+      }
+    case 'bronze':
+    default:
+      return {
+        border: 'border-amber-700/40',
+        bg: 'bg-amber-950/30',
+        text: 'text-amber-400',
+        glow: 'rgba(205, 127, 50, 0.2)',
+      }
+  }
+}
+
 // ── Main Page ──────────────────────────────────────────────────────────────
 
 export default function SearchPage() {
@@ -220,7 +270,7 @@ export default function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const initialMode = searchParams.get('mode') === 'novel' ? 'novel' : searchParams.get('mode') === 'readers' ? 'readers' : 'manga'
   const [searchMode, setSearchMode] = useState<'manga' | 'novel' | 'readers'>(initialMode)
-  usePageTitle(searchMode === 'novel' ? 'Browse Web Novels' : searchMode === 'readers' ? 'Find Readers' : 'Browse Manga')
+  usePageTitle(searchMode === 'novel' ? 'Browse Web Novels' : searchMode === 'readers' ? 'Community & Readers' : 'Browse Manga')
 
   const {
     searchQuery, setSearchQuery,
@@ -240,9 +290,50 @@ export default function SearchPage() {
     streak_days: number
   }
 
+  interface LeaderboardEntry {
+    rank: number
+    user_id: string
+    username: string | null
+    display_name: string
+    bio: string
+    avatar_url: string
+    pinned_badges: string[]
+    chapters_read: number
+    manga_count: number
+    streak_days: number
+    score: number
+    hunter_rank: {
+      rank_code: string
+      rank_name: string
+      tier: string
+    }
+  }
+
   const [readerResults, setReaderResults] = useState<ReaderResult[]>([])
   const [readerLoading, setReaderLoading] = useState(false)
   const [readerHasSearched, setReaderHasSearched] = useState(false)
+
+  const [leaderboardPeriod, setLeaderboardPeriod] = useState<'weekly' | 'monthly' | 'yearly' | 'all_time'>('all_time')
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false)
+
+  const fetchLeaderboard = useCallback(async (period: 'weekly' | 'monthly' | 'yearly' | 'all_time') => {
+    setLeaderboardLoading(true)
+    try {
+      const res = await api.get(`/users/leaderboard?period=${period}&limit=50`)
+      setLeaderboard(res.data || [])
+    } catch {
+      setLeaderboard([])
+    } finally {
+      setLeaderboardLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (searchMode === 'readers' && !searchQuery.trim()) {
+      fetchLeaderboard(leaderboardPeriod)
+    }
+  }, [searchMode, searchQuery, leaderboardPeriod, fetchLeaderboard])
 
   const [loading, setLoading] = useState(false)
   const [subscribing, setSubscribing] = useState<string[]>([])
@@ -854,18 +945,310 @@ export default function SearchPage() {
         {searchMode === 'readers' ? (
           <>
             {!searchQuery.trim() && !readerHasSearched ? (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="mt-8">
-                <div className="glass-card p-8 text-center max-w-lg mx-auto border-white/10 space-y-4">
-                  <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-500 flex items-center justify-center mx-auto">
-                    <Users className="w-8 h-8" />
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="space-y-6 mt-2">
+                {/* ── Header & Period Controls ── */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-3 border-b border-white/10">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-lg flex-shrink-0">
+                      <Trophy className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h2 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
+                        Reader Hall of Fame
+                        <span className="px-2 py-0.5 rounded-full bg-red-500/15 border border-red-500/30 text-red-400 text-[10px] font-extrabold uppercase tracking-wider">
+                          Ranked EXP
+                        </span>
+                      </h2>
+                      <p className="text-xs text-zinc-400 mt-0.5">
+                        Global leaderboard computed from Chapters (×10), Streaks (×50), and Series (×25).
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="text-lg font-black text-white">Find Fellow Readers</h2>
-                    <p className="text-xs text-zinc-400 mt-1.5 max-w-sm mx-auto leading-relaxed">
-                      Search for friends and readers across manga-dl by typing their <span className="text-red-400 font-mono font-bold">@username</span> or display name.
-                    </p>
+
+                  {/* Period Filter Pills */}
+                  <div className="flex items-center gap-1.5 p-1 rounded-xl bg-white/[0.04] border border-white/10 self-stretch sm:self-auto overflow-x-auto scrollbar-none flex-shrink-0">
+                    {(['weekly', 'monthly', 'yearly', 'all_time'] as const).map(p => (
+                      <button
+                        key={p}
+                        onClick={() => setLeaderboardPeriod(p)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all capitalize whitespace-nowrap ${
+                          leaderboardPeriod === p
+                            ? 'bg-red-600 text-white shadow-md'
+                            : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                        }`}
+                      >
+                        {p === 'weekly' ? 'Weekly' : p === 'monthly' ? 'Monthly' : p === 'yearly' ? 'Yearly' : 'All-Time'}
+                      </button>
+                    ))}
                   </div>
                 </div>
+
+                {leaderboardLoading ? (
+                  <ThemedSkeletonGrid count={6} />
+                ) : leaderboard.length === 0 ? (
+                  <div className="glass-card p-10 text-center max-w-lg mx-auto border-white/10 space-y-3">
+                    <Trophy className="w-10 h-10 text-zinc-600 mx-auto" />
+                    <h3 className="text-sm font-black text-white">No Readers Ranked Yet</h3>
+                    <p className="text-xs text-zinc-400 max-w-xs mx-auto">
+                      No reading activity recorded for this period. Read chapters and build your streak to claim the #1 Sovereign spot!
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {/* ── Top 3 Podium Showcase ── */}
+                    {leaderboard.length >= 1 && (
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 items-end pt-2 pb-2">
+                        {/* 2nd Place (if exists) */}
+                        {leaderboard[1] ? (
+                          <motion.div
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.1 }}
+                            onClick={() => navigate(`/profile/${leaderboard[1].username || leaderboard[1].user_id}`)}
+                            className="glass-card p-4 border-slate-500/20 bg-slate-900/20 hover:border-slate-400/40 transition-all cursor-pointer flex flex-col items-center text-center relative group order-2 sm:order-1"
+                          >
+                            <div className="w-7 h-7 rounded-full bg-slate-500/20 border border-slate-400/40 flex items-center justify-center text-slate-300 font-black text-xs mb-2">
+                              #2
+                            </div>
+                            <Medal className="w-6 h-6 text-slate-300 mb-2" />
+                            {leaderboard[1].avatar_url ? (
+                              <img src={leaderboard[1].avatar_url} alt="" className="w-14 h-14 rounded-2xl object-cover border-2 border-slate-400/40 mb-2 shadow-lg" />
+                            ) : (
+                              <div className="w-14 h-14 rounded-2xl bg-slate-800 border-2 border-slate-400/40 flex items-center justify-center text-slate-300 font-black text-base mb-2 shadow-lg">
+                                {leaderboard[1].display_name.slice(0, 2).toUpperCase()}
+                              </div>
+                            )}
+                            <h4 className="text-xs font-black text-white group-hover:text-red-400 transition-colors truncate max-w-full">
+                              {leaderboard[1].display_name}
+                            </h4>
+                            {leaderboard[1].username && (
+                              <p className="text-[10px] font-mono text-zinc-500 truncate max-w-full">
+                                @{leaderboard[1].username}
+                              </p>
+                            )}
+                            <div className="mt-2">
+                              {(() => {
+                                const style = getHunterBadgeStyle(leaderboard[1].hunter_rank.tier, leaderboard[1].hunter_rank.rank_code)
+                                return (
+                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${style.bg} ${style.border} ${style.text}`}>
+                                    <Shield className="w-2.5 h-2.5" />
+                                    {leaderboard[1].hunter_rank.rank_name}
+                                  </span>
+                                )
+                              })()}
+                            </div>
+                            <div className="mt-2.5 pt-2 border-t border-white/5 w-full flex items-center justify-center gap-2 text-[10px] text-zinc-400">
+                              <span className="font-mono font-bold text-slate-300 flex items-center gap-1">
+                                <Zap className="w-3 h-3 text-slate-400" /> {leaderboard[1].score.toLocaleString()} EXP
+                              </span>
+                            </div>
+                          </motion.div>
+                        ) : <div className="hidden sm:block order-1" />}
+
+                        {/* 1st Place Champion (Center, Elevated) */}
+                        {leaderboard[0] && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            onClick={() => navigate(`/profile/${leaderboard[0].username || leaderboard[0].user_id}`)}
+                            className="glass-card p-5 border-amber-500/30 bg-gradient-to-b from-amber-500/[0.08] to-transparent hover:border-amber-400/50 transition-all cursor-pointer flex flex-col items-center text-center relative group sm:-translate-y-2 shadow-xl order-1 sm:order-2"
+                          >
+                            <div className="absolute -top-3 px-3 py-0.5 rounded-full bg-amber-500 text-black font-black text-[10px] uppercase tracking-wider shadow-md flex items-center gap-1">
+                              <Crown className="w-3 h-3 text-black" /> #1 Sovereign
+                            </div>
+                            <Crown className="w-8 h-8 text-amber-400 mt-2 mb-2 drop-shadow-[0_0_12px_rgba(245,158,11,0.5)]" />
+                            {leaderboard[0].avatar_url ? (
+                              <img src={leaderboard[0].avatar_url} alt="" className="w-16 h-16 rounded-2xl object-cover border-2 border-amber-400 mb-2 shadow-xl" />
+                            ) : (
+                              <div className="w-16 h-16 rounded-2xl bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center text-amber-300 font-black text-lg mb-2 shadow-xl">
+                                {leaderboard[0].display_name.slice(0, 2).toUpperCase()}
+                              </div>
+                            )}
+                            <h4 className="text-sm font-black text-white group-hover:text-amber-400 transition-colors truncate max-w-full">
+                              {leaderboard[0].display_name}
+                            </h4>
+                            {leaderboard[0].username && (
+                              <p className="text-xs font-mono text-zinc-400 truncate max-w-full">
+                                @{leaderboard[0].username}
+                              </p>
+                            )}
+                            <div className="mt-2">
+                              {(() => {
+                                const style = getHunterBadgeStyle(leaderboard[0].hunter_rank.tier, leaderboard[0].hunter_rank.rank_code)
+                                return (
+                                  <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${style.bg} ${style.border} ${style.text}`}>
+                                    <Shield className="w-3 h-3" />
+                                    {leaderboard[0].hunter_rank.rank_name}
+                                  </span>
+                                )
+                              })()}
+                            </div>
+                            <div className="mt-3 pt-2.5 border-t border-white/10 w-full flex items-center justify-center gap-3 text-xs">
+                              <span className="font-mono font-black text-amber-400 flex items-center gap-1">
+                                <Zap className="w-3.5 h-3.5 text-amber-400" /> {leaderboard[0].score.toLocaleString()} EXP
+                              </span>
+                              <span className="text-[10px] text-zinc-400 font-bold">
+                                {leaderboard[0].chapters_read} ch · {leaderboard[0].streak_days}d streak
+                              </span>
+                            </div>
+                          </motion.div>
+                        )}
+
+                        {/* 3rd Place (if exists) */}
+                        {leaderboard[2] ? (
+                          <motion.div
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.2 }}
+                            onClick={() => navigate(`/profile/${leaderboard[2].username || leaderboard[2].user_id}`)}
+                            className="glass-card p-4 border-amber-800/30 bg-amber-950/10 hover:border-amber-700/40 transition-all cursor-pointer flex flex-col items-center text-center relative group order-3"
+                          >
+                            <div className="w-7 h-7 rounded-full bg-amber-800/30 border border-amber-700/40 flex items-center justify-center text-amber-500 font-black text-xs mb-2">
+                              #3
+                            </div>
+                            <Award className="w-6 h-6 text-amber-600 mb-2" />
+                            {leaderboard[2].avatar_url ? (
+                              <img src={leaderboard[2].avatar_url} alt="" className="w-14 h-14 rounded-2xl object-cover border-2 border-amber-700/40 mb-2 shadow-lg" />
+                            ) : (
+                              <div className="w-14 h-14 rounded-2xl bg-amber-950/40 border-2 border-amber-700/40 flex items-center justify-center text-amber-500 font-black text-base mb-2 shadow-lg">
+                                {leaderboard[2].display_name.slice(0, 2).toUpperCase()}
+                              </div>
+                            )}
+                            <h4 className="text-xs font-black text-white group-hover:text-red-400 transition-colors truncate max-w-full">
+                              {leaderboard[2].display_name}
+                            </h4>
+                            {leaderboard[2].username && (
+                              <p className="text-[10px] font-mono text-zinc-500 truncate max-w-full">
+                                @{leaderboard[2].username}
+                              </p>
+                            )}
+                            <div className="mt-2">
+                              {(() => {
+                                const style = getHunterBadgeStyle(leaderboard[2].hunter_rank.tier, leaderboard[2].hunter_rank.rank_code)
+                                return (
+                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${style.bg} ${style.border} ${style.text}`}>
+                                    <Shield className="w-2.5 h-2.5" />
+                                    {leaderboard[2].hunter_rank.rank_name}
+                                  </span>
+                                )
+                              })()}
+                            </div>
+                            <div className="mt-2.5 pt-2 border-t border-white/5 w-full flex items-center justify-center gap-2 text-[10px] text-zinc-400">
+                              <span className="font-mono font-bold text-amber-500 flex items-center gap-1">
+                                <Zap className="w-3 h-3 text-amber-500" /> {leaderboard[2].score.toLocaleString()} EXP
+                              </span>
+                            </div>
+                          </motion.div>
+                        ) : <div className="hidden sm:block order-3" />}
+                      </div>
+                    )}
+
+                    {/* ── Complete Hall of Fame Ranked List ── */}
+                    <div className="space-y-2 pt-2">
+                      <div className="flex items-center justify-between text-[11px] font-bold text-zinc-400 px-3 uppercase tracking-wider">
+                        <span>Rank & Reader</span>
+                        <span>Score & Stats</span>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        {leaderboard.map((u) => {
+                          const style = getHunterBadgeStyle(u.hunter_rank.tier, u.hunter_rank.rank_code)
+                          return (
+                            <motion.div
+                              key={u.user_id}
+                              onClick={() => navigate(`/profile/${u.username || u.user_id}`)}
+                              className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 group ${
+                                u.rank === 1
+                                  ? 'bg-amber-500/[0.06] border-amber-500/30 hover:border-amber-400/50'
+                                  : u.rank === 2
+                                  ? 'bg-slate-500/[0.04] border-slate-500/20 hover:border-slate-400/40'
+                                  : u.rank === 3
+                                  ? 'bg-amber-800/[0.04] border-amber-800/20 hover:border-amber-700/40'
+                                  : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05] hover:border-white/15'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3 min-w-0 flex-1">
+                                {/* Rank badge */}
+                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-black text-xs flex-shrink-0 ${
+                                  u.rank === 1
+                                    ? 'bg-amber-500 text-black shadow-md'
+                                    : u.rank === 2
+                                    ? 'bg-slate-300 text-black'
+                                    : u.rank === 3
+                                    ? 'bg-amber-700 text-white'
+                                    : 'bg-white/5 text-zinc-400 font-mono'
+                                }`}>
+                                  {u.rank === 1 ? <Crown className="w-3.5 h-3.5" /> : `#${u.rank}`}
+                                </div>
+
+                                {/* Avatar */}
+                                {u.avatar_url ? (
+                                  <img src={u.avatar_url} alt="" className="w-10 h-10 rounded-xl object-cover border border-white/10 flex-shrink-0" />
+                                ) : (
+                                  <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white font-black text-xs flex-shrink-0">
+                                    {u.display_name.slice(0, 2).toUpperCase()}
+                                  </div>
+                                )}
+
+                                {/* Names + Hunter Badge */}
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <h4 className="text-xs font-black text-white group-hover:text-red-400 transition-colors truncate">
+                                      {u.display_name}
+                                    </h4>
+                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${style.bg} ${style.border} ${style.text}`}>
+                                      <Shield className="w-2.5 h-2.5" />
+                                      {u.hunter_rank.rank_name}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-0.5">
+                                    {u.username && (
+                                      <span className="text-[10px] font-mono text-zinc-500 truncate">
+                                        @{u.username}
+                                      </span>
+                                    )}
+                                    {u.pinned_badges && u.pinned_badges.length > 0 && (
+                                      <div className="flex items-center gap-1 ml-1">
+                                        {u.pinned_badges.slice(0, 4).map(bid => {
+                                          const bObj = MILESTONES.find(m => m.id === bid)
+                                          if (!bObj) return null
+                                          return (
+                                            <div
+                                              key={bid}
+                                              className="w-4 h-4 rounded-md flex items-center justify-center shadow-xs flex-shrink-0"
+                                              style={{ background: bObj.color }}
+                                              title={`${bObj.title}: ${bObj.description}`}
+                                            >
+                                              <Award className="w-2.5 h-2.5 text-black" />
+                                            </div>
+                                          )
+                                        })}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Stats */}
+                              <div className="flex items-center gap-3 flex-shrink-0">
+                                <div className="text-right">
+                                  <div className="text-xs font-black font-mono text-amber-400 flex items-center justify-end gap-1">
+                                    <Zap className="w-3 h-3 text-amber-400" />
+                                    {u.score.toLocaleString()}
+                                  </div>
+                                  <div className="text-[10px] text-zinc-500 font-medium">
+                                    {u.chapters_read} ch · {u.streak_days}d streak
+                                  </div>
+                                </div>
+                                <ChevronRight className="w-4 h-4 text-zinc-600 group-hover:text-white transition-colors" />
+                              </div>
+                            </motion.div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </>
+                )}
               </motion.div>
             ) : readerLoading ? (
               <ThemedSkeletonGrid count={6} />
