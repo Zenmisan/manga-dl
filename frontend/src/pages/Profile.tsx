@@ -4,20 +4,20 @@ import api from '../lib/api'
 import { supabase } from '../lib/supabase'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  BookOpen, BarChart2, Share2, ArrowLeft, Calendar,
+  BookOpen, Share2, ArrowLeft,
   Pencil, Lock, Check, X, Search, Loader2, Award,
   Crown, Sparkles, Flame, Shield, Trophy, Feather,
   Scroll, Star, Infinity as InfinityIcon, Zap, Compass,
-  ChevronRight, Settings, ExternalLink, Library, Pin
+  ChevronRight, Settings, Library, Pin
 } from 'lucide-react'
 import { ThemedLoadingScreen } from '../components/common/ThemedLoader'
 import { usePageTitle } from '../lib/usePageTitle'
 import { buildSmartMangaUrl } from '../lib/smartUrl'
 import {
   getUserMilestones,
-  MilestoneBadge,
-  MilestoneCategory,
-  MilestoneTier,
+  type MilestoneBadge,
+  type MilestoneCategory,
+  type MilestoneTier,
   MILESTONES
 } from '../lib/milestones'
 
@@ -630,7 +630,9 @@ export default function ProfilePage() {
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <span className="text-xs font-mono font-bold text-red-400 flex items-center gap-1">
                   {handleTag}
-                  <Lock className="w-2.5 h-2.5 text-zinc-500" title="Permanent reader handle" />
+                  <span title="Permanent reader handle">
+                    <Lock className="w-2.5 h-2.5 text-zinc-500" />
+                  </span>
                 </span>
 
                 <span
