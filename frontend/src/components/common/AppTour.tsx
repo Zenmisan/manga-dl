@@ -111,7 +111,7 @@ function getSteps(isMob: boolean): TourStep[] {
       targetSelector: '[data-tour="search"]',
       icon: Search,
       title: 'Search & discover',
-      body: 'Search across all your active sources at once. The Popular Now and Latest Updates rows update automatically — no search needed.',
+      body: 'Search across all your active sources at once. The Popular Now and Latest Updates rows update automatically, no search needed.',
       tooltipSide: 'above',
     },
     {

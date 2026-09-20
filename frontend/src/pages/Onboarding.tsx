@@ -94,11 +94,11 @@ export default function OnboardingPage() {
       const res = await fetch(`${resolveBaseURL()}/sources/builtins?api_key=${apiKey || 'mgdl-creator'}`, { signal: controller.signal })
       clearTimeout(timeout)
       if (res.ok) setStep('username')
-      else if (res.status === 403) setConnectionError('API key rejected (403). Check your key — settings saved.')
-      else setConnectionError(`Backend returned ${res.status}. Check the URL — settings saved.`)
+      else if (res.status === 403) setConnectionError('API key rejected (403). Check your key. Settings saved.')
+      else setConnectionError(`Backend returned ${res.status}. Check the URL. Settings saved.`)
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') setStep('username')
-      else { setConnectionError('Backend unreachable. Settings saved — it may still be starting up.'); setStep('username') }
+      else { setConnectionError('Backend unreachable. Settings saved, it may still be starting up.'); setStep('username') }
     } finally {
       setTestingConnection(false)
     }
@@ -122,7 +122,7 @@ export default function OnboardingPage() {
       const msg = resp?.data?.detail
       if (resp?.status === 500 || msg === 'Internal server error') {
         localStorage.setItem('manga-username', trimmed)
-        setUsernameError('Server database error. Your username was saved locally — you can proceed or retry.')
+        setUsernameError('Server database error. Your username was saved locally, you can proceed or retry.')
       } else {
         setUsernameError(msg || 'Failed to set username. You can skip for now.')
       }
@@ -284,7 +284,7 @@ export default function OnboardingPage() {
                     : <Dices style={{ width: 18, height: 18 }} />}
                 </button>
               </div>
-              <p style={{ marginTop: 6, fontSize: 11, color: 'var(--muted3)' }}>3–24 characters. Letters, numbers, underscores only. Hit 🎲 to generate one.</p>
+              <p style={{ marginTop: 6, fontSize: 11, color: 'var(--muted3)' }}>3-24 characters. Letters, numbers, underscores only. Hit the dice icon to generate one.</p>
             </div>
 
             {usernameError && (

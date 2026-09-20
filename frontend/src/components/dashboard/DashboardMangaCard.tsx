@@ -7,7 +7,7 @@ import {
 import { cn } from '../../lib/utils'
 import api from '../../lib/api'
 import { buildSmartReadUrl, buildSmartMangaUrl } from '../../lib/smartUrl'
-import { getReadCount } from '../../lib/readTracking'
+import { getReadCount, markAllRead } from '../../lib/readTracking'
 import type { LibraryItem, LastReadEntry } from '../../hooks/useDashboardData'
 
 interface Props {
@@ -35,9 +35,12 @@ export const DashboardMangaCard = memo(function DashboardMangaCard({
   const isCloudOnly = !item.isLocal && item.files.length === 0
   const isCompact = view === 'grid' && density === 'compact'
   const chapterCount = item.total_chapters || item.files.length
-  const readCount = item.provider && item.provider_manga_id
-    ? getReadCount(item.provider, item.provider_manga_id)
-    : 0
+  const [localReadCount, setLocalReadCount] = useState<number | null>(null)
+  const readCount = localReadCount !== null
+    ? localReadCount
+    : (item.provider && item.provider_manga_id
+        ? getReadCount(item.provider, item.provider_manga_id)
+        : (item.isLocal ? getReadCount('local', item.localId || item.title) : 0))
   const unreadCount = !item.isLocal && chapterCount > 0 ? Math.max(0, chapterCount - readCount) : 0
 
   useEffect(() => {
@@ -295,7 +298,29 @@ export const DashboardMangaCard = memo(function DashboardMangaCard({
           }}
         >
           {[
-            { label: 'Mark as Read', action: () => { /* TODO: mark all chapters read */ setCtxMenu(null) } },
+            {
+              label: 'Mark as Read',
+              action: async () => {
+                setCtxMenu(null)
+                if (item.isLocal) {
+                  const localId = item.localId || item.title
+                  const files = item.files || []
+                  markAllRead('local', localId, files)
+                  setLocalReadCount(files.length)
+                } else if (item.provider && item.provider_manga_id) {
+                  try {
+                    const res = await api.get(`/manga/${item.provider}/${item.provider_manga_id}`)
+                    const chs = (res.data?.chapters || []).map((c: { id: string }) => c.id)
+                    if (chs.length > 0) {
+                      markAllRead(item.provider, item.provider_manga_id, chs)
+                      setLocalReadCount(chs.length)
+                    }
+                  } catch (e) {
+                    console.error('Failed to mark all chapters as read:', e)
+                  }
+                }
+              }
+            },
             { label: 'Download All', action: () => { navigate(`/downloads?manga=${encodeURIComponent(item.title)}`); setCtxMenu(null) } },
             { label: 'Remove from Library', action: (e: React.MouseEvent) => { onDelete(item, e); setCtxMenu(null) }, danger: true },
           ].map((row) => (

@@ -98,6 +98,7 @@ function AggregateBrowse({ isPopular }: { isPopular: boolean }) {
   const navigate = useNavigate()
   const [items, setItems] = useState<MangaResult[]>([])
   const [loading, setLoading] = useState(true)
+  const [retryCount, setRetryCount] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -127,14 +128,21 @@ function AggregateBrowse({ isPopular }: { isPopular: boolean }) {
     }
     fetch()
     return () => { cancelled = true }
-  }, [isPopular])
+  }, [isPopular, retryCount])
 
   const GRID = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 16 } as const
 
   if (loading) return <div style={GRID}>{Array.from({ length: 20 }).map((_, i) => <SkeletonCard key={i} />)}</div>
   if (items.length === 0) return (
     <div style={{ textAlign: 'center', padding: '80px 24px', color: 'var(--muted2)', fontSize: 14 }}>
-      No results yet — sources may still be warming up.
+      <p>No results yet, sources may still be warming up.</p>
+      <button
+        onClick={() => { setLoading(true); setRetryCount(c => c + 1) }}
+        className="btn-primary"
+        style={{ marginTop: 12, padding: '8px 20px', borderRadius: 10, fontSize: 12, fontWeight: 800, cursor: 'pointer', border: 'none' }}
+      >
+        Retry
+      </button>
     </div>
   )
   return (
@@ -191,16 +199,23 @@ function SourceBrowse({ sourceId, onNameResolved }: { sourceId: string; onNameRe
       extRef.current = ext
       onNameResolved(ext.name)
 
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Source request timed out after 15 seconds')), 15000)
+      )
+
       let results: MangaResult[]
       if (currentMode === 'search') {
-        results = (await (ext.search(currentQuery, targetPage) as Promise<MangaResult[]>))
+        results = await Promise.race([
+          ext.search(currentQuery, targetPage) as Promise<MangaResult[]>,
+          timeoutPromise,
+        ])
       } else if (currentMode === 'latest') {
         results = ext.getLatest
-          ? (await (ext.getLatest(targetPage) as Promise<MangaResult[]>))
+          ? await Promise.race([ext.getLatest(targetPage) as Promise<MangaResult[]>, timeoutPromise])
           : []
       } else {
         results = ext.getPopular
-          ? (await (ext.getPopular(targetPage) as Promise<MangaResult[]>))
+          ? await Promise.race([ext.getPopular(targetPage) as Promise<MangaResult[]>, timeoutPromise])
           : []
       }
 
@@ -334,12 +349,19 @@ function SourceBrowse({ sourceId, onNameResolved }: { sourceId: string; onNameRe
           {fetchError ? (
             <>
               <p style={{ color: 'var(--muted2)', marginBottom: 6 }}>Failed to load from this source.</p>
-              <p style={{ color: 'var(--muted3)', fontSize: 11, fontFamily: 'monospace', wordBreak: 'break-all', maxWidth: 400, margin: '0 auto' }}>{fetchError}</p>
+              <p style={{ color: 'var(--muted3)', fontSize: 11, fontFamily: 'monospace', wordBreak: 'break-all', maxWidth: 400, margin: '0 auto 16px' }}>{fetchError}</p>
+              <button
+                onClick={() => fetchPage(1, true)}
+                className="btn-primary"
+                style={{ padding: '8px 20px', borderRadius: 10, fontSize: 12, fontWeight: 800, cursor: 'pointer', border: 'none' }}
+              >
+                Retry
+              </button>
             </>
           ) : mode === 'search' ? (
             <span style={{ color: 'var(--muted2)' }}>No results for &ldquo;{activeQuery}&rdquo;</span>
           ) : (
-            <span style={{ color: 'var(--muted2)' }}>No results — source may not support this listing.</span>
+            <span style={{ color: 'var(--muted2)' }}>No results, source may not support this listing.</span>
           )}
         </div>
       ) : (
