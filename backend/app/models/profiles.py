@@ -12,5 +12,6 @@ class UserProfile(Base):
     display_name: Mapped[str | None] = mapped_column(String, nullable=True)
     bio: Mapped[str | None] = mapped_column(String, nullable=True)
     avatar_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    pinned_badges: Mapped[list] = mapped_column(JSON, default=list)  # list of badge ids
     liked_comments: Mapped[list] = mapped_column(JSON, default=list)  # list of comment ids
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

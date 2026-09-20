@@ -22,6 +22,7 @@ from app.services.user_service import (
     fetch_user_reading_stats,
     fetch_public_user_profile,
     search_public_profiles,
+    fetch_readers_leaderboard,
 )
 from app.services.email_service import send_email, welcome_email
 
@@ -265,6 +266,17 @@ class ProfileUpdate(BaseModel):
     display_name: str | None = None
     bio: str | None = None
     avatar_url: str | None = None
+    pinned_badges: list[str] | None = None
+
+
+@router.get("/leaderboard")
+async def get_readers_leaderboard(
+    period: str = Query("all_time", regex="^(weekly|monthly|yearly|all_time)$"),
+    limit: int = Query(50, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return global reader leaderboard for weekly, monthly, yearly, or all-time."""
+    return await fetch_readers_leaderboard(period, limit, db)
 
 
 @router.get("/search")
@@ -283,7 +295,7 @@ async def update_my_profile(
     user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Update display name, bio, and avatar."""
+    """Update display name, bio, avatar, and pinned badges."""
     profile = (await db.execute(select(UserProfile).where(UserProfile.user_id == user_id))).scalar_one_or_none()
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found. Set up username first.")
@@ -294,6 +306,8 @@ async def update_my_profile(
         profile.bio = body.bio.strip() or None
     if body.avatar_url is not None:
         profile.avatar_url = body.avatar_url.strip() or None
+    if body.pinned_badges is not None:
+        profile.pinned_badges = [str(b) for b in body.pinned_badges[:4]]
 
     await db.commit()
     return {
@@ -302,6 +316,7 @@ async def update_my_profile(
         "display_name": profile.display_name,
         "bio": profile.bio,
         "avatar_url": profile.avatar_url,
+        "pinned_badges": getattr(profile, "pinned_badges", []) or [],
     }
 
 

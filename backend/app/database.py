@@ -62,5 +62,6 @@ async def _migrate_add_columns():
         await _safe_add(conn, "profiles", "display_name", "VARCHAR")
         await _safe_add(conn, "profiles", "bio", "VARCHAR")
         await _safe_add(conn, "profiles", "avatar_url", "VARCHAR")
+        await _safe_add(conn, "profiles", "pinned_badges", "JSON DEFAULT '[]'")
         await _safe_add(conn, "profiles", "liked_comments", "JSON DEFAULT '[]'")
     log.info("DB column migration complete")

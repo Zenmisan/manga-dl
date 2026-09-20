@@ -480,24 +480,22 @@ export default function AccountProfileSettings() {
 
                 {/* Quick Action Pills: View Profile / Share */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  {username && (
-                    <Link
-                      to={`/profile/${username}`}
-                      className="btn-secondary"
-                      style={{
-                        fontSize: 12,
-                        padding: '7px 13px',
-                        borderRadius: 12,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        textDecoration: 'none',
-                      }}
-                    >
-                      <ExternalLink style={{ width: 13, height: 13 }} />
-                      <span>Public Profile</span>
-                    </Link>
-                  )}
+                  <Link
+                    to={`/profile/${username || 'me'}`}
+                    className="btn-secondary"
+                    style={{
+                      fontSize: 12,
+                      padding: '7px 13px',
+                      borderRadius: 12,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      textDecoration: 'none',
+                    }}
+                  >
+                    <ExternalLink style={{ width: 13, height: 13 }} />
+                    <span>Public Profile</span>
+                  </Link>
                   <button
                     type="button"
                     onClick={handleShare}
