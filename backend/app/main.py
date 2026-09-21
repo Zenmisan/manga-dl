@@ -26,7 +26,9 @@ _settings = get_settings()
 async def lifespan(app: FastAPI):
     # Startup
     await init_db()
-    await download_queue.start()
+    # Backend download queue temporarily disabled to conserve Render container memory.
+    # Downloads are now processed client-side in the browser.
+    # await download_queue.start()
 
     # Run provider validation at startup (non-blocking)
     async def validate_all():
@@ -38,7 +40,7 @@ async def lifespan(app: FastAPI):
                 log.warning("Provider %s validation error: %s", p.id, exc)
 
     asyncio.create_task(validate_all())
-    start_sync_task()
+    # start_sync_task()  # Temporarily disabled to prevent background downloads
     start_discovery_refresh()
 
     # Ensure Supabase storage bucket exists (no-op if credentials not set)
@@ -49,8 +51,8 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     stop_discovery_refresh()
-    stop_sync_task()
-    await download_queue.stop()
+    # stop_sync_task()
+    # await download_queue.stop()
     for p in list_providers():
         try:
             await p.close()

@@ -5,6 +5,7 @@ import { useToast } from '../components/common/Toast'
 import { FastAverageColor } from 'fast-average-color'
 import { getReadChapters } from '../lib/readTracking'
 import { ExtensionManager, NOVEL_EXTENSION_IDS } from '../lib/extensions'
+import { clientDownloader } from '../lib/clientDownloader'
 import { getMangaNote } from '../lib/mangaNotes'
 import { setMangaOverride, getMangaOverride } from '../lib/metaOverrides'
 import { supabase } from '../lib/supabase'
@@ -60,9 +61,15 @@ export function useMangaDetail() {
   const { show: toast } = useToast()
   const [manga, setManga] = useState<MangaDetail | null>(null)
   const [loading, setLoading] = useState(true)
-  const [downloading, setDownloading] = useState<string[]>([])
+  const [downloading, setDownloading] = useState<string[]>(() => clientDownloader.getActiveOrQueuedChapterIds())
   const [showQueueLink, setShowQueueLink] = useState(false)
   const [bulkLoading, setBulkLoading] = useState(false)
+
+  useEffect(() => {
+    return clientDownloader.subscribe(() => {
+      setDownloading(clientDownloader.getActiveOrQueuedChapterIds())
+    })
+  }, [])
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
 
@@ -284,68 +291,35 @@ export function useMangaDetail() {
     }
   }
 
-  const handleDownload = async (chapter: Chapter) => {
+  const handleDownload = (chapter: Chapter) => {
     if (!manga || !provider) return
-    setDownloading((prev) => [...prev, chapter.id])
     setShowQueueLink(true)
-    try {
-      let pages: string[] = []
-      const mgr = ExtensionManager.getInstance()
-      const ext = await mgr.getExtension(provider)
-      if (ext) {
-        try {
-          pages = (await ext.getPages(chapter.id)) as string[]
-        } catch (e) {
-          console.warn('[useMangaDetail] Extension getPages failed:', e)
-        }
-      }
-
-      // Direct fallback for MangaDex when extension returns nothing
-      if (!pages.length && provider === 'mangadex') {
-        try {
-          const atHomeRes = await api.get('/manga/proxy/json', {
-            params: { url: `https://api.mangadex.org/at-home/server/${chapter.id}` }
-          })
-          const d = atHomeRes.data
-          if (d?.baseUrl && d?.chapter?.data?.length) {
-            pages = d.chapter.data.map((f: string) => `${d.baseUrl}/data/${d.chapter.hash}/${f}`)
-          }
-        } catch (e) {
-          console.warn('[useMangaDetail] MangaDex at-home fallback failed:', e)
-        }
-      }
-
-      if (!pages.length) {
-        toast('Could not fetch chapter pages — try again or check your connection.', 'error')
-        return
-      }
-
-      await api.post('/downloads/queue', {
-        provider_id: provider,
-        manga_id: manga.id,
-        chapter_id: chapter.id,
-        manga_title: manga.title,
-        chapter_title: chapter.title || `Chapter ${chapter.number}`,
-        chapter_number: chapter.number,
-        pages,
-      })
-    } catch {
-      toast('Failed to queue download', 'error')
-    } finally {
-      setTimeout(() => {
-        setDownloading((prev) => prev.filter((id) => id !== chapter.id))
-      }, 1000)
-    }
+    clientDownloader.enqueue({
+      provider,
+      mangaId: manga.id,
+      chapterId: chapter.id,
+      mangaTitle: manga.title,
+      chapterTitle: chapter.title || `Chapter ${chapter.number}`,
+      chapterNumber: chapter.number,
+    })
+    toast(`Queued ${chapter.title || `Chapter ${chapter.number}`} for download`, 'success')
   }
 
-  const handleBulkDownload = async () => {
+  const handleBulkDownload = () => {
     if (!manga || !provider || !manga.chapters || manga.chapters.length === 0) return
     setBulkLoading(true)
     setShowQueueLink(true)
     try {
-      for (const chapter of manga.chapters) {
-        await handleDownload(chapter)
-      }
+      const items = manga.chapters.map((chapter) => ({
+        provider,
+        mangaId: manga.id,
+        chapterId: chapter.id,
+        mangaTitle: manga.title,
+        chapterTitle: chapter.title || `Chapter ${chapter.number}`,
+        chapterNumber: chapter.number,
+      }))
+      clientDownloader.enqueueBulk(items)
+      toast(`Queued ${items.length} chapters for download`, 'success')
     } catch {
       toast('Failed to queue bulk downloads', 'error')
     } finally {
