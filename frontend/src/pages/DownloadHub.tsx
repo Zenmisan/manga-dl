@@ -218,9 +218,9 @@ export default function DownloadHub() {
         <AnimatePresence mode="wait">
           <motion.div
             key={selectedOS}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             className="glass-card rounded-2xl border p-6 md:p-10 relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-8"
             style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}

@@ -532,9 +532,9 @@ export default function ProfilePage() {
         {/* Owner Public Preview Notice */}
         {isOwnProfile && (
           <motion.div
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="p-3 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-between gap-3 backdrop-blur-md"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="p-3 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-between gap-3"
           >
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />

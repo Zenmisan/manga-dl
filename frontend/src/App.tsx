@@ -146,13 +146,13 @@ function Sidebar({ session, onSignOut, isTauri }: {
   return (
     <aside
       className={cn(
-        'hidden md:flex flex-col shrink-0 border-r border-white/10 sticky z-50 bg-[#080808]/90 backdrop-blur-2xl transition-all duration-300',
+        'hidden md:flex flex-col shrink-0 border-r border-black/10 dark:border-white/10 sticky z-50 bg-[var(--sidebar-bg)] backdrop-blur-2xl transition-all duration-300',
         isCollapsed ? 'w-[68px]' : 'w-[232px]',
         isTauri ? 'top-8 h-[calc(100vh-2rem)]' : 'top-0 h-screen'
       )}
     >
       {/* Stitch Kinetic Logo & Collapse Toggle */}
-      <div className={cn('flex border-b border-white/5 relative transition-all', isCollapsed ? 'flex-col items-center gap-2 py-4 px-2' : 'flex-row items-center justify-between py-4 px-3.5')}>
+      <div className={cn('flex border-b border-black/5 dark:border-white/5 relative transition-all', isCollapsed ? 'flex-col items-center gap-2 py-4 px-2' : 'flex-row items-center justify-between py-4 px-3.5')}>
         <Link to="/r" className="flex items-center gap-3 group shrink-0 min-w-0" title="manga-dl">
           <div className="w-10 h-10 rounded-xl bg-red-600/10 border border-red-500/20 flex items-center justify-center p-1.5 shrink-0 group-hover:border-red-500/40 transition-colors shadow-sm aspect-square">
             <img src="/Manga-dl1.png" alt="manga-dl" className="w-full h-full object-contain shrink-0" />
@@ -161,7 +161,7 @@ function Sidebar({ session, onSignOut, isTauri }: {
 
         <button
           onClick={toggleCollapse}
-          className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-all shrink-0 flex items-center justify-center"
+          className="p-1.5 rounded-lg text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-all shrink-0 flex items-center justify-center"
           title={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
         >
           {isCollapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
@@ -189,7 +189,7 @@ function Sidebar({ session, onSignOut, isTauri }: {
                 isCollapsed ? 'justify-center p-3' : 'gap-3 px-3.5 py-2.5',
                 active
                   ? 'bg-red-600/10 border border-red-500/20 text-red-500 shadow-[0_0_12px_rgba(220,38,38,0.15)]'
-                  : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
               )}
             >
               <div className="relative shrink-0">
@@ -207,11 +207,11 @@ function Sidebar({ session, onSignOut, isTauri }: {
       </nav>
 
       {/* Bottom — Help, GitHub, User Profile & Sign Out */}
-      <div className="p-2.5 space-y-2 border-t border-white/10 bg-white/[0.02]">
+      <div className="p-2.5 space-y-2 border-t border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02]">
         {!isCollapsed && (
           <div className="flex items-center justify-between px-2 text-[11px] font-bold text-zinc-500">
-            <Link to="/help" className="hover:text-zinc-300 transition-colors">Help</Link>
-            <a href="https://github.com/Zenmisan/manga-dl" target="_blank" rel="noreferrer" className="hover:text-zinc-300 transition-colors">GitHub</a>
+            <Link to="/help" className="hover:text-zinc-900 dark:hover:text-zinc-300 transition-colors">Help</Link>
+            <a href="https://github.com/Zenmisan/manga-dl" target="_blank" rel="noreferrer" className="hover:text-zinc-900 dark:hover:text-zinc-300 transition-colors">GitHub</a>
           </div>
         )}
 
@@ -221,11 +221,11 @@ function Sidebar({ session, onSignOut, isTauri }: {
             aria-label="Install manga-dl app"
             title={isCollapsed ? 'Install App' : undefined}
             className={cn(
-              'rounded-xl text-xs font-bold text-zinc-300 hover:text-white hover:bg-white/8 border border-white/10 hover:border-white/20 transition-all flex items-center gap-2',
+              'rounded-xl text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/8 border border-black/10 dark:border-white/10 hover:border-black/20 dark:hover:border-white/20 transition-all flex items-center gap-2',
               isCollapsed ? 'p-2 justify-center mb-1' : 'w-full px-3 py-2 mb-1'
             )}
           >
-            <MonitorDown className="w-4 h-4 text-red-400 shrink-0" />
+            <MonitorDown className="w-4 h-4 text-red-500 dark:text-red-400 shrink-0" />
             {!isCollapsed && <span>Install App</span>}
           </button>
         )}
@@ -236,7 +236,7 @@ function Sidebar({ session, onSignOut, isTauri }: {
               to={`/profile/${session.user.id}`}
               title={isCollapsed ? session.user.email?.split('@')[0] : undefined}
               className={cn(
-                'flex items-center rounded-xl bg-white/5 hover:bg-white/10 text-white transition-all text-xs font-bold',
+                'flex items-center rounded-xl bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-zinc-900 dark:text-white transition-all text-xs font-bold',
                 isCollapsed ? 'p-2 justify-center' : 'gap-2.5 px-3 py-2'
               )}
             >
@@ -249,11 +249,11 @@ function Sidebar({ session, onSignOut, isTauri }: {
               onClick={onSignOut}
               title={isCollapsed ? 'Sign out' : undefined}
               className={cn(
-                'rounded-xl text-xs font-bold text-zinc-400 hover:text-white hover:bg-white/5 transition-all',
+                'rounded-xl text-xs font-bold text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-all',
                 isCollapsed ? 'p-2 flex items-center justify-center' : 'w-full text-left px-3 py-1.5'
               )}
             >
-              {isCollapsed ? <LogOut className="w-4 h-4 text-red-400" /> : 'Sign out'}
+              {isCollapsed ? <LogOut className="w-4 h-4 text-red-500 dark:text-red-400" /> : 'Sign out'}
             </button>
           </div>
         ) : (

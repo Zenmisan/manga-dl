@@ -1,6 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800;900&family=PT+Serif:ital,wght@0,400;0,700;1,400;1,700&display=swap');
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ── Design Tokens ───────────────────────────────────────── */
 :root {
   --font-title: 'PT Serif', Georgia, serif;
@@ -12,6 +14,7 @@
   --muted1: rgba(255, 255, 255, 0.70);
   --muted2: rgba(255, 255, 255, 0.48);
   --muted3: rgba(255, 255, 255, 0.34);
+  --sidebar-bg: rgba(8, 8, 8, 0.92);
   --accent: #dc2626;
   --accent-light: #ef4444;
   --accent-muted: rgba(220, 38, 38, 0.12);
@@ -65,14 +68,15 @@
 
 /* ── Light Theme ─────────────────────────────────────────── */
 html.light {
-  --bg: #f4f4f5;
-  --fg: #09090b;
-  --surface: rgba(0, 0, 0, 0.035);
-  --surface-hover: rgba(0, 0, 0, 0.07);
-  --border: rgba(0, 0, 0, 0.1);
-  --muted1: rgba(9, 9, 11, 0.7);
-  --muted2: rgba(9, 9, 11, 0.55);
-  --muted3: rgba(9, 9, 11, 0.4);
+  --bg: #f5f5f7;
+  --fg: #111827;
+  --surface: rgba(0, 0, 0, 0.04);
+  --surface-hover: rgba(0, 0, 0, 0.08);
+  --border: rgba(0, 0, 0, 0.10);
+  --muted1: #374151;
+  --muted2: #4b5563;
+  --muted3: #6b7280;
+  --sidebar-bg: rgba(255, 255, 255, 0.88);
 }
 
 /* ── AMOLED ──────────────────────────────────────────────── */
@@ -136,42 +140,39 @@ body {
   }
 
   .glass-panel {
-    background: rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.10);
     border-radius: 1.25rem;
   }
 
   .glass-card {
-    background: rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.10);
     border-radius: 1rem;
     transition: background 0.15s ease, border-color 0.15s ease;
   }
 
   .glass-card:hover {
-    background: rgba(255, 255, 255, 0.11);
-    border-color: rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.16);
   }
 
   html.light .glass-card {
-    background: rgba(255, 255, 255, 0.7);
+    background: #ffffff;
     border-color: rgba(0, 0, 0, 0.08);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   }
 
   html.light .glass-card:hover {
-    background: rgba(255, 255, 255, 0.85);
+    background: #ffffff;
     border-color: rgba(0, 0, 0, 0.12);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
   }
 
   html.light .glass-panel {
-    background: rgba(255, 255, 255, 0.65);
+    background: #ffffff;
     border-color: rgba(0, 0, 0, 0.08);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   }
 
   /* Buttons */

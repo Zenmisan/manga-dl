@@ -207,7 +207,7 @@ export default function HelpPage() {
 
         {/* FAQ accordion */}
         <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)', marginBottom: 10 }}>Frequently Asked Questions</div>
+          <div style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted2)', marginBottom: 10 }}>Frequently Asked Questions</div>
           <div style={{ borderRadius: 18, border: '1px solid var(--border)', background: 'var(--surface)', overflow: 'hidden' }}>
             {FAQS.map((faq, i) => (
               <div key={i} style={{ borderTop: i > 0 ? '1px solid var(--border)' : 'none' }}>
@@ -236,10 +236,10 @@ export default function HelpPage() {
 
         {/* Icon legend sections */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <div style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)' }}>Icon Reference</div>
+          <div style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted2)' }}>Icon Reference</div>
           {Object.entries(groupedIcons).map(([section, items], si) => (
             <motion.section key={section} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: si * 0.04 }}>
-              <div style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)', marginBottom: 10 }}>{section}</div>
+              <div style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted2)', marginBottom: 10 }}>{section}</div>
               <div style={{ borderRadius: 18, border: '1px solid var(--border)', background: 'var(--surface)', overflow: 'hidden' }}>
                 {items.map((item, i) => (
                   <div key={item.label} style={{ display: 'flex', alignItems: 'flex-start', gap: 14, padding: '12px 16px', borderTop: i > 0 ? '1px solid var(--border)' : 'none' }}>
@@ -249,7 +249,7 @@ export default function HelpPage() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: 8, marginBottom: 3 }}>
                         <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--fg)' }}>{item.label}</span>
-                        <span style={{ fontSize: 9, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted3)', background: 'var(--surface-hover)', border: '1px solid var(--border)', padding: '1px 6px', borderRadius: 5 }}>{item.location}</span>
+                        <span style={{ fontSize: 9, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted1)', background: 'var(--surface-hover)', border: '1px solid var(--border)', padding: '1px 6px', borderRadius: 5 }}>{item.location}</span>
                       </div>
                       <p style={{ fontSize: 12, color: 'var(--muted2)', lineHeight: 1.5 }}>{item.description}</p>
                     </div>
@@ -262,7 +262,7 @@ export default function HelpPage() {
 
         {/* Contact / Support Form */}
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} style={{ marginTop: 32, padding: '22px 22px', borderRadius: 20, border: '1px solid var(--border)', background: 'var(--surface)' }}>
-          <div style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)', marginBottom: 6 }}>Contact Support</div>
+          <div style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted2)', marginBottom: 6 }}>Contact Support</div>
           <p style={{ fontSize: 13, color: 'var(--muted2)', marginBottom: 18, lineHeight: 1.5 }}>
             Can't find an answer? Send a message and we'll get back to you.
           </p>
@@ -276,7 +276,7 @@ export default function HelpPage() {
             <form onSubmit={handleContactSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted3)', marginBottom: 5 }}>Name (optional)</label>
+                  <label style={{ display: 'block', fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted2)', marginBottom: 5 }}>Name (optional)</label>
                   <input
                     type="text"
                     value={contactName}
@@ -286,7 +286,7 @@ export default function HelpPage() {
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted3)', marginBottom: 5 }}>Email (optional)</label>
+                  <label style={{ display: 'block', fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted2)', marginBottom: 5 }}>Email (optional)</label>
                   <input
                     type="email"
                     value={contactEmail}
@@ -297,7 +297,7 @@ export default function HelpPage() {
                 </div>
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted3)', marginBottom: 5 }}>Category</label>
+                <label style={{ display: 'block', fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted2)', marginBottom: 5 }}>Category</label>
                 <select
                   value={contactCategory}
                   onChange={e => setContactCategory(e.target.value)}
@@ -312,7 +312,7 @@ export default function HelpPage() {
                 </select>
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted3)', marginBottom: 5 }}>Message <span style={{ color: 'var(--accent)' }}>*</span></label>
+                <label style={{ display: 'block', fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted2)', marginBottom: 5 }}>Message <span style={{ color: 'var(--accent)' }}>*</span></label>
                 <textarea
                   value={contactMessage}
                   onChange={e => setContactMessage(e.target.value)}
@@ -322,7 +322,7 @@ export default function HelpPage() {
                   required
                   style={{ width: '100%', padding: '9px 12px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface-hover)', fontSize: 13, color: 'var(--fg)', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
                 />
-                <div style={{ fontSize: 11, color: 'var(--muted3)', textAlign: 'right', marginTop: 3 }}>{contactMessage.length}/4000</div>
+                <div style={{ fontSize: 11, color: 'var(--muted2)', textAlign: 'right', marginTop: 3 }}>{contactMessage.length}/4000</div>
               </div>
 
               {contactError && (

@@ -183,7 +183,7 @@ export default function TrackerSettings() {
 
       {/* AniList Card */}
       <motion.section className="glass-card" style={{ padding: '22px 20px', marginBottom: 14 }}
-        initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }}
         transition={{ delay: 0, duration: 0.4, ease }}
       >
         <CardLabel icon={Share2} title="AniList" />
@@ -302,7 +302,7 @@ export default function TrackerSettings() {
 
       {/* MyAnimeList Card */}
       <motion.section className="glass-card" style={{ padding: '22px 20px', marginBottom: 14 }}
-        initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }}
         transition={{ delay: 0.07, duration: 0.4, ease }}
       >
         <CardLabel icon={Share2} title="MyAnimeList" />
@@ -372,7 +372,7 @@ export default function TrackerSettings() {
       </motion.section>
 
       <motion.section className="glass-card" style={{ padding: '22px 20px', marginBottom: 14 }}
-        initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }}
         transition={{ delay: 0.14, duration: 0.4, ease }}
       >
         <CardLabel
@@ -409,7 +409,7 @@ export default function TrackerSettings() {
       </motion.section>
 
       <motion.section className="glass-card" style={{ padding: '22px 20px', marginBottom: 14 }}
-        initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }}
         transition={{ delay: 0.21, duration: 0.4, ease }}
       >
         <CardLabel

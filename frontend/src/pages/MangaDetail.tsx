@@ -127,28 +127,28 @@ export default function MangaDetail() {
             {/* Stat Bar */}
             <div className={cn("grid gap-1.5 mb-4", userRating > 0 ? "grid-cols-3" : "grid-cols-2")}>
               {userRating > 0 && (
-              <div className="flex flex-col items-center py-2.5 px-1 rounded-xl bg-white/5 border border-white/10">
-                <Star className="w-3 h-3 text-amber-400 fill-amber-400 mb-1" />
-                <span className="text-xs font-black text-white leading-none mb-0.5">
+              <div className="flex flex-col items-center py-2.5 px-1 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10">
+                <Star className="w-3 h-3 text-amber-500 dark:text-amber-400 fill-amber-500 dark:fill-amber-400 mb-1" />
+                <span className="text-xs font-black text-zinc-900 dark:text-white leading-none mb-0.5">
                   {userRating}.0
                 </span>
-                <span className="text-[10px] font-bold uppercase tracking-wide text-zinc-400">Rating</span>
+                <span className="text-[10px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Rating</span>
               </div>
               )}
-              <div className="flex flex-col items-center py-2.5 px-1 rounded-xl bg-white/5 border border-white/10">
-                <span className="text-xs font-black text-white leading-none mb-0.5 mt-px">
+              <div className="flex flex-col items-center py-2.5 px-1 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10">
+                <span className="text-xs font-black text-zinc-900 dark:text-white leading-none mb-0.5 mt-px">
                   {manga.chapters.length}
                 </span>
-                <span className="text-[10px] font-bold uppercase tracking-wide text-zinc-400 mt-[3px]">Chapters</span>
+                <span className="text-[10px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mt-[3px]">Chapters</span>
               </div>
-              <div className="flex flex-col items-center py-2.5 px-1 rounded-xl bg-white/5 border border-white/10">
+              <div className="flex flex-col items-center py-2.5 px-1 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10">
                 <span
                   className={cn(
                     'w-2 h-2 rounded-full mb-1 mt-1',
-                    statusIsOngoing ? 'bg-emerald-400' : 'bg-zinc-500'
+                    statusIsOngoing ? 'bg-emerald-500 dark:bg-emerald-400' : 'bg-zinc-500'
                   )}
                 />
-                <span className="text-[10px] font-bold uppercase tracking-wide text-zinc-400 text-center capitalize leading-tight">
+                <span className="text-[10px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 text-center capitalize leading-tight">
                   {manga.status || 'Ongoing'}
                 </span>
               </div>
@@ -183,14 +183,14 @@ export default function MangaDetail() {
                 className={cn(
                   'w-full py-3 rounded-xl font-extrabold text-sm flex items-center justify-center gap-2 transition-all border disabled:opacity-40 disabled:pointer-events-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-black',
                   subscribed
-                    ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400 hover:bg-red-500/20 hover:border-red-500/30 hover:text-red-400'
-                    : 'bg-white/10 border-white/20 hover:bg-white/20 text-white'
+                    ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-red-500/20 hover:border-red-500/30 hover:text-red-500 dark:hover:text-red-400'
+                    : 'bg-black/5 dark:bg-white/10 border-black/10 dark:border-white/20 hover:bg-black/10 dark:hover:bg-white/20 text-zinc-900 dark:text-white'
                 )}
               >
                 {subscribing ? (
                   <ThemedSpinner size="sm" />
                 ) : subscribed ? (
-                  <BookmarkCheck className="w-4 h-4 fill-emerald-400" />
+                  <BookmarkCheck className="w-4 h-4 fill-emerald-600 dark:fill-emerald-400" />
                 ) : (
                   <Bookmark className="w-4 h-4" />
                 )}
@@ -201,7 +201,7 @@ export default function MangaDetail() {
                 <button
                   onClick={handleBulkDownload}
                   disabled={bulkLoading}
-                  className="w-full py-3 rounded-xl font-extrabold text-sm flex items-center justify-center gap-2 border border-white/10 bg-white/5 hover:bg-white/10 text-white transition-all disabled:opacity-40 disabled:pointer-events-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-black"
+                  className="w-full py-3 rounded-xl font-extrabold text-sm flex items-center justify-center gap-2 border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-zinc-900 dark:text-white transition-all disabled:opacity-40 disabled:pointer-events-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-black"
                 >
                   {bulkLoading ? <ThemedSpinner size="sm" /> : <Download className="w-4 h-4" />}
                   Download All
@@ -214,7 +214,7 @@ export default function MangaDetail() {
               <div className="flex items-start gap-2">
                 <h1
                   className={cn(
-                    "flex-1 min-w-0 font-bold text-white leading-snug tracking-tight",
+                    "flex-1 min-w-0 font-bold text-zinc-900 dark:text-white leading-snug tracking-tight",
                     manga.title.length > 50
                       ? "text-base md:text-lg"
                       : manga.title.length > 25
@@ -226,7 +226,7 @@ export default function MangaDetail() {
                   {manga.title}
                 </h1>
               </div>
-              <p className="text-xs text-zinc-400 mt-1 font-semibold">{authorText}</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 font-semibold">{authorText}</p>
             </div>
 
             {/* GENRES */}
@@ -242,15 +242,15 @@ export default function MangaDetail() {
                       className={cn(
                         "px-2.5 py-0.5 rounded-full text-[10px] font-bold",
                         i < 3
-                          ? "border border-white/20 bg-white/10 text-zinc-200"
-                          : "border border-white/8 bg-white/[0.03] text-zinc-500"
+                          ? "border border-black/15 dark:border-white/20 bg-black/5 dark:bg-white/10 text-zinc-800 dark:text-zinc-200"
+                          : "border border-black/10 dark:border-white/8 bg-black/[0.03] dark:bg-white/[0.03] text-zinc-600 dark:text-zinc-500"
                       )}
                     >
                       {g}
                     </span>
                   ))}
                   {manga.genres.length > 8 && (
-                    <span className="px-2.5 py-0.5 rounded-full border border-white/8 bg-white/[0.03] text-[10px] font-bold text-zinc-600">
+                    <span className="px-2.5 py-0.5 rounded-full border border-black/10 dark:border-white/8 bg-black/[0.03] dark:bg-white/[0.03] text-[10px] font-bold text-zinc-600 dark:text-zinc-500">
                       +{manga.genres.length - 8} more
                     </span>
                   )}
@@ -265,13 +265,13 @@ export default function MangaDetail() {
               </div>
               <div className="space-y-2 text-xs">
                 <div className="flex justify-between gap-2">
-                  <span className="text-zinc-500 shrink-0">Source</span>
-                  <span className="font-bold text-zinc-200 capitalize text-right">{manga.provider}</span>
+                  <span className="text-zinc-500 dark:text-zinc-400 shrink-0">Source</span>
+                  <span className="font-bold text-zinc-800 dark:text-zinc-200 capitalize text-right">{manga.provider}</span>
                 </div>
                 {manga.authors.length > 0 && (
                   <div className="flex justify-between gap-2">
-                    <span className="text-zinc-500 shrink-0">Author</span>
-                    <span className="font-bold text-zinc-200 text-right">{manga.authors.join(', ')}</span>
+                    <span className="text-zinc-500 dark:text-zinc-400 shrink-0">Author</span>
+                    <span className="font-bold text-zinc-800 dark:text-zinc-200 text-right">{manga.authors.join(', ')}</span>
                   </div>
                 )}
               </div>
@@ -285,7 +285,7 @@ export default function MangaDetail() {
                 </div>
                 <div className="relative">
                   <p className={cn(
-                    'text-sm leading-relaxed text-zinc-300 transition-all',
+                    'text-sm leading-relaxed text-zinc-700 dark:text-zinc-300 transition-all',
                     !descExpanded && 'line-clamp-4'
                   )}>
                     {manga.description
@@ -309,13 +309,13 @@ export default function MangaDetail() {
             {/* Rating & Notes — icon only */}
             <button
               onClick={() => setNotesOpen(true)}
-              className="flex items-center gap-2 text-xs text-zinc-500 hover:text-white transition-colors mb-5 group"
+              className="flex items-center gap-2 text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors mb-5 group"
             >
               <StickyNote className="w-3.5 h-3.5 group-hover:text-[var(--accent,#dc2626)] transition-colors" />
               <span className="font-semibold">My Rating &amp; Notes</span>
               {userRating > 0 && (
-                <span className="flex items-center gap-0.5 text-yellow-400 font-bold ml-1">
-                  <Star className="w-3 h-3 fill-yellow-400" />{userRating}
+                <span className="flex items-center gap-0.5 text-yellow-500 dark:text-yellow-400 font-bold ml-1">
+                  <Star className="w-3 h-3 fill-yellow-500 dark:fill-yellow-400" />{userRating}
                 </span>
               )}
             </button>

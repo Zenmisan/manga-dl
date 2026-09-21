@@ -168,7 +168,7 @@ export default function SystemSettings() {
       </div>
 
       <motion.section className="glass-card" style={SECTION}
-        initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }}
         transition={{ delay: 0, duration: 0.4, ease }}
       >
         <CardLabel icon={User} title="Account" />
@@ -200,7 +200,7 @@ export default function SystemSettings() {
       </motion.section>
 
       <motion.section className="glass-card" style={SECTION}
-        initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }}
         transition={{ delay: 0.07, duration: 0.4, ease }}
       >
         <CardLabel icon={Wifi} title="Sync & Backup" />
@@ -256,7 +256,7 @@ export default function SystemSettings() {
       </motion.section>
 
       <motion.section className="glass-card" style={SECTION}
-        initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }}
         transition={{ delay: 0.14, duration: 0.4, ease }}
       >
         <CardLabel icon={Server} title="Self-Hosted Sources" />
@@ -283,7 +283,7 @@ export default function SystemSettings() {
 
       {isTauri && (
         <motion.section className="glass-card" style={SECTION}
-          initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }}
           transition={{ delay: 0.21, duration: 0.4, ease }}
         >
           <CardLabel icon={Database} title="Desktop System" />

@@ -40,7 +40,7 @@ export default function ReaderSettings() {
       </div>
 
       <motion.section className="glass-card" style={SECTION}
-        initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }}
         transition={{ delay: 0, duration: 0.4, ease }}
       >
         <CardLabel icon={BookOpen} title="Reader Appearance" />
@@ -79,7 +79,7 @@ export default function ReaderSettings() {
       </motion.section>
 
       <motion.section className="glass-card" style={SECTION}
-        initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }}
         transition={{ delay: 0.07, duration: 0.4, ease }}
       >
         <CardLabel icon={BookOpen} title="Webtoon Mode" />

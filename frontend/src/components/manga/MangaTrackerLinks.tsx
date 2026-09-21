@@ -12,7 +12,7 @@ export function MangaTrackerLinks({
   trackerLinks, openSyncModal, removeTrackerLink, onOpenTrackerModal,
 }: Props) {
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }} className="p-6 glass-card border-white/5">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.18 }} className="p-6 glass-card border-white/5">
       <h3 className="text-xs font-black uppercase tracking-widest text-white/30 mb-4 flex items-center gap-2">
         <ListPlus className="w-3.5 h-3.5" />
         Tracker Links

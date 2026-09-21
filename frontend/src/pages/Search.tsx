@@ -1001,8 +1001,8 @@ export default function SearchPage() {
                         {/* 2nd Place (if exists) */}
                         {leaderboard[1] ? (
                           <motion.div
-                            initial={{ opacity: 0, y: 15 }}
-                            animate={{ opacity: 1, y: 0 }}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
                             transition={{ delay: 0.1 }}
                             onClick={() => navigate(`/profile/${leaderboard[1].username || leaderboard[1].user_id}`)}
                             className="glass-card p-4 border-slate-500/20 bg-slate-900/20 hover:border-slate-400/40 transition-all cursor-pointer flex flex-col items-center text-center relative group order-2 sm:order-1"
@@ -1048,8 +1048,8 @@ export default function SearchPage() {
                         {/* 1st Place Champion (Center, Elevated) */}
                         {leaderboard[0] && (
                           <motion.div
-                            initial={{ opacity: 0, y: 15 }}
-                            animate={{ opacity: 1, y: 0 }}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
                             onClick={() => navigate(`/profile/${leaderboard[0].username || leaderboard[0].user_id}`)}
                             className="glass-card p-5 border-amber-500/30 bg-gradient-to-b from-amber-500/[0.08] to-transparent hover:border-amber-400/50 transition-all cursor-pointer flex flex-col items-center text-center relative group sm:-translate-y-2 shadow-xl order-1 sm:order-2"
                           >
@@ -1097,8 +1097,8 @@ export default function SearchPage() {
                         {/* 3rd Place (if exists) */}
                         {leaderboard[2] ? (
                           <motion.div
-                            initial={{ opacity: 0, y: 15 }}
-                            animate={{ opacity: 1, y: 0 }}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
                             transition={{ delay: 0.2 }}
                             onClick={() => navigate(`/profile/${leaderboard[2].username || leaderboard[2].user_id}`)}
                             className="glass-card p-4 border-amber-800/30 bg-amber-950/10 hover:border-amber-700/40 transition-all cursor-pointer flex flex-col items-center text-center relative group order-3"
@@ -1261,8 +1261,8 @@ export default function SearchPage() {
                   {readerResults.map((u, idx) => (
                     <motion.div
                       key={u.user_id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
                       transition={{ duration: 0.3, delay: Math.min(idx * 0.04, 0.3) }}
                       onClick={() => navigate(`/profile/${u.username || u.user_id}`)}
                       className="glass-card p-4 hover:border-white/20 transition-all cursor-pointer group flex flex-col justify-between"

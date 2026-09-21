@@ -96,7 +96,7 @@ export default function ImportGuide() {
 
       <div className="px-4 md:px-6 max-w-3xl w-full mx-auto space-y-6">
         {/* Origin & Story Card */}
-        <div className="p-5 md:p-6 rounded-3xl bg-[var(--surface)] border border-[var(--border)] relative overflow-hidden backdrop-blur-xl">
+        <div className="p-5 md:p-6 rounded-3xl bg-[var(--surface)] border border-[var(--border)] relative overflow-hidden">
           <div
             className="absolute -right-12 -top-12 w-48 h-48 rounded-full pointer-events-none opacity-20"
             style={{ background: 'radial-gradient(circle, var(--accent) 0%, transparent 70%)' }}
