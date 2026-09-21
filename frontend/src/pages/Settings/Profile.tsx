@@ -3,9 +3,11 @@ import { useNavigate, Link } from 'react-router-dom'
 import {
   User, Mail, ShieldCheck, LogOut, CheckCircle2, Share2,
   ExternalLink, Save, Sparkles, LogIn, UserPlus, Lock,
-  Cloud, MessageSquare, AlertCircle, BookOpen, Flame
+  Cloud, MessageSquare, AlertCircle, BookOpen, Flame,
+  Key, Eye, EyeOff,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
+import type { User as SupabaseUser } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
 import api from '../../lib/api'
 import { ThemedSpinner } from '../../components/common/ThemedLoader'
@@ -85,7 +87,76 @@ function CardLabel({ icon: Icon, title, badge }: { icon: React.ElementType; titl
 
 export default function AccountProfileSettings() {
   const navigate = useNavigate()
-  const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
+  const [user, setUser] = useState<SupabaseUser | null>(null)
+
+  // Password / Google login methods state
+  const isGoogleUser = Boolean(
+    user?.app_metadata?.provider === 'google' ||
+    user?.app_metadata?.providers?.includes('google') ||
+    user?.identities?.some(id => id.provider === 'google')
+  )
+
+  const hasEmailIdentity = Boolean(
+    user?.identities?.some(id => id.provider === 'email') ||
+    (user?.app_metadata?.providers && user.app_metadata.providers.includes('email') && user.app_metadata.providers.length > 1) ||
+    (!isGoogleUser && user?.app_metadata?.provider === 'email')
+  )
+
+  const [hasPasswordSet, setHasPasswordSet] = useState(false)
+  const [showPasswordForm, setShowPasswordForm] = useState(false)
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPasswordText, setShowPasswordText] = useState(false)
+  const [passwordSaving, setPasswordSaving] = useState(false)
+  const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [passwordSuccess, setPasswordSuccess] = useState(false)
+
+  useEffect(() => {
+    if (hasEmailIdentity) {
+      setHasPasswordSet(true)
+    }
+  }, [hasEmailIdentity])
+
+  const handleSetPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newPassword) {
+      setPasswordError('Please enter a password.')
+      return
+    }
+    if (newPassword.length < 6) {
+      setPasswordError('Password must be at least 6 characters long.')
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Passwords do not match. Please re-enter.')
+      return
+    }
+
+    setPasswordSaving(true)
+    setPasswordError(null)
+    setPasswordSuccess(false)
+
+    try {
+      const { error: updateError } = await supabase.auth.updateUser({ password: newPassword })
+      if (updateError) throw updateError
+
+      setPasswordSuccess(true)
+      setHasPasswordSet(true)
+      setNewPassword('')
+      setConfirmPassword('')
+      setShowPasswordForm(false)
+
+      const { data: { user: refreshed } } = await supabase.auth.getUser()
+      if (refreshed) setUser(refreshed)
+
+      setTimeout(() => setPasswordSuccess(false), 5000)
+    } catch (err: unknown) {
+      const msg = (err as { message?: string })?.message || 'Failed to update password.'
+      setPasswordError(msg)
+    } finally {
+      setPasswordSaving(false)
+    }
+  }
 
   // Backend profile state
   const [username, setUsername] = useState<string | null>(null)
@@ -118,12 +189,11 @@ export default function AccountProfileSettings() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      const u = data.session?.user
-      if (u) setUser({ id: u.id, email: u.email })
+      setUser(data.session?.user ?? null)
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
-      setUser(session?.user ? { id: session.user.id, email: session.user.email } : null)
+      setUser(session?.user ?? null)
     })
 
     return () => subscription.unsubscribe()
@@ -975,6 +1045,262 @@ export default function AccountProfileSettings() {
                     >
                       Verified
                     </span>
+                  </div>
+
+                  {/* Login Methods & Password Security */}
+                  <div
+                    style={{
+                      padding: '14px 14px',
+                      borderRadius: 14,
+                      background: 'var(--surface-hover)',
+                      border: '1px solid var(--border)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 12,
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                        <div
+                          style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: 8,
+                            background: 'var(--surface)',
+                            border: '1px solid var(--border)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                          }}
+                        >
+                          <Lock style={{ width: 15, height: 15, color: 'var(--accent)' }} />
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--fg)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span>{isGoogleUser && !hasPasswordSet ? 'Google Login (No Password)' : 'Account Password'}</span>
+                            <span
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 800,
+                                color: isGoogleUser && !hasPasswordSet ? '#f59e0b' : '#22c55e',
+                                background: isGoogleUser && !hasPasswordSet ? 'rgba(245,158,11,0.12)' : 'rgba(34,197,94,0.12)',
+                                border: isGoogleUser && !hasPasswordSet ? '1px solid rgba(245,158,11,0.25)' : '1px solid rgba(34,197,94,0.25)',
+                                padding: '1px 6px',
+                                borderRadius: 5,
+                              }}
+                            >
+                              {isGoogleUser && !hasPasswordSet ? 'No Password' : 'Active'}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--muted2)', marginTop: 2, lineHeight: 1.35 }}>
+                            {isGoogleUser && !hasPasswordSet
+                              ? 'Logged in with Google. Add a password to also sign in directly with email.'
+                              : 'Password configured as a sign-in method for this account.'}
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowPasswordForm(prev => !prev)
+                          setPasswordError(null)
+                        }}
+                        style={{
+                          padding: '7px 12px',
+                          borderRadius: 9,
+                          background: isGoogleUser && !hasPasswordSet ? 'var(--accent)' : 'var(--surface)',
+                          border: isGoogleUser && !hasPasswordSet ? 'none' : '1px solid var(--border)',
+                          color: isGoogleUser && !hasPasswordSet ? '#fff' : 'var(--fg)',
+                          fontSize: 11.5,
+                          fontWeight: 800,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          cursor: 'pointer',
+                          flexShrink: 0,
+                          transition: 'all 0.15s ease',
+                        }}
+                        className="focus-visible:ring-2 focus-visible:ring-red-500"
+                      >
+                        <Key style={{ width: 12, height: 12 }} />
+                        <span>
+                          {showPasswordForm
+                            ? 'Cancel'
+                            : isGoogleUser && !hasPasswordSet
+                            ? 'Add Password'
+                            : 'Change Password'}
+                        </span>
+                      </button>
+                    </div>
+
+                    {/* Password success message */}
+                    {passwordSuccess && (
+                      <div
+                        style={{
+                          padding: '10px 12px',
+                          borderRadius: 10,
+                          background: 'rgba(34,197,94,0.1)',
+                          border: '1px solid rgba(34,197,94,0.25)',
+                          color: '#22c55e',
+                          fontSize: 11.5,
+                          fontWeight: 700,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                        }}
+                      >
+                        <CheckCircle2 style={{ width: 14, height: 14, flexShrink: 0 }} />
+                        <span>Password saved! You can now sign in using your email and password as well.</span>
+                      </div>
+                    )}
+
+                    {/* Inline Form to Add / Change Password */}
+                    {showPasswordForm && (
+                      <form
+                        onSubmit={handleSetPassword}
+                        style={{
+                          borderTop: '1px solid var(--border)',
+                          paddingTop: 14,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 10,
+                        }}
+                      >
+                        <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--fg)' }}>
+                          {isGoogleUser && !hasPasswordSet ? 'Create Account Password' : 'Set New Password'}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--muted2)', lineHeight: 1.4 }}>
+                          {isGoogleUser && !hasPasswordSet
+                            ? 'Enter a password (at least 6 characters). Once set, you can log in with Google or by typing your email and this password.'
+                            : 'Enter your new password below (at least 6 characters).'}
+                        </div>
+
+                        {passwordError && (
+                          <div
+                            style={{
+                              padding: '8px 10px',
+                              borderRadius: 8,
+                              background: 'rgba(239,68,68,0.1)',
+                              border: '1px solid rgba(239,68,68,0.25)',
+                              color: '#ef4444',
+                              fontSize: 11,
+                              fontWeight: 700,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 6,
+                            }}
+                          >
+                            <AlertCircle style={{ width: 13, height: 13, flexShrink: 0 }} />
+                            <span>{passwordError}</span>
+                          </div>
+                        )}
+
+                        <div style={{ position: 'relative' }}>
+                          <input
+                            type={showPasswordText ? 'text' : 'password'}
+                            value={newPassword}
+                            onChange={(e) => {
+                              setNewPassword(e.target.value)
+                              if (passwordError) setPasswordError(null)
+                            }}
+                            placeholder="Enter password (min 6 characters)"
+                            style={{
+                              ...INPUT_STYLE,
+                              paddingRight: 40,
+                              background: 'var(--surface)',
+                            }}
+                            autoComplete="new-password"
+                            required
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPasswordText(p => !p)}
+                            style={{
+                              position: 'absolute',
+                              right: 10,
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              background: 'none',
+                              border: 'none',
+                              color: 'var(--muted2)',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: 4,
+                            }}
+                            title={showPasswordText ? 'Hide password' : 'Show password'}
+                          >
+                            {showPasswordText ? <EyeOff style={{ width: 15, height: 15 }} /> : <Eye style={{ width: 15, height: 15 }} />}
+                          </button>
+                        </div>
+
+                        <div>
+                          <input
+                            type={showPasswordText ? 'text' : 'password'}
+                            value={confirmPassword}
+                            onChange={(e) => {
+                              setConfirmPassword(e.target.value)
+                              if (passwordError) setPasswordError(null)
+                            }}
+                            placeholder="Confirm password"
+                            style={{
+                              ...INPUT_STYLE,
+                              background: 'var(--surface)',
+                            }}
+                            autoComplete="new-password"
+                            required
+                          />
+                        </div>
+
+                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowPasswordForm(false)
+                              setNewPassword('')
+                              setConfirmPassword('')
+                              setPasswordError(null)
+                            }}
+                            style={{
+                              padding: '8px 14px',
+                              borderRadius: 10,
+                              background: 'var(--surface)',
+                              border: '1px solid var(--border)',
+                              color: 'var(--muted2)',
+                              fontSize: 12,
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={passwordSaving || !newPassword || newPassword.length < 6 || newPassword !== confirmPassword}
+                            style={{
+                              padding: '8px 16px',
+                              borderRadius: 10,
+                              background: 'var(--accent)',
+                              border: 'none',
+                              color: '#fff',
+                              fontSize: 12,
+                              fontWeight: 800,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 6,
+                              cursor: (passwordSaving || !newPassword || newPassword.length < 6 || newPassword !== confirmPassword) ? 'not-allowed' : 'pointer',
+                              opacity: (passwordSaving || !newPassword || newPassword.length < 6 || newPassword !== confirmPassword) ? 0.6 : 1,
+                            }}
+                          >
+                            {passwordSaving ? <ThemedSpinner size="xs" /> : <Save style={{ width: 13, height: 13 }} />}
+                            <span>{passwordSaving ? 'Saving...' : 'Save Password'}</span>
+                          </button>
+                        </div>
+                      </form>
+                    )}
                   </div>
                 </div>
               </div>

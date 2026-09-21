@@ -4,6 +4,8 @@ import { Database, RefreshCw, CheckCircle2, DownloadCloud, UploadCloud, BookOpen
 import { ThemedSpinner } from '../../components/common/ThemedLoader'
 import { motion } from 'framer-motion'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
+import { useQueryClient } from '@tanstack/react-query'
+import { QK } from '../../lib/queries'
 import api from '../../lib/api'
 import { supabase } from '../../lib/supabase'
 import { useAppStore } from '../../lib/store'
@@ -37,12 +39,14 @@ const ease = [0.16, 1, 0.3, 1] as const
 
 export default function SystemSettings() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const { syncWifiOnly, setSyncWifiOnly } = useAppStore()
   const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null)
   const [syncing, setSyncing] = useState(false)
   const [syncDone, setSyncDone] = useState(false)
   const [cloudBackupLoading, setCloudBackupLoading] = useState(false)
   const [cloudBackupDone, setCloudBackupDone] = useState(false)
+  const [tachiyomiLoading, setTachiyomiLoading] = useState(false)
   const [komgaUrl, setKomgaUrl] = useState(localStorage.getItem('komga-url') || '')
   const [komgaUser, setKomgaUser] = useState(localStorage.getItem('komga-username') || '')
   const [komgaPass, setKomgaPass] = useState('')
@@ -98,16 +102,286 @@ export default function SystemSettings() {
   }
 
   const handleTachiyomiImport = () => {
-    const input = document.createElement('input'); input.type = 'file'; input.accept = '.tachibk,.json'
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.tachibk,.json'
     input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0]; if (!file) return
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (!file) return
+      setTachiyomiLoading(true)
+
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let parsed: any
-        if (file.name.endsWith('.tachibk')) { const form = new FormData(); form.append('file', file); const res = await api.post('/backup/import/tachibk', form, { headers: { 'Content-Type': 'multipart/form-data' } }); parsed = res.data }
-        else { const text = await file.text(); const data = JSON.parse(text); parsed = { manga: data.backupManga || data.manga || data.library || [], categories: data.backupCategories || data.categories || [] } }
-        alert(`Parsed ${parsed.manga.length} manga. Import logic would go here.`)
-      } catch { alert('Tachiyomi import failed.') }
+        let data: any = null
+
+        // Try backend import first (handles .tachibk protobuf and .json, inserts into DB if logged in)
+        try {
+          const form = new FormData()
+          form.append('file', file)
+          const res = await api.post('/backup/import/tachibk', form, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+          })
+          data = res.data
+        } catch (apiErr) {
+          // If backend failed and it is a JSON file, parse client-side
+          if (file.name.endsWith('.json')) {
+            const text = await file.text()
+            const raw = JSON.parse(text)
+            const mangaRaw = raw.backupManga || raw.manga || raw.library || []
+            const catsRaw = raw.backupCategories || raw.categories || []
+            const sourcesRaw = raw.backupSources || raw.sources || []
+
+            const catMap: Record<number, string> = {}
+            catsRaw.forEach((c: any, i: number) => {
+              catMap[i + 1] = typeof c === 'string' ? c : c.name || ''
+            })
+            const sourceMap: Record<number, string> = {}
+            sourcesRaw.forEach((s: any) => {
+              if (s.sourceId || s.source_id) sourceMap[s.sourceId || s.source_id] = s.name || ''
+            })
+
+            const categories: string[] = catsRaw.map((c: any) => typeof c === 'string' ? c : c.name || '').filter(Boolean)
+            const mangaCategories: Record<string, string[]> = {}
+            const readTracking: Record<string, string[]> = {}
+            const bookmarks: Record<string, string[]> = {}
+            const trackerLinks: Record<string, Record<string, any>> = {}
+            const localSubMeta: Record<string, any> = {}
+
+            const trackerNameMap: Record<number, string> = {
+              1: 'mal', 2: 'anilist', 3: 'kitsu', 4: 'shikimori', 5: 'bangumi', 6: 'mangaupdates',
+            }
+
+            for (const m of mangaRaw) {
+              const title = (m.title || '').trim()
+              if (!title) continue
+
+              const srcName = sourceMap[m.source] || (typeof m.source === 'string' ? m.source : '')
+              const url = m.url || ''
+              let prov = 'mangadex'
+              const lowerTarget = `${srcName} ${url}`.toLowerCase()
+              if (lowerTarget.includes('asura')) prov = 'asurascans'
+              else if (lowerTarget.includes('omega')) prov = 'omegascans'
+              else if (lowerTarget.includes('flame')) prov = 'flamescans'
+              else if (lowerTarget.includes('katana')) prov = 'mangakatana'
+              else if (lowerTarget.includes('kakalot')) prov = 'mangakakalot'
+              else if (lowerTarget.includes('nato')) prov = 'manganato'
+              else if (lowerTarget.includes('bato')) prov = 'bato'
+              else if (lowerTarget.includes('pill')) prov = 'mangapill'
+              else if (lowerTarget.includes('tcb')) prov = 'tcbscans'
+              else if (lowerTarget.includes('webtoon')) prov = 'webtoons'
+              else if (lowerTarget.includes('royalroad')) prov = 'royalroad'
+              else if (lowerTarget.includes('novelbin')) prov = 'novelbin'
+              else if (srcName) prov = srcName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'tachiyomi'
+
+              let mangaId = url.replace(/^[a-z]+:\/\/[^/]+/i, '').replace(/^[/?#]+|[/?#]+$/g, '')
+              const mdMatch = mangaId.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)
+              if (prov === 'mangadex' && mdMatch) mangaId = mdMatch[0].toLowerCase()
+              else {
+                for (const pfx of ['manga/', 'series/', 'title/', 'comic/']) {
+                  if (mangaId.startsWith(pfx)) { mangaId = mangaId.slice(pfx.length); break }
+                }
+              }
+              mangaId = mangaId || 'unknown'
+              const compKey = `${prov}:${mangaId}`
+
+              const mCatIds = m.categories || m.category_ids || []
+              const mCats: string[] = []
+              for (const cid of mCatIds) {
+                if (typeof cid === 'string') mCats.push(cid)
+                else if (catMap[cid]) mCats.push(catMap[cid])
+              }
+              if (mCats.length > 0) {
+                mangaCategories[title.toLowerCase().trim()] = mCats
+                mCats.forEach(c => { if (!categories.includes(c)) categories.push(c) })
+              }
+
+              const readIds: string[] = []
+              const bmIds: string[] = []
+              for (const ch of (m.chapters || [])) {
+                let chId = (ch.url || '').split('?')[0].split('#')[0].replace(/\/+$/, '')
+                if (chId.includes('/')) chId = chId.split('/').pop() || chId
+                chId = chId || String(ch.chapterNumber || ch.chapter_number || 'ch-1')
+                if (ch.read) readIds.push(chId)
+                if (ch.bookmark) bmIds.push(chId)
+              }
+              if (readIds.length > 0) readTracking[compKey] = readIds
+              if (bmIds.length > 0) bookmarks[compKey] = bmIds
+
+              const mTrackers: Record<string, any> = {}
+              for (const tr of (m.tracking || [])) {
+                const sId = tr.syncId || tr.sync_id || 0
+                const tName = trackerNameMap[sId]
+                const mId = tr.mediaId || tr.media_id || 0
+                if (tName && mId) {
+                  mTrackers[tName] = {
+                    id: mId,
+                    title: tr.title || title,
+                    score: Number(tr.score || 0),
+                    status: String(tr.status || 0),
+                    progress: Math.floor(Number(tr.lastChapterRead || tr.last_chapter_read || 0)),
+                  }
+                }
+              }
+              if (Object.keys(mTrackers).length > 0) trackerLinks[compKey] = mTrackers
+
+              localSubMeta[compKey] = {
+                title,
+                cover_url: m.thumbnailUrl || m.thumbnail_url || null,
+                provider: prov,
+                mangaId,
+              }
+            }
+
+            data = {
+              success: true,
+              imported_manga_count: Object.keys(localSubMeta).length,
+              imported_categories_count: categories.length,
+              imported_chapters_count: Object.values(readTracking).reduce((acc, c) => acc + c.length, 0),
+              imported_bookmarks_count: Object.values(bookmarks).reduce((acc, b) => acc + b.length, 0),
+              categories,
+              manga_categories: mangaCategories,
+              read_tracking: readTracking,
+              bookmarks,
+              tracker_links: trackerLinks,
+              local_sub_meta: localSubMeta,
+              local_subs: Object.keys(localSubMeta),
+            }
+          } else {
+            throw apiErr
+          }
+        }
+
+        if (!data || !data.local_sub_meta) {
+          throw new Error('No manga found in backup file.')
+        }
+
+        // Apply to localStorage
+        if (data.categories && Array.isArray(data.categories)) {
+          const existingCats: string[] = JSON.parse(localStorage.getItem('manga-dl-categories') || '["Reading","Completed","On Hold","Plan to Read","Dropped"]')
+          const mergedCats = [...new Set([...existingCats, ...data.categories])].filter(Boolean)
+          localStorage.setItem('manga-dl-categories', JSON.stringify(mergedCats))
+        }
+
+        if (data.manga_categories && typeof data.manga_categories === 'object') {
+          const existingAssigns: Record<string, string[]> = JSON.parse(localStorage.getItem('manga-dl-manga-categories') || '{}')
+          for (const [titleKey, cats] of Object.entries(data.manga_categories as Record<string, string[]>)) {
+            const existing = new Set(existingAssigns[titleKey] || [])
+            cats.forEach(c => existing.add(c))
+            existingAssigns[titleKey] = Array.from(existing)
+          }
+          localStorage.setItem('manga-dl-manga-categories', JSON.stringify(existingAssigns))
+        }
+
+        const userScope = supabaseUser?.id ?? 'anon'
+        const scopedSubsKey = `manga-dl-local-subs:${userScope}`
+        const scopedMetaKey = `manga-dl-local-sub-meta:${userScope}`
+
+        const existingSubs: string[] = JSON.parse(localStorage.getItem(scopedSubsKey) || '[]')
+        const existingMeta: Record<string, { title: string; cover_url: string | null; provider: string; mangaId: string }> =
+          JSON.parse(localStorage.getItem(scopedMetaKey) || '{}')
+
+        const subsSet = new Set(existingSubs)
+        for (const [k, meta] of Object.entries(data.local_sub_meta as Record<string, any>)) {
+          subsSet.add(k)
+          existingMeta[k] = {
+            title: meta.title,
+            cover_url: meta.cover_url ?? null,
+            provider: meta.provider,
+            mangaId: meta.mangaId,
+          }
+        }
+        localStorage.setItem(scopedSubsKey, JSON.stringify(Array.from(subsSet)))
+        localStorage.setItem(scopedMetaKey, JSON.stringify(existingMeta))
+
+        if (userScope !== 'anon') {
+          const anonSubs: string[] = JSON.parse(localStorage.getItem('manga-dl-local-subs:anon') || '[]')
+          const anonMeta: Record<string, any> = JSON.parse(localStorage.getItem('manga-dl-local-sub-meta:anon') || '{}')
+          const anonSet = new Set(anonSubs)
+          for (const [k, meta] of Object.entries(data.local_sub_meta as Record<string, any>)) {
+            anonSet.add(k)
+            anonMeta[k] = {
+              title: meta.title,
+              cover_url: meta.cover_url ?? null,
+              provider: meta.provider,
+              mangaId: meta.mangaId,
+            }
+          }
+          localStorage.setItem('manga-dl-local-subs:anon', JSON.stringify(Array.from(anonSet)))
+          localStorage.setItem('manga-dl-local-sub-meta:anon', JSON.stringify(anonMeta))
+        }
+
+        if (data.read_tracking && typeof data.read_tracking === 'object') {
+          const existingRead: Record<string, string[]> = JSON.parse(localStorage.getItem('manga-dl-read') || '{}')
+          for (const [k, chList] of Object.entries(data.read_tracking as Record<string, string[]>)) {
+            const s = new Set(existingRead[k] || [])
+            chList.forEach(id => s.add(id))
+            existingRead[k] = Array.from(s)
+          }
+          localStorage.setItem('manga-dl-read', JSON.stringify(existingRead))
+        }
+
+        if (data.bookmarks && typeof data.bookmarks === 'object') {
+          const existingBm: Record<string, string[]> = JSON.parse(localStorage.getItem('manga-dl-bookmarks') || '{}')
+          for (const [k, bmList] of Object.entries(data.bookmarks as Record<string, string[]>)) {
+            const s = new Set(existingBm[k] || [])
+            bmList.forEach(id => s.add(id))
+            existingBm[k] = Array.from(s)
+          }
+          localStorage.setItem('manga-dl-bookmarks', JSON.stringify(existingBm))
+        }
+
+        if (data.tracker_links && typeof data.tracker_links === 'object') {
+          const existingTrackers: Record<string, any> = JSON.parse(localStorage.getItem('manga-dl-tracker-links') || '{}')
+          for (const [k, trackers] of Object.entries(data.tracker_links as Record<string, any>)) {
+            existingTrackers[k] = {
+              ...(existingTrackers[k] || {}),
+              ...trackers,
+            }
+          }
+          localStorage.setItem('manga-dl-tracker-links', JSON.stringify(existingTrackers))
+        }
+
+        if (supabaseUser) {
+          try {
+            await supabase.from('user_categories').upsert({
+              user_id: supabaseUser.id,
+              custom_categories: JSON.parse(localStorage.getItem('manga-dl-categories') || '[]'),
+              manga_assignments: JSON.parse(localStorage.getItem('manga-dl-manga-categories') || '{}'),
+              updated_at: new Date().toISOString(),
+            }, { onConflict: 'user_id' })
+          } catch { /* non-fatal */ }
+
+          try {
+            const readMap = JSON.parse(localStorage.getItem('manga-dl-read') || '{}')
+            const rows = Object.entries(readMap).map(([k, chapterIds]) => {
+              const [prov, mId] = k.split(':')
+              return {
+                user_id: supabaseUser.id,
+                provider: prov,
+                manga_id: mId,
+                chapter_ids: chapterIds,
+                updated_at: new Date().toISOString(),
+              }
+            })
+            if (rows.length > 0) {
+              await supabase.from('read_tracking').upsert(rows, { onConflict: 'user_id,provider,manga_id' })
+            }
+          } catch { /* non-fatal */ }
+        }
+
+        queryClient.invalidateQueries({ queryKey: QK.library })
+        queryClient.invalidateQueries({ queryKey: QK.history })
+
+        const mangaCount = data.imported_manga_count ?? Object.keys(data.local_sub_meta || {}).length
+        const catCount = data.imported_categories_count ?? (data.categories?.length ?? 0)
+        const chCount = data.imported_chapters_count ?? 0
+
+        alert(`Successfully imported ${mangaCount} manga, ${catCount} categories, and ${chCount} read chapters from Tachiyomi backup.\n\nYour library has been updated.`)
+      } catch (err: any) {
+        alert(`Tachiyomi import failed: ${err?.message || 'Invalid backup file or network error.'}`)
+      } finally {
+        setTachiyomiLoading(false)
+      }
     }
     input.click()
   }
@@ -230,7 +504,15 @@ export default function SystemSettings() {
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <button onClick={handleExportBackup} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}><DownloadCloud style={{ width: 13, height: 13 }} /> Export</button>
               <button onClick={handleImportBackup} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}><UploadCloud style={{ width: 13, height: 13 }} /> Import</button>
-              <button onClick={handleTachiyomiImport} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}><BookOpen style={{ width: 13, height: 13 }} /> Tachiyomi</button>
+              <button
+                onClick={handleTachiyomiImport}
+                disabled={tachiyomiLoading}
+                className="btn-secondary"
+                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, opacity: tachiyomiLoading ? 0.7 : 1 }}
+              >
+                {tachiyomiLoading ? <ThemedSpinner size="xs" /> : <BookOpen style={{ width: 13, height: 13 }} />}
+                {tachiyomiLoading ? 'Importing...' : 'Tachiyomi'}
+              </button>
             </div>
           </div>
         </div>

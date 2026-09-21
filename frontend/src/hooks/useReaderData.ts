@@ -4,7 +4,7 @@ import { loadLocalMangaIntoSession, type LocalMangaSession } from '../lib/localL
 import api from '../lib/api'
 import { supabase } from '../lib/supabase'
 import { markRead } from '../lib/readTracking'
-import { saveLocalHistoryEntry } from '../lib/historyTracking'
+import { saveLocalHistoryEntry, getLocalHistory } from '../lib/historyTracking'
 import { ExtensionManager } from '../lib/extensions'
 import { resolveSmartContext } from '../lib/smartUrl'
 
@@ -60,10 +60,22 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
     return getImageUrlForChapter(filename || '', pageName)
   }, [getImageUrlForChapter, filename])
 
-  const saveOnlineProgress = useCallback(async (page: number) => {
-    if (incognitoMode) return
+  const saveOnlineProgress = useCallback((page: number) => {
+    if (incognitoMode || page < 1) return
     const parts = onlinePartsRef.current
     if (parts) {
+      // 1. Instant local persistence (0ms delay)
+      try {
+        localStorage.setItem(
+          `manga-dl-pg:${parts.provider}:${parts.mangaId}:${parts.chapterId}`,
+          String(page)
+        )
+        localStorage.setItem(
+          `manga-dl-last-chapter:${parts.provider}:${parts.mangaId}`,
+          parts.chapterId
+        )
+      } catch { /* quota */ }
+
       saveLocalHistoryEntry({
         provider: parts.provider,
         manga_id: parts.mangaId,
@@ -73,28 +85,28 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
         last_page: page,
         updated_at: new Date().toISOString(),
       })
-      // localStorage fallback for page progress (used when Supabase auth unavailable)
-      try {
-        localStorage.setItem(
-          `manga-dl-pg:${parts.provider}:${parts.mangaId}:${parts.chapterId}`,
-          String(page)
-        )
-      } catch { /* quota */ }
 
-      const { data } = await supabase.auth.getSession()
-      if (!data.session) return
-      try {
-        await api.put('/users/reading-progress', {
-          provider: parts.provider,
-          manga_id: parts.mangaId,
-          chapter_id: parts.chapterId,
-          last_page: page,
-          manga_title: parts.mangaTitle,
-          chapter_title: parts.chapterTitle,
-        })
-      } catch { /* silent */ }
+      // 2. Debounce remote cloud sync to prevent API hammering during fast scrolling
+      if (progressSaveTimerRef.current) clearTimeout(progressSaveTimerRef.current)
+      progressSaveTimerRef.current = setTimeout(async () => {
+        try {
+          const { data } = await supabase.auth.getSession()
+          if (!data.session) return
+          await api.put('/users/reading-progress', {
+            provider: parts.provider,
+            manga_id: parts.mangaId,
+            chapter_id: parts.chapterId,
+            last_page: page,
+            manga_title: parts.mangaTitle,
+            chapter_title: parts.chapterTitle,
+          })
+        } catch { /* silent */ }
+      }, 1000)
     } else if (filename) {
       const title = localTitle || filename
+      try {
+        localStorage.setItem(`manga-dl-pg:local:${filename}`, String(page))
+      } catch { /* quota */ }
       saveLocalHistoryEntry({
         provider: 'local',
         manga_id: filename,
@@ -156,14 +168,10 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
   // Keep ref in sync so cleanup can read current page without stale closure
   useEffect(() => { currentPageRef.current = currentPage }, [currentPage])
 
-  // Debounced cloud save
+  // Save progress immediately whenever currentPage updates (0 delay)
   useEffect(() => {
     if (mangaTitle === 'local' || pages.length === 0) return
-    if (progressSaveTimerRef.current) clearTimeout(progressSaveTimerRef.current)
-    progressSaveTimerRef.current = setTimeout(() => saveOnlineProgress(currentPage), 1500)
-    return () => {
-      if (progressSaveTimerRef.current) clearTimeout(progressSaveTimerRef.current)
-    }
+    saveOnlineProgress(currentPage)
   }, [currentPage, mangaTitle, pages.length, saveOnlineProgress])
 
   // Main data loader
@@ -225,12 +233,26 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
           // Restore saved page BEFORE setPages so both updates batch into one render.
           // If restore happens after an await, the debounced save fires for page 1 first
           // and overwrites the stored progress before the restore runs.
+          // Restore saved page: check query param ?page=, hash #page-, localStorage, then local history
+          const queryParams = new URLSearchParams(location.search)
+          const urlPageStr = queryParams.get('page') || location.hash.replace(/^#page-/, '')
+          const urlPage = urlPageStr ? parseInt(urlPageStr, 10) : 0
+
           const localKey = `manga-dl-pg:${onlineProvider}:${onlineMangaId}:${onlineChapterId}`
-          let restoredPage = 1
+          let savedLocalPage = 0
           try {
-            const saved = parseInt(localStorage.getItem(localKey) || '1', 10)
-            if (saved > 1) restoredPage = saved
+            savedLocalPage = parseInt(localStorage.getItem(localKey) || '0', 10)
           } catch { /* private browsing */ }
+
+          let historyPage = 0
+          try {
+            const historyList = getLocalHistory()
+            const found = historyList.find(e => e.provider === onlineProvider && e.manga_id === onlineMangaId && e.chapter_id === onlineChapterId)
+            if (found && found.last_page) historyPage = found.last_page
+          } catch { /* private browsing */ }
+
+          const candidate = urlPage > 0 ? urlPage : savedLocalPage > 0 ? savedLocalPage : historyPage > 0 ? historyPage : 1
+          const restoredPage = Math.min(candidate, Math.max(1, proxyPages.length))
 
           setPages(proxyPages)
           if (restoredPage > 1) setCurrentPage(restoredPage)
@@ -478,5 +500,6 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
     onlinePartsRef, chapterListRef,
     getImageUrl, getImageUrlForChapter,
     isWidePage,
+    saveOnlineProgress,
   }
 }

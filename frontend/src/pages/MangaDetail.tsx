@@ -61,11 +61,11 @@ export default function MangaDetail() {
   const authorText = manga.authors.join(', ') || 'Unknown Author'
   const statusIsOngoing = manga.status?.toLowerCase().includes('ongoing') ?? true
 
-  const goRead = (chId: string, chTitle: string) => {
+  const goRead = (chId: string, chTitle: string, extraQuery: string = '') => {
     if (manga.type === 'novel') {
-      navigate(buildNovelReadUrl(provider || '', manga.id, chId, manga.title, chTitle))
+      navigate(buildNovelReadUrl(provider || '', manga.id, chId, manga.title, chTitle) + extraQuery)
     } else {
-      navigate(buildSmartReadUrl(provider || '', manga.id, chId, manga.title, chTitle))
+      navigate(buildSmartReadUrl(provider || '', manga.id, chId, manga.title, chTitle) + extraQuery)
     }
   }
 
@@ -158,7 +158,16 @@ export default function MangaDetail() {
             <div className="flex flex-col gap-2 mb-6">
               {resumeTarget ? (
                 <button
-                  onClick={() => goRead(resumeTarget.chapter.id, resumeTarget.chapter.title)}
+                  onClick={() => {
+                    let pageParam = ''
+                    try {
+                      const savedPg = localStorage.getItem(`manga-dl-pg:${provider}:${manga.id}:${resumeTarget.chapter.id}`)
+                      if (savedPg && parseInt(savedPg, 10) > 1) {
+                        pageParam = `&page=${savedPg}`
+                      }
+                    } catch { /* private browsing */ }
+                    goRead(resumeTarget.chapter.id, resumeTarget.chapter.title, pageParam)
+                  }}
                   className="btn-primary w-full py-3 rounded-xl font-black text-sm flex items-center justify-center gap-2 focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-black"
                 >
                   <Play className="w-4 h-4 fill-current" />

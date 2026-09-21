@@ -99,6 +99,7 @@ export function ReaderViewport({
             <motion.div
               key={page}
               id={`page-${idx + 1}`}
+              data-page={idx + 1}
               initial={{ opacity: 0 }}
               whileInView={{ opacity: 1 }}
               viewport={{ once: true, margin: '400px' }}

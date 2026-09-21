@@ -149,7 +149,8 @@ export default function HistoryPage() {
 
   const resumeChapter = (entry: HistoryEntry) => {
     const targetUrl = buildSmartReadUrl(entry.provider, entry.manga_id, entry.chapter_id, entry.manga_title, entry.chapter_title)
-    navigate(targetUrl)
+    const pageParam = entry.last_page && entry.last_page > 1 ? `&page=${entry.last_page}` : ''
+    navigate(`${targetUrl}${pageParam}`)
   }
 
   const DATE_TABS: { label: string; value: DateFilter }[] = [

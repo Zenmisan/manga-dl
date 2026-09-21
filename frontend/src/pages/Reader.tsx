@@ -104,6 +104,7 @@ export default function Reader() {
     uploading, handleCloudUpload,
     onlinePartsRef, chapterListRef,
     getImageUrl, isWidePage,
+    saveOnlineProgress,
   } = useReaderData({ mangaTitle, filename, location, readingMode, incognitoMode, upscaling, setShowControls })
 
   const readerTitle = pages.length > 0 && onlinePartsRef.current
@@ -212,31 +213,91 @@ export default function Reader() {
   })
 
   // Keep a live ref to currentPage so the session cleanup can read the final page reached
+  // Live ref to currentPage so session cleanup and callbacks read the latest value
   const currentPageRef = useRef(currentPage)
   useEffect(() => { currentPageRef.current = currentPage }, [currentPage])
 
-  // Webtoon scroll tracker — update currentPage as user scrolls
+  const isResumingScrollRef = useRef(false)
+  const hasResumedChapterRef = useRef<string | null>(null)
+
+  // Auto-scroll to resumed page in webtoon mode when chapter loads (0 delay)
+  useEffect(() => {
+    if (!pages.length) return
+    const currentChapterKey = `${onlinePartsRef.current?.provider}:${onlinePartsRef.current?.mangaId}:${onlinePartsRef.current?.chapterId}:${filename}`
+    if (hasResumedChapterRef.current === currentChapterKey) return
+
+    if (readingMode === 'webtoon' && currentPage > 1) {
+      isResumingScrollRef.current = true
+      hasResumedChapterRef.current = currentChapterKey
+
+      let attempts = 0
+      const tryScroll = () => {
+        attempts++
+        const el = document.getElementById(`page-${currentPage}`)
+        if (el) {
+          el.scrollIntoView({ behavior: 'auto', block: 'start' })
+          setTimeout(() => {
+            isResumingScrollRef.current = false
+          }, 150)
+        } else if (attempts < 35) {
+          requestAnimationFrame(tryScroll)
+        } else {
+          isResumingScrollRef.current = false
+        }
+      }
+      requestAnimationFrame(tryScroll)
+    } else {
+      hasResumedChapterRef.current = currentChapterKey
+      isResumingScrollRef.current = false
+    }
+  }, [pages.length, readingMode, currentPage, filename])
+
+  // Webtoon scroll tracker — captures current page immediately on scroll (0 delay) and links to counter
   useEffect(() => {
     if (readingMode !== 'webtoon' || !pages.length) return
+
+    let ticking = false
     const onScroll = () => {
-      const target = window.innerHeight * 0.35 // 35% down the viewport
-      let best = 1
-      let bestDist = Infinity
-      for (let i = 0; i < pages.length; i++) {
-        const el = document.getElementById(`page-${i + 1}`)
-        if (!el) continue
-        const rect = el.getBoundingClientRect()
-        const mid = rect.top + rect.height / 2
-        const dist = Math.abs(mid - target)
-        if (dist < bestDist) { bestDist = dist; best = i + 1 }
+      if (isResumingScrollRef.current) return
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          ticking = false
+          if (isResumingScrollRef.current) return
+
+          const target = window.innerHeight * 0.35 // 35% down viewport
+          let best = 1
+          let bestDist = Infinity
+
+          for (let i = 0; i < pages.length; i++) {
+            const el = document.getElementById(`page-${i + 1}`)
+            if (!el) continue
+            const rect = el.getBoundingClientRect()
+            const mid = rect.top + Math.min(rect.height, window.innerHeight) / 2
+            const dist = Math.abs(mid - target)
+            if (dist < bestDist) {
+              bestDist = dist
+              best = i + 1
+            }
+          }
+
+          if (best !== currentPageRef.current) {
+            setCurrentPage(best)
+            saveOnlineProgress(best)
+          }
+        })
+        ticking = true
       }
-      setCurrentPage(best)
     }
+
     window.addEventListener('scroll', onScroll, { passive: true })
-    // Initial call after images render
-    const timer = setTimeout(onScroll, 200)
-    return () => { window.removeEventListener('scroll', onScroll); clearTimeout(timer) }
-  }, [readingMode, pages, setCurrentPage])
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [readingMode, pages.length, setCurrentPage, saveOnlineProgress])
+
+  // In LTR, RTL, and vertical-pager modes, immediately save progress whenever turning pages
+  useEffect(() => {
+    if (readingMode === 'webtoon' || !pages.length) return
+    saveOnlineProgress(currentPage)
+  }, [currentPage, readingMode, pages.length, saveOnlineProgress])
 
   // Reading session tracking — start when pages arrive, end on unmount / chapter change
   const sessionTokenRef = useRef<string | null>(null)
