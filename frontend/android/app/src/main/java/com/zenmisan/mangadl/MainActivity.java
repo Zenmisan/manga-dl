@@ -1,8 +1,9 @@
-package com.zenmi.mangaos;
+package com.zenmisan.mangadl;
 
 import android.os.Bundle;
 import android.view.KeyEvent;
 import com.getcapacitor.BridgeActivity;
+import com.getcapacitor.PluginHandle;
 
 public class MainActivity extends BridgeActivity {
 
@@ -17,7 +18,13 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onStart() {
         super.onStart();
-        volumeKeysPlugin = (VolumeKeysPlugin) getBridge().getPlugin("VolumeKeys").getInstance();
+        try {
+            PluginHandle handle = getBridge().getPlugin("VolumeKeys");
+            if (handle != null) {
+                volumeKeysPlugin = (VolumeKeysPlugin) handle.getInstance();
+            }
+        } catch (Exception ignored) {
+        }
     }
 
     @Override

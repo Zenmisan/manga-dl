@@ -13,7 +13,7 @@ from app.database import get_db
 from app.models.device import UserDevice
 from app.models.reading_progress import ReadingProgress
 from app.models.profiles import UserProfile
-from app.core.supabase_auth import get_current_user, get_current_user_email
+from app.core.supabase_auth import get_current_user, get_current_user_email, get_optional_user
 from app.services.device_service import register_user_device, forfeit_user_device
 from app.services.user_service import (
     upsert_user_reading_progress,
@@ -257,9 +257,21 @@ async def get_my_reading_stats(
 
 
 @router.get("/profile/{user_id}")
-async def get_public_profile(user_id: str, db: AsyncSession = Depends(get_db)):
+async def get_public_profile(
+    user_id: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
     """Return publicly shareable reading stats and metadata for a user."""
-    return await fetch_public_user_profile(user_id, db)
+    actual_id = user_id
+    if user_id.lower() == "me":
+        auth_user_id = await get_optional_user(request)
+        if auth_user_id and auth_user_id != "local-api-key-user":
+            actual_id = auth_user_id
+        else:
+            raise HTTPException(status_code=401, detail="Authentication required to view /profile/me")
+
+    return await fetch_public_user_profile(actual_id, db)
 
 
 class ProfileUpdate(BaseModel):

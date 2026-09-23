@@ -110,6 +110,56 @@ function useGlobalNotifications() {
   }, [])
 }
 
+const RESERVED_ROUTES = new Set([
+  '',
+  'r',
+  'more',
+  'notifications',
+  'search',
+  'browse',
+  'stats',
+  'sources',
+  'download',
+  'downloads',
+  'settings',
+  'manga',
+  'read',
+  'local',
+  'login',
+  'register',
+  'forgot-password',
+  'terms',
+  'help',
+  'guide',
+  'import-guide',
+  'history',
+  'updates',
+  'onboarding',
+  'profile',
+  'u',
+  'user',
+  'api',
+])
+
+function isPublicProfilePath(pathname: string): boolean {
+  if (
+    pathname === '/profile' ||
+    pathname.startsWith('/profile/') ||
+    pathname.startsWith('/u/') ||
+    pathname.startsWith('/user/')
+  ) {
+    return true
+  }
+  const segments = pathname.split('/').filter(Boolean)
+  if (segments.length === 1) {
+    const seg = segments[0].toLowerCase().replace(/^@/, '')
+    if (!RESERVED_ROUTES.has(seg)) {
+      return true
+    }
+  }
+  return false
+}
+
 // ── Nav config ───────────────────────────────────────────────
 const SIDEBAR_ITEMS = [
   { icon: Library,   label: 'Library',       path: '/r' },
@@ -416,8 +466,11 @@ function App() {
     return <Navigate to="/r" replace />
   }
 
-  const appRoute = !['/', '/login', '/register', '/forgot-password', '/terms', '/onboarding'].includes(location.pathname)
-  if (appRoute && !localStorage.getItem('onboarded')) {
+  const isPublicRoute =
+    ['/', '/login', '/register', '/forgot-password', '/terms', '/help', '/onboarding', '/guide/import', '/import-guide'].includes(location.pathname) ||
+    isPublicProfilePath(location.pathname)
+
+  if (!isPublicRoute && !localStorage.getItem('onboarded')) {
     return <Navigate to={`/onboarding?redirect=${encodeURIComponent(location.pathname)}`} replace />
   }
 
@@ -512,7 +565,12 @@ function App() {
                 <Route path="/history" element={<HistoryPage />} />
                 <Route path="/updates" element={<UpdatesPage />} />
                 <Route path="/onboarding" element={<OnboardingPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/profile/:userId" element={<ProfilePage />} />
+                <Route path="/u/:userId" element={<ProfilePage />} />
+                <Route path="/user/:userId" element={<ProfilePage />} />
+                <Route path="/:username" element={<ProfilePage />} />
+                <Route path="*" element={<Navigate to="/r" replace />} />
               </Routes>
             </Suspense>
           </motion.div>

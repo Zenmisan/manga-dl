@@ -4,7 +4,7 @@ import {
   User, Mail, ShieldCheck, LogOut, CheckCircle2, Share2,
   ExternalLink, Save, Sparkles, LogIn, UserPlus, Lock,
   Cloud, MessageSquare, AlertCircle, BookOpen, Flame,
-  Key, Eye, EyeOff,
+  Key, Eye, EyeOff, Heart,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
@@ -301,8 +301,9 @@ export default function AccountProfileSettings() {
   }, [])
 
   const handleShare = async () => {
-    const handle = username ?? ''
-    const url = handle ? `${window.location.origin}/profile/${handle}` : window.location.origin
+    const url = username
+      ? `${window.location.origin}/${username}`
+      : (user?.id ? `${window.location.origin}/profile/${user.id}` : `${window.location.origin}/profile`)
     if (navigator.share) {
       try {
         await navigator.share({ title: `${displayName || username || 'Reader'}'s Profile`, url })
@@ -551,7 +552,7 @@ export default function AccountProfileSettings() {
                 {/* Quick Action Pills: View Profile / Share */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <Link
-                    to={`/profile/${username || 'me'}`}
+                    to={username ? `/${username}` : `/profile/${user?.id || 'me'}`}
                     className="btn-secondary"
                     style={{
                       fontSize: 12,
@@ -877,7 +878,7 @@ export default function AccountProfileSettings() {
                             </p>
                             {c.likes > 0 && (
                               <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4, fontSize: 10, color: 'var(--accent)', fontWeight: 700 }}>
-                                <span>♥</span>
+                                <Heart style={{ width: 10, height: 10, fill: 'currentColor' }} />
                                 <span>{c.likes}</span>
                               </div>
                             )}

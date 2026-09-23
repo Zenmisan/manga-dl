@@ -1,4 +1,4 @@
-package com.zenmi.mangaos
+package com.zenmisan.mangadl
 
 import android.view.KeyEvent
 import com.getcapacitor.JSObject

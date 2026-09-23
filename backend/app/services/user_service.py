@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime, timedelta
+from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, func, distinct, or_, and_
 
@@ -159,12 +160,16 @@ async def fetch_user_reading_stats(user_id: str, db: AsyncSession) -> dict:
 
 async def fetch_public_user_profile(identifier: str, db: AsyncSession) -> dict:
     """Fetch publicly shareable profile data by user_id or username."""
+    clean_id = identifier.lstrip("@").strip()
+    if not clean_id:
+        raise HTTPException(status_code=404, detail="Reader profile not found.")
+
     profile = None
     try:
-        res = await db.execute(select(UserProfile).where(UserProfile.user_id == identifier))
+        res = await db.execute(select(UserProfile).where(UserProfile.user_id == clean_id))
         profile = res.scalar_one_or_none()
         if not profile:
-            res = await db.execute(select(UserProfile).where(func.lower(UserProfile.username) == identifier.lower()))
+            res = await db.execute(select(UserProfile).where(func.lower(UserProfile.username) == clean_id.lower()))
             profile = res.scalar_one_or_none()
     except Exception as exc:
         log.warning("UserProfile lookup failed (%s)", exc)
@@ -176,16 +181,16 @@ async def fetch_public_user_profile(identifier: str, db: AsyncSession) -> dict:
         bio = getattr(profile, "bio", None) or ""
         avatar_url = getattr(profile, "avatar_url", None) or ""
     else:
-        target_user_id = identifier
-        username = identifier if len(identifier) <= 30 and "-" not in identifier else None
-        display_name = username or f"Reader #{identifier[:8].upper()}"
+        target_user_id = clean_id
+        username = clean_id if len(clean_id) <= 30 and "-" not in clean_id else None
+        display_name = username or f"Reader #{clean_id[:8].upper()}"
         bio = ""
         avatar_url = ""
 
     user_cond = or_(
         ReadingProgress.user_id == target_user_id,
-        ReadingProgress.user_id == identifier,
-    ) if target_user_id != identifier else (ReadingProgress.user_id == target_user_id)
+        ReadingProgress.user_id == clean_id,
+    ) if target_user_id != clean_id else (ReadingProgress.user_id == target_user_id)
 
     chapters_read = await db.scalar(
         select(func.count()).select_from(ReadingProgress).where(user_cond)
@@ -198,6 +203,9 @@ async def fetch_public_user_profile(identifier: str, db: AsyncSession) -> dict:
     )
     manga_rows = manga_result.all()
     manga_count = len(manga_rows)
+
+    if profile is None and chapters_read == 0 and manga_count == 0 and clean_id != "local-api-key-user":
+        raise HTTPException(status_code=404, detail="Reader profile not found.")
 
     recent_result = await db.execute(
         select(ReadingProgress)

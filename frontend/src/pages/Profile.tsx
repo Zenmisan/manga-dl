@@ -219,11 +219,13 @@ function getTierConfig(tier: MilestoneTier) {
 }
 
 export default function ProfilePage() {
-  const { userId } = useParams<{ userId: string }>()
+  const { userId, username } = useParams<{ userId?: string; username?: string }>()
   const navigate = useNavigate()
 
   const [profile, setProfile] = useState<ProfileData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [notFound, setNotFound] = useState(false)
+  const [notFoundTarget, setNotFoundTarget] = useState('')
   const [isOwnProfile, setIsOwnProfile] = useState(false)
   const [copied, setCopied] = useState(false)
   const [activeUserId, setActiveUserId] = useState<string | null>(null)
@@ -297,6 +299,7 @@ export default function ProfilePage() {
   useEffect(() => {
     let cancelled = false
     setLoading(true)
+    setNotFound(false)
 
     const loadProfile = async () => {
       const { data } = await supabase.auth.getSession()
@@ -307,11 +310,14 @@ export default function ProfilePage() {
 
       setActiveUserId(myId)
 
-      const targetId = userId || 'me'
-      const isSelf = targetId === 'me'
-        || (myId && targetId === myId)
-        || (myEmail && targetId.toLowerCase() === myEmail.split('@')[0].toLowerCase())
-        || (localUsername && targetId.toLowerCase() === localUsername.toLowerCase())
+      const rawParam = (userId || username || '').trim()
+      const cleanTarget = rawParam.replace(/^@/, '').trim()
+      const targetId = cleanTarget || 'me'
+
+      let isSelf = targetId === 'me'
+        || (myId !== null && targetId === myId)
+        || (myEmail !== null && targetId.toLowerCase() === myEmail.split('@')[0].toLowerCase())
+        || (localUsername !== null && targetId.toLowerCase() === localUsername.toLowerCase())
 
       setIsOwnProfile(Boolean(isSelf))
 
@@ -330,18 +336,29 @@ export default function ProfilePage() {
         if (cancelled) return
         setProfile(res.data)
 
+        if (myId && res.data.user_id === myId) {
+          isSelf = true
+          setIsOwnProfile(true)
+        }
+
         if (isSelf) {
           const defaultUsername = (myEmail ? myEmail.split('@')[0] : (localUsername || 'reader')).toLowerCase().replace(/[^a-z0-9_]/g, '')
           const defaultName = myEmail ? myEmail.split('@')[0] : 'Manga Reader'
           const badges = res.data.pinned_badges || ownSavedMeta?.pinnedBadges || []
+          const resolvedUsername = res.data.username || ownSavedMeta?.username || defaultUsername
           setMeta({
-            username: res.data.username || ownSavedMeta?.username || defaultUsername,
+            username: resolvedUsername,
             displayName: res.data.display_name || ownSavedMeta?.displayName || defaultName,
             bio: res.data.bio || ownSavedMeta?.bio || '',
             avatarUrl: res.data.avatar_url || ownSavedMeta?.avatarUrl || '',
             usernameLocked: Boolean(res.data.username || ownSavedMeta?.usernameLocked),
             pinnedBadges: badges
           })
+
+          // URL normalization: if on /profile/me or /profile, update address bar to clean /@username or /username
+          if (resolvedUsername && (targetId === 'me' || targetId === myId)) {
+            window.history.replaceState(null, '', `/${resolvedUsername}`)
+          }
         } else {
           // Viewing someone else: strictly use the fetched data!
           const shortId = (res.data.user_id || targetId).slice(0, 8).toUpperCase()
@@ -354,25 +371,39 @@ export default function ProfilePage() {
             pinnedBadges: res.data.pinned_badges || []
           })
         }
-      } catch {
+      } catch (err: unknown) {
         if (cancelled) return
-        setProfile({
-          user_id: targetId,
-          chapters_read: 0,
-          manga_count: 0,
-          streak_days: 1,
-          pinned_badges: [],
-          recent_activity: []
-        })
-        if (!isSelf) {
-          setMeta({
-            username: targetId.length <= 24 ? targetId : '',
-            displayName: targetId.length <= 24 ? targetId : `Reader #${targetId.slice(0, 8).toUpperCase()}`,
-            bio: '',
-            avatarUrl: '',
-            usernameLocked: true,
-            pinnedBadges: []
+        const is404 = (err as { response?: { status?: number } })?.response?.status === 404
+        if (!isSelf && is404) {
+          setProfile(null)
+          setNotFound(true)
+          setNotFoundTarget(cleanTarget)
+          return
+        }
+
+        if (isSelf) {
+          setProfile({
+            user_id: myId || 'me',
+            chapters_read: 0,
+            manga_count: 0,
+            streak_days: 0,
+            pinned_badges: ownSavedMeta?.pinnedBadges || [],
+            recent_activity: []
           })
+          const defaultUsername = (myEmail ? myEmail.split('@')[0] : (localUsername || 'reader')).toLowerCase().replace(/[^a-z0-9_]/g, '')
+          const defaultName = myEmail ? myEmail.split('@')[0] : 'Manga Reader'
+          setMeta({
+            username: ownSavedMeta?.username || defaultUsername,
+            displayName: ownSavedMeta?.displayName || defaultName,
+            bio: ownSavedMeta?.bio || '',
+            avatarUrl: ownSavedMeta?.avatarUrl || '',
+            usernameLocked: Boolean(ownSavedMeta?.usernameLocked),
+            pinnedBadges: ownSavedMeta?.pinnedBadges || []
+          })
+        } else {
+          setProfile(null)
+          setNotFound(true)
+          setNotFoundTarget(cleanTarget)
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -381,7 +412,7 @@ export default function ProfilePage() {
 
     loadProfile()
     return () => { cancelled = true }
-  }, [userId])
+  }, [userId, username])
 
   const handleOpenEdit = () => {
     setEditForm({
@@ -428,7 +459,9 @@ export default function ProfilePage() {
 
   const handleShare = async () => {
     const handle = meta.username || activeUserId || 'me'
-    const shareUrl = `${window.location.origin}/profile/${handle}`
+    const shareUrl = meta.username
+      ? `${window.location.origin}/${meta.username}`
+      : `${window.location.origin}/profile/${handle}`
     if (navigator.share) {
       await navigator.share({ title: `${meta.displayName}'s manga-dl Profile`, url: shareUrl })
     } else {
@@ -437,6 +470,116 @@ export default function ProfilePage() {
       setTimeout(() => setCopied(false), 2000)
     }
   }
+
+  const renderSearchModal = () => (
+    <AnimatePresence>
+      {showSearchModal && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 p-4 bg-black/75 backdrop-blur-md">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: -10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: -10 }}
+            className="w-full max-w-lg glass-card p-5 border-white/10 shadow-2xl relative space-y-4"
+          >
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <h3 className="text-base font-black text-white flex items-center gap-2">
+                <Search className="w-4 h-4 text-red-500" /> Search Readers
+              </h3>
+              <button
+                onClick={() => { setShowSearchModal(false); setUserQuery('') }}
+                className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Search input */}
+            <div className="relative">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+              <input
+                type="text"
+                autoFocus
+                value={userQuery}
+                onChange={(e) => setUserQuery(e.target.value)}
+                placeholder="Search by username or display name..."
+                className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs placeholder:text-zinc-500 focus:outline-none focus:border-red-500/50"
+              />
+              {searchingUsers ? (
+                <Loader2 className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500 animate-spin" />
+              ) : userQuery ? (
+                <button
+                  onClick={() => setUserQuery('')}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              ) : null}
+            </div>
+
+            {/* Results list */}
+            <div className="max-h-72 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+              {userQuery.trim() === '' ? (
+                <div className="py-8 text-center text-zinc-500 text-xs">
+                  Type a username or display name to search for other readers.
+                </div>
+              ) : searchingUsers && userResults.length === 0 ? (
+                <div className="py-8 text-center text-zinc-400 text-xs flex items-center justify-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin text-red-500" /> Searching reader profiles...
+                </div>
+              ) : userResults.length === 0 ? (
+                <div className="py-8 text-center text-zinc-500 text-xs">
+                  No readers found matching "{userQuery}"
+                </div>
+              ) : (
+                userResults.map((u) => (
+                  <div
+                    key={u.user_id}
+                    onClick={() => {
+                      setShowSearchModal(false)
+                      setUserQuery('')
+                      navigate(u.username ? `/${u.username}` : `/profile/${u.user_id}`)
+                    }}
+                    className="p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/15 transition-all cursor-pointer flex items-center justify-between gap-3 group"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      {u.avatar_url ? (
+                        <img src={u.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border border-red-500/30 flex-shrink-0" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400 font-bold text-xs flex-shrink-0">
+                          {(u.display_name || u.username || 'U').slice(0, 2).toUpperCase()}
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-bold text-white group-hover:text-red-400 transition-colors truncate">
+                            {u.display_name || u.username}
+                          </span>
+                          {u.username && (
+                            <span className="text-[10px] font-mono text-zinc-400 truncate">
+                              @{u.username}
+                            </span>
+                          )}
+                        </div>
+                        {u.bio && (
+                          <p className="text-[11px] text-zinc-400 truncate mt-0.5">{u.bio}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="text-[10px] font-bold text-zinc-400 bg-white/5 px-2 py-1 rounded-lg border border-white/5">
+                        {u.chapters_read || 0} ch
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  )
 
   if (loading) {
     return (
@@ -447,15 +590,66 @@ export default function ProfilePage() {
     )
   }
 
-  if (!profile) return (
-    <div className="py-20 px-6 text-center">
-      <Award className="w-12 h-12 mx-auto mb-3 text-zinc-600" />
-      <p className="text-zinc-400 font-bold text-sm uppercase tracking-wider">Profile not found</p>
-      <button onClick={() => navigate(-1)} className="mt-4 text-red-500 font-bold text-xs hover:underline">
-        ← Go back
-      </button>
-    </div>
-  )
+  if (notFound || !profile) {
+    return (
+      <div className="min-h-full flex flex-col">
+        <header className="sticky-header border-b px-4 md:px-6 py-3 border-white/10 bg-black/40 backdrop-blur-xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button onClick={() => navigate(-1)} className="icon-btn" title="Go back">
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+              <div>
+                <h1 className="text-base font-extrabold text-white leading-tight">Reader Profile</h1>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowSearchModal(true)}
+              className="icon-btn w-9 h-9 rounded-xl text-zinc-400 hover:text-white"
+              title="Search Readers"
+            >
+              <Search className="w-4 h-4" />
+            </button>
+          </div>
+        </header>
+
+        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center my-auto min-h-[60vh]">
+          <div className="w-20 h-20 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mb-5 shadow-2xl">
+            <Award className="w-10 h-10 text-zinc-500" />
+          </div>
+          <h2 className="text-2xl font-black text-white mb-2 tracking-tight">Reader Not Found</h2>
+          <p className="text-sm text-zinc-400 max-w-md mb-8 leading-relaxed">
+            The reader profile <span className="text-zinc-200 font-semibold font-mono">@{notFoundTarget || userId || username || 'unknown'}</span> does not exist or has not recorded any reading activity yet.
+          </p>
+          <div className="flex items-center gap-3 flex-wrap justify-center">
+            <button
+              onClick={() => navigate(-1)}
+              className="btn-secondary px-5 py-2.5 rounded-xl font-bold text-xs inline-flex items-center gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Go Back
+            </button>
+            <button
+              onClick={() => setShowSearchModal(true)}
+              className="btn-primary px-5 py-2.5 rounded-xl font-bold text-xs inline-flex items-center gap-2"
+            >
+              <Search className="w-4 h-4" />
+              Search Readers
+            </button>
+            <button
+              onClick={() => navigate('/r')}
+              className="btn-secondary px-5 py-2.5 rounded-xl font-bold text-xs inline-flex items-center gap-2"
+            >
+              <Library className="w-4 h-4" />
+              Go to Library
+            </button>
+          </div>
+        </div>
+
+        {renderSearchModal()}
+      </div>
+    )
+  }
 
   const shortId = profile.user_id.slice(0, 8).toUpperCase()
   const finalDisplayName = meta.displayName || `Reader #${shortId}`
@@ -1317,114 +1511,9 @@ export default function ProfilePage() {
             </motion.div>
           </div>
         )}
-
-        {/* ── Reader Search Modal ─────────────────────────────────────────── */}
-        {showSearchModal && (
-          <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 p-4 bg-black/75 backdrop-blur-md">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: -10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: -10 }}
-              className="w-full max-w-lg glass-card p-5 border-white/10 shadow-2xl relative space-y-4"
-            >
-              <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                <h3 className="text-base font-black text-white flex items-center gap-2">
-                  <Search className="w-4 h-4 text-red-500" /> Search Readers
-                </h3>
-                <button
-                  onClick={() => { setShowSearchModal(false); setUserQuery('') }}
-                  className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Search input */}
-              <div className="relative">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-                <input
-                  type="text"
-                  autoFocus
-                  value={userQuery}
-                  onChange={(e) => setUserQuery(e.target.value)}
-                  placeholder="Search by username or display name..."
-                  className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs placeholder:text-zinc-500 focus:outline-none focus:border-red-500/50"
-                />
-                {searchingUsers ? (
-                  <Loader2 className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500 animate-spin" />
-                ) : userQuery ? (
-                  <button
-                    onClick={() => setUserQuery('')}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                ) : null}
-              </div>
-
-              {/* Results list */}
-              <div className="max-h-72 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-                {userQuery.trim() === '' ? (
-                  <div className="py-8 text-center text-zinc-500 text-xs">
-                    Type a username or display name to search for other readers.
-                  </div>
-                ) : searchingUsers && userResults.length === 0 ? (
-                  <div className="py-8 text-center text-zinc-400 text-xs flex items-center justify-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin text-red-500" /> Searching reader profiles...
-                  </div>
-                ) : userResults.length === 0 ? (
-                  <div className="py-8 text-center text-zinc-500 text-xs">
-                    No readers found matching "{userQuery}"
-                  </div>
-                ) : (
-                  userResults.map((u) => (
-                    <div
-                      key={u.user_id}
-                      onClick={() => {
-                        setShowSearchModal(false)
-                        setUserQuery('')
-                        navigate(`/profile/${u.username || u.user_id}`)
-                      }}
-                      className="p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/15 transition-all cursor-pointer flex items-center justify-between gap-3 group"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        {u.avatar_url ? (
-                          <img src={u.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border border-red-500/30 flex-shrink-0" />
-                        ) : (
-                          <div className="w-10 h-10 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400 font-bold text-xs flex-shrink-0">
-                            {(u.display_name || u.username || 'U').slice(0, 2).toUpperCase()}
-                          </div>
-                        )}
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-xs font-bold text-white group-hover:text-red-400 transition-colors truncate">
-                              {u.display_name || u.username}
-                            </span>
-                            {u.username && (
-                              <span className="text-[10px] font-mono text-zinc-400 truncate">
-                                @{u.username}
-                              </span>
-                            )}
-                          </div>
-                          {u.bio && (
-                            <p className="text-[11px] text-zinc-400 truncate mt-0.5">{u.bio}</p>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <span className="text-[10px] font-bold text-zinc-400 bg-white/5 px-2 py-1 rounded-lg border border-white/5">
-                          {u.chapters_read || 0} ch
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </motion.div>
-          </div>
-        )}
       </AnimatePresence>
+
+      {renderSearchModal()}
     </div>
   )
 }
