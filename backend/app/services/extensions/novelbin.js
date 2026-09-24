@@ -109,6 +109,22 @@ var extension = {
 
   async getChapterText(chapterId) {
     var parts = chapterId.split('/');
+    var novelSlug = parts[0];
+    var chSlug = parts.slice(1).join('/');
+
+    // 1. QuickNovel approach: direct JSON API for chapter content
+    try {
+      var apiUrl = _NB + '/api-web/novels/' + novelSlug + '/chapters/' + chSlug;
+      var apiData = await apiFetch('/manga/proxy/html?url=' + encodeURIComponent(apiUrl));
+      var json = null;
+      try { json = JSON.parse(apiData.html || apiData.text || '{}'); } catch(e) {}
+      var apiContent = json && json.item && json.item.chapterInfo && json.item.chapterInfo.chapter_content;
+      if (apiContent && apiContent.length > 50) {
+        return { content: _nbSanitize(apiContent), format: 'html' };
+      }
+    } catch(e) {}
+
+    // 2. Fallback to scraping chapter HTML page
     var url = _NB + '/chapter/' + parts.join('/');
     var data = await apiFetch('/manga/proxy/html?url=' + encodeURIComponent(url));
     var rawHtml = data.html || '';

@@ -6,7 +6,8 @@ function _rlnSanitize(html) {
     .replace(/<script[\s\S]*?<\/script>/gi, '')
     .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
     .replace(/\son\w+="[^"]*"/gi, '')
-    .replace(/\son\w+='[^']*'/gi, '');
+    .replace(/\son\w+='[^']*'/gi, '')
+    .replace(/<p[^>]*>.*?(?:readlightnovel|lightnovelpub).*?<\/p>/gi, '');
 }
 
 function _rlnParseCards(doc) {
@@ -30,7 +31,7 @@ var extension = {
     var data = await apiFetch('/manga/proxy/html?url=' + encodeURIComponent(_RLN + '/search/autocomplete'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
-      body: 'term=' + encodeURIComponent(query),
+      body: 'q=' + encodeURIComponent(query),
     });
     var json = null;
     try { json = JSON.parse(data.html || data.text || ''); } catch(e) {}
@@ -86,7 +87,7 @@ var extension = {
     var doc = new DOMParser().parseFromString(data.html, 'text/html');
     var contentEl = doc.querySelector('div.chapter-content3 > div.desc, div.chapter-content, .chapter-body');
     if (contentEl) {
-      contentEl.querySelectorAll('script, style, .ads, .blocker').forEach(function(el) { el.remove(); });
+      contentEl.querySelectorAll('script, style, iframe, .ads, .blocker, div.alert, #podium-spot, small.ads-title, p.hid, .hidden').forEach(function(el) { el.remove(); });
     }
     var content = contentEl ? contentEl.innerHTML : '<p>Chapter content not found.</p>';
     return { content: _rlnSanitize(content), format: 'html' };

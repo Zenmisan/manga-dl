@@ -5,7 +5,6 @@ import { motion } from 'framer-motion'
 import { UserPlus, BookOpen, ExternalLink, ArrowLeft, Eye, EyeOff } from 'lucide-react'
 import { ThemedSpinner } from '../components/common/ThemedLoader'
 import { supabase } from '../lib/supabase'
-import api from '../lib/api'
 import { signInWithGoogle } from '../lib/googleAuth'
 import { usePageTitle } from '../lib/usePageTitle'
 

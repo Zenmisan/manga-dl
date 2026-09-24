@@ -127,11 +127,18 @@ def _site_cookie(hostname: str) -> str | None:
     return None
 
 
-def _inject_api_token(url: str) -> str:
-    """Append site-specific API token query param when available."""
+async def _inject_api_token(url: str) -> str:
+    """Append site-specific API token query param when available.
+
+    For comixto, tries the live token server first (deterministic, path-derived),
+    then falls back to the stored runtime token.
+    """
     parsed = urlparse(url)
     if "comix.to" in (parsed.hostname or "") and "/api/v1/" in parsed.path:
-        token = _runtime_tokens.get("comixto") or get_settings().COMIXTO_API_TOKEN
+        from app.services.comixto_token import get_token as _get_token
+        token = await _get_token(parsed.path)
+        if not token:
+            token = _runtime_tokens.get("comixto") or get_settings().COMIXTO_API_TOKEN
         if token:
             sep = "&" if parsed.query else "?"
             return url + sep + "_=" + token
@@ -246,14 +253,21 @@ async def proxy_html_content(
 
 async def proxy_json_content(url: str) -> dict | list:
     """Proxy JSON API responses for JS extensions."""
-    # For comixto: check userscript response cache before injecting token + making live request
     parsed_pre = urlparse(url)
     if "comix.to" in (parsed_pre.hostname or "") and "/api/v1/" in parsed_pre.path:
+        # Check userscript response cache first
         cached = _find_cached_comixto(url)
         if cached is not None:
             return cached
+        # Use token server as full proxy: generates token + fetches + decrypts
+        from app.services.comixto_token import proxy_chapter as _proxy_chapter
+        cookie = _site_cookie(parsed_pre.hostname or "")
+        data = await _proxy_chapter(url, cookie=cookie)
+        if data is not None:
+            return data
+        # Fall through to legacy path if proxy_chapter unavailable
 
-    url = _inject_api_token(url)
+    url = await _inject_api_token(url)
     validate_proxy_url(url)
     parsed = urlparse(url)
     referer = f"{parsed.scheme}://{parsed.netloc}/"

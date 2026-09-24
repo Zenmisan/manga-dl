@@ -72,6 +72,8 @@ export const NOVEL_EXTENSION_IDS = new Set([
   'scribblehub',
   'lightnovelworld',
   'wuxiaworld',
+  'ranobes',
+  'novelsonline',
 ])
 
 function getInitialUserId(): string {

@@ -47,9 +47,15 @@ async def lifespan(app: FastAPI):
     from app.core.storage import ensure_bucket_exists
     asyncio.create_task(ensure_bucket_exists())
 
+    # Pre-warm comixto token server (non-blocking — takes ~10s)
+    from app.services.comixto_token import ensure_server as _ensure_token_server
+    asyncio.create_task(_ensure_token_server())
+
     yield
 
     # Shutdown
+    from app.services.comixto_token import stop_server as _stop_token_server
+    _stop_token_server()
     stop_discovery_refresh()
     # stop_sync_task()
     # await download_queue.stop()

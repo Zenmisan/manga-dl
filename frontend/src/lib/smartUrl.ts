@@ -64,6 +64,7 @@ const PROVIDER_INITIALS_MAP: Record<string, string> = {
   woopread: 'wp',
   wuxiaworldsite: 'ww',
   zinmanga: 'zn',
+  yaoiscan: 'ys',
 
   // Major Scanlation Groups & Extensions
   flamescans: 'fl',
@@ -120,6 +121,8 @@ const PROVIDER_INITIALS_MAP: Record<string, string> = {
   asianovel: 'ao',
   novelbuddy: 'bd',
   readlightnovel: 'rl',
+  ranobes: 'rb',
+  novelsonline: 'no',
 }
 
 /**
