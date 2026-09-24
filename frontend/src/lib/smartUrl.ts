@@ -19,6 +19,8 @@ const PROVIDER_INITIALS_MAP: Record<string, string> = {
   manganato: 'mn',
   bato: 'bt',
   batoto: 'bt',
+  bato1: 'bt',
+  bbato: 'bt',
   mangapill: 'mp',
   tcbscans: 'tc',
   mangahere: 'mh',

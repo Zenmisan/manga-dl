@@ -210,24 +210,15 @@ async def proxy_html_content(
     if cookie:
         req_headers["Cookie"] = cookie
 
+    ssl_verified = True
     for attempt in range(1 + MAX_RETRIES):
         try:
             async with CurlSession(impersonate="chrome120") as client:
+                req_kwargs = dict(headers=req_headers, timeout=20.0, allow_redirects=True, verify=ssl_verified)
                 if method.upper() == "POST":
-                    resp = await client.post(
-                        url,
-                        data=body,
-                        headers=req_headers,
-                        timeout=20.0,
-                        allow_redirects=True,
-                    )
+                    resp = await client.post(url, data=body, **req_kwargs)
                 else:
-                    resp = await client.get(
-                        url,
-                        headers=req_headers,
-                        timeout=20.0,
-                        allow_redirects=True,
-                    )
+                    resp = await client.get(url, **req_kwargs)
                 if resp.status_code not in (200, 206):
                     raise HTTPException(status_code=resp.status_code, detail=f"Upstream HTML error: {resp.status_code}")
                 html = resp.text
@@ -239,6 +230,11 @@ async def proxy_html_content(
         except HTTPException:
             raise
         except Exception as exc:
+            # Retry with SSL verification disabled on cert errors
+            if ssl_verified and ("SSL" in str(exc) or "(60)" in str(exc) or "certificate" in str(exc).lower()):
+                log.warning("SSL error for %s, retrying without verification", url)
+                ssl_verified = False
+                continue
             last_exc = exc
             if attempt < MAX_RETRIES:
                 log.warning("HTML proxy retry %d for %s due to %s", attempt + 1, url, exc)
