@@ -81,9 +81,18 @@ async def root():
 async def health_check():
     return {"status": "ok", "service": "manga-dl"}
 
+_cors_origin_regex = (
+    r"^(https?://(localhost|127\.0\.0\.1)(:\d+)?|"
+    r"capacitor://localhost|"
+    r"tauri://localhost|"
+    r"https?://tauri\.localhost|"
+    r"https://[a-zA-Z0-9-]+\.(web\.app|firebaseapp\.com))$"
+)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_settings.CORS_ORIGINS,
+    allow_origin_regex=_cors_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -92,9 +101,10 @@ app.add_middleware(
 @app.exception_handler(Exception)
 async def _global_exc_handler(request: Request, exc: Exception) -> JSONResponse:
     """Ensure CORS headers are present even on unhandled 500 errors."""
+    import re
     origin = request.headers.get("origin", "")
     headers: dict[str, str] = {}
-    if origin in _settings.CORS_ORIGINS:
+    if origin and (origin in _settings.CORS_ORIGINS or re.match(_cors_origin_regex, origin)):
         headers["Access-Control-Allow-Origin"] = origin
         headers["Access-Control-Allow-Credentials"] = "true"
     log.exception("Unhandled error on %s %s", request.method, request.url.path)

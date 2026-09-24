@@ -5,7 +5,7 @@ import { ThemedSpinner } from '../../components/common/ThemedLoader'
 import { motion } from 'framer-motion'
 import { useAppStore } from '../../lib/store'
 import type { AccentColor } from '../../lib/store'
-import api, { resolveBaseURL } from '../../lib/api'
+import api, { resolveBaseURL, normalizeApiUrl } from '../../lib/api'
 
 const SECTION: React.CSSProperties = { padding: '22px 20px', marginBottom: 14 }
 const ROW: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '14px 0', borderTop: '1px solid var(--border)', minHeight: 52 }
@@ -72,17 +72,18 @@ export default function GeneralSettings() {
     const key = keyOverride ?? apiKey
     setSaving(true); setConnStatus(null)
     try {
-      const base = url.trim() ? url.trim() : resolveBaseURL()
+      const base = url.trim() ? normalizeApiUrl(url) : resolveBaseURL()
       const controller = new AbortController()
       const tid = setTimeout(() => controller.abort(), 10000)
       const res = await fetch(`${base}/sources/builtins?api_key=${key || 'mgdl-creator'}`, { signal: controller.signal })
       clearTimeout(tid)
       if (res.ok) { setConnStatus({ type: 'ok', msg: 'Backend connected!' }) }
       else if (res.status === 403) setConnStatus({ type: 'error', msg: 'API key rejected (403).' })
+      else if (res.status === 400) setConnStatus({ type: 'error', msg: 'CORS or bad request (400).' })
       else setConnStatus({ type: 'error', msg: `Backend returned ${res.status}.` })
     } catch (err) {
       const isTimeout = err instanceof Error && err.name === 'AbortError'
-      setConnStatus({ type: 'error', msg: isTimeout ? 'Backend slow to respond (cold start).' : 'Backend unreachable.' })
+      setConnStatus({ type: 'error', msg: isTimeout ? 'Backend slow to respond (cold start).' : 'Backend unreachable or CORS blocked.' })
     } finally { setSaving(false) }
   }
 

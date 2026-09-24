@@ -28,6 +28,8 @@ frontend/dist/
 .env
 .env.local
 *.pem
+google-services.json
+**/google-services.json
 
 # Logs
 logs/

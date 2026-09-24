@@ -70,17 +70,33 @@ class Settings(BaseSettings):
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v: Any) -> list[str]:
+        mandatory = [
+            "https://localhost",
+            "capacitor://localhost",
+            "http://localhost",
+            "http://localhost:5173",
+            "http://localhost:3000",
+            "tauri://localhost",
+            "http://tauri.localhost",
+        ]
+        origins: list[str] = []
         if isinstance(v, str):
             v = v.strip()
-            if not v:
-                return []
-            if v.startswith("[") and v.endswith("]"):
-                try:
-                    return json.loads(v)
-                except json.JSONDecodeError:
-                    pass
-            return [i.strip() for i in v.split(",") if i.strip()]
-        return v
+            if v:
+                if v.startswith("[") and v.endswith("]"):
+                    try:
+                        origins = json.loads(v)
+                    except json.JSONDecodeError:
+                        origins = [i.strip() for i in v.split(",") if i.strip()]
+                else:
+                    origins = [i.strip() for i in v.split(",") if i.strip()]
+        elif isinstance(v, (list, tuple, set)):
+            origins = list(v)
+
+        for m in mandatory:
+            if m not in origins:
+                origins.append(m)
+        return origins
 
     class Config:
         env_file = ".env"

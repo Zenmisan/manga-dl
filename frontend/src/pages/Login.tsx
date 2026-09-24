@@ -6,8 +6,7 @@ import { LogIn, BookOpen, ArrowLeft, Key, Eye, EyeOff, Mail, Lock } from 'lucide
 import { ThemedSpinner } from '../components/common/ThemedLoader'
 import { supabase } from '../lib/supabase'
 import api from '../lib/api'
-import { firebaseAuth } from '../lib/firebase'
-import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
+import { signInWithGoogle } from '../lib/googleAuth'
 import { usePageTitle } from '../lib/usePageTitle'
 
 const FADE = { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.45, ease: [0.16, 1, 0.3, 1] as [number,number,number,number] } }
@@ -72,21 +71,10 @@ export default function LoginPage() {
     setError(null)
     setGoogleLoading(true)
     try {
-      const provider = new GoogleAuthProvider()
-      const result = await signInWithPopup(firebaseAuth, provider)
-      const credential = GoogleAuthProvider.credentialFromResult(result)
-      const idToken = credential?.idToken
-      if (!idToken) throw new Error('No ID token returned from Google.')
-      const { error: sbError } = await supabase.auth.signInWithIdToken({ provider: 'google', token: idToken })
-      if (sbError) throw sbError
-      // Check if user has completed onboarding (has a profile/username set)
-      const { data } = await api.get('/users/me').catch(() => ({ data: null }))
-      if (data?.profile_set) {
-        localStorage.setItem('onboarded', '1')
+      const { isOnboarded } = await signInWithGoogle()
+      if (isOnboarded) {
         navigate('/r')
       } else {
-        // New user — must go through onboarding to set username
-        localStorage.removeItem('onboarded')
         navigate('/onboarding')
       }
     } catch (err: unknown) {

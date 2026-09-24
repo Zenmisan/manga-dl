@@ -1,20 +1,31 @@
 import axios from 'axios'
 import { supabase } from './supabase'
 
+import { Capacitor } from '@capacitor/core'
+
 const isTauri = !!(window as unknown as Record<string, unknown>).__TAURI_INTERNALS__
-const isCapacitor = !!(window as unknown as Record<string, { isNativePlatform?: () => boolean }>).Capacitor?.isNativePlatform?.()
+const isCapacitor = Capacitor.isNativePlatform()
 const isProd = import.meta.env.PROD
+
+export function normalizeApiUrl(url: string): string {
+  let clean = url.trim().replace(/\/+$/, '')
+  if (!clean) return ''
+  if (!clean.endsWith('/api')) {
+    clean += '/api'
+  }
+  return clean
+}
 
 export function resolveBaseURL(): string {
   // Allow explicit override from settings (works across all platforms)
   const custom = localStorage.getItem('manga-backend-url')
-  if (custom) return custom.replace(/\/$/, '') + '/api'
+  if (custom && custom.trim()) return normalizeApiUrl(custom)
 
   // Tauri desktop: backend is auto-started on localhost
   if (isTauri) return 'http://127.0.0.1:8000/api'
 
   const configuredBackend = import.meta.env.VITE_BACKEND_URL
-    ? import.meta.env.VITE_BACKEND_URL.replace(/\/$/, '') + '/api'
+    ? normalizeApiUrl(import.meta.env.VITE_BACKEND_URL)
     : 'https://manga-dl.onrender.com/api'
 
   // Capacitor mobile: default to configured backend

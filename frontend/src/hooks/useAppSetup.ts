@@ -9,6 +9,7 @@ import { syncCategoriesFromCloud } from '../lib/categories'
 import { syncMangaNotesFromCloud } from '../lib/mangaNotes'
 import { syncMetaOverridesFromCloud } from '../lib/metaOverrides'
 import { ExtensionManager } from '../lib/extensions'
+import { signOutGoogle } from '../lib/googleAuth'
 import type { Session } from '@supabase/supabase-js'
 import React from 'react'
 
@@ -76,6 +77,7 @@ export function useAuthSession() {
 
   const handleSignOut = useCallback(async () => {
     try {
+      await signOutGoogle()
       await supabase.auth.signOut()
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i)
