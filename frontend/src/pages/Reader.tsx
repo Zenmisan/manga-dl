@@ -18,6 +18,7 @@ import { startSession, endSession } from '../lib/readingSession'
 import { markRead } from '../lib/readTracking'
 import { buildSmartReadUrl, buildSmartMangaUrl, resolveSmartManga, resolveSmartContext } from '../lib/smartUrl'
 import { usePageTitle } from '../lib/usePageTitle'
+import { clientDownloader } from '../lib/clientDownloader'
 
 const fac = new FastAverageColor()
 
@@ -339,29 +340,17 @@ export default function Reader() {
     window.open(`${base}/${path}/${encodeURIComponent(mangaTitle || '')}/${encodeURIComponent(filename || '')}?api_key=${apiKey}`, '_blank')
   }
 
-  const [queueingDownload, setQueueingDownload] = useState(false)
-
-  const handleDownloadChapter = async () => {
+  const handleDownloadChapter = () => {
     const online = onlinePartsRef.current
     if (online) {
-      // Online chapter — queue it for download
-      if (queueingDownload) return
-      setQueueingDownload(true)
-      try {
-        await api.post('/downloads/queue', {
-          provider_id: online.provider,
-          manga_id: online.mangaId,
-          chapter_id: online.chapterId,
-          manga_title: online.mangaTitle,
-          chapter_title: online.chapterTitle || filename || 'Chapter',
-          chapter_number: parseFloat(online.chapterId?.replace(/\D/g, '') || '1') || 1,
-          pages,
-        })
-      } catch {
-        // silently ignore — download page shows status
-      } finally {
-        setQueueingDownload(false)
-      }
+      clientDownloader.enqueue({
+        provider: online.provider,
+        mangaId: online.mangaId,
+        chapterId: online.chapterId,
+        mangaTitle: online.mangaTitle || mangaTitle || 'Unknown',
+        chapterTitle: online.chapterTitle || filename || 'Chapter',
+        chapterNumber: parseFloat(online.chapterId?.replace(/\D/g, '') || '1') || 1,
+      })
     } else {
       // Local CBZ — open the raw file
       openLibraryUrl('library/file')

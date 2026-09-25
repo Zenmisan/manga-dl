@@ -329,7 +329,7 @@ async def proxy_image_response(url: str) -> StreamingResponse:
                 content_type = resp.headers.get("content-type", "image/jpeg").split(";")[0].strip()
                 content = resp.content
                 extra_headers: dict[str, str] = {
-                    "Cache-Control": "no-store",
+                    "Cache-Control": "public, max-age=86400, stale-while-revalidate=3600",
                     "Access-Control-Allow-Origin": "*",
                     "Content-Length": str(len(content)),
                 }
