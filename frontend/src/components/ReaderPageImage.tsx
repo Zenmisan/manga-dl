@@ -224,7 +224,7 @@ export const ReaderPageImage: React.FC<ReaderPageImageProps> = ({
   }
 
   return (
-    <div className="relative inline-block w-full text-center">
+    <div className="relative block w-full min-w-0 text-center">
       <img
         ref={imgRef}
         src={finalSrc}

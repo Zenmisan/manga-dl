@@ -1,4 +1,5 @@
 import type React from 'react'
+import { useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, ChevronRight, ArrowLeft, ArrowRight } from 'lucide-react'
 import { cn } from '../../lib/utils'
@@ -42,6 +43,36 @@ export function ReaderViewport({
 }: Props) {
   const filterStyle = cssFilter ? { filter: cssFilter } : undefined
   const disabled = tapZoneLeft === 'w-0'
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null)
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+  }
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStartRef.current) return
+    const dx = e.changedTouches[0].clientX - touchStartRef.current.x
+    const dy = e.changedTouches[0].clientY - touchStartRef.current.y
+    touchStartRef.current = null
+
+    if (readingMode === 'vertical-pager') {
+      const dominant = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v'
+      const delta = dominant === 'h' ? dx : dy
+      if (Math.abs(delta) < 30) return
+      e.preventDefault()
+      delta < 0 ? nextPage() : prevPage()
+      return
+    }
+
+    // LTR / RTL: horizontal swipe only
+    if (Math.abs(dx) < 30 || Math.abs(dx) < Math.abs(dy)) return
+    e.preventDefault()
+    if (readingMode === 'manga') {
+      dx < 0 ? nextPage() : prevPage()
+    } else {
+      dx < 0 ? prevPage() : nextPage()
+    }
+  }
 
   return (
     <main
@@ -52,7 +83,11 @@ export function ReaderViewport({
       onClick={() => setShowControls(prev => !prev)}
     >
       {readingMode === 'vertical-pager' ? (
-        <div className="relative w-full h-full flex items-center justify-center">
+        <div
+          className="relative w-full h-full flex items-center justify-center"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
           <div
             role="button" tabIndex={disabled ? -1 : 0} aria-label="Previous page"
             className={`absolute inset-y-0 left-0 ${tapZoneLeft} z-20 cursor-pointer`}
@@ -82,7 +117,7 @@ export function ReaderViewport({
                   cropBorders ? "object-cover" : "object-contain",
                   imageScale === 'fit-screen' && "max-h-[90dvh] max-w-full",
                   imageScale === 'fit-width' && "w-full max-h-none",
-                  imageScale === 'fit-height' && "h-[95dvh] w-auto",
+                  imageScale === 'fit-height' && "h-[95dvh] w-auto max-w-full",
                   imageScale === 'original' && "max-w-none",
                   cropBorders && "w-full h-[90dvh]",
                 )}
@@ -150,7 +185,11 @@ export function ReaderViewport({
 
       ) : (
         /* Paged mode: LTR / RTL */
-        <div className="relative w-full h-full flex items-center justify-center">
+        <div
+          className="relative w-full h-full flex items-center justify-center"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
           <div
             role="button" tabIndex={disabled ? -1 : 0}
             aria-label={readingMode === 'manga' ? 'Previous page' : 'Next page'}
@@ -183,7 +222,7 @@ export function ReaderViewport({
                   cropBorders ? "object-cover" : "object-contain",
                   showSpread ? "max-h-[90dvh] max-w-[50%]" : imageScale === 'fit-screen' ? "max-h-[90dvh] max-w-full" : "",
                   !showSpread && imageScale === 'fit-width' && "w-full max-h-none",
-                  !showSpread && imageScale === 'fit-height' && "h-[95dvh] w-auto",
+                  !showSpread && imageScale === 'fit-height' && "h-[95dvh] w-auto max-w-full",
                   !showSpread && imageScale === 'original' && "max-w-none",
                   !showSpread && cropBorders && "w-full h-[90dvh]",
                 )}
@@ -251,7 +290,8 @@ export function ReaderViewport({
             )}
           </AnimatePresence>
 
-          <div className="absolute bottom-10 right-10 flex gap-4 z-30">
+          {/* Nav chevrons — desktop only; mobile uses tap zones + swipe */}
+          <div className="absolute bottom-10 right-10 hidden sm:flex gap-4 z-30">
             <button
               onClick={readingMode === 'manga' ? prevPage : nextPage}
               aria-label={readingMode === 'manga' ? 'Previous page' : 'Next page'}

@@ -57,6 +57,7 @@ export function ReaderHeader({
   const displayChapter = resolvedChapterTitle || (mangaTitle === 'local' ? 'Local Preview' : prettifySlug(filename))
   const [showChapterDrop, setShowChapterDrop] = useState(false)
   const dropRef = useRef<HTMLDivElement>(null)
+  const chapterDropdownRef = useRef<HTMLDivElement>(null)
   const [showLayoutDrop, setShowLayoutDrop] = useState(false)
   const layoutRef = useRef<HTMLDivElement>(null)
 
@@ -83,6 +84,21 @@ export function ReaderHeader({
     }
     document.addEventListener('mousedown', close)
     return () => document.removeEventListener('mousedown', close)
+  }, [showChapterDrop])
+
+  // Clamp chapter dropdown to viewport so it never clips off left/right edge on mobile
+  useEffect(() => {
+    if (!showChapterDrop || !chapterDropdownRef.current) return
+    const el = chapterDropdownRef.current
+    // Reset first so getBoundingClientRect reflects natural position
+    el.style.transform = 'translateX(-50%)'
+    const rect = el.getBoundingClientRect()
+    const margin = 8
+    if (rect.left < margin) {
+      el.style.transform = `translateX(calc(-50% + ${margin - rect.left}px))`
+    } else if (rect.right > window.innerWidth - margin) {
+      el.style.transform = `translateX(calc(-50% - ${rect.right - (window.innerWidth - margin)}px))`
+    }
   }, [showChapterDrop])
 
   const [isFullscreen, setIsFullscreen] = useState(() => typeof document !== 'undefined' && !!document.fullscreenElement)
@@ -155,6 +171,7 @@ export function ReaderHeader({
               {/* Chapter dropdown */}
               {showChapterDrop && (
                 <div
+                  ref={chapterDropdownRef}
                   className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-72 max-h-64 overflow-y-auto z-[60] no-scrollbar"
                   style={{
                     background: 'rgba(8,8,8,0.97)',

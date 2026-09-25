@@ -59,6 +59,38 @@ export function useReaderKeybindings({
         if (readingMode !== 'webtoon') setCurrentPage(p => Math.min(p + 1, pagesLength))
       } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
         if (readingMode !== 'webtoon') setCurrentPage(p => Math.max(p - 1, 1))
+      } else if ((e.key === 'd' || e.key === 'D') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const target = e.target as HTMLElement | null
+        if (target?.tagName !== 'INPUT' && target?.tagName !== 'TEXTAREA') {
+          e.preventDefault()
+          if (readingMode !== 'webtoon') setCurrentPage(p => Math.min(p + 1, pagesLength))
+        }
+      } else if ((e.key === 'a' || e.key === 'A') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const target = e.target as HTMLElement | null
+        if (target?.tagName !== 'INPUT' && target?.tagName !== 'TEXTAREA') {
+          e.preventDefault()
+          if (readingMode !== 'webtoon') setCurrentPage(p => Math.max(p - 1, 1))
+        }
+      } else if ((e.key === 's' || e.key === 'S') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const target = e.target as HTMLElement | null
+        if (target?.tagName !== 'INPUT' && target?.tagName !== 'TEXTAREA') {
+          e.preventDefault()
+          if (readingMode === 'webtoon') {
+            window.scrollBy({ top: 300, behavior: 'smooth' })
+          } else {
+            setCurrentPage(p => Math.min(p + 1, pagesLength))
+          }
+        }
+      } else if ((e.key === 'w' || e.key === 'W') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const target = e.target as HTMLElement | null
+        if (target?.tagName !== 'INPUT' && target?.tagName !== 'TEXTAREA') {
+          e.preventDefault()
+          if (readingMode === 'webtoon') {
+            window.scrollBy({ top: -300, behavior: 'smooth' })
+          } else {
+            setCurrentPage(p => Math.max(p - 1, 1))
+          }
+        }
       } else if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey && !e.altKey) {
         const target = e.target as HTMLElement | null
         if (target?.tagName !== 'INPUT' && target?.tagName !== 'TEXTAREA') {

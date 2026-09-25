@@ -7,8 +7,10 @@ interface Props {
 }
 
 const SHORTCUTS = [
-  { label: 'Next Page', keys: ['→', '↓', 'Space'] },
-  { label: 'Previous Page', keys: ['←', '↑'] },
+  { label: 'Next Page / Right', keys: ['→', 'D'] },
+  { label: 'Prev Page / Left', keys: ['←', 'A'] },
+  { label: 'Scroll Down / Next', keys: ['↓', 'S'] },
+  { label: 'Scroll Up / Prev', keys: ['↑', 'W'] },
   { label: 'Exit Reader', keys: ['Esc'] },
 ]
 
