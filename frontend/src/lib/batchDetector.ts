@@ -4,19 +4,21 @@ import { parseArchiveFilename } from './archiveInspector'
 export interface SiblingBatchMatch {
   nextEntry?: LocalMangaEntry
   nextTauriPath?: string
-  expectedNextChapter: number
+}
+
+function isSameSeries(entryTitle: string, seriesTitle: string, entry: LocalMangaEntry): boolean {
+  const clean = seriesTitle.toLowerCase().trim()
+  const et = entryTitle.toLowerCase().trim()
+  return (
+    et.includes(clean) ||
+    clean.includes(et) ||
+    !!(entry.seriesTitle && entry.seriesTitle.toLowerCase().includes(clean))
+  )
 }
 
 /**
- * Predicts the next expected chapter number given the current chapter / range end
- */
-export function getNextExpectedChapter(currentRangeEnd: number): number {
-  return currentRangeEnd + 1
-}
-
-/**
- * Searches stored local manga in IndexedDB for the next sequential batch of a series.
- * e.g. If current was chapters 1-10 of "Solo Leveling", finds the entry covering chapter 11.
+ * Searches stored local manga in IndexedDB for the next batch of a series after currentRangeEnd.
+ * Tolerates gaps — finds the closest batch whose chapters start after currentRangeEnd.
  */
 export async function findNextBatchInIndexedDB(
   seriesTitle: string,
@@ -24,29 +26,72 @@ export async function findNextBatchInIndexedDB(
 ): Promise<LocalMangaEntry | null> {
   const all = await getAllLocalManga()
   const cleanTitle = seriesTitle.toLowerCase().trim()
-  const expectedNext = getNextExpectedChapter(currentRangeEnd)
+
+  let best: LocalMangaEntry | null = null
+  let bestStart = Infinity
 
   for (const entry of all) {
     const meta = parseArchiveFilename(entry.filename || entry.title)
     const entryTitle = (entry.title || meta.seriesTitle).toLowerCase().trim()
+    if (!isSameSeries(entryTitle, cleanTitle, entry)) continue
 
-    // Check if it belongs to same series and contains the next chapter
-    if (
-      entryTitle.includes(cleanTitle) ||
-      cleanTitle.includes(entryTitle) ||
-      (entry.seriesTitle && entry.seriesTitle.toLowerCase().includes(cleanTitle))
-    ) {
-      if (meta.rangeStart !== undefined && meta.rangeEnd !== undefined) {
-        if (expectedNext >= meta.rangeStart && expectedNext <= meta.rangeEnd) {
-          return entry
-        }
-      } else if (entry.chaptersSummary && entry.chaptersSummary.some(c => c.number === expectedNext)) {
-        return entry
+    if (meta.rangeStart !== undefined && meta.rangeEnd !== undefined) {
+      if (meta.rangeStart > currentRangeEnd && meta.rangeStart < bestStart) {
+        best = entry
+        bestStart = meta.rangeStart
+      }
+    } else if (entry.chaptersSummary) {
+      const nextNum = entry.chaptersSummary
+        .map(c => c.number)
+        .filter(n => n > currentRangeEnd)
+        .sort((a, b) => a - b)[0]
+      if (nextNum !== undefined && nextNum < bestStart) {
+        best = entry
+        bestStart = nextNum
       }
     }
   }
 
-  return null
+  return best
+}
+
+/**
+ * Searches stored local manga in IndexedDB for the previous batch of a series before currentRangeStart.
+ * Tolerates gaps — finds the closest batch whose chapters end before currentRangeStart.
+ */
+export async function findPrevBatchInIndexedDB(
+  seriesTitle: string,
+  currentRangeStart: number
+): Promise<LocalMangaEntry | null> {
+  const all = await getAllLocalManga()
+  const cleanTitle = seriesTitle.toLowerCase().trim()
+
+  let best: LocalMangaEntry | null = null
+  let bestEnd = -Infinity
+
+  for (const entry of all) {
+    const meta = parseArchiveFilename(entry.filename || entry.title)
+    const entryTitle = (entry.title || meta.seriesTitle).toLowerCase().trim()
+    if (!isSameSeries(entryTitle, cleanTitle, entry)) continue
+
+    if (meta.rangeStart !== undefined && meta.rangeEnd !== undefined) {
+      if (meta.rangeEnd < currentRangeStart && meta.rangeEnd > bestEnd) {
+        best = entry
+        bestEnd = meta.rangeEnd
+      }
+    } else if (entry.chaptersSummary) {
+      const prevNum = entry.chaptersSummary
+        .map(c => c.number)
+        .filter(n => n < currentRangeStart)
+        .sort((a, b) => b - a)[0]
+      if (prevNum !== undefined && prevNum > bestEnd) {
+        best = entry
+        bestEnd = prevNum
+      }
+    }
+  }
+
+  return best
 }
 
 /**
@@ -66,13 +111,14 @@ export async function findSiblingArchiveInTauri(
     const parentDir = currentFilePath.substring(0, lastSlash)
     const currentFileName = currentFilePath.substring(lastSlash + 1)
     const currentMeta = parseArchiveFilename(currentFileName)
-    const expectedNext = getNextExpectedChapter(currentRangeEnd)
 
     const entries = await readDir(parentDir)
     const validArchives = entries.filter(
       e => e.isFile && (e.name.endsWith('.cbz') || e.name.endsWith('.zip') || e.name.endsWith('.epub'))
     )
 
+    let bestPath: string | null = null
+    let bestStart = Infinity
     for (const entry of validArchives) {
       if (entry.name === currentFileName) continue
       const meta = parseArchiveFilename(entry.name)
@@ -83,13 +129,17 @@ export async function findSiblingArchiveInTauri(
         cleanEntryTitle.includes(cleanCurrentTitle) ||
         cleanCurrentTitle.includes(cleanEntryTitle)
       ) {
-        if (meta.rangeStart !== undefined && meta.rangeEnd !== undefined) {
-          if (expectedNext >= meta.rangeStart && expectedNext <= meta.rangeEnd) {
-            return `${parentDir}/${entry.name}`
-          }
+        if (
+          meta.rangeStart !== undefined &&
+          meta.rangeStart > currentRangeEnd &&
+          meta.rangeStart < bestStart
+        ) {
+          bestPath = `${parentDir}/${entry.name}`
+          bestStart = meta.rangeStart
         }
       }
     }
+    if (bestPath) return bestPath
   } catch (err) {
     console.warn('[batchDetector] Failed to scan Tauri parent directory:', err)
   }

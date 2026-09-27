@@ -75,7 +75,7 @@ export default function GeneralSettings() {
       const base = url.trim() ? normalizeApiUrl(url) : resolveBaseURL()
       const controller = new AbortController()
       const tid = setTimeout(() => controller.abort(), 10000)
-      const res = await fetch(`${base}/sources/builtins?api_key=${key || 'mgdl-creator'}`, { signal: controller.signal })
+      const res = await fetch(`${base}/sources/builtins`, { signal: controller.signal, headers: { 'X-API-Key': key || 'mgdl-creator' } })
       clearTimeout(tid)
       if (res.ok) { setConnStatus({ type: 'ok', msg: 'Backend connected!' }) }
       else if (res.status === 403) setConnStatus({ type: 'error', msg: 'API key rejected (403).' })
@@ -88,7 +88,8 @@ export default function GeneralSettings() {
   }
 
   const handleSave = async () => {
-    localStorage.setItem('manga-api-key', apiKey)
+    if (apiKey.trim()) localStorage.setItem('manga-api-key', apiKey.trim())
+    else localStorage.setItem('manga-api-key', '')
     if (backendUrl.trim()) localStorage.setItem('manga-backend-url', backendUrl.trim())
     else localStorage.removeItem('manga-backend-url')
     api.defaults.baseURL = resolveBaseURL()

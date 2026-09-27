@@ -7,6 +7,7 @@ import { markRead } from '../lib/readTracking'
 import { saveLocalHistoryEntry, getLocalHistory } from '../lib/historyTracking'
 import { ExtensionManager } from '../lib/extensions'
 import { resolveSmartContext } from '../lib/smartUrl'
+import { buildImageProxyUrl } from '../lib/utils'
 
 export interface OnlineParts {
   provider: string
@@ -228,7 +229,7 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
                   const params = url.slice('comixto://img?'.length)
                   return `${base}/manga/descramble-proxy?${params}&api_key=${apiKey}`
                 }
-                return `${base}/manga/image-proxy?url=${encodeURIComponent(url)}&api_key=${apiKey}`
+                return buildImageProxyUrl(url, base, apiKey)
               })
           // Restore saved page BEFORE setPages so both updates batch into one render.
           // If restore happens after an await, the debounced save fires for page 1 first

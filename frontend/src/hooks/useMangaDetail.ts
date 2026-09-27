@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import api from '../lib/api'
 import { useToast } from '../components/common/Toast'
 import { FastAverageColor } from 'fast-average-color'
@@ -41,6 +41,7 @@ const fac = new FastAverageColor()
 export function useMangaDetail() {
   const { provider: rawProvider, '*': rawMangaId } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
 
   let provider = rawProvider
   let mangaId = rawMangaId
@@ -350,8 +351,16 @@ export function useMangaDetail() {
     setMalSyncing(false)
   }
 
+  const handleBack = () => {
+    if (location.key === 'default') {
+      navigate('/library')
+    } else {
+      navigate(-1)
+    }
+  }
+
   return {
-    provider, mangaId, navigate, manga, loading, downloading, showQueueLink,
+    provider, mangaId, navigate, handleBack, manga, loading, downloading, showQueueLink,
     bulkLoading, isAdmin, subscribed, subscribing, handleSubscribe,
     handleDownload, handleBulkDownload, chapterSort: chapterFilter.chapterSort, setChapterSort: chapterFilter.setChapterSort,
     chapterSearch: chapterFilter.chapterSearch, setChapterSearch: chapterFilter.setChapterSearch, readFilter: chapterFilter.readFilter, setReadFilter: chapterFilter.setReadFilter,

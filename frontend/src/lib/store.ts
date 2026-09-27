@@ -91,6 +91,16 @@ interface AppState {
   setWebtoonSidePadding: (val: number) => void
   cropBordersWebtoon: boolean
   setCropBordersWebtoon: (val: boolean) => void
+  webtoonGapless: boolean
+  setWebtoonGapless: (val: boolean) => void
+
+  // Reader UI toggles
+  showFooter: boolean
+  setShowFooter: (val: boolean) => void
+  showPageNumber: boolean
+  setShowPageNumber: (val: boolean) => void
+  zoomLevel: number
+  setZoomLevel: (val: number) => void
 
   // Auto-backup
   autoBackupEnabled: boolean
@@ -184,6 +194,15 @@ export const useAppStore = create<AppState>()(
       setWebtoonSidePadding: (val) => set({ webtoonSidePadding: val }),
       cropBordersWebtoon: false,
       setCropBordersWebtoon: (val) => set({ cropBordersWebtoon: val }),
+      webtoonGapless: false,
+      setWebtoonGapless: (val) => set({ webtoonGapless: val }),
+
+      showFooter: true,
+      setShowFooter: (val) => set({ showFooter: val }),
+      showPageNumber: true,
+      setShowPageNumber: (val) => set({ showPageNumber: val }),
+      zoomLevel: 1,
+      setZoomLevel: (val) => set({ zoomLevel: val }),
 
       autoBackupEnabled: false,
       autoBackupInterval: 'weekly',
@@ -220,6 +239,10 @@ export const useAppStore = create<AppState>()(
         gridColumns: state.gridColumns,
         webtoonSidePadding: state.webtoonSidePadding,
         cropBordersWebtoon: state.cropBordersWebtoon,
+        webtoonGapless: state.webtoonGapless,
+        showFooter: state.showFooter,
+        showPageNumber: state.showPageNumber,
+        zoomLevel: state.zoomLevel,
         autoBackupEnabled: state.autoBackupEnabled,
         autoBackupInterval: state.autoBackupInterval,
         syncWifiOnly: state.syncWifiOnly,

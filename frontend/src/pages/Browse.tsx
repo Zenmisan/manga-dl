@@ -6,6 +6,7 @@ import api from '../lib/api'
 import { ExtensionManager } from '../lib/extensions'
 import { buildSmartMangaUrl } from '../lib/smartUrl'
 import { usePageTitle } from '../lib/usePageTitle'
+import { buildImageProxyUrl } from '../lib/utils'
 
 interface MangaResult {
   id: string
@@ -22,7 +23,7 @@ function BrowseCard({ r, idx, navigate }: { r: MangaResult; idx: number; navigat
   const [coverError, setCoverError] = useState(false)
   const apiBase = api.defaults.baseURL || ''
   const apiKey = localStorage.getItem('manga-api-key') || ''
-  const coverSrc = r.cover_url ? `${apiBase}/manga/image-proxy?url=${encodeURIComponent(r.cover_url)}&api_key=${apiKey}` : null
+  const coverSrc = r.cover_url ? buildImageProxyUrl(r.cover_url, apiBase, apiKey) : null
 
   return (
     <motion.div

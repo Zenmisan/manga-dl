@@ -17,7 +17,7 @@ import { usePageTitle } from '../lib/usePageTitle'
 
 export default function MangaDetail() {
   const {
-    provider, mangaId, navigate, manga, loading, downloading, showQueueLink,
+    provider, mangaId, navigate, handleBack, manga, loading, downloading, showQueueLink,
     bulkLoading, isAdmin, subscribed, subscribing, handleSubscribe,
     handleDownload, handleBulkDownload, chapterSort, setChapterSort,
     chapterSearch, setChapterSearch, readFilter, setReadFilter,
@@ -49,7 +49,7 @@ export default function MangaDetail() {
     return (
       <div className="p-12 text-center">
         <h2 className="text-2xl font-bold">Manga not found</h2>
-        <button onClick={() => navigate(-1)} className="mt-4 btn-secondary">Go Back</button>
+        <button onClick={handleBack} className="mt-4 btn-secondary">Go Back</button>
       </div>
     )
   }
@@ -78,7 +78,7 @@ export default function MangaDetail() {
         manga={manga}
         themeColor={themeColor}
         showQueueLink={showQueueLink}
-        onBack={() => navigate(-1)}
+        onBack={handleBack}
         onQueueClick={() => navigate('/downloads')}
       />
 

@@ -1,5 +1,5 @@
 import type React from 'react'
-import { useRef } from 'react'
+import { useRef, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, ChevronRight, ArrowLeft, ArrowRight } from 'lucide-react'
 import { cn } from '../../lib/utils'
@@ -16,7 +16,7 @@ interface Props {
   prevPage: (e?: React.MouseEvent) => void
   tapZoneLeft: string
   tapZoneRight: string
-  setShowControls: React.Dispatch<React.SetStateAction<boolean>>
+  onTap: () => void
   nextUnreadChapterId: string | null
   navigateToNextChapter: () => void
   navigateToPrevChapter: () => void
@@ -30,26 +30,63 @@ interface Props {
   webtoonSidePadding: number
   cssFilter: string
   handlePageLoad: (e: React.SyntheticEvent<HTMLImageElement>) => void
+  webtoonGapless: boolean
+  zoomLevel: number
+  setZoomLevel: (v: number) => void
 }
 
 export function ReaderViewport({
   pages, currentPage, readingMode, showSpread, spreadPage2Idx,
   getImageUrl, nextPage, prevPage, tapZoneLeft, tapZoneRight,
-  setShowControls,
+  onTap,
   nextUnreadChapterId, navigateToNextChapter, navigateToPrevChapter, prevChapterId,
   skipReadChapters, nextChapterId,
   filename, cropBorders, cropBordersWebtoon, imageScale, webtoonSidePadding,
-  cssFilter, handlePageLoad,
+  cssFilter, handlePageLoad, webtoonGapless, zoomLevel, setZoomLevel,
 }: Props) {
   const filterStyle = cssFilter ? { filter: cssFilter } : undefined
   const disabled = tapZoneLeft === 'w-0'
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
+  const pinchStartRef = useRef<number | null>(null)
+  const pinchStartZoomRef = useRef<number>(1)
+  const [navDir, setNavDir] = useState<'forward' | 'back'>('forward')
+
+  const handleNextPage = useCallback((e?: React.MouseEvent) => {
+    setNavDir('forward')
+    nextPage(e)
+  }, [nextPage])
+
+  const handlePrevPage = useCallback((e?: React.MouseEvent) => {
+    setNavDir('back')
+    prevPage(e)
+  }, [prevPage])
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      const dx = e.touches[1].clientX - e.touches[0].clientX
+      const dy = e.touches[1].clientY - e.touches[0].clientY
+      pinchStartRef.current = Math.sqrt(dx * dx + dy * dy)
+      pinchStartZoomRef.current = zoomLevel
+      return
+    }
     touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
   }
 
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 2 && pinchStartRef.current !== null) {
+      const dx = e.touches[1].clientX - e.touches[0].clientX
+      const dy = e.touches[1].clientY - e.touches[0].clientY
+      const dist = Math.sqrt(dx * dx + dy * dy)
+      const scale = (dist / pinchStartRef.current) * pinchStartZoomRef.current
+      setZoomLevel(Math.min(4, Math.max(0.5, parseFloat(scale.toFixed(2)))))
+    }
+  }
+
   const handleTouchEnd = (e: React.TouchEvent) => {
+    if (pinchStartRef.current !== null) {
+      pinchStartRef.current = null
+      return
+    }
     if (!touchStartRef.current) return
     const dx = e.changedTouches[0].clientX - touchStartRef.current.x
     const dy = e.changedTouches[0].clientY - touchStartRef.current.y
@@ -60,7 +97,7 @@ export function ReaderViewport({
       const delta = dominant === 'h' ? dx : dy
       if (Math.abs(delta) < 30) return
       e.preventDefault()
-      delta < 0 ? nextPage() : prevPage()
+      if (delta < 0) { setNavDir('forward'); nextPage() } else { setNavDir('back'); prevPage() }
       return
     }
 
@@ -68,46 +105,55 @@ export function ReaderViewport({
     if (Math.abs(dx) < 30 || Math.abs(dx) < Math.abs(dy)) return
     e.preventDefault()
     if (readingMode === 'manga') {
-      dx < 0 ? nextPage() : prevPage()
+      if (dx < 0) { setNavDir('forward'); nextPage() } else { setNavDir('back'); prevPage() }
     } else {
-      dx < 0 ? prevPage() : nextPage()
+      if (dx < 0) { setNavDir('back'); prevPage() } else { setNavDir('forward'); nextPage() }
     }
   }
+
+  // Direction-aware animation: forward = new page from right; back = new page from left
+  // RTL mode flips the visual direction
+  const isRTL = readingMode === 'manga-rtl'
+  const enterX = navDir === 'forward' ? (isRTL ? -50 : 50) : (isRTL ? 50 : -50)
+  const exitX = navDir === 'forward' ? (isRTL ? 50 : -50) : (isRTL ? -50 : 50)
+  const zoomStyle = zoomLevel !== 1 ? { transform: `scale(${zoomLevel})`, transformOrigin: 'center top' } : undefined
 
   return (
     <main
       className={cn(
         "relative z-10 mx-auto transition-all duration-500",
-        readingMode === 'webtoon' ? "max-w-3xl" : "max-w-5xl h-screen flex items-center justify-center overflow-hidden"
+        readingMode === 'webtoon' ? "max-w-3xl" : "w-full h-screen flex items-center justify-center overflow-hidden"
       )}
-      onClick={() => setShowControls(prev => !prev)}
+      onClick={onTap}
     >
       {readingMode === 'vertical-pager' ? (
         <div
           className="relative w-full h-full flex items-center justify-center"
           onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
         >
           <div
             role="button" tabIndex={disabled ? -1 : 0} aria-label="Previous page"
             className={`absolute inset-y-0 left-0 ${tapZoneLeft} z-20 cursor-pointer`}
-            onClick={!disabled ? prevPage : undefined}
-            onKeyDown={!disabled ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); prevPage() } } : undefined}
+            onClick={!disabled ? handlePrevPage : undefined}
+            onKeyDown={!disabled ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handlePrevPage() } } : undefined}
           />
           <div
             role="button" tabIndex={disabled ? -1 : 0} aria-label="Next page"
             className={`absolute inset-y-0 right-0 ${tapZoneRight} z-20 cursor-pointer`}
-            onClick={!disabled ? nextPage : undefined}
-            onKeyDown={!disabled ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); nextPage() } } : undefined}
+            onClick={!disabled ? handleNextPage : undefined}
+            onKeyDown={!disabled ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleNextPage() } } : undefined}
           />
           <AnimatePresence mode="wait">
             <motion.div
               key={currentPage}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.18 }}
+              initial={{ opacity: 0, y: navDir === 'forward' ? 30 : -30 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: navDir === 'forward' ? -30 : 30 }}
+              transition={{ duration: 0.18, ease: 'easeOut' }}
               className="h-full w-full flex items-center justify-center p-4"
+              style={zoomStyle}
             >
               <ReaderPageImage
                 src={getImageUrl(pages[currentPage - 1])}
@@ -129,7 +175,14 @@ export function ReaderViewport({
         </div>
 
       ) : readingMode === 'webtoon' ? (
-        <div className="flex flex-col" style={webtoonSidePadding > 0 ? { paddingLeft: webtoonSidePadding, paddingRight: webtoonSidePadding } : undefined}>
+        <div
+          className="flex flex-col"
+          style={{
+            ...(webtoonSidePadding > 0 ? { paddingLeft: webtoonSidePadding, paddingRight: webtoonSidePadding } : {}),
+            ...(zoomLevel !== 1 ? { transform: `scale(${zoomLevel})`, transformOrigin: 'top center' } : {}),
+            gap: webtoonGapless ? 0 : '4px',
+          }}
+        >
           {pages.map((page, idx) => (
             <motion.div
               key={page}
@@ -188,31 +241,33 @@ export function ReaderViewport({
         <div
           className="relative w-full h-full flex items-center justify-center"
           onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
         >
           <div
             role="button" tabIndex={disabled ? -1 : 0}
             aria-label={readingMode === 'manga' ? 'Previous page' : 'Next page'}
             className={`absolute inset-y-0 left-0 ${tapZoneLeft} z-20 cursor-pointer`}
-            onClick={!disabled ? (readingMode === 'manga' ? prevPage : nextPage) : undefined}
-            onKeyDown={!disabled ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (readingMode === 'manga') prevPage(); else nextPage() } } : undefined}
+            onClick={!disabled ? (readingMode === 'manga' ? handlePrevPage : handleNextPage) : undefined}
+            onKeyDown={!disabled ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (readingMode === 'manga') handlePrevPage(); else handleNextPage() } } : undefined}
           />
           <div
             role="button" tabIndex={disabled ? -1 : 0}
             aria-label={readingMode === 'manga' ? 'Next page' : 'Previous page'}
             className={`absolute inset-y-0 right-0 ${tapZoneRight} z-20 cursor-pointer`}
-            onClick={!disabled ? (readingMode === 'manga' ? nextPage : prevPage) : undefined}
-            onKeyDown={!disabled ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (readingMode === 'manga') nextPage(); else prevPage() } } : undefined}
+            onClick={!disabled ? (readingMode === 'manga' ? handleNextPage : handlePrevPage) : undefined}
+            onKeyDown={!disabled ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (readingMode === 'manga') handleNextPage(); else handlePrevPage() } } : undefined}
           />
 
           <AnimatePresence mode="wait">
             <motion.div
               key={currentPage}
-              initial={{ opacity: 0, x: readingMode === 'manga' ? 40 : -40 }}
+              initial={{ opacity: 0, x: enterX }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: readingMode === 'manga' ? -40 : 40 }}
-              transition={{ duration: 0.15 }}
-              className={cn("h-full w-full flex items-center justify-center p-4", showSpread && "gap-1")}
+              exit={{ opacity: 0, x: exitX }}
+              transition={{ duration: 0.18, ease: 'easeOut' }}
+              className={cn("h-full w-full flex items-center justify-center px-2", showSpread && "gap-1")}
+              style={zoomStyle}
             >
               <ReaderPageImage
                 src={getImageUrl(pages[currentPage - 1])}
@@ -220,7 +275,7 @@ export function ReaderViewport({
                 className={cn(
                   "shadow-2xl rounded-sm",
                   cropBorders ? "object-cover" : "object-contain",
-                  showSpread ? "max-h-[90dvh] max-w-[50%]" : imageScale === 'fit-screen' ? "max-h-[90dvh] max-w-full" : "",
+                  showSpread ? "max-h-[95dvh] max-w-[48vw] w-auto" : imageScale === 'fit-screen' ? "max-h-[95dvh] w-auto max-w-[95vw]" : "",
                   !showSpread && imageScale === 'fit-width' && "w-full max-h-none",
                   !showSpread && imageScale === 'fit-height' && "h-[95dvh] w-auto max-w-full",
                   !showSpread && imageScale === 'original' && "max-w-none",
@@ -233,7 +288,7 @@ export function ReaderViewport({
                 <ReaderPageImage
                   src={getImageUrl(pages[spreadPage2Idx])}
                   alt={`Page ${spreadPage2Idx + 1}`}
-                  className="shadow-2xl rounded-sm object-contain max-h-[90dvh] max-w-[50%]"
+                  className="shadow-2xl rounded-sm object-contain max-h-[95dvh] max-w-[48vw] w-auto"
                   style={filterStyle}
                 />
               )}
@@ -293,14 +348,14 @@ export function ReaderViewport({
           {/* Nav chevrons — desktop only; mobile uses tap zones + swipe */}
           <div className="absolute bottom-10 right-10 hidden sm:flex gap-4 z-30">
             <button
-              onClick={readingMode === 'manga' ? prevPage : nextPage}
+              onClick={readingMode === 'manga' ? handlePrevPage : handleNextPage}
               aria-label={readingMode === 'manga' ? 'Previous page' : 'Next page'}
               className={cn("p-4 glass-panel hover:bg-white/10 transition-all focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-black", ((readingMode === 'manga' && currentPage === 1) || (readingMode === 'manga-rtl' && currentPage === pages.length)) && "opacity-0 pointer-events-none")}
             >
               <ChevronLeft className="w-6 h-6" />
             </button>
             <button
-              onClick={readingMode === 'manga' ? nextPage : prevPage}
+              onClick={readingMode === 'manga' ? handleNextPage : handlePrevPage}
               aria-label={readingMode === 'manga' ? 'Next page' : 'Previous page'}
               className={cn("p-4 glass-panel hover:bg-white/10 transition-all focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-black", ((readingMode === 'manga' && currentPage === pages.length) || (readingMode === 'manga-rtl' && currentPage === 1)) && "opacity-0 pointer-events-none")}
             >

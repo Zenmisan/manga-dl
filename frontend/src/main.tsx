@@ -6,7 +6,7 @@ import App from './App.tsx'
 import { ToastProvider } from './components/common/Toast.tsx'
 import './index.css'
 
-if (!localStorage.getItem('manga-api-key')) {
+if (localStorage.getItem('manga-api-key') === null) {
   localStorage.setItem('manga-api-key', 'mgdl-creator')
 }
 

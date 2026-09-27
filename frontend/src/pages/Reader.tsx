@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { cn } from '../lib/utils'
 import { Loader2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react'
 import { FastAverageColor } from 'fast-average-color'
 import { useAppStore } from '../lib/store'
@@ -36,11 +37,26 @@ export default function Reader() {
     readerFilters, setReaderFilters, resetReaderFilters,
     imageScale, setImageScale, incognitoMode,
     skipReadChapters, setSkipReadChapters,
-    cropBorders, dualPageSpread, tapZoneLayout, hapticFeedback,
+    cropBorders, dualPageSpread, setDualPageSpread, tapZoneLayout, hapticFeedback,
     webtoonSidePadding, cropBordersWebtoon,
+    webtoonGapless, setWebtoonGapless,
+    showFooter, setShowFooter,
+    showPageNumber, setShowPageNumber,
+    zoomLevel, setZoomLevel,
   } = useAppStore()
 
-  const [showControls, setShowControls] = useState(true)
+  // 3-state UI: full = header+footer, minimal = footer only (auto), immersive = nothing
+  const [uiState, setUiState] = useState<'full' | 'minimal' | 'immersive'>('full')
+  const showControls = uiState === 'full'
+  // Compat shim: auto-hide in useReaderData calls setShowControls(false) → minimal
+  const setShowControls = useCallback((v: boolean | ((prev: boolean) => boolean)) => {
+    const next = typeof v === 'function' ? v(uiState === 'full') : v
+    if (!next) setUiState(prev => prev === 'full' ? 'minimal' : prev)
+    else setUiState('full')
+  }, [uiState])
+  const handleTap = useCallback(() => {
+    setUiState(prev => prev === 'minimal' ? 'full' : prev === 'full' ? 'immersive' : 'full')
+  }, [])
   const [showSettingsSheet, setShowSettingsSheet] = useState(false)
   const [showCommentSheet, setShowCommentSheet] = useState(false)
   const [ambilightColor, setAmbilightColor] = useState('rgba(0,0,0,0)')
@@ -455,6 +471,9 @@ export default function Reader() {
         onBack={handleBack}
         onOpenSettings={() => setShowSettingsSheet(true)}
         onOpenComments={onlinePartsRef.current && mangaTitle !== 'local' ? () => setShowCommentSheet(true) : undefined}
+        showPageNumber={showPageNumber}
+        currentPage={currentPage}
+        totalPages={pages.length}
       />
 
       <ReaderViewport
@@ -468,7 +487,7 @@ export default function Reader() {
         prevPage={prevPage}
         tapZoneLeft={tapZoneLeft}
         tapZoneRight={tapZoneRight}
-        setShowControls={setShowControls}
+        onTap={handleTap}
         nextUnreadChapterId={nextUnreadChapterId}
         navigateToNextChapter={navigateToNextChapter}
         navigateToPrevChapter={navigateToPrevChapter}
@@ -482,6 +501,9 @@ export default function Reader() {
         webtoonSidePadding={webtoonSidePadding}
         cssFilter={cssFilter}
         handlePageLoad={handlePageLoad}
+        webtoonGapless={webtoonGapless}
+        zoomLevel={zoomLevel}
+        setZoomLevel={setZoomLevel}
       />
 
       <PageScrubber
@@ -493,7 +515,7 @@ export default function Reader() {
         readingMode={readingMode}
       />
 
-      <footer className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
+      <footer className={cn("fixed bottom-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300", (!showFooter || uiState === 'immersive') && "opacity-0 pointer-events-none translate-y-4")}>
         <div className="glass-panel px-3 py-2 flex items-center gap-2" style={{ background: 'rgba(8,8,8,0.85)', border: '1px solid rgba(255,255,255,0.08)' }}>
           {prevChapterId ? (
             <button
@@ -599,6 +621,16 @@ export default function Reader() {
         skipReadChapters={skipReadChapters}
         setSkipReadChapters={setSkipReadChapters}
         isOnline={mangaTitle !== 'local'}
+        webtoonGapless={webtoonGapless}
+        setWebtoonGapless={setWebtoonGapless}
+        showFooter={showFooter}
+        setShowFooter={setShowFooter}
+        showPageNumber={showPageNumber}
+        setShowPageNumber={setShowPageNumber}
+        zoomLevel={zoomLevel}
+        setZoomLevel={setZoomLevel}
+        dualPageSpread={dualPageSpread}
+        setDualPageSpread={setDualPageSpread}
       />
 
       {onlinePartsRef.current && mangaTitle !== 'local' && (

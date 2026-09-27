@@ -454,8 +454,10 @@ function App() {
     )
   }
 
-  if (loadingSession) {
-    return <div className="min-h-screen" style={{ background: 'var(--bg)' }} />
+  if (loadingSession && !isPublicProfilePath(location.pathname)) {
+    return <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}>
+      <div className="w-8 h-8 border-2 border-red-500/30 border-t-red-500 rounded-full animate-spin" />
+    </div>
   }
 
   const isTauri = !!(window as unknown as Record<string, unknown>).__TAURI_INTERNALS__

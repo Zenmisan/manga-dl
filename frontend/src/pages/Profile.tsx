@@ -414,6 +414,24 @@ export default function ProfilePage() {
     return () => { cancelled = true }
   }, [userId, username])
 
+  const readerScore = useMemo(() => {
+    const ch = profile?.chapters_read || 0
+    const strk = profile?.streak_days || 0
+    const mg = profile?.manga_count || 0
+    return (ch * 10) + (strk * 50) + (mg * 25)
+  }, [profile])
+
+  const hunterRank = useMemo(() => {
+    return getHunterRank(readerScore)
+  }, [readerScore])
+
+  const pinnedBadgeObjects = useMemo(() => {
+    const ids = meta.pinnedBadges && meta.pinnedBadges.length > 0
+      ? meta.pinnedBadges
+      : milestoneSummary.unlocked.slice(-4).reverse().map(b => b.id)
+    return ids.map(id => MILESTONES.find(b => b.id === id)).filter(Boolean) as MilestoneBadge[]
+  }, [meta.pinnedBadges, milestoneSummary.unlocked])
+
   const handleOpenEdit = () => {
     setEditForm({
       ...meta,
@@ -655,24 +673,6 @@ export default function ProfilePage() {
   const finalDisplayName = meta.displayName || `Reader #${shortId}`
   const handleTag = meta.username ? `@${meta.username}` : `@reader_${shortId.toLowerCase()}`
   const titleTierConfig = getTierConfig(milestoneSummary.currentTitleTier)
-
-  const readerScore = useMemo(() => {
-    const ch = profile?.chapters_read || 0
-    const strk = profile?.streak_days || 0
-    const mg = profile?.manga_count || 0
-    return (ch * 10) + (strk * 50) + (mg * 25)
-  }, [profile])
-
-  const hunterRank = useMemo(() => {
-    return getHunterRank(readerScore)
-  }, [readerScore])
-
-  const pinnedBadgeObjects = useMemo(() => {
-    const ids = meta.pinnedBadges && meta.pinnedBadges.length > 0
-      ? meta.pinnedBadges
-      : milestoneSummary.unlocked.slice(-4).reverse().map(b => b.id)
-    return ids.map(id => MILESTONES.find(b => b.id === id)).filter(Boolean) as MilestoneBadge[]
-  }, [meta.pinnedBadges, milestoneSummary.unlocked])
 
   // Filtered badges for milestones modal
   const filteredBadges = MILESTONES.filter(b => {

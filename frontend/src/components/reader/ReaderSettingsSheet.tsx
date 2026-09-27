@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, RotateCcw } from 'lucide-react'
+import { X, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
 interface ReaderFilters {
@@ -23,6 +23,16 @@ interface Props {
   skipReadChapters: boolean
   setSkipReadChapters: (v: boolean) => void
   isOnline: boolean
+  webtoonGapless: boolean
+  setWebtoonGapless: (v: boolean) => void
+  showFooter: boolean
+  setShowFooter: (v: boolean) => void
+  showPageNumber: boolean
+  setShowPageNumber: (v: boolean) => void
+  zoomLevel: number
+  setZoomLevel: (v: number) => void
+  dualPageSpread: 'auto' | 'on' | 'off'
+  setDualPageSpread: (v: 'auto' | 'on' | 'off') => void
 }
 
 const READING_MODES = [
@@ -49,6 +59,27 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
+function Toggle({ checked, onChange, label }: { checked: boolean; onChange: () => void; label: string }) {
+  return (
+    <button
+      role="switch"
+      aria-checked={checked}
+      onClick={onChange}
+      aria-label={label}
+      className={cn(
+        'relative flex-shrink-0 w-12 h-6 rounded-full transition-colors duration-200',
+        checked ? 'bg-[var(--accent,#dc2626)]' : 'bg-white/15',
+        FOCUS_RING
+      )}
+    >
+      <span
+        className="absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all duration-200"
+        style={{ left: checked ? 'calc(100% - 20px)' : '4px' }}
+      />
+    </button>
+  )
+}
+
 export function ReaderSettingsSheet({
   open, onClose,
   readingMode, setReadingMode,
@@ -56,6 +87,11 @@ export function ReaderSettingsSheet({
   readerFilters, setReaderFilters, resetReaderFilters,
   skipReadChapters, setSkipReadChapters,
   isOnline,
+  webtoonGapless, setWebtoonGapless,
+  showFooter, setShowFooter,
+  showPageNumber, setShowPageNumber,
+  zoomLevel, setZoomLevel,
+  dualPageSpread, setDualPageSpread,
 }: Props) {
   return (
     <AnimatePresence>
@@ -145,6 +181,41 @@ export function ReaderSettingsSheet({
                 ))}
               </div>
             </div>
+
+            {/* Page layout: single / double (LTR + RTL only) */}
+            {(readingMode === 'manga' || readingMode === 'manga-rtl') && (
+              <div className="mb-6">
+                <SectionLabel>Page Layout</SectionLabel>
+                <div
+                  className="flex gap-1 p-1 rounded-2xl"
+                  style={{ background: 'rgba(255,255,255,0.05)' }}
+                  role="group"
+                  aria-label="Page layout"
+                >
+                  {([
+                    { id: 'off' as const, label: 'Single' },
+                    { id: 'auto' as const, label: 'Auto' },
+                    { id: 'on' as const, label: 'Double' },
+                  ] as const).map(({ id, label }) => (
+                    <button
+                      key={id}
+                      onClick={() => setDualPageSpread(id)}
+                      aria-pressed={dualPageSpread === id}
+                      className={cn(
+                        'flex-1 h-11 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all',
+                        dualPageSpread === id
+                          ? 'bg-[var(--accent,#dc2626)] text-white shadow-[0_0_12px_rgba(220,38,38,0.3)]'
+                          : 'text-white/40 hover:text-white/60',
+                        FOCUS_RING
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] text-white/20 mt-2 px-1">Auto = double on landscape screens</p>
+              </div>
+            )}
 
             {/* Zoom (paged modes only) */}
             {readingMode !== 'webtoon' && (
@@ -243,39 +314,93 @@ export function ReaderSettingsSheet({
               </div>
             </div>
 
-            {/* Skip read (online only) */}
-            {isOnline && (
-              <div>
-                <SectionLabel>Options</SectionLabel>
-                <div
-                  className="flex items-center justify-between p-4 rounded-xl"
-                  style={{ background: 'rgba(255,255,255,0.05)' }}
+            {/* Zoom level */}
+            <div className="mb-6">
+              <SectionLabel>Zoom {Math.round(zoomLevel * 100)}%</SectionLabel>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setZoomLevel(Math.max(0.5, parseFloat((zoomLevel - 0.1).toFixed(1))))}
+                  aria-label="Zoom out"
+                  className={cn('p-2.5 rounded-xl border border-white/10 text-white/50 hover:text-white hover:border-white/25 transition-all', FOCUS_RING)}
+                  style={{ background: 'rgba(255,255,255,0.04)' }}
                 >
-                  <div>
-                    <p className="text-xs font-bold text-white/80">Skip read chapters</p>
-                    <p className="text-[10px] text-white/30 mt-0.5">
-                      Auto-jump past already-read chapters
-                    </p>
-                  </div>
+                  <ZoomOut className="w-4 h-4" />
+                </button>
+                <input
+                  type="range" min="0.5" max="3" step="0.05"
+                  value={zoomLevel}
+                  onChange={e => setZoomLevel(parseFloat(e.target.value))}
+                  aria-label="Zoom level"
+                  className="flex-1 h-1.5"
+                  style={{ accentColor: '#dc2626' }}
+                />
+                <button
+                  onClick={() => setZoomLevel(Math.min(3, parseFloat((zoomLevel + 0.1).toFixed(1))))}
+                  aria-label="Zoom in"
+                  className={cn('p-2.5 rounded-xl border border-white/10 text-white/50 hover:text-white hover:border-white/25 transition-all', FOCUS_RING)}
+                  style={{ background: 'rgba(255,255,255,0.04)' }}
+                >
+                  <ZoomIn className="w-4 h-4" />
+                </button>
+                {zoomLevel !== 1 && (
                   <button
-                    role="switch"
-                    aria-checked={skipReadChapters}
-                    onClick={() => setSkipReadChapters(!skipReadChapters)}
-                    aria-label="Toggle skip read chapters"
-                    className={cn(
-                      'relative flex-shrink-0 w-12 h-6 rounded-full transition-colors duration-200',
-                      skipReadChapters ? 'bg-[var(--accent,#dc2626)]' : 'bg-white/15',
-                      FOCUS_RING
-                    )}
+                    onClick={() => setZoomLevel(1)}
+                    aria-label="Reset zoom"
+                    className={cn('p-2.5 rounded-xl border border-white/10 text-white/30 hover:text-white transition-all', FOCUS_RING)}
+                    style={{ background: 'rgba(255,255,255,0.04)' }}
                   >
-                    <span
-                      className="absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all duration-200"
-                      style={{ left: skipReadChapters ? 'calc(100% - 20px)' : '4px' }}
-                    />
+                    <RotateCcw className="w-3.5 h-3.5" />
                   </button>
-                </div>
+                )}
               </div>
-            )}
+            </div>
+
+            {/* Options */}
+            <div className="mb-6">
+              <SectionLabel>Options</SectionLabel>
+              <div className="flex flex-col gap-2" style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: '4px 0' }}>
+
+                {/* Webtoon gap/gapless */}
+                {readingMode === 'webtoon' && (
+                  <div className="flex items-center justify-between px-4 py-3">
+                    <div>
+                      <p className="text-xs font-bold text-white/80">Gapless mode</p>
+                      <p className="text-[10px] text-white/30 mt-0.5">Remove spacing between pages</p>
+                    </div>
+                    <Toggle checked={webtoonGapless} onChange={() => setWebtoonGapless(!webtoonGapless)} label="Toggle gapless mode" />
+                  </div>
+                )}
+
+                {/* Show footer */}
+                <div className="flex items-center justify-between px-4 py-3">
+                  <div>
+                    <p className="text-xs font-bold text-white/80">Show page counter</p>
+                    <p className="text-[10px] text-white/30 mt-0.5">Footer with prev / next chapter</p>
+                  </div>
+                  <Toggle checked={showFooter} onChange={() => setShowFooter(!showFooter)} label="Toggle page counter footer" />
+                </div>
+
+                {/* Show page number in header */}
+                <div className="flex items-center justify-between px-4 py-3">
+                  <div>
+                    <p className="text-xs font-bold text-white/80">Page number in header</p>
+                    <p className="text-[10px] text-white/30 mt-0.5">Show X / Y next to chapter title</p>
+                  </div>
+                  <Toggle checked={showPageNumber} onChange={() => setShowPageNumber(!showPageNumber)} label="Toggle page number in header" />
+                </div>
+
+                {/* Skip read chapters (online only) */}
+                {isOnline && (
+                  <div className="flex items-center justify-between px-4 py-3">
+                    <div>
+                      <p className="text-xs font-bold text-white/80">Skip read chapters</p>
+                      <p className="text-[10px] text-white/30 mt-0.5">Auto-jump past already-read chapters</p>
+                    </div>
+                    <Toggle checked={skipReadChapters} onChange={() => setSkipReadChapters(!skipReadChapters)} label="Toggle skip read chapters" />
+                  </div>
+                )}
+              </div>
+            </div>
           </motion.div>
         </>
       )}

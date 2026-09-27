@@ -1,6 +1,6 @@
 import JSZip from 'jszip'
 import { inspectArchive, extractChapterPages, type ParsedLocalChapter } from './archiveInspector'
-import { findNextBatchInIndexedDB } from './batchDetector'
+import { findNextBatchInIndexedDB, findPrevBatchInIndexedDB } from './batchDetector'
 
 const DB_NAME = 'manga-dl-local'
 const DB_VERSION = 1
@@ -159,25 +159,36 @@ export async function loadLocalMangaIntoSession(
     title: c.title
   }))
 
-  // Sibling pre-discovery: check if next batch is in IndexedDB
+  const seriesKey = entry.seriesTitle || entry.title
+  const firstCh = parsedChapters[0]
   const lastCh = parsedChapters[parsedChapters.length - 1]
+
+  // Sibling pre-discovery: check next batch in IndexedDB
   if (lastCh) {
     try {
-      const nextBatch = await findNextBatchInIndexedDB(entry.seriesTitle || entry.title, lastCh.chapterNumber)
+      const nextBatch = await findNextBatchInIndexedDB(seriesKey, lastCh.chapterNumber)
       if (nextBatch && nextBatch.chaptersSummary) {
         for (const ch of nextBatch.chaptersSummary) {
           if (!fullChapterList.some(existing => existing.number === ch.number)) {
-            fullChapterList.push({
-              id: `${nextBatch.id}:${ch.id}`,
-              number: ch.number,
-              title: ch.title
-            })
+            fullChapterList.push({ id: `${nextBatch.id}:${ch.id}`, number: ch.number, title: ch.title })
           }
         }
       }
-    } catch {
-      /* non-fatal */
-    }
+    } catch { /* non-fatal */ }
+  }
+
+  // Sibling pre-discovery: check previous batch in IndexedDB
+  if (firstCh) {
+    try {
+      const prevBatch = await findPrevBatchInIndexedDB(seriesKey, firstCh.chapterNumber)
+      if (prevBatch && prevBatch.chaptersSummary) {
+        for (const ch of prevBatch.chaptersSummary) {
+          if (!fullChapterList.some(existing => existing.number === ch.number)) {
+            fullChapterList.push({ id: `${prevBatch.id}:${ch.id}`, number: ch.number, title: ch.title })
+          }
+        }
+      }
+    } catch { /* non-fatal */ }
   }
 
   fullChapterList.sort((a, b) => a.number - b.number)

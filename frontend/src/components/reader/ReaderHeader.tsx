@@ -32,6 +32,9 @@ interface Props {
   onBack: () => void
   onOpenSettings: () => void
   onOpenComments?: () => void
+  showPageNumber?: boolean
+  currentPage?: number
+  totalPages?: number
 }
 
 const FOCUS_RING = 'focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-black'
@@ -52,6 +55,7 @@ export function ReaderHeader({
   handleConvertToPdf,
   readingMode, setReadingMode,
   onBack, onOpenSettings, onOpenComments,
+  showPageNumber, currentPage, totalPages,
 }: Props) {
   const displayTitle = resolvedMangaTitle || localTitle || prettifySlug(mangaTitle)
   const displayChapter = resolvedChapterTitle || (mangaTitle === 'local' ? 'Local Preview' : prettifySlug(filename))
@@ -151,9 +155,16 @@ export function ReaderHeader({
 
             {/* Title */}
             <div ref={dropRef} className="min-w-0 flex-1 px-2 text-center relative">
-              <h1 className="font-bold text-xs sm:text-sm truncate leading-tight" style={{ fontFamily: "var(--font-title, 'PT Serif', Georgia, serif)" }}>
-                {displayTitle}
-              </h1>
+              <div className="flex items-center justify-center gap-2">
+                <h1 className="font-bold text-xs sm:text-sm truncate leading-tight" style={{ fontFamily: "var(--font-title, 'PT Serif', Georgia, serif)" }}>
+                  {displayTitle}
+                </h1>
+                {showPageNumber && currentPage && totalPages && (
+                  <span className="text-[10px] font-bold text-white/25 tabular-nums shrink-0">
+                    {currentPage}/{totalPages}
+                  </span>
+                )}
+              </div>
               {chapters.length > 0 && onChapterSelect ? (
                 <button
                   onClick={() => setShowChapterDrop(p => !p)}

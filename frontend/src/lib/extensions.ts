@@ -245,11 +245,13 @@ export class ExtensionManager {
       const apiKey: string = localStorage.getItem('manga-api-key') || ''
 
       const apiFetch = async (path: string, opts: RequestInit = {}) => {
-        const url = apiBaseURL + path + (path.includes('?') ? '&' : '?') + 'api_key=' + apiKey
+        const url = apiBaseURL + path
         const controller = new AbortController()
         const timer = setTimeout(() => controller.abort(), 20000)
         try {
-          const res = await fetch(url, { ...opts, signal: opts.signal || controller.signal })
+          const headers = new Headers(opts.headers)
+          if (apiKey) headers.set('X-API-Key', apiKey)
+          const res = await fetch(url, { ...opts, headers, signal: opts.signal || controller.signal })
           if (!res.ok) throw new Error('API error: ' + res.status)
           return await res.json()
         } finally {
@@ -316,11 +318,13 @@ export class ExtensionManager {
       const apiKey: string = localStorage.getItem('manga-api-key') || ''
 
       const apiFetch = async (path: string, opts: RequestInit = {}) => {
-        const url = apiBaseURL + path + (path.includes('?') ? '&' : '?') + 'api_key=' + apiKey
+        const url = apiBaseURL + path
         const controller = new AbortController()
         const timer = setTimeout(() => controller.abort(), 20000)
         try {
-          const r = await fetch(url, { ...opts, signal: opts.signal || controller.signal })
+          const headers = new Headers(opts.headers)
+          if (apiKey) headers.set('X-API-Key', apiKey)
+          const r = await fetch(url, { ...opts, headers, signal: opts.signal || controller.signal })
           if (!r.ok) throw new Error('API error: ' + r.status)
           return await r.json()
         } finally {

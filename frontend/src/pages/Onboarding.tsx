@@ -91,7 +91,7 @@ export default function OnboardingPage() {
     try {
       const controller = new AbortController()
       const timeout = setTimeout(() => controller.abort(), 10000)
-      const res = await fetch(`${resolveBaseURL()}/sources/builtins?api_key=${apiKey || 'mgdl-creator'}`, { signal: controller.signal })
+      const res = await fetch(`${resolveBaseURL()}/sources/builtins`, { signal: controller.signal, headers: { 'X-API-Key': apiKey || 'mgdl-creator' } })
       clearTimeout(timeout)
       if (res.ok) setStep('username')
       else if (res.status === 403) setConnectionError('API key rejected (403). Check your key. Settings saved.')

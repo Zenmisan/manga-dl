@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { useMangaUpdates } from '../lib/queries'
 import { buildSmartReadUrl } from '../lib/smartUrl'
 import api from '../lib/api'
+import { buildImageProxyUrl } from '../lib/utils'
 
 interface UpdateEntry {
   manga_title: string
@@ -182,7 +183,7 @@ export default function NotificationsPage() {
                       const id = notifId(u)
                       const isRead = readSet.has(id)
                       const coverSrc = u.cover_url && !coverErrors.has(id)
-                        ? `${api.defaults.baseURL || ''}/manga/image-proxy?url=${encodeURIComponent(u.cover_url)}&api_key=${apiKey}`
+                        ? buildImageProxyUrl(u.cover_url, api.defaults.baseURL || '', apiKey)
                         : null
                       const readUrl = buildSmartReadUrl(u.provider, u.manga_id, u.chapter_id, u.manga_title, u.chapter_title)
                       const mangaUrl = `/${u.provider}/${u.manga_id}`

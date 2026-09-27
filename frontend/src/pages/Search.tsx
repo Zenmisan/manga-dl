@@ -9,7 +9,7 @@ import { ExtensionManager } from '../lib/extensions'
 import { Search as SearchIcon, Globe, BookOpen, BookMarked, Check, SlidersHorizontal, X, LayoutGrid, LayoutList, Layers, Users, Flame, Trophy, Crown, Medal, Award, Zap, Shield, ChevronRight } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MILESTONES } from '../lib/milestones'
-import { cn } from '../lib/utils'
+import { cn, buildImageProxyUrl } from '../lib/utils'
 import { useAppStore } from '../lib/store'
 import { buildSmartMangaUrl } from '../lib/smartUrl'
 import { ThemedSpinner, ThemedSkeletonGrid } from '../components/common/ThemedLoader'
@@ -83,7 +83,7 @@ function DiscoveryCard({ r, idx, navigate }: { r: MangaResult; idx: number; navi
   const [coverError, setCoverError] = useState(false)
   const apiBase = api.defaults.baseURL || ''
   const apiKey = localStorage.getItem('manga-api-key') || ''
-  const coverSrc = r.cover_url ? `${apiBase}/manga/image-proxy?url=${encodeURIComponent(r.cover_url)}&api_key=${apiKey}` : null
+  const coverSrc = r.cover_url ? buildImageProxyUrl(r.cover_url, apiBase, apiKey) : null
   const isNovel = r.type === 'novel' || NOVEL_PROVIDER_IDS.includes(r.provider)
 
   return (
@@ -162,7 +162,7 @@ function MangaCard({ r, idx, onSubscribe, subscribed, subscribing, navigate }: {
       <div className="manga-cover" style={{ position: 'relative' }}>
         {r.cover_url && !coverError ? (
           <img
-            src={`${api.defaults.baseURL || ''}/manga/image-proxy?url=${encodeURIComponent(r.cover_url)}&api_key=${localStorage.getItem('manga-api-key') || ''}`}
+            src={buildImageProxyUrl(r.cover_url, api.defaults.baseURL || '', localStorage.getItem('manga-api-key') || '')}
             alt=""
             loading="lazy"
             style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: 0, transition: 'opacity 0.25s ease' }}

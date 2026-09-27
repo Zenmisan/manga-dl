@@ -29,19 +29,36 @@ export function resolveBaseURL(): string {
     : 'https://manga-dl.onrender.com/api'
 
   // Capacitor mobile: default to configured backend
-  // User can override via Settings if self-hosting
   if (isCapacitor) return configuredBackend
 
   // Web: prod hits backend directly, dev uses Vite proxy
   return isProd ? configuredBackend : '/api'
 }
 
+// Fallback URL used when primary backend fails (network error / timeout)
+// Set VITE_BACKUP_BACKEND_URL in .env to enable automatic failover
+const BACKUP_URL = import.meta.env.VITE_BACKUP_BACKEND_URL
+  ? normalizeApiUrl(import.meta.env.VITE_BACKUP_BACKEND_URL)
+  : null
+
+// Session-local state: once failover activates, all requests use backup
+let usingBackup = false
+
+function getActiveBase(): string {
+  if (usingBackup && BACKUP_URL) return BACKUP_URL
+  return resolveBaseURL()
+}
+
 const api = axios.create({
   baseURL: resolveBaseURL(),
   headers: { 'Content-Type': 'application/json' },
+  timeout: 15000,
 })
 
 api.interceptors.request.use(async (config) => {
+  // Apply active base (may have switched to backup)
+  config.baseURL = getActiveBase()
+
   const apiKey = localStorage.getItem('manga-api-key')
   if (apiKey) config.headers['X-API-Key'] = apiKey
 
@@ -57,5 +74,19 @@ api.interceptors.request.use(async (config) => {
   return config
 })
 
-export default api
+// On network failure, retry once against backup URL if available
+api.interceptors.response.use(
+  res => res,
+  async (error) => {
+    const isNetworkError = !error.response && (error.code === 'ERR_NETWORK' || error.code === 'ECONNABORTED' || error.message === 'Network Error')
+    if (isNetworkError && BACKUP_URL && !usingBackup && !error.config?._retried) {
+      usingBackup = true
+      console.info('[api] Primary backend unreachable — switching to backup:', BACKUP_URL)
+      const retryConfig = { ...error.config, baseURL: BACKUP_URL, _retried: true }
+      return api.request(retryConfig)
+    }
+    return Promise.reject(error)
+  }
+)
 
+export default api
