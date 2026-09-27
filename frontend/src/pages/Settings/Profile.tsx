@@ -320,7 +320,7 @@ export default function AccountProfileSettings() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* ── Page Header ── */}
-      <div className="hidden md:block" style={{ marginBottom: 4 }}>
+      <div className="hidden lg:block" style={{ marginBottom: 4 }}>
         <h1
           style={{
             fontFamily: "'Anton', sans-serif",

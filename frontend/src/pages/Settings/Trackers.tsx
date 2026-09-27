@@ -176,7 +176,7 @@ export default function TrackerSettings() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <div className="hidden md:block" style={{ marginBottom: 24 }}>
+      <div className="hidden lg:block" style={{ marginBottom: 24 }}>
         <h2 style={{ fontSize: 26, fontWeight: 900, color: 'var(--fg)', marginBottom: 4 }}>Trackers</h2>
         <p style={{ fontSize: 13, color: 'var(--muted2)' }}>Link your manga tracking accounts with 1-click automatic progress sync.</p>
       </div>

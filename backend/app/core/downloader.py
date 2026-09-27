@@ -201,26 +201,31 @@ async def download_chapter_to_cbz(
     tmp_dir = cache_path / "downloads" / provider_id / _safe_filename(f"{manga_title}-ch{chapter_number}")
     tmp_dir.mkdir(parents=True, exist_ok=True)
 
+    sem = asyncio.Semaphore(8)
+    downloaded = 0
+
     async with AsyncSession(
         impersonate="chrome110",
         allow_redirects=True,
         timeout=60.0,
     ) as client:
-        for i, url in enumerate(page_urls, start=1):
+        async def fetch_page(i: int, url: str):
+            nonlocal downloaded
             url_no_fragment = url.split("#")[0]
             ext = "." + url_no_fragment.split("?")[0].split(".")[-1].lower()
             if ext not in (".jpg", ".jpeg", ".png", ".webp", ".gif"):
                 ext = ".jpg"
             filename = f"{i:04d}{ext}"
-            try:
-                await download_image(client, url, tmp_dir, filename)
-            except Exception as exc:
-                log.warning("Failed to download page %d/%d (%s): %s — skipping", i, len(page_urls), url, exc)
-
+            async with sem:
+                try:
+                    await download_image(client, url, tmp_dir, filename)
+                except Exception as exc:
+                    log.warning("Failed to download page %d/%d (%s): %s — skipping", i, len(page_urls), url, exc)
+            downloaded += 1
             if on_progress:
-                await on_progress(i, len(page_urls))
+                await on_progress(downloaded, len(page_urls))
 
-            await asyncio.sleep(0.05)  # polite delay between page downloads
+        await asyncio.gather(*[fetch_page(i, url) for i, url in enumerate(page_urls, start=1)])
 
     # Run blocking image compression and zip packaging in a thread
     await asyncio.to_thread(package_cbz, tmp_dir, cbz_path, manga_title, chapter_title, chapter_number)

@@ -28,7 +28,7 @@ export default function LibrarySettings() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <div className="hidden md:block" style={{ marginBottom: 24 }}>
+      <div className="hidden lg:block" style={{ marginBottom: 24 }}>
         <h1 className="page-title" style={{ fontSize: 'clamp(1.25rem,3vw,1.75rem)' }}>Library & Migration</h1>
         <p style={{ fontSize: 13, color: 'var(--muted2)', marginTop: 2 }}>Manage library layout and migrate manga across sources.</p>
       </div>

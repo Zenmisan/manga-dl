@@ -130,7 +130,7 @@ export default function GeneralSettings() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <div className="hidden md:block" style={{ marginBottom: 24 }}>
+      <div className="hidden lg:block" style={{ marginBottom: 24 }}>
         <h2 style={{ fontSize: 26, fontWeight: 900, color: 'var(--fg)', marginBottom: 4 }}>General</h2>
         <p style={{ fontSize: 13, color: 'var(--muted2)' }}>Core preferences and connection settings.</p>
       </div>

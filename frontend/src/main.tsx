@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './App.tsx'
 import { ToastProvider } from './components/common/Toast.tsx'
+import { initBackendFailover } from './lib/api.ts'
 import './index.css'
 
 if (localStorage.getItem('manga-api-key') === null) {
@@ -13,22 +14,24 @@ if (localStorage.getItem('manga-api-key') === null) {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 60_000,       // data fresh for 60s — no refetch on tab switch
-      gcTime: 5 * 60_000,      // keep in memory 5 min after last use
+      staleTime: 60_000,
+      gcTime: 5 * 60_000,
       retry: 1,
       refetchOnWindowFocus: false,
     },
   },
 })
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <ToastProvider>
-          <App />
-        </ToastProvider>
-      </BrowserRouter>
-    </QueryClientProvider>
-  </React.StrictMode>,
-)
+initBackendFailover().then(() => {
+  ReactDOM.createRoot(document.getElementById('root')!).render(
+    <React.StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <ToastProvider>
+            <App />
+          </ToastProvider>
+        </BrowserRouter>
+      </QueryClientProvider>
+    </React.StrictMode>,
+  )
+})

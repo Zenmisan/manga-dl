@@ -436,7 +436,7 @@ export default function SystemSettings() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <div className="hidden md:block" style={{ marginBottom: 24 }}>
+      <div className="hidden lg:block" style={{ marginBottom: 24 }}>
         <h2 style={{ fontSize: 26, fontWeight: 900, color: 'var(--fg)', marginBottom: 4 }}>System</h2>
         <p style={{ fontSize: 13, color: 'var(--muted2)' }}>Account, sync, backup, and advanced configuration.</p>
       </div>

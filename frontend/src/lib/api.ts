@@ -74,19 +74,41 @@ api.interceptors.request.use(async (config) => {
   return config
 })
 
-// On network failure, retry once against backup URL if available
+// On network failure or server error, retry once against backup URL if available
 api.interceptors.response.use(
   res => res,
   async (error) => {
     const isNetworkError = !error.response && (error.code === 'ERR_NETWORK' || error.code === 'ECONNABORTED' || error.message === 'Network Error')
-    if (isNetworkError && BACKUP_URL && !usingBackup && !error.config?._retried) {
+    const isServerError = error.response?.status >= 500
+    if ((isNetworkError || isServerError) && BACKUP_URL && !usingBackup && !error.config?._retried) {
       usingBackup = true
-      console.info('[api] Primary backend unreachable — switching to backup:', BACKUP_URL)
+      console.info('[api] Primary backend failed — switching to backup:', BACKUP_URL)
       const retryConfig = { ...error.config, baseURL: BACKUP_URL, _retried: true }
       return api.request(retryConfig)
     }
     return Promise.reject(error)
   }
 )
+
+// Probe primary backend on startup; switch to backup immediately if unhealthy.
+// Strips /api suffix to hit the root /health endpoint.
+export async function initBackendFailover(): Promise<void> {
+  if (!BACKUP_URL) return
+  try {
+    const apiBase = resolveBaseURL()
+    const rootBase = apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => ctrl.abort(), 5000)
+    try {
+      const res = await fetch(`${rootBase}/health`, { signal: ctrl.signal })
+      if (!res.ok) throw new Error(`status ${res.status}`)
+    } finally {
+      clearTimeout(timer)
+    }
+  } catch (err) {
+    usingBackup = true
+    console.info('[api] Primary health check failed — using backup:', BACKUP_URL, err)
+  }
+}
 
 export default api

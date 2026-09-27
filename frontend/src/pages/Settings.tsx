@@ -184,8 +184,8 @@ export default function SettingsLayout() {
   return (
     <div className="min-h-full flex flex-col" style={{ background: 'var(--bg)' }}>
 
-      {/* ── Mobile ── */}
-      <div className="md:hidden">
+      {/* ── Mobile / Tablet ── */}
+      <div className="lg:hidden">
         <div style={{ padding: '28px 20px 0' }}>
           <h1 style={{ fontFamily: "'Anton', sans-serif", fontSize: 'clamp(2.5rem,10vw,3.5rem)', fontWeight: 400, textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--fg)', lineHeight: 1, marginBottom: 16 }}>
             Settings
@@ -211,7 +211,7 @@ export default function SettingsLayout() {
       </div>
 
       {/* ── Desktop: 2-col ── */}
-      <div className="hidden md:flex flex-1" style={{ minHeight: '100vh' }}>
+      <div className="hidden lg:flex flex-1" style={{ minHeight: '100vh' }}>
         <nav style={{ width: 240, flexShrink: 0, borderRight: '1px solid var(--border)', padding: '32px 0', display: 'flex', flexDirection: 'column' }}>
           <div style={{ padding: '0 20px 16px', fontFamily: "'Anton', sans-serif", fontSize: 24, fontWeight: 400, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--fg)' }}>
             Settings
