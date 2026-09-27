@@ -122,7 +122,9 @@ export function ReaderViewport({
     <main
       className={cn(
         "relative z-10 mx-auto transition-all duration-500",
-        readingMode === 'webtoon' ? "max-w-3xl" : "w-full h-screen flex items-center justify-center overflow-hidden"
+        readingMode === 'webtoon' || readingMode === 'manga-ltr' || readingMode === 'manga-rtl'
+          ? "max-w-3xl"
+          : "w-full h-screen flex items-center justify-center overflow-hidden"
       )}
       onClick={onTap}
     >
@@ -239,7 +241,7 @@ export function ReaderViewport({
       ) : (
         /* Paged mode: LTR / RTL */
         <div
-          className="relative w-full h-full flex items-center justify-center"
+          className="relative w-full flex flex-col items-center"
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
@@ -247,14 +249,14 @@ export function ReaderViewport({
           <div
             role="button" tabIndex={disabled ? -1 : 0}
             aria-label={readingMode === 'manga' ? 'Previous page' : 'Next page'}
-            className={`absolute inset-y-0 left-0 ${tapZoneLeft} z-20 cursor-pointer`}
+            className={`fixed inset-y-0 left-0 ${tapZoneLeft} z-20 cursor-pointer`}
             onClick={!disabled ? (readingMode === 'manga' ? handlePrevPage : handleNextPage) : undefined}
             onKeyDown={!disabled ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (readingMode === 'manga') handlePrevPage(); else handleNextPage() } } : undefined}
           />
           <div
             role="button" tabIndex={disabled ? -1 : 0}
             aria-label={readingMode === 'manga' ? 'Next page' : 'Previous page'}
-            className={`absolute inset-y-0 right-0 ${tapZoneRight} z-20 cursor-pointer`}
+            className={`fixed inset-y-0 right-0 ${tapZoneRight} z-20 cursor-pointer`}
             onClick={!disabled ? (readingMode === 'manga' ? handleNextPage : handlePrevPage) : undefined}
             onKeyDown={!disabled ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (readingMode === 'manga') handleNextPage(); else handlePrevPage() } } : undefined}
           />
@@ -266,7 +268,7 @@ export function ReaderViewport({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: exitX }}
               transition={{ duration: 0.18, ease: 'easeOut' }}
-              className={cn("h-full w-full flex items-center justify-center px-2", showSpread && "gap-1")}
+              className={cn("w-full flex items-center justify-center px-2 py-6", showSpread && "gap-1")}
               style={zoomStyle}
             >
               <ReaderPageImage
@@ -275,11 +277,11 @@ export function ReaderViewport({
                 className={cn(
                   "shadow-2xl rounded-sm",
                   cropBorders ? "object-cover" : "object-contain",
-                  showSpread ? "max-h-[95dvh] max-w-[48vw] w-auto" : imageScale === 'fit-screen' ? "max-h-[95dvh] w-auto max-w-[95vw]" : "",
-                  !showSpread && imageScale === 'fit-width' && "w-full max-h-none",
+                  showSpread ? "max-h-[95dvh] max-w-[48vw] w-auto" : imageScale === 'fit-screen' ? "w-full h-auto" : "",
+                  !showSpread && imageScale === 'fit-width' && "w-full h-auto max-h-none",
                   !showSpread && imageScale === 'fit-height' && "h-[95dvh] w-auto max-w-full",
                   !showSpread && imageScale === 'original' && "max-w-none",
-                  !showSpread && cropBorders && "w-full h-[90dvh]",
+                  !showSpread && cropBorders && "w-full",
                 )}
                 onLoad={handlePageLoad}
                 style={filterStyle}
