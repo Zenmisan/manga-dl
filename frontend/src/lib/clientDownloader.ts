@@ -34,7 +34,7 @@ export interface ClientDownloadTask {
 }
 
 const STORAGE_KEY = 'manga-dl-client-downloads'
-const MAX_CONCURRENT_PAGES = 2
+const MAX_CONCURRENT_PAGES = 6
 const MAX_IN_MEMORY_BLOBS = 3
 
 function escapeXml(str: string): string {
@@ -456,8 +456,8 @@ class ClientDownloader {
         }
       }
 
-      // Small delay to yield main thread and allow garbage collection
-      await new Promise((resolve) => setTimeout(resolve, 80))
+      // Yield to main thread briefly between chunks
+      await new Promise((resolve) => setTimeout(resolve, 0))
     }
 
     if (signal.aborted) return

@@ -201,13 +201,14 @@ async def download_chapter_to_cbz(
     tmp_dir = cache_path / "downloads" / provider_id / _safe_filename(f"{manga_title}-ch{chapter_number}")
     tmp_dir.mkdir(parents=True, exist_ok=True)
 
-    sem = asyncio.Semaphore(8)
+    sem = asyncio.Semaphore(10)
     downloaded = 0
 
     async with AsyncSession(
         impersonate="chrome110",
         allow_redirects=True,
         timeout=60.0,
+        max_clients=16,
     ) as client:
         async def fetch_page(i: int, url: str):
             nonlocal downloaded
