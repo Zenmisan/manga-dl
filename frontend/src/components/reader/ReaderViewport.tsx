@@ -4,13 +4,13 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, ChevronRight, ArrowLeft, ArrowRight } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { ReaderPageImage } from '../ReaderPageImage'
+import type { DisplaySlot } from '../../hooks/useReaderNavigation'
 
 interface Props {
   pages: string[]
   currentPage: number
   readingMode: string
-  showSpread: boolean
-  spreadPage2Idx: number
+  currentSlot: DisplaySlot
   getImageUrl: (pageName: string) => string
   nextPage: (e?: React.MouseEvent) => void
   prevPage: (e?: React.MouseEvent) => void
@@ -36,7 +36,7 @@ interface Props {
 }
 
 export function ReaderViewport({
-  pages, currentPage, readingMode, showSpread, spreadPage2Idx,
+  pages, currentPage, readingMode, currentSlot,
   getImageUrl, nextPage, prevPage, tapZoneLeft, tapZoneRight,
   onTap,
   nextUnreadChapterId, navigateToNextChapter, navigateToPrevChapter, prevChapterId,
@@ -263,34 +263,52 @@ export function ReaderViewport({
 
           <AnimatePresence mode="wait">
             <motion.div
-              key={currentPage}
+              key={currentSlot.page1}
               initial={{ opacity: 0, x: enterX }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: exitX }}
               transition={{ duration: 0.18, ease: 'easeOut' }}
-              className={cn("w-full flex items-center justify-center px-2 py-6", showSpread && "gap-1")}
+              className={cn(
+                "w-full flex items-center justify-center",
+                currentSlot.type === 'pair' ? "gap-3 px-2" : "px-2 py-6"
+              )}
               style={zoomStyle}
             >
-              <ReaderPageImage
-                src={getImageUrl(pages[currentPage - 1])}
-                alt={`Page ${currentPage}`}
-                className={cn(
-                  "shadow-2xl rounded-sm",
-                  cropBorders ? "object-cover" : "object-contain",
-                  showSpread ? "max-h-[95dvh] max-w-[48vw] w-auto" : imageScale === 'fit-screen' ? "w-full h-auto" : "",
-                  !showSpread && imageScale === 'fit-width' && "w-full h-auto max-h-none",
-                  !showSpread && imageScale === 'fit-height' && "h-[95dvh] w-auto max-w-full",
-                  !showSpread && imageScale === 'original' && "max-w-none",
-                  !showSpread && cropBorders && "w-full",
-                )}
-                onLoad={handlePageLoad}
-                style={filterStyle}
-              />
-              {showSpread && spreadPage2Idx < pages.length && (
+              {currentSlot.type === 'pair' && currentSlot.page2 != null ? (
+                // Spread pair — RTL ('manga' mode): page1 on right, page2 on left.
+                // Each half gets flex-1 so both fill exactly 50% of the container — no gap.
+                (readingMode === 'manga'
+                  ? [currentSlot.page2, currentSlot.page1]
+                  : [currentSlot.page1, currentSlot.page2]
+                ).map((pageNum, i) => (
+                  <div key={pageNum} className="flex-1 flex items-center justify-center min-w-0 min-h-0 overflow-hidden" style={{ maxHeight: '95dvh' }}>
+                    <ReaderPageImage
+                      src={getImageUrl(pages[pageNum - 1])}
+                      alt={`Page ${pageNum}`}
+                      className="shadow-2xl rounded-sm object-contain w-full max-h-[95dvh]"
+                      onLoad={i === 0 ? handlePageLoad : undefined}
+                      style={filterStyle}
+                    />
+                  </div>
+                ))
+              ) : (
+                // Single page or wide splash
                 <ReaderPageImage
-                  src={getImageUrl(pages[spreadPage2Idx])}
-                  alt={`Page ${spreadPage2Idx + 1}`}
-                  className="shadow-2xl rounded-sm object-contain max-h-[95dvh] max-w-[48vw] w-auto"
+                  src={getImageUrl(pages[currentSlot.page1 - 1])}
+                  alt={`Page ${currentSlot.page1}`}
+                  className={cn(
+                    "shadow-2xl rounded-sm",
+                    cropBorders ? "object-cover" : "object-contain",
+                    currentSlot.type === 'wide'
+                      ? "w-full h-auto max-h-[95dvh]"
+                      : imageScale === 'fit-screen' ? "w-full h-auto"
+                      : imageScale === 'fit-width' ? "w-full h-auto max-h-none"
+                      : imageScale === 'fit-height' ? "h-[95dvh] w-auto max-w-full"
+                      : imageScale === 'original' ? "max-w-none"
+                      : "w-full h-auto",
+                    cropBorders && currentSlot.type !== 'wide' && "w-full",
+                  )}
+                  onLoad={handlePageLoad}
                   style={filterStyle}
                 />
               )}

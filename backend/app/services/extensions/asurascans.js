@@ -1,8 +1,89 @@
 var _AS = 'https://asurascans.com';
+var _API = 'https://api.asurascans.com';
 
 async function _fetchDoc(url) {
   var data = await apiFetch('/manga/proxy/html?url=' + encodeURIComponent(url));
   return new DOMParser().parseFromString(data.html, 'text/html');
+}
+
+async function _fetchJson(url) {
+  return apiFetch('/manga/proxy/json?url=' + encodeURIComponent(url));
+}
+
+// Mirrors Keiyoushi's unwrapAstro(): Astro serialises props as [marker, value] tuples.
+function _unwrapAstro(val) {
+  if (Array.isArray(val)) {
+    if (val.length === 2 && (typeof val[0] === 'number' || typeof val[0] === 'string')) {
+      return _unwrapAstro(val[1]);
+    }
+    return val.map(_unwrapAstro);
+  }
+  if (val && typeof val === 'object') {
+    var out = {};
+    Object.keys(val).forEach(function(k) { out[k] = _unwrapAstro(val[k]); });
+    return out;
+  }
+  return val;
+}
+
+// Extract page list from Astro props embedded in the chapter HTML.
+// Returns array of image URLs (or descramble-proxy URLs for scrambled pages).
+function _extractAstroPages(doc, html) {
+  // Astro stores island props as JSON in the `props` attribute of astro-island elements
+  var islands = doc.querySelectorAll('[props]');
+  for (var i = 0; i < islands.length; i++) {
+    var raw = islands[i].getAttribute('props');
+    if (!raw || !raw.includes('pages')) continue;
+    try {
+      var parsed = JSON.parse(raw);
+      var unwrapped = _unwrapAstro(parsed);
+      // Props shape varies — look for a `pages` array anywhere in the object
+      var pageList = unwrapped.pages || (unwrapped.chapter && unwrapped.chapter.pages) || null;
+      if (!pageList) {
+        // Search one level deeper
+        var keys = Object.keys(unwrapped);
+        for (var k = 0; k < keys.length; k++) {
+          var v = unwrapped[keys[k]];
+          if (v && Array.isArray(v.pages)) { pageList = v.pages; break; }
+        }
+      }
+      if (!Array.isArray(pageList) || pageList.length === 0) continue;
+
+      return pageList.map(function(p) {
+        if (!p || !p.url) return null;
+        // Scrambled: has tiles array — route through backend descrambler
+        if (Array.isArray(p.tiles) && p.tiles.length > 0 && p.tile_cols && p.tile_rows) {
+          return '/manga/asura-descramble?url=' + encodeURIComponent(p.url)
+            + '&tiles=' + encodeURIComponent(JSON.stringify(p.tiles))
+            + '&tileCols=' + p.tile_cols
+            + '&tileRows=' + p.tile_rows;
+        }
+        return p.url;
+      }).filter(Boolean);
+    } catch (e) {
+      // Malformed props — try next island
+    }
+  }
+  return [];
+}
+
+function _apiResultsToCards(items) {
+  var results = [];
+  (items || []).forEach(function(r) {
+    // public_url = "/comics/slug-hexhash" — extract the full slug including hash
+    var fullSlug = (r.public_url || '').replace(/^\/comics\//, '').replace(/\/$/, '');
+    var slug = fullSlug || r.slug;
+    if (!slug) return;
+    results.push({
+      id: slug,
+      title: r.title || slug,
+      cover_url: r.cover || null,
+      provider: 'asurascans',
+      url: _AS + '/comics/' + slug,
+      status: r.status || null,
+    });
+  });
+  return results;
 }
 
 function _asParseCards(doc) {
@@ -89,8 +170,16 @@ function _asParseChapters(doc, mangaId) {
 
 var extension = {
   async search(query, page) {
-    var doc = await _fetchDoc(_AS + '/comics?page=' + (page || 1) + '&search=' + encodeURIComponent(query));
-    return _asParseCards(doc);
+    try {
+      var offset = ((page || 1) - 1) * 20;
+      var data = await _fetchJson(_API + '/api/series?search=' + encodeURIComponent(query) + '&offset=' + offset + '&limit=20');
+      var items = Array.isArray(data) ? data : (data.data || []);
+      return _apiResultsToCards(items);
+    } catch (e) {
+      // Fallback to HTML scrape if API is unreachable
+      var doc = await _fetchDoc(_AS + '/comics?page=' + (page || 1) + '&search=' + encodeURIComponent(query));
+      return _asParseCards(doc);
+    }
   },
 
   async getMangaDetail(mangaId) {
@@ -171,8 +260,15 @@ var extension = {
   },
 
   async getPages(chapterId) {
-    var html = (await apiFetch('/manga/proxy/html?url=' + encodeURIComponent(_AS + '/comics/' + chapterId))).html;
+    var data = await apiFetch('/manga/proxy/html?url=' + encodeURIComponent(_AS + '/comics/' + chapterId));
+    var html = data.html;
     var doc = new DOMParser().parseFromString(html, 'text/html');
+
+    // Primary: extract pages from Astro props (has tile data for scrambled images)
+    var pageList = _extractAstroPages(doc, html);
+    if (pageList.length > 0) return pageList;
+
+    // Fallback: direct img scrape (no tile data, may render scrambled)
     var pages = [];
     doc.querySelectorAll("img[src*='/asura-images/chapters/']").forEach(function(img) {
       var src = img.getAttribute('src');
@@ -180,8 +276,8 @@ var extension = {
     });
     if (pages.length > 0) return pages;
 
+    // Last resort: regex scan scripts for image URLs
     var seen = {};
-    var imgUrls = [];
     var scriptBlocks = html.match(/<script[^>]*>([\s\S]*?)<\/script>/g) || [];
     var urlRe = /https?:\/\/[^\s"'\\,\]]+\.(?:jpg|jpeg|png|webp)(?:\?[^\s"'\\,\]]*)?/gi;
     for (var i = 0; i < scriptBlocks.length; i++) {
@@ -191,21 +287,31 @@ var extension = {
         var uu = u[0];
         if (!seen[uu] && !uu.includes('logo') && !uu.includes('icon') && !uu.includes('avatar') && !uu.includes('favicon')) {
           seen[uu] = true;
-          imgUrls.push(uu);
+          pages.push(uu);
         }
       }
     }
-    if (imgUrls.length > 0) return imgUrls;
-
-    return [];
+    return pages;
   },
 
   async getPopular(page) {
+    try {
+      var offset = ((page || 1) - 1) * 20;
+      var data = await _fetchJson(_API + '/api/series?sort=popular&order=desc&offset=' + offset + '&limit=20');
+      var items = Array.isArray(data) ? data : (data.data || []);
+      if (items.length > 0) return _apiResultsToCards(items);
+    } catch (e) {}
     var doc = await _fetchDoc(_AS + '/comics?page=' + (page || 1) + '&order=popular');
     return _asParseCards(doc);
   },
 
   async getLatest(page) {
+    try {
+      var offset = ((page || 1) - 1) * 20;
+      var data = await _fetchJson(_API + '/api/series?sort=latest&order=desc&offset=' + offset + '&limit=20');
+      var items = Array.isArray(data) ? data : (data.data || []);
+      if (items.length > 0) return _apiResultsToCards(items);
+    } catch (e) {}
     var doc = await _fetchDoc(_AS + '/comics?page=' + (page || 1));
     return _asParseCards(doc);
   },

@@ -16,7 +16,7 @@ var extension = {
     var q = query.toLowerCase();
     var titles = (data?.success?.allTitlesViewV2?.AllTitlesGroup || [])
       .flatMap(function(g) { return g.titles || []; })
-      .filter(function(t) { return (t.name || '').toLowerCase().includes(q); })
+      .filter(function(t) { return (t.name || '').toLowerCase().includes(q) || (t.author || '').toLowerCase().includes(q); })
       .slice(0, 20);
     return titles.map(function(t) {
       return {

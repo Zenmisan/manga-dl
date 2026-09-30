@@ -125,6 +125,8 @@ export function ReaderSettingsSheet({
               padding: '16px 24px',
               paddingBottom: 'calc(24px + env(safe-area-inset-bottom))',
               maxHeight: '85dvh',
+              isolation: 'isolate',
+              transform: 'translateZ(0)',
             }}
             role="dialog"
             aria-label="Reader settings"

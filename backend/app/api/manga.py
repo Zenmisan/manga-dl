@@ -98,6 +98,20 @@ async def descramble_proxy(
     )
 
 
+@router.get("/asura-descramble")
+async def asura_descramble(
+    url: str = Query(...),
+    tiles: str = Query(...),
+    tile_cols: int = Query(..., alias="tileCols"),
+    tile_rows: int = Query(..., alias="tileRows"),
+):
+    """Fetch an Asura Scans tile-scrambled chapter image and reassemble it."""
+    import json
+    from app.services.asura_descrambler import descramble_asura_image
+    tiles_list = json.loads(tiles)
+    return await descramble_asura_image(url, tiles_list, tile_cols, tile_rows)
+
+
 @router.get("/updates")
 async def get_manga_updates(
     db: AsyncSession = Depends(get_db),

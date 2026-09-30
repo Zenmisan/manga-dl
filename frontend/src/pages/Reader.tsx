@@ -134,11 +134,11 @@ export default function Reader() {
     const parts = onlinePartsRef.current
     if (parts) {
       if (parts.provider === 'local') {
-        navigate(`/local/${encodeURIComponent(parts.mangaId)}`)
+        navigate(`/local/${encodeURIComponent(parts.mangaId)}`, { replace: true })
         return
       }
       if (parts.provider && parts.mangaId) {
-        navigate(buildSmartMangaUrl(parts.provider, parts.mangaId, parts.mangaTitle || resolvedMangaTitle || ''))
+        navigate(buildSmartMangaUrl(parts.provider, parts.mangaId, parts.mangaTitle || resolvedMangaTitle || ''), { replace: true })
         return
       }
     }
@@ -147,7 +147,7 @@ export default function Reader() {
     if (mangaTitle === 'local' && filename) {
       const localId = filename.split(':')[0]
       if (localId) {
-        navigate(`/local/${encodeURIComponent(localId)}`)
+        navigate(`/local/${encodeURIComponent(localId)}`, { replace: true })
         return
       }
     }
@@ -163,11 +163,11 @@ export default function Reader() {
         }
         const p = decoded.split(/[:|]/)
         if (p[0] === 'local' && p[1]) {
-          navigate(`/local/${encodeURIComponent(p[1])}`)
+          navigate(`/local/${encodeURIComponent(p[1])}`, { replace: true })
           return
         }
         if (p[0] && p[1]) {
-          navigate(buildSmartMangaUrl(p[0], p[1], p[3] || resolvedMangaTitle || ''))
+          navigate(buildSmartMangaUrl(p[0], p[1], p[3] || resolvedMangaTitle || ''), { replace: true })
           return
         }
       } catch { /* ignore decoding failure */ }
@@ -188,11 +188,11 @@ export default function Reader() {
           }
           const p = decoded.split(/[:|]/)
           if (p[0] === 'local' && p[1]) {
-            navigate(`/local/${encodeURIComponent(p[1])}`)
+            navigate(`/local/${encodeURIComponent(p[1])}`, { replace: true })
             return
           }
           if (p[0] && p[1]) {
-            navigate(buildSmartMangaUrl(p[0], p[1], p[3] || resolvedMangaTitle || ''))
+            navigate(buildSmartMangaUrl(p[0], p[1], p[3] || resolvedMangaTitle || ''), { replace: true })
             return
           }
         } catch { /* ignore decoding failure */ }
@@ -203,11 +203,11 @@ export default function Reader() {
     if (mangaTitle && mangaTitle !== 'local' && mangaTitle !== 'online') {
       const cached = resolveSmartManga(mangaTitle)
       if (cached?.provider && cached?.mangaId) {
-        navigate(buildSmartMangaUrl(cached.provider, cached.mangaId, cached.title || resolvedMangaTitle || mangaTitle))
+        navigate(buildSmartMangaUrl(cached.provider, cached.mangaId, cached.title || resolvedMangaTitle || mangaTitle), { replace: true })
         return
       }
       // Direct smart slug route (/manga/:smartSlug)
-      navigate(`/manga/${mangaTitle}`)
+      navigate(`/manga/${mangaTitle}`, { replace: true })
       return
     }
 
@@ -220,7 +220,7 @@ export default function Reader() {
   const {
     nextPage, prevPage,
     tapZoneLeft, tapZoneRight,
-    showSpread, spreadPage2Idx,
+    currentSlot,
     nextUnreadChapterId, navigateToNextChapter, navigateToPrevChapter,
   } = useReaderNavigation({
     pages, currentPage, setCurrentPage,
@@ -480,8 +480,7 @@ export default function Reader() {
         pages={pages}
         currentPage={currentPage}
         readingMode={readingMode}
-        showSpread={showSpread}
-        spreadPage2Idx={spreadPage2Idx}
+        currentSlot={currentSlot}
         getImageUrl={getImageUrl}
         nextPage={nextPage}
         prevPage={prevPage}
@@ -531,8 +530,8 @@ export default function Reader() {
           )}
 
           <span aria-live="polite" aria-atomic="true" className="text-[10px] font-bold tracking-[0.15em] text-white/30 uppercase px-2 whitespace-nowrap">
-            {showSpread && spreadPage2Idx < pages.length
-              ? `${currentPage}–${spreadPage2Idx + 1} / ${pages.length}`
+            {currentSlot.type === 'pair' && currentSlot.page2 != null
+              ? `${currentSlot.page1}–${currentSlot.page2} / ${pages.length}`
               : `${currentPage} / ${pages.length}`}
           </span>
 

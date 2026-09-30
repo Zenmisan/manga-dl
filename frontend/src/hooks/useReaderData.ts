@@ -229,6 +229,10 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
                   const params = url.slice('comixto://img?'.length)
                   return `${base}/manga/descramble-proxy?${params}&api_key=${apiKey}`
                 }
+                // Internal backend paths (e.g. /manga/asura-descramble) — just prepend base
+                if (url.startsWith('/manga/')) {
+                  return `${base}${url}`
+                }
                 return buildImageProxyUrl(url, base, apiKey)
               })
           // Restore saved page BEFORE setPages so both updates batch into one render.

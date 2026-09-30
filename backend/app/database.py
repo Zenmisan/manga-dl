@@ -3,20 +3,12 @@ from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import text
 from app.config import get_settings
 import logging
-import socket
 
 log = logging.getLogger(__name__)
 
 settings = get_settings()
 
-# Render Free Tier doesn't support IPv6, but Supabase resolves to it by default.
-# The Transaction Pooler URL (port 6543) should resolve to IPv4 automatically.
-# We use the 'psycopg' (v3) driver as it has superior support for PgBouncer.
-engine = create_async_engine(
-    settings.DATABASE_URL,
-    echo=False,
-    pool_pre_ping=True,
-)
+engine = create_async_engine(settings.DATABASE_URL, echo=False, pool_pre_ping=True)
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
 
@@ -47,6 +39,7 @@ async def init_db():
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
     await _migrate_add_columns()
 
 

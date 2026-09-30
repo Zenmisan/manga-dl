@@ -115,6 +115,8 @@ export const PageScrubber = memo(function PageScrubber({
                 WebkitBackdropFilter: 'blur(20px)',
                 scrollbarWidth: 'none',
                 msOverflowStyle: 'none',
+                isolation: 'isolate',
+                transform: 'translateZ(0)',
               }}
               onPointerDown={onPointerDown}
               onPointerMove={onPointerMove}
@@ -164,7 +166,7 @@ export const PageScrubber = memo(function PageScrubber({
             /* Mobile / large chapter — range scrubber */
             <div
               className="pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-2xl"
-              style={{ background: 'rgba(8,8,8,0.88)', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', width: '100%', maxWidth: 400 }}
+              style={{ background: 'rgba(8,8,8,0.88)', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', width: '100%', maxWidth: 400, isolation: 'isolate', transform: 'translateZ(0)' }}
             >
               <span style={{ fontSize: 11, fontWeight: 900, color: 'rgba(255,255,255,0.4)', fontVariantNumeric: 'tabular-nums', minWidth: 28, textAlign: 'right' }}>
                 {currentPage}

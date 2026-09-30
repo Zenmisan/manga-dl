@@ -296,6 +296,8 @@ body {
     background: color-mix(in srgb, var(--bg) 85%, transparent);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
+    isolation: isolate;
+    transform: translateZ(0);
   }
 
   /* Manga cover — 2:3 aspect ratio */
@@ -310,6 +312,13 @@ body {
   .manga-cover.compact {
     border-radius: 8px;
   }
+}
+
+/* ── Chrome Android backdrop-filter compositing fix ─────── */
+/* backdrop-filter without isolation causes dark overlay on child elements on Chrome mobile */
+[class*="backdrop-blur"] {
+  isolation: isolate;
+  transform: translateZ(0);
 }
 
 /* ── Library Grid ────────────────────────────────────────── */

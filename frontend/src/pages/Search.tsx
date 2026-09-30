@@ -17,7 +17,7 @@ import { SourceSwimlane } from '../components/search/SourceSwimlane'
 import { DiscoverySwimlane } from '../components/search/DiscoverySwimlane'
 import { SourceToggleModal } from '../components/search/SourceToggleModal'
 import { getEnabledSources } from '../lib/sourceManager'
-import { sortResultsByRelevance } from '../lib/relevanceScorer'
+import { sortResultsByRelevance, filterByRelevance } from '../lib/relevanceScorer'
 import { usePageTitle } from '../lib/usePageTitle'
 
 // Module-level discovery cache — survives navigation, cleared only on page refresh
@@ -674,7 +674,7 @@ export default function SearchPage() {
             anilistVariants = variants
             // Re-sort accumulated results with the richer variant set
             if (acc.length > 0 && searchIdRef.current === searchId) {
-              const resorted = sortResultsByRelevance(acc, query, anilistVariants)
+              const resorted = filterByRelevance(sortResultsByRelevance(acc, query, anilistVariants), query, anilistVariants)
               acc.splice(0, acc.length, ...resorted)
               setSearchResults(resorted)
             }
@@ -692,7 +692,10 @@ export default function SearchPage() {
         if (searchIdRef.current !== searchId) return
         remaining--
         if (newResults.length > 0) {
-          const merged = sortResultsByRelevance([...acc, ...newResults], query, anilistVariants)
+          const sorted = sortResultsByRelevance([...acc, ...newResults], query, anilistVariants)
+          const merged = remaining === 0
+            ? filterByRelevance(sorted, query, anilistVariants)
+            : sorted
           acc.splice(0, acc.length, ...merged)
           setSearchResults(merged)
         }

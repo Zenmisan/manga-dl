@@ -139,6 +139,8 @@ export function ReaderHeader({
               backdropFilter: 'blur(24px)',
               WebkitBackdropFilter: 'blur(24px)',
               borderRadius: '1rem',
+              isolation: 'isolate',
+              transform: 'translateZ(0)',
             }}
           >
             {/* Back */}
@@ -191,6 +193,8 @@ export function ReaderHeader({
                     backdropFilter: 'blur(24px)',
                     WebkitBackdropFilter: 'blur(24px)',
                     boxShadow: '0 8px 32px rgba(0,0,0,0.7)',
+                    isolation: 'isolate',
+                    transform: 'translateZ(0)',
                   }}
                 >
                   {chapters.map(ch => {
@@ -296,6 +300,8 @@ export function ReaderHeader({
                       backdropFilter: 'blur(24px)',
                       WebkitBackdropFilter: 'blur(24px)',
                       boxShadow: '0 8px 32px rgba(0,0,0,0.7)',
+                      isolation: 'isolate',
+                      transform: 'translateZ(0)',
                     }}
                   >
                     <p className="px-3 pt-2.5 pb-1 text-[10px] font-black uppercase tracking-widest text-white/30">Layout</p>
