@@ -517,6 +517,16 @@ BUILT_IN_EXTENSIONS: dict[str, dict] = {
         "nsfw": False,
         "skip_proxy": False,
     },
+    "readhive": {
+        "script": "readhive.js",
+        "type": "novel",
+        "name": "ReadHive",
+        "lang": "en",
+        "version": "1.0.0",
+        "icon": "https://readhive.org/favicon.ico",
+        "nsfw": False,
+        "skip_proxy": False,
+    },
 }
 
 

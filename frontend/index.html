@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=PT+Serif:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
     <title>manga-dl Read & Download Manga from 50+ Sources, Free</title>
+    <link rel="canonical" href="https://manga-dl.web.app/" />
     <meta name="google-site-verification" content="RvnFnB4XP1FSEg-EbjEaBYK3QSMe6kYlgeBwzSQs9hw" />
     <meta name="description" content="Manga reader for web, desktop, and Android. 50+ sources, offline CBZ/EPUB downloads, AniList & MAL sync. No ads, no DRM, free forever." />
     <meta name="keywords" content="manga reader, manga download, mangadex, offline manga, anilist, mal sync, manga app" />
@@ -34,9 +35,59 @@
       "description": "Manga reader and downloader with 50+ sources, offline support, and tracker sync."
     }
     </script>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-KX06CKEQPX"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-KX06CKEQPX');
+    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><style>
+      #root-static{font-family:system-ui,sans-serif;background:#0a0a0f;color:#eee;min-height:100vh;padding:2rem 1rem;max-width:860px;margin:0 auto}
+      #root-static h1{font-size:2.5rem;font-weight:800;margin:0 0 1rem}
+      #root-static p{color:#aaa;line-height:1.7;margin:0 0 2rem}
+      #root-static .features{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem;margin-bottom:2rem}
+      #root-static .feature{background:#13131a;border:1px solid #222;border-radius:12px;padding:1.25rem}
+      #root-static .feature h3{margin:0 0 .5rem;font-size:1rem;font-weight:700}
+      #root-static .feature p{margin:0;font-size:.875rem;color:#888}
+      #root-static .sources{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:2rem}
+      #root-static .sources span{background:#1a1a24;border:1px solid #2a2a38;border-radius:6px;padding:.25rem .75rem;font-size:.8rem;color:#ccc}
+      #root-static .platforms{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem}
+      #root-static .platform{background:#13131a;border:1px solid #222;border-radius:12px;padding:1.25rem}
+      #root-static .platform h3{margin:0 0 .25rem;font-size:1rem;font-weight:700}
+      #root-static .platform p{margin:0;font-size:.85rem;color:#888}
+    </style>
+    <div id="root-static">
+      <h1>manga-dl — Read &amp; Download Manga from 50+ Sources, Free</h1>
+      <p>manga-dl is a free, open-source manga reader for web, desktop, and Android. Stream from 50+ sources, download for offline reading, and sync progress with AniList and MyAnimeList. No ads. No DRM. No paywalls.</p>
+
+      <h2>Features</h2>
+      <div class="features">
+        <div class="feature"><h3>50+ Sources</h3><p>MangaDex, AsuraScans, MangaKatana, Bato.to, MangaPlus, TCBScans, MangaPill, Webtoons, and many more — all in one interface.</p></div>
+        <div class="feature"><h3>Read Offline</h3><p>Download entire series as CBZ or EPUB. Read anywhere, no internet connection required.</p></div>
+        <div class="feature"><h3>Tracker Integration</h3><p>Sync reading progress automatically with AniList, MyAnimeList, Kitsu, MangaUpdates, Shikimori, and Bangumi.</p></div>
+        <div class="feature"><h3>3 Platforms</h3><p>Web PWA, native desktop app via Tauri (macOS, Windows, Linux), and a native Android APK. One library everywhere.</p></div>
+        <div class="feature"><h3>Cross-Device Sync</h3><p>Reading progress, library, and notes sync across all your devices via encrypted cloud storage.</p></div>
+        <div class="feature"><h3>No Ads. No DRM.</h3><p>Open source, zero paywalls. Your manga library and data stay yours, forever.</p></div>
+      </div>
+
+      <h2>Supported Sources</h2>
+      <div class="sources">
+        <span>MangaDex</span><span>AsuraScans</span><span>MangaKatana</span><span>Bato.to</span>
+        <span>MangaPlus</span><span>TCBScans</span><span>MangaPill</span><span>Webtoons</span>
+        <span>MangaHere</span><span>OmegaScans</span><span>FlameComics</span><span>Komga</span>
+      </div>
+
+      <h2>Available On</h2>
+      <div class="platforms">
+        <div class="platform"><h3>Web</h3><p>Works in any browser. Install as a PWA for offline reads and a native-like experience.</p></div>
+        <div class="platform"><h3>Desktop</h3><p>Native app for macOS, Windows, and Linux with background sync and system tray support.</p></div>
+        <div class="platform"><h3>Android</h3><p>Native APK with biometric lock, background chapter syncing, and native reading controls.</p></div>
+      </div>
+    </div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

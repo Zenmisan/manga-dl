@@ -23,6 +23,8 @@ const queryClient = new QueryClient({
 })
 
 initBackendFailover().then(() => {
+  const staticShell = document.getElementById('root-static')
+  if (staticShell) staticShell.remove()
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
       <QueryClientProvider client={queryClient}>

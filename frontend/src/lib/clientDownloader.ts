@@ -1,5 +1,5 @@
 import JSZip from 'jszip'
-import { ExtensionManager } from './extensions'
+import { ExtensionManager, NOVEL_EXTENSION_IDS, type MangaExtension } from './extensions'
 import api from './api'
 import { Capacitor } from '@capacitor/core'
 import { saveToDeviceStorage } from './nativeDownload'
@@ -48,6 +48,158 @@ function escapeXml(str: string): string {
 
 function sanitizeFilename(name: string): string {
   return name.replace(/[/\\?%*:|"<>]/g, '-').trim()
+}
+
+function htmlToXhtml(rawHtml: string, title: string): string {
+  if (!rawHtml.includes('<p>') && !rawHtml.includes('<div>') && !rawHtml.includes('<br')) {
+    const paras = rawHtml
+      .split(/\n+/)
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .map((l) => `<p>${escapeXml(l)}</p>`)
+      .join('\n')
+
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <title>${escapeXml(title)}</title>
+    <link rel="stylesheet" type="text/css" href="style.css" />
+  </head>
+  <body>
+    <h1>${escapeXml(title)}</h1>
+    ${paras}
+  </body>
+</html>`
+  }
+
+  const doc = new DOMParser().parseFromString(rawHtml, 'text/html')
+  doc.querySelectorAll('script, style, iframe, button, noscript, svg').forEach((el) => el.remove())
+
+  const xmlDoc = document.implementation.createDocument('http://www.w3.org/1999/xhtml', 'html', null)
+  const head = xmlDoc.createElementNS('http://www.w3.org/1999/xhtml', 'head')
+  const titleEl = xmlDoc.createElementNS('http://www.w3.org/1999/xhtml', 'title')
+  titleEl.textContent = title
+  head.appendChild(titleEl)
+
+  const link = xmlDoc.createElementNS('http://www.w3.org/1999/xhtml', 'link')
+  link.setAttribute('rel', 'stylesheet')
+  link.setAttribute('type', 'text/css')
+  link.setAttribute('href', 'style.css')
+  head.appendChild(link)
+  xmlDoc.documentElement.appendChild(head)
+
+  const body = xmlDoc.createElementNS('http://www.w3.org/1999/xhtml', 'body')
+  const h1 = xmlDoc.createElementNS('http://www.w3.org/1999/xhtml', 'h1')
+  h1.textContent = title
+  body.appendChild(h1)
+
+  Array.from(doc.body.childNodes).forEach((node) => {
+    try {
+      body.appendChild(xmlDoc.importNode(node, true))
+    } catch {
+      // ignore
+    }
+  })
+  xmlDoc.documentElement.appendChild(body)
+
+  return new XMLSerializer().serializeToString(xmlDoc)
+}
+
+function buildNovelEpub(
+  mangaTitle: string,
+  chapterTitle: string,
+  chapterContent: string
+): Promise<Blob> {
+  const zip = new JSZip()
+  const xhtml = htmlToXhtml(chapterContent, chapterTitle)
+  const nowIso = new Date().toISOString().replace(/\.\d+Z$/, 'Z')
+  const bookId = `urn:uuid:${Math.random().toString(36).substring(2, 15)}-${Date.now()}`
+
+  zip.file('mimetype', 'application/epub+zip', { compression: 'STORE' })
+
+  zip.file(
+    'META-INF/container.xml',
+    `<?xml version="1.0" encoding="UTF-8"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>`
+  )
+
+  zip.file(
+    'OEBPS/style.css',
+    `body {
+  font-family: Georgia, serif;
+  line-height: 1.7;
+  margin: 5%;
+  color: #1a1a1a;
+  background-color: #fff;
+}
+h1 {
+  text-align: center;
+  font-size: 1.6em;
+  margin-top: 1em;
+  margin-bottom: 1.5em;
+  color: #111;
+}
+p {
+  margin-bottom: 1em;
+  text-indent: 1.5em;
+}
+`
+  )
+
+  zip.file(
+    'OEBPS/nav.xhtml',
+    `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+  <head>
+    <title>${escapeXml(chapterTitle)}</title>
+    <link rel="stylesheet" type="text/css" href="style.css" />
+  </head>
+  <body>
+    <nav epub:type="toc" id="toc">
+      <h1>Table of Contents</h1>
+      <ol>
+        <li><a href="chapter.xhtml">${escapeXml(chapterTitle)}</a></li>
+      </ol>
+    </nav>
+  </body>
+</html>`
+  )
+
+  zip.file('OEBPS/chapter.xhtml', xhtml)
+
+  zip.file(
+    'OEBPS/content.opf',
+    `<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" unique-identifier="BookId" version="3.0">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="BookId">${bookId}</dc:identifier>
+    <dc:title>${escapeXml(chapterTitle)}</dc:title>
+    <dc:language>en</dc:language>
+    <dc:creator>${escapeXml(mangaTitle)}</dc:creator>
+    <meta property="dcterms:modified">${nowIso}</meta>
+  </metadata>
+  <manifest>
+    <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+    <item id="style" href="style.css" media-type="text/css"/>
+    <item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/>
+  </manifest>
+  <spine>
+    <itemref idref="chapter"/>
+  </spine>
+</package>`
+  )
+
+  return zip.generateAsync({
+    type: 'blob',
+    mimeType: 'application/epub+zip',
+    compression: 'DEFLATE',
+  })
 }
 
 class ClientDownloader {
@@ -317,7 +469,9 @@ class ClientDownloader {
     if (!blob) {
       throw new Error('Archive file is no longer in temporary memory. Please retry download.')
     }
-    const fileName = task.fileName || `${sanitizeFilename(task.mangaTitle)} - ${sanitizeFilename(task.chapterTitle)}.cbz`
+    const isEpub = task.fileName?.endsWith('.epub') || NOVEL_EXTENSION_IDS.has(task.provider)
+    const ext = isEpub ? 'epub' : 'cbz'
+    const fileName = task.fileName || `${sanitizeFilename(task.mangaTitle)} - ${sanitizeFilename(task.chapterTitle)}.${ext}`
     await this.saveBlob(blob, task.mangaTitle, fileName)
   }
 
@@ -375,15 +529,91 @@ class ClientDownloader {
     }
   }
 
+  private async runNovelTask(
+    task: ClientDownloadTask,
+    ext: MangaExtension,
+    signal: AbortSignal
+  ) {
+    task.status = 'fetching-pages'
+    task.progress = 20
+    task.totalPages = 1
+    task.downloadedPages = 0
+    this.notify()
+
+    if (!ext.getChapterText) {
+      throw new Error(`Extension ${task.provider} does not support text chapter reading.`)
+    }
+
+    const res = await ext.getChapterText(task.chapterId)
+    if (signal.aborted) return
+
+    if (!res || !res.content) {
+      throw new Error('No chapter content retrieved from provider.')
+    }
+
+    task.status = 'packaging'
+    task.progress = 60
+    task.downloadedPages = 1
+    this.notify()
+
+    const epubBlob = await buildNovelEpub(task.mangaTitle, task.chapterTitle, res.content)
+    if (signal.aborted) return
+
+    task.progress = 90
+    this.notify()
+
+    const safeManga = sanitizeFilename(task.mangaTitle)
+    const safeChapter = sanitizeFilename(task.chapterTitle || `Chapter ${task.chapterNumber}`)
+    const fileName = `${safeManga} - ${safeChapter}.epub`
+
+    this.blobCache.set(task.id, epubBlob)
+    if (this.blobCache.size > MAX_IN_MEMORY_BLOBS) {
+      const firstKey = this.blobCache.keys().next().value
+      if (firstKey) this.blobCache.delete(firstKey)
+    }
+
+    try {
+      await this.saveBlob(epubBlob, task.mangaTitle, fileName)
+    } catch (saveErr) {
+      console.warn('Auto-save error:', saveErr)
+    }
+
+    task.status = 'done'
+    task.progress = 100
+    task.fileName = fileName
+    task.fileSizeBytes = epubBlob.size
+    task.completedAt = Date.now()
+    this.notify()
+
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      try {
+        new Notification('Download Complete', {
+          body: `${task.mangaTitle} — ${task.chapterTitle} saved as EPUB`,
+          icon: '/icon.png',
+        })
+      } catch {
+        // non-fatal
+      }
+    }
+  }
+
   private async runTask(task: ClientDownloadTask, signal: AbortSignal) {
     task.status = 'fetching-pages'
     task.progress = 5
     this.notify()
 
-    // 1. Fetch chapter page URLs
-    let rawPages: string[] = []
     const mgr = ExtensionManager.getInstance()
     const ext = await mgr.getExtension(task.provider)
+
+    // Handle novel chapter download -> EPUB
+    const isNovel = NOVEL_EXTENSION_IDS.has(task.provider) || ext?.type === 'novel' || Boolean(ext?.getChapterText)
+    if (isNovel && ext?.getChapterText) {
+      await this.runNovelTask(task, ext, signal)
+      return
+    }
+
+    // 1. Fetch chapter page URLs
+    let rawPages: string[] = []
     if (ext) {
       try {
         rawPages = (await ext.getPages(task.chapterId)) as string[]

@@ -125,6 +125,7 @@ const PROVIDER_INITIALS_MAP: Record<string, string> = {
   readlightnovel: 'rl',
   ranobes: 'rb',
   novelsonline: 'no',
+  readhive: 'rh',
 }
 
 /**

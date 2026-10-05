@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, ChevronLeft, ChevronRight, Settings2, List, X, BookOpen, MessageCircle, Keyboard } from 'lucide-react'
+import { ArrowLeft, ChevronLeft, ChevronRight, Settings2, List, X, BookOpen, MessageCircle, Keyboard, Download as DownloadIcon } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Capacitor } from '@capacitor/core'
 import { ExtensionManager } from '../lib/extensions'
+import { clientDownloader } from '../lib/clientDownloader'
+import { useToast } from '../components/common/Toast'
 import { NovelViewport, DEFAULT_NOVEL_SETTINGS } from '../components/reader/NovelViewport'
 import type { NovelSettings } from '../components/reader/NovelViewport'
 import { buildNovelReadUrl } from '../lib/novelUrl'
@@ -30,6 +32,7 @@ const NOVEL_SHORTCUTS = [
     { label: 'Toggle Chapter List', keys: ['C'] },
     { label: 'Reading Settings', keys: ['S'] },
     { label: 'Chapter Comments', keys: ['M'] },
+    { label: 'Download Chapter (EPUB)', keys: ['D'] },
     { label: 'Close Menu / Exit', keys: ['Esc'] },
   ]},
   { category: 'Appearance & Display', shortcuts: [
@@ -142,6 +145,20 @@ export default function NovelReader() {
   const currentIndex = chapters.findIndex(ch => ch.id === decodedChapterId)
   const prevChapter = currentIndex > 0 ? chapters[currentIndex - 1] : null
   const nextChapter = currentIndex >= 0 && currentIndex < chapters.length - 1 ? chapters[currentIndex + 1] : null
+
+  const { show: toast } = useToast()
+
+  const handleDownloadEpub = useCallback(() => {
+    clientDownloader.enqueue({
+      provider,
+      mangaId: decodedNovelId,
+      chapterId: decodedChapterId,
+      mangaTitle: novelTitle,
+      chapterTitle: chapterTitle || decodedChapterId,
+      chapterNumber: currentIndex >= 0 ? currentIndex + 1 : 0,
+    })
+    toast(`Queued "${chapterTitle || decodedChapterId}" for EPUB export`, 'success')
+  }, [provider, decodedNovelId, decodedChapterId, novelTitle, chapterTitle, currentIndex, toast])
 
   const goChapter = useCallback((ch: ChapterStub) => {
     window.scrollTo(0, 0)
@@ -308,6 +325,13 @@ export default function NovelReader() {
         saveSettings({ fontSize: Math.max(12, settings.fontSize - 1) })
         return
       }
+
+      // Download EPUB: d or D
+      if ((e.key === 'd' || e.key === 'D') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault()
+        handleDownloadEpub()
+        return
+      }
     }
 
     window.addEventListener('keydown', handleKeyDown)
@@ -315,7 +339,7 @@ export default function NovelReader() {
   }, [
     provider, decodedNovelId, nextChapter, prevChapter,
     showSettings, showChapters, showComments, showShortcuts,
-    settings.theme, settings.fontSize, saveSettings, navigate, goChapter
+    settings.theme, settings.fontSize, saveSettings, navigate, goChapter, handleDownloadEpub
   ])
 
   return (
@@ -334,6 +358,9 @@ export default function NovelReader() {
           <p className="text-xs text-white/50 truncate">{novelTitle}</p>
           <p className="text-sm text-white/80 font-medium truncate">{chapterTitle || decodedChapterId}</p>
         </div>
+        <button onClick={handleDownloadEpub} className="p-1.5 rounded hover:bg-white/10 text-white/70 hover:text-white" title="Download Chapter as EPUB (D)">
+          <DownloadIcon size={18} />
+        </button>
         <button onClick={() => setShowChapters(true)} className="p-1.5 rounded hover:bg-white/10 text-white/70 hover:text-white" title="Chapters (C)">
           <List size={18} />
         </button>

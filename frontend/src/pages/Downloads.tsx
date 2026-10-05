@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ThemedSpinner } from '../components/common/ThemedLoader'
 import { usePageTitle } from '../lib/usePageTitle'
 import { useClientDownloader, type ClientDownloadTask } from '../lib/clientDownloader'
+import { NOVEL_EXTENSION_IDS } from '../lib/extensions'
 
 const COVER_GRADIENTS = [
   'linear-gradient(135deg, #1e3a5f, #2d6a9f)',
@@ -26,13 +27,15 @@ function formatBytes(bytes?: number): string {
 }
 
 function getStatusLabel(task: ClientDownloadTask): string {
+  const isNovel = task.fileName?.endsWith('.epub') || NOVEL_EXTENSION_IDS.has(task.provider)
+  const format = isNovel ? 'EPUB' : 'CBZ'
   switch (task.status) {
     case 'fetching-pages':
-      return 'Fetching chapter manifest...'
+      return isNovel ? 'Fetching novel chapter text...' : 'Fetching chapter manifest...'
     case 'downloading':
-      return `Downloading pages: ${task.downloadedPages} / ${task.totalPages || '?'}`
+      return isNovel ? 'Processing chapter content...' : `Downloading pages: ${task.downloadedPages} / ${task.totalPages || '?'}`
     case 'packaging':
-      return 'Packaging CBZ archive in browser...'
+      return `Packaging ${format} archive in browser...`
     case 'queued':
       return 'Waiting in queue (concurrency protected)...'
     case 'paused':
@@ -108,7 +111,7 @@ export default function DownloadsPage() {
         {item.status === 'done' && (
           <div style={{ fontSize: 10.5, color: 'var(--muted3)', marginTop: 4, display: 'flex', gap: 6, alignItems: 'center' }}>
             <FileArchive style={{ width: 11, height: 11 }} />
-            <span>{item.fileName || 'Archive.cbz'}</span>
+            <span>{item.fileName || (item.provider && NOVEL_EXTENSION_IDS.has(item.provider) ? 'Archive.epub' : 'Archive.cbz')}</span>
             {item.fileSizeBytes ? <span>· {formatBytes(item.fileSizeBytes)}</span> : null}
           </div>
         )}
@@ -142,7 +145,7 @@ export default function DownloadsPage() {
             <button
               onClick={() => handleExport(item)}
               disabled={exportingId === item.id}
-              title="Save or Export CBZ"
+              title={item.fileName?.endsWith('.epub') || NOVEL_EXTENSION_IDS.has(item.provider) ? "Save or Export EPUB" : "Save or Export CBZ"}
               className="icon-btn"
               style={{ width: 40, height: 40, borderRadius: 10 }}
             >

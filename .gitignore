@@ -30,6 +30,7 @@ frontend/dist/
 *.pem
 google-services.json
 **/google-services.json
+frontend/public/google*.html
 
 # Logs
 logs/

@@ -74,6 +74,7 @@ export const NOVEL_EXTENSION_IDS = new Set([
   'wuxiaworld',
   'ranobes',
   'novelsonline',
+  'readhive',
 ])
 
 function getInitialUserId(): string {
