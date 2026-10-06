@@ -73,3 +73,7 @@ comixto-token-sync.user.js
 *runtime_tokens.json
 backend/runtime_cache.json
 backend/runtime_tokens.json
+
+# Walkthrough docs
+walkthrough.md
+*walkthrough*.md

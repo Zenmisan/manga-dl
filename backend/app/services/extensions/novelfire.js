@@ -11,19 +11,44 @@ function _nffSanitize(html) {
 
 function _nffParseCards(doc, provider) {
   var results = [];
-  doc.querySelectorAll('li.novel-item').forEach(function(item) {
-    var a = item.querySelector('a[title], a');
+  doc.querySelectorAll('li.novel-item, .novel-item').forEach(function(item) {
+    var a = item.querySelector('h4.novel-title a, h5 a, a[title], a');
     if (!a) return;
     var href = a.getAttribute('href') || '';
     // href like /book/slug or https://novelfire.net/book/slug
     var slug = href.replace(/.*\/book\//, '').replace(/\/$/, '');
     if (!slug || slug.length < 2) return;
-    var title = a.getAttribute('title') || (item.querySelector('h4.novel-title, h5') || a).textContent.trim();
+    var titleEl = item.querySelector('h4.novel-title, h5.novel-title, .novel-title') || a;
+    var title = (titleEl ? titleEl.textContent : a.getAttribute('title') || a.textContent || slug).trim();
+    title = title.split('\n')[0].trim();
     var img = item.querySelector('img');
     var cover = img ? (img.getAttribute('data-src') || img.getAttribute('src')) : null;
     results.push({ id: slug, title: title, cover_url: cover, provider: provider || 'novelfire', url: _NFF + '/book/' + slug, status: null });
   });
   return results;
+}
+
+function _nffParseChapterLinks(doc, novelId) {
+  var chapters = [];
+  doc.querySelectorAll('ul.chapter-list li a, .chapters-list li a, .list-chapter li a, a[href*="/chapter-"]').forEach(function(a) {
+    var href = a.getAttribute('href') || '';
+    var chMatch = href.match(/\/chapter-(\d+)/i);
+    if (!chMatch) return;
+    var num = parseFloat(chMatch[1]);
+    var chSlug = 'chapter-' + num;
+    var strongEl = a.querySelector('strong.chapter-title');
+    var chTitle = (strongEl ? strongEl.textContent.trim() : null) || a.getAttribute('title') || ('Chapter ' + num);
+    chTitle = chTitle.replace(/\d+\s+(?:days?|hours?|months?|years?)\s+ago/i, '').trim();
+    var timeEl = a.querySelector('time.chapter-update');
+    var pubDate = timeEl ? (timeEl.getAttribute('datetime') || timeEl.textContent.trim()) : null;
+    chapters.push({
+      id: novelId + '/' + chSlug,
+      title: chTitle,
+      number: num,
+      published_at: pubDate,
+    });
+  });
+  return chapters;
 }
 
 var extension = {
@@ -35,11 +60,12 @@ var extension = {
   },
 
   async getMangaDetail(novelId) {
-    var data = await apiFetch('/manga/proxy/html?url=' + encodeURIComponent(_NFF + '/book/' + novelId));
+    var slug = novelId.replace(/^\//, '').replace(/\/$/, '');
+    var data = await apiFetch('/manga/proxy/html?url=' + encodeURIComponent(_NFF + '/book/' + slug));
     var doc = new DOMParser().parseFromString(data.html, 'text/html');
 
-    var titleEl = doc.querySelector('div.novel-info h1.novel-title, h1.novel-title');
-    var title = titleEl ? titleEl.textContent.trim() : novelId;
+    var titleEl = doc.querySelector('div.novel-info h1.novel-title, h1.novel-title, h1');
+    var title = titleEl ? titleEl.textContent.trim() : slug;
 
     var img = doc.querySelector('figure.cover img, .cover img');
     var cover = img ? (img.getAttribute('src') || img.getAttribute('data-src')) : null;
@@ -63,11 +89,11 @@ var extension = {
     var authorEl = doc.querySelector('div.novel-info div.author a, div.author a');
     var authors = authorEl ? [authorEl.textContent.trim()] : [];
 
-    // Get post_id for AJAX chapter list
+    // Attempt 1: AJAX chapter list
+    var chapters = [];
     var reportEl = doc.querySelector('a#novel-report');
     var postId = reportEl ? reportEl.getAttribute('report-post_id') : null;
 
-    var chapters = [];
     if (postId) {
       var ajaxParams = [
         'draw=1',
@@ -90,19 +116,63 @@ var extension = {
         var chData = await apiFetch('/manga/proxy/html?url=' + encodeURIComponent(_NFF + '/ajax/listChapterDataAjax?' + ajaxParams));
         var parsed = null;
         try { parsed = JSON.parse(chData.html || chData.text || ''); } catch(e) {}
-        if (parsed && parsed.data) {
+        if (parsed && Array.isArray(parsed.data) && parsed.data.length > 0) {
           parsed.data.forEach(function(item) {
             var n = item.n_sort;
             if (!n) return;
             var chTitle = item.title || ('Chapter ' + n);
-            var chId = novelId + '/chapter-' + n;
+            var chId = slug + '/chapter-' + n;
             chapters.push({ id: chId, title: chTitle, number: n, published_at: item.bookmark_created_at || null });
           });
         }
       } catch(e) {}
     }
 
-    return { id: novelId, title: title, cover_url: cover, description: desc, status: status, genres: genres, authors: authors, provider: 'novelfire', url: _NFF + '/book/' + novelId, chapters: chapters };
+    // Attempt 2: HTML chapters fallback
+    if (chapters.length === 0) {
+      try {
+        var chPage1 = await apiFetch('/manga/proxy/html?url=' + encodeURIComponent(_NFF + '/book/' + slug + '/chapters?page=1'));
+        var doc1 = new DOMParser().parseFromString(chPage1.html || '', 'text/html');
+        var page1Chapters = _nffParseChapterLinks(doc1, slug);
+        page1Chapters.forEach(function(ch) { chapters.push(ch); });
+
+        // Check max page
+        var maxPage = 1;
+        doc1.querySelectorAll('ul.pagination a, .pagination a').forEach(function(a) {
+          var m = (a.getAttribute('href') || '').match(/page=(\d+)/i);
+          if (m) {
+            var p = parseInt(m[1], 10);
+            if (p > maxPage) maxPage = p;
+          }
+        });
+
+        if (maxPage > 1) {
+          var pagePromises = [];
+          for (var p = 2; p <= Math.min(maxPage, 20); p++) {
+            pagePromises.push(apiFetch('/manga/proxy/html?url=' + encodeURIComponent(_NFF + '/book/' + slug + '/chapters?page=' + p)));
+          }
+          var extraPages = await Promise.all(pagePromises);
+          extraPages.forEach(function(ep) {
+            var epDoc = new DOMParser().parseFromString(ep.html || '', 'text/html');
+            var epChapters = _nffParseChapterLinks(epDoc, slug);
+            epChapters.forEach(function(ch) { chapters.push(ch); });
+          });
+        }
+      } catch(e) {}
+    }
+
+    // Sort ascending by chapter number, deduplicate by id
+    var seen = {};
+    var uniqueChapters = [];
+    chapters.forEach(function(ch) {
+      if (!seen[ch.id]) {
+        seen[ch.id] = true;
+        uniqueChapters.push(ch);
+      }
+    });
+    uniqueChapters.sort(function(a, b) { return a.number - b.number; });
+
+    return { id: slug, title: title, cover_url: cover, description: desc, status: status, genres: genres, authors: authors, provider: 'novelfire', url: _NFF + '/book/' + slug, chapters: uniqueChapters };
   },
 
   async getChapterText(chapterId) {
@@ -111,9 +181,8 @@ var extension = {
     var chPart = parts.slice(1).join('/');
     var data = await apiFetch('/manga/proxy/html?url=' + encodeURIComponent(_NFF + '/book/' + slug + '/' + chPart));
     var doc = new DOMParser().parseFromString(data.html, 'text/html');
-    var contentEl = doc.querySelector('div#content');
+    var contentEl = doc.querySelector('div#content, .chapter-content, #chr-content');
     if (contentEl) {
-      // Remove title duplicate paragraph (first p if it matches chapter title)
       var firstP = contentEl.querySelector('p');
       var titleEl = doc.querySelector('span.chapter-title');
       if (firstP && titleEl && firstP.textContent.trim().toLowerCase() === titleEl.textContent.trim().toLowerCase()) {
