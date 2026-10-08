@@ -9,6 +9,7 @@ import { clientDownloader } from '../lib/clientDownloader'
 import { getMangaNote } from '../lib/mangaNotes'
 import { setMangaOverride, getMangaOverride } from '../lib/metaOverrides'
 import { supabase } from '../lib/supabase'
+import { addSubscription, removeSubscription, isSubscribed } from '../lib/supabaseSubscriptions'
 import { useMangaTracker } from './useMangaTracker'
 import { useMangaChaptersFilter } from './useMangaChaptersFilter'
 
@@ -237,22 +238,17 @@ export function useMangaDetail() {
 
   useEffect(() => {
     if (!manga || !provider) return
+    // Optimistic: check localStorage cache first (instant)
     const key = `${provider}:${manga.id}`
     const scopedSubsKey = `manga-dl-local-subs:${userId ?? 'anon'}`
     const rawLocal = localStorage.getItem(scopedSubsKey)
     const localList: string[] = rawLocal ? JSON.parse(rawLocal) : []
-    const isLocalSub = localList.includes(key)
+    setSubscribed(localList.includes(key))
 
-    api.get('/manga/subscriptions')
-      .then(res => {
-        const exists = res.data.some((s: { provider_id: string; manga_id: string }) =>
-          s.provider_id === provider && s.manga_id === manga.id
-        )
-        setSubscribed(exists || isLocalSub)
-      })
-      .catch(() => {
-        setSubscribed(isLocalSub)
-      })
+    // Authoritative: check Supabase
+    isSubscribed(provider, manga.id)
+      .then(result => setSubscribed(result))
+      .catch(() => {/* keep localStorage value */})
   }, [manga, provider, userId])
 
   const handleSubscribe = async () => {
@@ -266,26 +262,30 @@ export function useMangaDetail() {
 
     try {
       if (subscribed) {
+        // Optimistic update
         localList = localList.filter(k => k !== key)
         localStorage.setItem(scopedSubsKey, JSON.stringify(localList))
         const metaStore: Record<string, unknown> = JSON.parse(localStorage.getItem(scopedMetaKey) || '{}')
         delete metaStore[key]
         localStorage.setItem(scopedMetaKey, JSON.stringify(metaStore))
         setSubscribed(false)
-        await api.delete(`/manga/subscriptions/${provider}/${manga.id}`).catch(() => {})
+        // Persist to Supabase (authoritative)
+        await removeSubscription(provider, manga.id)
       } else {
+        // Optimistic update
         if (!localList.includes(key)) localList.push(key)
         localStorage.setItem(scopedSubsKey, JSON.stringify(localList))
         const metaStore: Record<string, { title: string; cover_url: string | null; provider: string; mangaId: string }> = JSON.parse(localStorage.getItem(scopedMetaKey) || '{}')
         metaStore[key] = { title: manga.title, cover_url: manga.cover_url || null, provider, mangaId: manga.id }
         localStorage.setItem(scopedMetaKey, JSON.stringify(metaStore))
         setSubscribed(true)
-        await api.post('/manga/subscriptions', {
-          provider_id: provider,
-          manga_id: manga.id,
+        // Persist to Supabase (authoritative)
+        await addSubscription({
+          provider,
+          mangaId: manga.id,
           title: manga.title,
-          cover_url: manga.cover_url,
-        }).catch(() => {})
+          coverUrl: manga.cover_url ?? null,
+        })
       }
     } finally {
       setSubscribing(false)

@@ -5,6 +5,7 @@ import { useLibrary, useHistory, QK } from '../lib/queries'
 import api from '../lib/api'
 import { useAppStore } from '../lib/store'
 import { saveLocalManga, getAllLocalManga, deleteLocalManga, type LocalMangaEntry } from '../lib/localLibrary'
+import { getSubscriptions, removeSubscription, type SupabaseSubscription } from '../lib/supabaseSubscriptions'
 import { inspectArchive } from '../lib/archiveInspector'
 import { getReadCount } from '../lib/readTracking'
 import { getMangaCategoryList, getCategories } from '../lib/categories'
@@ -102,6 +103,7 @@ export function useDashboardData() {
   }, [])
   const [categories] = useState(() => getCategories())
   const [localItems, setLocalItems] = useState<LibraryItem[]>([])
+  const [supabaseSubItems, setSupabaseSubItems] = useState<LibraryItem[]>([])
   const [bannerDismissed, setBannerDismissed] = useState(false)
   const [isDragOver, setIsDragOver] = useState(false)
   const [userEmail, setUserEmail] = useState<string | null>(null)
@@ -110,6 +112,7 @@ export function useDashboardData() {
   const isAdmin = userEmail === 'zenmisan@gmail.com'
 
   const items = useMemo<LibraryItem[]>(() => {
+    // CBZ downloads from backend (file-based library)
     const backend = (libraryRaw as LibraryItem[] ?? []).map(item => ({
       ...item,
       title: item.title ?? '',
@@ -118,29 +121,14 @@ export function useDashboardData() {
       chapters_failed: item.chapters_failed ?? 0,
     }))
 
-    // Supplement with locally-saved subscription metadata (manga added via "In Library"
-    // button that may not have synced to backend yet, or for offline use)
-    // Key is scoped by user ID to prevent cross-user bleed-through on shared browsers
+    // Deduplicate: Supabase subs take precedence; skip any that already appear in backend
     const backendTitles = new Set(backend.map(i => i.title.toLowerCase().trim()))
-    const scopedMetaKey = `manga-dl-local-sub-meta:${userId ?? 'anon'}`
-    const localSubMeta: Record<string, { title: string; cover_url: string | null; provider: string; mangaId: string }> =
-      JSON.parse(localStorage.getItem(scopedMetaKey) || '{}')
-    const localSubItems: LibraryItem[] = Object.values(localSubMeta)
-      .filter(m => !backendTitles.has(m.title.toLowerCase().trim()))
-      .map(m => ({
-        title: m.title,
-        files: [],
-        chapters_downloading: 0,
-        chapters_failed: 0,
-        cover_url: m.cover_url,
-        subscribed: true,
-        total_chapters: 0,
-        provider: m.provider,
-        provider_manga_id: m.mangaId,
-      }))
+    const dedupedSubs = supabaseSubItems.filter(
+      i => !backendTitles.has((i.title ?? '').toLowerCase().trim())
+    )
 
-    return [...localItems, ...backend, ...localSubItems]
-  }, [libraryRaw, localItems, userId])
+    return [...localItems, ...backend, ...dedupedSubs]
+  }, [libraryRaw, localItems, supabaseSubItems])
 
   const lastReadMap = useMemo<Record<string, LastReadEntry>>(() => {
     const map: Record<string, LastReadEntry> = {}
@@ -287,13 +275,33 @@ export function useDashboardData() {
       setLocalItems(Array.from(seriesMap.values()))
     }).catch(() => {})
 
+    const loadSupabaseSubs = async () => {
+      try {
+        const subs = await getSubscriptions()
+        setSupabaseSubItems(subs.map((s: SupabaseSubscription) => ({
+          title: s.title,
+          files: [],
+          chapters_downloading: 0,
+          chapters_failed: 0,
+          cover_url: s.cover_url,
+          subscribed: true,
+          total_chapters: 0,
+          provider: s.provider,
+          provider_manga_id: s.manga_id,
+          type: s.type,
+        })))
+      } catch { /* non-fatal */ }
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUserEmail(session?.user?.email || null)
       setUserId(session?.user?.id ?? null)
+      if (session?.user) loadSupabaseSubs()
     })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
       setUserEmail(session?.user?.email || null)
       setUserId(session?.user?.id ?? null)
+      if (session?.user) loadSupabaseSubs()
     })
 
     const interval = setInterval(() => {
@@ -365,7 +373,21 @@ export function useDashboardData() {
       setLocalItems(prev => prev.filter(i => i.localId !== item.localId))
     } else if (item.provider && item.provider_manga_id) {
       try {
-        await api.delete(`/subscriptions/${item.provider}/${item.provider_manga_id}`)
+        await removeSubscription(item.provider, item.provider_manga_id)
+        setSupabaseSubItems(prev => prev.filter(
+          i => !(i.provider === item.provider && i.provider_manga_id === item.provider_manga_id)
+        ))
+        // Also remove from localStorage cache
+        const scopedSubsKey = `manga-dl-local-subs:${userId ?? 'anon'}`
+        const scopedMetaKey = `manga-dl-local-sub-meta:${userId ?? 'anon'}`
+        const key = `${item.provider}:${item.provider_manga_id}`
+        try {
+          const subs: string[] = JSON.parse(localStorage.getItem(scopedSubsKey) || '[]')
+          localStorage.setItem(scopedSubsKey, JSON.stringify(subs.filter(k => k !== key)))
+          const meta: Record<string, unknown> = JSON.parse(localStorage.getItem(scopedMetaKey) || '{}')
+          delete meta[key]
+          localStorage.setItem(scopedMetaKey, JSON.stringify(meta))
+        } catch { /* non-fatal */ }
         refetchLibrary()
       } catch {
         alert('Failed to remove item.')
@@ -384,13 +406,24 @@ export function useDashboardData() {
           setLocalItems(prev => prev.filter(i => i.localId !== item.localId))
         } else if (item.provider && item.provider_manga_id) {
           try {
-            await api.delete(`/subscriptions/${item.provider}/${item.provider_manga_id}`)
+            await removeSubscription(item.provider, item.provider_manga_id)
+            const key = `${item.provider}:${item.provider_manga_id}`
+            const scopedSubsKey = `manga-dl-local-subs:${userId ?? 'anon'}`
+            const scopedMetaKey = `manga-dl-local-sub-meta:${userId ?? 'anon'}`
+            try {
+              const subs: string[] = JSON.parse(localStorage.getItem(scopedSubsKey) || '[]')
+              localStorage.setItem(scopedSubsKey, JSON.stringify(subs.filter(k => k !== key)))
+              const meta: Record<string, unknown> = JSON.parse(localStorage.getItem(scopedMetaKey) || '{}')
+              delete meta[key]
+              localStorage.setItem(scopedMetaKey, JSON.stringify(meta))
+            } catch { /* non-fatal */ }
           } catch { /* ignore */ }
         }
       }
     }
     setSelectedItems(new Set())
     setSelectMode(false)
+    setSupabaseSubItems(prev => prev.filter(i => !selectedItems.has(i.title)))
     refetchLibrary()
   }
 

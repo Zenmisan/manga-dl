@@ -4,6 +4,7 @@ import { useToast } from '../components/common/Toast'
 import { useAppStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
 import api from '../lib/api'
+import { batchAddSubscriptions } from '../lib/supabaseSubscriptions'
 import { syncReadTrackingFromCloud } from '../lib/readTracking'
 import { syncCategoriesFromCloud } from '../lib/categories'
 import { syncMangaNotesFromCloud } from '../lib/mangaNotes'
@@ -36,18 +37,14 @@ async function migrateGuestDataToAccount(userId: string) {
       const userMeta: Record<string, unknown> = JSON.parse(localStorage.getItem(userMetaKey) || '{}')
       localStorage.setItem(userMetaKey, JSON.stringify({ ...anonMeta, ...userMeta }))
 
-      // Push subscriptions to backend
-      for (const key of anonSubs) {
+      // Push subscriptions to Supabase
+      const subItems = anonSubs.map(key => {
         const [provider, ...rest] = key.split(':')
         const mangaId = rest.join(':')
         const meta = anonMeta[key] as { title?: string; cover_url?: string | null } | undefined
-        api.post('/manga/subscriptions', {
-          provider_id: provider,
-          manga_id: mangaId,
-          title: meta?.title || '',
-          cover_url: meta?.cover_url || null,
-        }).catch(() => {})
-      }
+        return { provider, mangaId, title: meta?.title || '', coverUrl: meta?.cover_url ?? null }
+      })
+      batchAddSubscriptions(subItems).catch(() => {})
     }
 
     // 2. Push local read tracking to cloud (it's not user-scoped so it's already accessible)

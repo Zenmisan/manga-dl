@@ -464,12 +464,20 @@ export default function ProfilePage() {
     if (activeUserId) {
       localStorage.setItem(`manga-dl-profile-${activeUserId}`, JSON.stringify(updatedMeta))
     }
-    // Also persist to backend
+    // Persist to backend
     api.put('/users/profile', {
       display_name: updatedMeta.displayName,
       bio: updatedMeta.bio,
       avatar_url: updatedMeta.avatarUrl,
       pinned_badges: updatedMeta.pinnedBadges,
+    }).catch(() => {})
+    // Also save avatar + display name to Supabase user_metadata so it survives browser clears
+    supabase.auth.updateUser({
+      data: {
+        avatar_url: updatedMeta.avatarUrl || undefined,
+        display_name: updatedMeta.displayName || undefined,
+        bio: updatedMeta.bio || undefined,
+      }
     }).catch(() => {})
 
     setIsEditing(false)
@@ -492,12 +500,18 @@ export default function ProfilePage() {
   const renderSearchModal = () => (
     <AnimatePresence>
       {showSearchModal && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 p-4 bg-black/75 backdrop-blur-md">
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center pt-20 p-4 bg-black/75 backdrop-blur-md"
+          onClick={() => { setShowSearchModal(false); setUserQuery('') }}
+          onKeyDown={(e) => { if (e.key === 'Escape') { setShowSearchModal(false); setUserQuery('') } }}
+          role="presentation"
+        >
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: -10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -10 }}
             className="w-full max-w-lg glass-card p-5 border-white/10 shadow-2xl relative space-y-4"
+            onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <h3 className="text-base font-black text-white flex items-center gap-2">
@@ -1177,12 +1191,18 @@ export default function ProfilePage() {
       {/* ── Milestones Gallery Modal ─────────────────────────────────────── */}
       <AnimatePresence>
         {showMilestonesModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+            onClick={() => setShowMilestonesModal(false)}
+            onKeyDown={(e) => { if (e.key === 'Escape') setShowMilestonesModal(false) }}
+            role="presentation"
+          >
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               className="w-full max-w-2xl max-h-[85vh] glass-card p-6 border-white/10 shadow-2xl relative flex flex-col"
+              onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header */}
               <div className="flex items-center justify-between border-b border-white/10 pb-4 flex-shrink-0">
@@ -1310,12 +1330,18 @@ export default function ProfilePage() {
       {/* ── Edit Public Profile Modal (Owner Only) ────────────────────── */}
       <AnimatePresence>
         {isEditing && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md"
+            onClick={() => setIsEditing(false)}
+            onKeyDown={(e) => { if (e.key === 'Escape') setIsEditing(false) }}
+            role="presentation"
+          >
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               className="w-full max-w-md glass-card p-6 border-white/10 shadow-2xl relative space-y-4"
+              onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between border-b border-white/10 pb-3">
                 <h3 className="text-base font-black text-white flex items-center gap-2">

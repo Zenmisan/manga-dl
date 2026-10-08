@@ -59,8 +59,11 @@ api.interceptors.request.use(async (config) => {
   // Apply active base (may have switched to backup)
   config.baseURL = getActiveBase()
 
-  const apiKey = localStorage.getItem('manga-api-key')
-  if (apiKey) config.headers['X-API-Key'] = apiKey
+  // Backup server has no API key — only attach key when on primary
+  if (!usingBackup) {
+    const apiKey = localStorage.getItem('manga-api-key') || import.meta.env.VITE_API_KEY
+    if (apiKey) config.headers['X-API-Key'] = apiKey
+  }
 
   try {
     const { data: { session } } = await supabase.auth.getSession()
