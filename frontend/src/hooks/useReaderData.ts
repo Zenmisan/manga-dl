@@ -8,6 +8,7 @@ import { saveLocalHistoryEntry, getLocalHistory } from '../lib/historyTracking'
 import { ExtensionManager } from '../lib/extensions'
 import { resolveSmartContext } from '../lib/smartUrl'
 import { buildImageProxyUrl } from '../lib/utils'
+import { extractChapterNumber } from '../lib/archiveInspector'
 
 export interface OnlineParts {
   provider: string
@@ -39,6 +40,7 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
   const [nextChapterId, setNextChapterId] = useState<string | null>(null)
   const [prevChapterId, setPrevChapterId] = useState<string | null>(null)
   const [isWidePage, setIsWidePage] = useState<boolean[]>([])
+  const [chapterList, setChapterList] = useState<{ id: string; number?: number; title?: string }[]>([])
 
   const malAutoSyncedRef = useRef(false)
   const progressSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -283,6 +285,7 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
             // Sort ascending by chapter number for both the dropdown and prev/next logic
             const sorted = [...chapters].sort((a, b) => (a.number ?? 0) - (b.number ?? 0))
             chapterListRef.current = sorted
+            setChapterList(sorted)
             const sortedIdx = sorted.findIndex(c => c.id === onlineChapterId)
             if (sortedIdx !== -1) {
               setNextChapterId(sortedIdx < sorted.length - 1 ? (sorted[sortedIdx + 1]?.id ?? null) : null)
@@ -343,7 +346,9 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
           if (session.title) setResolvedMangaTitle(session.title)
           if (session.chapterTitle) setResolvedChapterTitle(session.chapterTitle)
           const chapters = session.chapters || []
-          chapterListRef.current = chapters.map(c => ({ id: c.id, number: c.number, title: c.title }))
+          const mapped = chapters.map(c => ({ id: c.id, number: c.number, title: c.title }))
+          chapterListRef.current = mapped
+          setChapterList(mapped)
           const currentIdx = chapters.findIndex(c => c.id === session.currentChapterId || c.number === session.currentChapterNumber)
           if (currentIdx !== -1) {
             setNextChapterId(currentIdx < chapters.length - 1 ? (chapters[currentIdx + 1]?.id ?? null) : null)
@@ -394,10 +399,17 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
           }
         }
         const libraryRes = await api.get(`/library/${encodeURIComponent(mangaTitle || '')}`)
-        const files = libraryRes.data.files
-        const currentIdx = files.indexOf(filename)
+        const files: string[] = libraryRes.data.files || []
+        const currentIdx = files.indexOf(filename || '')
         if (currentIdx !== -1 && currentIdx < files.length - 1) setNextChapterId(files[currentIdx + 1])
         if (currentIdx > 0) setPrevChapterId(files[currentIdx - 1])
+        const mapped = files.map((f, idx) => ({
+          id: f,
+          number: extractChapterNumber(f, idx + 1),
+          title: f.replace(/\.(cbz|zip|cbr|epub)$/i, ''),
+        }))
+        chapterListRef.current = mapped
+        setChapterList(mapped)
       } catch (err) {
         setFetchError((err as { message?: string }).message || 'Failed to fetch chapter from backend library server.')
       } finally {
@@ -502,7 +514,7 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
     nextChapterId, prevChapterId, localTitle,
     resolvedMangaTitle, resolvedChapterTitle,
     uploading, handleCloudUpload,
-    onlinePartsRef, chapterListRef,
+    onlinePartsRef, chapterListRef, chapterList,
     getImageUrl, getImageUrlForChapter,
     isWidePage,
     saveOnlineProgress,

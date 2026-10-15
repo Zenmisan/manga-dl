@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, Play, HardDrive, CheckCircle, Circle, CheckCheck } from 'lucide-react'
-import { getLocalManga, getAllLocalManga, findLocalMangaByTitleOrFilename, loadLocalMangaIntoSession, type LocalMangaEntry, type LocalChapterMeta, type LocalMangaSession } from '../lib/localLibrary'
+import { getLocalManga, getAllLocalManga, findLocalMangaByTitleOrFilename, getRelatedLocalArchives, loadLocalMangaIntoSession, type LocalMangaEntry, type LocalChapterMeta, type LocalMangaSession } from '../lib/localLibrary'
 import { getReadChapters, markRead, markUnread, markAllRead } from '../lib/readTracking'
 import { ThemedLoadingScreen } from '../components/common/ThemedLoader'
 import { usePageTitle } from '../lib/usePageTitle'
@@ -35,11 +35,8 @@ export default function LocalMangaDetail() {
       setEntry(e)
 
       // Collect chapters from ALL archives sharing the same series title
-      const sTitle = (e.seriesTitle || e.title).toLowerCase().trim()
       const allEntries = await getAllLocalManga()
-      const related = allEntries
-        .filter(x => (x.seriesTitle || x.title).toLowerCase().trim() === sTitle)
-        .sort((a, b) => a.addedAt - b.addedAt)
+      const related = getRelatedLocalArchives(e, allEntries)
 
       const allHaveSummary = related.length > 0 && related.every(x => x.chaptersSummary && x.chaptersSummary.length > 0)
 
@@ -96,9 +93,16 @@ export default function LocalMangaDetail() {
     const targetArchiveId = entry?.id || id
     if (entry?.type === 'novel' || entry?.filename.toLowerCase().endsWith('.epub')) {
       const activeCh = chapters.find(c => c.id === chapterId)
+      let effectiveArchiveId = targetArchiveId
+      let effectiveChapterId = chapterId
+      if (chapterId.includes(':')) {
+        const colonIdx = chapterId.indexOf(':')
+        effectiveArchiveId = chapterId.slice(0, colonIdx)
+        effectiveChapterId = chapterId.slice(colonIdx + 1)
+      }
       const chTitle = activeCh?.title || (activeCh?.number ? `Chapter ${activeCh.number}` : 'Chapter 1')
       const sTitle = entry.seriesTitle || entry.title
-      navigate(buildNovelReadUrl('local', targetArchiveId, chapterId, sTitle, chTitle))
+      navigate(buildNovelReadUrl('local', effectiveArchiveId, effectiveChapterId, sTitle, chTitle))
       return
     }
     // Compound IDs (archiveId:chapterId) navigate directly to the correct archive

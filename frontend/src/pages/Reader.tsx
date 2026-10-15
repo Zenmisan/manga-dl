@@ -119,7 +119,7 @@ export default function Reader() {
     nextChapterId, prevChapterId, localTitle,
     resolvedMangaTitle, resolvedChapterTitle,
     uploading, handleCloudUpload,
-    onlinePartsRef, chapterListRef,
+    onlinePartsRef, chapterListRef, chapterList,
     getImageUrl, isWidePage,
     saveOnlineProgress,
   } = useReaderData({ mangaTitle, filename, location, readingMode, incognitoMode, upscaling, setShowControls })
@@ -440,21 +440,25 @@ export default function Reader() {
         localTitle={localTitle}
         resolvedMangaTitle={resolvedMangaTitle ?? undefined}
         resolvedChapterTitle={resolvedChapterTitle ?? undefined}
-        currentChapterId={onlinePartsRef.current?.chapterId}
-        chapters={chapterListRef.current}
+        currentChapterId={onlinePartsRef.current?.chapterId || filename}
+        chapters={chapterList.length > 0 ? chapterList : chapterListRef.current}
         onChapterSelect={(chapterId) => {
           const parts = onlinePartsRef.current
-          if (!parts) return
-          if (mangaTitle === 'local' || parts.provider === 'local') {
+          if (mangaTitle === 'local' || parts?.provider === 'local') {
             // Compound IDs (archiveId:chapterId) navigate directly
             if (chapterId.includes(':')) {
               navigate(`/read/local/${chapterId}`)
             } else {
-              navigate(`/read/local/${parts.mangaId}:${chapterId}`)
+              navigate(`/read/local/${parts?.mangaId || filename || ''}:${chapterId}`)
             }
             return
           }
-          const ch = chapterListRef.current.find(c => c.id === chapterId)
+          if (!parts) {
+            navigate(`/read/${encodeURIComponent(mangaTitle || '')}/${encodeURIComponent(chapterId)}`)
+            return
+          }
+          const list = chapterList.length > 0 ? chapterList : chapterListRef.current
+          const ch = list.find(c => c.id === chapterId)
           const url = buildSmartReadUrl(parts.provider, parts.mangaId, chapterId, parts.mangaTitle || '', ch?.title)
           navigate(url)
         }}

@@ -1,5 +1,5 @@
 import JSZip from 'jszip'
-import { inspectArchive, extractChapterPages, normalizeZipPath, type ParsedLocalChapter } from './archiveInspector'
+import { inspectArchive, extractChapterPages, normalizeZipPath, extractChapterNumber, type ParsedLocalChapter } from './archiveInspector'
 
 const DB_NAME = 'manga-dl-local'
 const DB_VERSION = 1
@@ -26,6 +26,45 @@ export interface LocalMangaEntry {
   rangeEnd?: number
   chaptersSummary?: LocalChapterMeta[]
   type?: 'manga' | 'novel'
+}
+
+/**
+ * Normalizes a title by stripping extensions, bracketed tags, volume/chapter indicators,
+ * and punctuation to group sibling archives belonging to the same series.
+ */
+export function normalizeTitleForGrouping(title: string): string {
+  if (!title) return ''
+  return title
+    .toLowerCase()
+    .replace(/\.(cbz|zip|epub|cbr)$/i, '')
+    .replace(/[\[\(][^\]\)]*[\]\)]/g, ' ')
+    .replace(/(?:ch(?:apter)?\.?\s*|c)?\d+\s*[-–_to]+\s*(?:ch(?:apter)?\.?\s*|c)?\d+/gi, '')
+    .replace(/(?:ch(?:apter)?\.?\s*|c)\d+(?:\.\d+)?/gi, '')
+    .replace(/(?:vol(?:ume)?\.?\s*|v)\d+/gi, '')
+    .replace(/[-_.]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/**
+ * Finds all archives in local library that belong to the same series as the given entry.
+ */
+export function getRelatedLocalArchives(entry: LocalMangaEntry, allEntries: LocalMangaEntry[]): LocalMangaEntry[] {
+  const targetSeries = (entry.seriesTitle || '').toLowerCase().trim()
+  const targetNorm = normalizeTitleForGrouping(entry.seriesTitle || entry.title)
+
+  return allEntries
+    .filter(x => {
+      if (x.id === entry.id) return true
+      const xSeries = (x.seriesTitle || '').toLowerCase().trim()
+      if (targetSeries && xSeries && targetSeries === xSeries) return true
+      const xNorm = normalizeTitleForGrouping(x.seriesTitle || x.title)
+      if (targetNorm && xNorm && targetNorm === xNorm) return true
+      if (targetSeries && xNorm && (xNorm.includes(targetSeries) || targetSeries.includes(xNorm))) return true
+      if (xSeries && targetNorm && (targetNorm.includes(xSeries) || xSeries.includes(targetNorm))) return true
+      return false
+    })
+    .sort((a, b) => a.addedAt - b.addedAt)
 }
 
 export interface LocalMangaSession {
@@ -141,9 +180,16 @@ export async function loadLocalMangaIntoSession(
   // Determine active chapter
   let activeChapter: ParsedLocalChapter | undefined
 
-  if (targetChapterIdOrNum !== undefined && targetChapterIdOrNum !== null) {
-    const num = typeof targetChapterIdOrNum === 'number' ? targetChapterIdOrNum : parseFloat(String(targetChapterIdOrNum).replace(/[^0-9.]/g, ''))
-    activeChapter = parsedChapters.find(c => c.id === String(targetChapterIdOrNum) || c.chapterNumber === num)
+  if (targetChapterIdOrNum !== undefined && targetChapterIdOrNum !== null && targetChapterIdOrNum !== '') {
+    const rawTarget = String(targetChapterIdOrNum)
+    const cleanTarget = rawTarget.includes(':') ? rawTarget.split(':')[1] : rawTarget
+    const num = typeof targetChapterIdOrNum === 'number' ? targetChapterIdOrNum : parseFloat(cleanTarget.replace(/[^0-9.]/g, ''))
+    activeChapter = parsedChapters.find(
+      c => c.id === cleanTarget ||
+           c.id === rawTarget ||
+           c.filePath === cleanTarget ||
+           (!isNaN(num) && c.chapterNumber === num)
+    )
   }
 
   if (!activeChapter) {
@@ -154,11 +200,8 @@ export async function loadLocalMangaIntoSession(
   const blobs = await extractChapterPages(zip, activeChapter.imageFileNames)
 
   // Build full list of chapters across all uploaded archives sharing this series title
-  const sTitle = (entry.seriesTitle || entry.title).toLowerCase().trim()
   const allEntries = await getAllLocalManga()
-  const related = allEntries
-    .filter(x => (x.seriesTitle || x.title).toLowerCase().trim() === sTitle)
-    .sort((a, b) => a.addedAt - b.addedAt)
+  const related = getRelatedLocalArchives(entry, allEntries)
 
   const fullChapterList: LocalChapterMeta[] = []
 
@@ -190,13 +233,16 @@ export async function loadLocalMangaIntoSession(
         }
       } else {
         // Fallback for sibling archive without chaptersSummary
-        const chNum = rel.rangeStart || 1
-        if (!fullChapterList.some(existing => existing.number === chNum)) {
-          fullChapterList.push({
-            id: `${rel.id}:ch-${chNum}`,
-            number: chNum,
-            title: rel.title,
-          })
+        const chStart = rel.rangeStart ?? extractChapterNumber(rel.filename || rel.title, 1)
+        const chEnd = rel.rangeEnd && rel.rangeEnd >= chStart ? rel.rangeEnd : chStart
+        for (let n = chStart; n <= chEnd; n++) {
+          if (!fullChapterList.some(existing => existing.number === n)) {
+            fullChapterList.push({
+              id: `${rel.id}:ch-${n}`,
+              number: n,
+              title: chStart === chEnd ? (rel.title || `Chapter ${n}`) : `Chapter ${n}`,
+            })
+          }
         }
       }
     }
@@ -319,11 +365,8 @@ export async function loadLocalNovelChapter(
     }
   }
 
-  const sTitle = (entry.seriesTitle || entry.title).toLowerCase().trim()
   const allEntries = await getAllLocalManga()
-  const related = allEntries
-    .filter(x => (x.seriesTitle || x.title).toLowerCase().trim() === sTitle)
-    .sort((a, b) => a.addedAt - b.addedAt)
+  const related = getRelatedLocalArchives(entry, allEntries)
 
   const chaptersMeta: LocalChapterMeta[] = []
   if (related.length > 0) {
@@ -347,6 +390,18 @@ export async function loadLocalNovelChapter(
               number: ch.number,
               title: ch.title,
               filePath: ch.filePath,
+            })
+          }
+        }
+      } else {
+        const chStart = rel.rangeStart ?? extractChapterNumber(rel.filename || rel.title, 1)
+        const chEnd = rel.rangeEnd && rel.rangeEnd >= chStart ? rel.rangeEnd : chStart
+        for (let n = chStart; n <= chEnd; n++) {
+          if (!chaptersMeta.some(existing => existing.number === n)) {
+            chaptersMeta.push({
+              id: `${rel.id}:ch-${n}`,
+              number: n,
+              title: chStart === chEnd ? (rel.title || `Chapter ${n}`) : `Chapter ${n}`,
             })
           }
         }

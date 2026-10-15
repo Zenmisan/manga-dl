@@ -179,7 +179,11 @@ export default function NovelReader() {
     })
   }, [])
 
-  const currentIndex = chapters.findIndex(ch => ch.id === decodedChapterId || ch.id.endsWith(`:${decodedChapterId}`))
+  const currentIndex = chapters.findIndex(
+    ch => ch.id === decodedChapterId ||
+          ch.id.endsWith(`:${decodedChapterId}`) ||
+          decodedChapterId.endsWith(`:${ch.id}`)
+  )
   const prevChapter = currentIndex > 0 ? chapters[currentIndex - 1] : null
   const nextChapter = currentIndex >= 0 && currentIndex < chapters.length - 1 ? chapters[currentIndex + 1] : null
 

@@ -65,3 +65,47 @@ describe('smartUrl local routing', () => {
     expect(buildSmartMangaUrl('asurascans', '123', 'Solo Leveling')).toBe('/manga/solo-leveling-as')
   })
 })
+
+describe('localLibrary grouping and chapter aggregation', () => {
+  it('normalizes filenames and titles to group sibling uploads', async () => {
+    const { normalizeTitleForGrouping, getRelatedLocalArchives } = await import('./localLibrary')
+
+    expect(normalizeTitleForGrouping('One Piece Chapter 1')).toBe('one piece')
+    expect(normalizeTitleForGrouping('One Piece - Chapter 02.cbz')).toBe('one piece')
+    expect(normalizeTitleForGrouping('Solo_Leveling_01-10.zip')).toBe('solo leveling')
+    expect(normalizeTitleForGrouping('[Group] Tower of God Vol. 01.cbz')).toBe('tower of god')
+
+    const dummyFile = new Blob(['dummy'])
+    const entry1 = {
+      id: 'e1',
+      title: 'Solo Leveling',
+      seriesTitle: 'Solo Leveling',
+      filename: 'Solo_Leveling_01-10.zip',
+      fileSize: 100,
+      addedAt: 1000,
+      file: dummyFile,
+    }
+    const entry2 = {
+      id: 'e2',
+      title: 'Solo Leveling',
+      seriesTitle: 'Solo Leveling',
+      filename: 'Solo_Leveling_11-20.zip',
+      fileSize: 100,
+      addedAt: 2000,
+      file: dummyFile,
+    }
+    const entry3 = {
+      id: 'e3',
+      title: 'Tower of God',
+      seriesTitle: 'Tower of God',
+      filename: 'Tower_of_God_01.cbz',
+      fileSize: 100,
+      addedAt: 3000,
+      file: dummyFile,
+    }
+
+    const related = getRelatedLocalArchives(entry1, [entry1, entry2, entry3])
+    expect(related.map(r => r.id)).toEqual(['e1', 'e2'])
+  })
+})
+
