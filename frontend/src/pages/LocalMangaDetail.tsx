@@ -2,10 +2,11 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, Play, HardDrive, CheckCircle, Circle, CheckCheck } from 'lucide-react'
-import { getLocalManga, getAllLocalManga, loadLocalMangaIntoSession, type LocalMangaEntry, type LocalChapterMeta, type LocalMangaSession } from '../lib/localLibrary'
+import { getLocalManga, getAllLocalManga, findLocalMangaByTitleOrFilename, loadLocalMangaIntoSession, type LocalMangaEntry, type LocalChapterMeta, type LocalMangaSession } from '../lib/localLibrary'
 import { getReadChapters, markRead, markUnread, markAllRead } from '../lib/readTracking'
 import { ThemedLoadingScreen } from '../components/common/ThemedLoader'
 import { usePageTitle } from '../lib/usePageTitle'
+import { buildNovelReadUrl } from '../lib/novelUrl'
 
 interface CtxMenu { x: number; y: number; chapter: LocalChapterMeta }
 
@@ -26,7 +27,10 @@ export default function LocalMangaDetail() {
     if (!id) return
     const load = async () => {
       setLoading(true)
-      const e = await getLocalManga(id)
+      let e = await getLocalManga(id)
+      if (!e) {
+        e = await findLocalMangaByTitleOrFilename(id)
+      }
       if (!e) { setLoading(false); return }
       setEntry(e)
 
@@ -43,15 +47,26 @@ export default function LocalMangaDetail() {
         const merged: LocalChapterMeta[] = []
         for (const rel of related) {
           for (const ch of rel.chaptersSummary!) {
-            if (!merged.some(m => m.number === ch.number)) {
+            if (!merged.some(m => m.id === ch.id || m.number === ch.number)) {
               // Use compound ID for archives other than the current one
-              merged.push({ id: rel.id === id ? ch.id : `${rel.id}:${ch.id}`, number: ch.number, title: ch.title })
+              merged.push({ id: rel.id === id ? ch.id : `${rel.id}:${ch.id}`, number: ch.number, title: ch.title, filePath: ch.filePath })
             }
           }
         }
         setChapters(merged.sort((a, b) => a.number - b.number))
         setLoading(false)
       } else {
+        if (e.type === 'novel' || e.filename.toLowerCase().endsWith('.epub')) {
+          try {
+            const { inspectArchive } = await import('../lib/archiveInspector')
+            const inspection = await inspectArchive(e.file, e.filename)
+            if (inspection.chapters && inspection.chapters.length > 0) {
+              setChapters(inspection.chapters.map(c => ({ id: c.id, number: c.chapterNumber, title: c.title, filePath: c.filePath })))
+              setLoading(false)
+              return
+            }
+          } catch { /* fallback */ }
+        }
         const ok = await loadLocalMangaIntoSession(e.id, undefined)
         if (ok) {
           const session = (window as unknown as Record<string, unknown>).__LOCAL_MANGA_SESSION__ as LocalMangaSession | undefined
@@ -78,15 +93,24 @@ export default function LocalMangaDetail() {
   }, [ctxMenu])
 
   const goRead = useCallback((chapterId: string) => {
+    const targetArchiveId = entry?.id || id
+    if (entry?.type === 'novel' || entry?.filename.toLowerCase().endsWith('.epub')) {
+      const activeCh = chapters.find(c => c.id === chapterId)
+      const chTitle = activeCh?.title || (activeCh?.number ? `Chapter ${activeCh.number}` : 'Chapter 1')
+      const sTitle = entry.seriesTitle || entry.title
+      navigate(buildNovelReadUrl('local', targetArchiveId, chapterId, sTitle, chTitle))
+      return
+    }
     // Compound IDs (archiveId:chapterId) navigate directly to the correct archive
     if (chapterId.includes(':')) {
       navigate(`/read/local/${chapterId}`)
     } else {
-      navigate(`/read/local/${id}:${chapterId}`)
+      navigate(`/read/local/${targetArchiveId}:${chapterId}`)
     }
-  }, [id, navigate])
+  }, [id, entry, chapters, navigate])
 
-  const resumeChapterId = id ? (localStorage.getItem(`manga-dl-last-chapter:local:${id}`) ?? null) : null
+  const effectiveId = entry?.id || id
+  const resumeChapterId = effectiveId ? (localStorage.getItem(`manga-dl-last-chapter:local:${effectiveId}`) ?? null) : null
   const resumeChapter = chapters.find(c => c.id === resumeChapterId)
 
   const handleMarkRead = (chapter: LocalChapterMeta) => {
@@ -134,7 +158,9 @@ export default function LocalMangaDetail() {
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
             <HardDrive style={{ width: 13, height: 13, color: 'var(--accent)', flexShrink: 0 }} />
-            <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--accent)' }}>Local Upload</span>
+            <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--accent)' }}>
+              {entry.type === 'novel' || entry.filename.toLowerCase().endsWith('.epub') ? 'Local Novel' : 'Local Upload'}
+            </span>
           </div>
           <h1 style={{ fontFamily: "var(--font-title, 'PT Serif', Georgia, serif)", fontSize: 18, fontWeight: 700, color: 'var(--fg)', margin: '2px 0 0', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {entry.seriesTitle || entry.title}

@@ -1,28 +1,30 @@
-# Manga OS
+# Manga OS (manga-dl)
 
-A self-hostable, tri-platform manga reader. Web app, native desktop (Windows/macOS/Linux via Tauri), and Android (via Capacitor) — all from one React codebase.
+A modern manga and web novel reading ecosystem spanning Web, native Android, and native Windows.
 
-> Built as a modern, open-source alternative to Tachiyomi with a glassmorphic UI and cloud sync.
+> Built as an open-source alternative to Tachiyomi with a glassmorphic UI, on-device scraping, and cloud synchronization.
 
 ---
 
 ## Features
 
-- **500+ sources** — Tachiyomi-compatible extension engine; install/uninstall/enable/disable/update extensions from Keiyoushi index; built-in MangaDex, MangaKatana, Komga, Suwayomi providers
+- **500+ sources** — Tachiyomi-compatible extension engine; install/uninstall/enable/disable/update extensions from Keiyoushi index; built-in MangaDex, MangaKatana, Asura Scans, Bato.to, NovelBin, and 50+ manga and web novel scrapers
 - **4 reading modes** — LTR pager, RTL pager, webtoon scroll, vertical pager; dual-page spread, tap zones, crop borders, webtoon padding, filters (brightness/contrast/grayscale/invert/sepia)
-- **Download queue** — real-time WebSocket progress, CBZ with ComicInfo.xml, pause/resume/cancel/retry
+- **Download queue** — real-time WebSocket progress, CBZ with ComicInfo.xml and EPUB for novels, pause/resume/cancel/retry
 - **Local library** — CBZ, ZIP, EPUB import; batch select with download/delete/move-to-category; dynamic grid columns; 8 filter modes; categories
 - **Tracking** — AniList, MAL, Kitsu, MangaUpdates, Shikimori, Bangumi; sync status/score/chapters/dates
 - **History** — full reading history with date filters (today/week/month); cloud-synced progress
 - **Stats** — reading time, pace, per-category breakdown, 52-week heatmap, reading goals
 - **Backup** — JSON export/import, Tachiyomi .tachibk + JSON import, cloud backup (Supabase), auto-backup schedule
 - **Source migration** — move a manga from one source to another, preserving library entry
-- **Cloud sync** — optional Supabase backend for reading progress, library, and backup across devices. Write actions, categories, and downloads are gated strictly to `zenmisan@gmail.com` to optimize backend resource load.
-- **Onboarding** — triggers dynamically on first-time reader open, preserving API/backend setup state on the local device across different account logins.
-- **Tri-platform**:
-  - **Web** — PWA (offline-capable), auto-sync subscribed manga every 30 min.
-  - **Desktop (Tauri v2)** — background chapter sync, OS notifications, auto-launch, update checker, drag-drop import, custom download path, Discord Rich Presence. Bypasses marketing page for logged-in sessions or native shells; builds served via Supabase Storage.
-  - **Android (Capacitor)** — hardware volume keys, back button, screen keep-on, haptics, status bar ambilight, save to device, download notifications. Direct APK download from Supabase Storage.
+- **Cloud sync** — Supabase backend for subscriptions, reading progress, and profiles across devices
+- **Onboarding** — triggers dynamically on first-time reader open, preserving API/backend setup state on the local device across different account logins
+- **Platform Ecosystem**:
+  - **Web ([`manga-dl`](https://github.com/zenmisan/manga-dl))** — PWA on Firebase Hosting with FastAPI backend for CORS proxying and novel text delivery.
+  - **Android Native ([`manga-dl-android`](https://github.com/zenmisan/manga-dl-android))** — 100% native Kotlin + Jetpack Compose app with on-device scraping, Room SQLite database, and hardware volume key navigation.
+  - **Windows Native ([`manga-dl-windows`](https://github.com/zenmisan/manga-dl-windows))** — 100% native WinUI 3 / Windows App SDK (.NET 10 / C#) application with C++20 image processing DLL (`MangaDl.Native`).
+  - **Linux Native ([`manga-dl-linux`](https://github.com/zenmisan/manga-dl-linux))** — Native GTK4 + libadwaita Linux desktop app.
+  - **Self-Host ([`manga-dl-selfhost`](https://github.com/zenmisan/manga-dl-selfhost))** — Containerized Docker Compose backend environment.
 - **Glassmorphic UI** — Tailwind + Framer Motion, dynamic ambilight colour theming from cover art
 
 ---
@@ -30,28 +32,30 @@ A self-hostable, tri-platform manga reader. Web app, native desktop (Windows/mac
 ## Architecture
 
 ```
-React 19 + Vite + TypeScript
+manga-dl Ecosystem
         │
-        ├── Web      → Firebase Hosting → FastAPI backend → Supabase
-        ├── Desktop  → Tauri (Rust) shell → local FS + optional Supabase sync
-        └── Android  → Capacitor shell → SQLite + optional Supabase sync
+        ├── Web App (manga-dl)           → Firebase Hosting → FastAPI backend → Supabase
+        ├── Android App (manga-dl-android) → Native Kotlin + Compose → Local Room DB + On-Device Scraper
+        ├── Windows App (manga-dl-windows) → Native WinUI 3 + C# / C++ → Local SQLite + On-Device Scraper
+        └── Linux App (manga-dl-linux)   → Native GTK4 + libadwaita  → Local SQLite + On-Device Scraper
 ```
 
 **Web users** rely on the FastAPI backend for scraping (browser CORS limits).  
-**Native users** can scrape directly on-device; backend used only for sync.
+**Native users** scrape directly on-device with native HTTP clients (OkHttp / HttpClient / libsoup); the backend is used solely for optional cross-device synchronization.
 
 ---
 
 ## Stack
 
-| Layer    | Tech                                                  |
-|----------|-------------------------------------------------------|
-| Frontend | React 19, Vite, TypeScript, Tailwind v4, Framer Motion, Zustand |
-| Backend  | FastAPI, SQLAlchemy 2, aiosqlite, curl_cffi, Pillow   |
-| Desktop  | Tauri v2 (Rust)                                       |
-| Mobile   | Capacitor v8, Android                                 |
-| Database | SQLite (local) or PostgreSQL via Supabase             |
-| Storage  | Local filesystem or Supabase Storage                  |
+| Platform / Layer | Technology | Repository |
+|------------------|------------|------------|
+| Web Frontend     | React 19, Vite, TypeScript, Tailwind v4, Framer Motion, Zustand | `manga-dl/frontend` |
+| Backend & Scrapers | FastAPI, Python 3.14, SQLAlchemy 2, curl_cffi, Pillow, JS Extensions | `manga-dl/backend` |
+| Android Native   | Kotlin, Jetpack Compose, Room SQLite, OkHttp | `manga-dl-android` |
+| Windows Native   | WinUI 3, Windows App SDK, .NET 10, C#, C++20 DLL | `manga-dl-windows` |
+| Linux Native     | GTK4, libadwaita, Vala / C, SQLite3 | `manga-dl-linux` |
+| Database & Sync  | Supabase PostgreSQL, Local SQLite | Multi-platform |
+| Storage & Cloud  | Firebase Hosting (Web), Render / Docker (Backend) | `manga-dl-selfhost` |
 
 ---
 
@@ -101,34 +105,27 @@ bun install
 bun run dev   # http://localhost:5173
 ```
 
-### Desktop (Tauri)
+### Native Platforms
 
+The native mobile and desktop applications live in their own dedicated repositories:
+
+#### Android Native ([`manga-dl-android`](https://github.com/zenmisan/manga-dl-android))
+Built with Kotlin and Jetpack Compose.
 ```bash
-# Install Rust: https://rustup.rs
-
-# Linux additional deps (Arch):
-sudo pacman -S webkit2gtk-4.1 base-devel curl wget file xdotool openssl libappindicator-gtk3 librsvg
-
-# Linux additional deps (Ubuntu/Debian):
-sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
-
-cd frontend
-bun run tauri dev          # dev mode with hot-reload
-bun run tauri build        # release binary → src-tauri/target/release/bundle/
+git clone https://github.com/zenmisan/manga-dl-android.git
+cd manga-dl-android
+./gradlew assembleDebug
 ```
+Open in Android Studio to deploy to an emulator or physical device.
 
-### Android (Capacitor)
+#### Windows Native ([`manga-dl-windows`](https://github.com/zenmisan/manga-dl-windows))
+Built with WinUI 3, Windows App SDK, and .NET 10.
+1. Clone `https://github.com/zenmisan/manga-dl-windows.git` and open `MangaDl.sln` in Visual Studio 2022 (17.12+) or VS 2026.
+2. Select target architecture (`x64` or `ARM64`).
+3. Set **MangaDl.App** as the startup project and press F5.
 
-Requires JDK 17 (not 17+) and Android Studio.
-
-```bash
-cd frontend
-bun run build          # build React assets first
-bun run android:sync   # sync assets into android/
-bun run android:open   # open in Android Studio
-```
-
-Then use Android Studio to run on emulator/device or build APK via **Build > Build APK(s)**.
+#### Linux Native ([`manga-dl-linux`](https://github.com/zenmisan/manga-dl-linux))
+Built with GTK4 and libadwaita. See [`DESKTOP-LINUX.md`](https://github.com/zenmisan/manga-dl-linux/blob/main/DESKTOP-LINUX.md) for build instructions.
 
 ---
 
@@ -197,24 +194,14 @@ manga-dl/
 │   ├── Dockerfile
 │   └── requirements.txt
 ├── frontend/
-│   ├── src/              # React app
-│   ├── src-tauri/        # Tauri Rust shell
-│   ├── android/          # Capacitor Android project
+│   ├── src/              # React 19 web app (Firebase Hosting)
 │   └── package.json
-└── docs/                 # All project documentation and research reports
-    ├── API_SPEC.md
-    ├── ARCHITECTURE.md
-    ├── CONTRIBUTING.md
-    ├── DEPLOYMENT.md
-    ├── FEATURES.md
-    ├── KNOWN_ISSUES.md
-    ├── MASTER_PLAN.md
-    ├── PLATFORM_MATRIX.md
-    ├── PROJECT_CONTEXT.md
-    ├── PROJECT_STATUS.md
-    ├── implementation_plan.md
-    ├── keiyoushi_source_analysis.md
-    └── manga_dl_comprehensive_analysis.md
+├── docs/                 # All project documentation and research reports
+└── Sibling Native Repositories:
+    ├── manga-dl-android/ # Pure native Kotlin + Jetpack Compose Android app
+    ├── manga-dl-windows/ # Pure native WinUI 3 + .NET 10 C# app + C++ DLL
+    ├── manga-dl-linux/   # Pure native GTK4 + libadwaita Linux desktop app
+    └── manga-dl-selfhost/# Docker Compose self-host container configuration
 ```
 
 ---

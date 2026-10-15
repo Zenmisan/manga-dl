@@ -32,22 +32,50 @@ const STALE = {
 
 // ── Hooks ─────────────────────────────────────────────────────────────────────
 
-export function useLibrary() {
+export function useLibrary(enabled = true) {
+  const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true
   return useQuery<unknown>({
     queryKey: QK.library,
     queryFn: async () => {
+      // If device is offline, immediately return cached library without network stall
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        try {
+          const raw = localStorage.getItem('cache:library')
+          if (raw) return JSON.parse(raw)
+        } catch {}
+        return []
+      }
       try {
         const res = await api.get('/library')
+        try {
+          localStorage.setItem('cache:library', JSON.stringify(res.data))
+        } catch {}
         return res.data
       } catch (err: unknown) {
         if ((err as { response?: { status?: number } })?.response?.status === 401) {
           return []
         }
+        // Fallback to cache on network failure
+        try {
+          const raw = localStorage.getItem('cache:library')
+          if (raw) return JSON.parse(raw)
+        } catch {}
         throw err
       }
     },
+    initialData: () => {
+      try {
+        const raw = localStorage.getItem('cache:library')
+        if (raw) return JSON.parse(raw)
+      } catch {}
+      return undefined
+    },
     staleTime: STALE.library,
+    enabled: enabled && isOnline,
     retry: (failureCount, error: unknown) => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        return false
+      }
       if ((error as { response?: { status?: number } })?.response?.status === 401) {
         return false
       }
@@ -56,30 +84,33 @@ export function useLibrary() {
   })
 }
 
-export function useLibraryStats() {
+export function useLibraryStats(enabled = true) {
+  const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true
   return useQuery<unknown>({
     queryKey: QK.libraryStats,
     queryFn: async () => {
-      // 1. Try fetching authenticated user's reading stats first
-      try {
-        const userRes = await api.get('/users/me/stats')
-        if (userRes.data && typeof userRes.data === 'object') {
-          const d = userRes.data
-          return {
-            ...d,
-            daily_downloads: d.daily_downloads || d.daily_reads || [],
-            yearly_downloads: d.yearly_downloads || d.yearly_reads || [],
+      // 1. If online, try fetching authenticated user's reading stats first
+      if (isOnline) {
+        try {
+          const userRes = await api.get('/users/me/stats')
+          if (userRes.data && typeof userRes.data === 'object') {
+            const d = userRes.data
+            return {
+              ...d,
+              daily_downloads: d.daily_downloads || d.daily_reads || [],
+              yearly_downloads: d.yearly_downloads || d.yearly_reads || [],
+            }
           }
+        } catch {
+          // User not logged in or backend endpoint unauthenticated
         }
-      } catch {
-        // User not logged in or backend endpoint unauthenticated
       }
 
       // 2. Compute local reading stats for guest / offline users
       try {
         const localReadMap: Record<string, string[]> = JSON.parse(localStorage.getItem('manga-dl-read') || '{}')
         const entries = Object.entries(localReadMap)
-        if (entries.length > 0) {
+        if (entries.length > 0 || !isOnline) {
           let totalChapters = 0
           const mangaSet = new Set<string>()
           const providerCount: Record<string, number> = {}
@@ -110,16 +141,32 @@ export function useLibraryStats() {
         /* non-fatal */
       }
 
-      // 3. Fallback to server library stats
-      const libRes = await api.get('/library/stats')
-      const d = libRes.data
+      // 3. Fallback to server library stats if online
+      if (isOnline) {
+        try {
+          const libRes = await api.get('/library/stats')
+          const d = libRes.data
+          return {
+            ...d,
+            daily_downloads: d.daily_downloads || d.daily_reads || [],
+            yearly_downloads: d.yearly_downloads || d.yearly_reads || [],
+          }
+        } catch {}
+      }
+
       return {
-        ...d,
-        daily_downloads: d.daily_downloads || d.daily_reads || [],
-        yearly_downloads: d.yearly_downloads || d.yearly_reads || [],
+        total_chapters: 0,
+        total_manga: 0,
+        total_pages: 0,
+        storage_bytes: 0,
+        daily_downloads: [],
+        yearly_downloads: [],
+        provider_breakdown: [],
+        streak_days: 0,
       }
     },
     staleTime: STALE.libraryStats,
+    enabled,
   })
 }
 
@@ -188,11 +235,39 @@ export function useMangaSubscription(provider: string, mangaId: string, enabled 
 }
 
 export function useHistory(enabled = true) {
+  const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true
   return useQuery<unknown>({
     queryKey: QK.history,
-    queryFn: () => api.get('/users/history').then(r => r.data),
+    queryFn: async () => {
+      if (!isOnline) {
+        try {
+          const raw = localStorage.getItem('cache:history')
+          if (raw) return JSON.parse(raw)
+        } catch {}
+        return []
+      }
+      try {
+        const res = await api.get('/users/history')
+        try { localStorage.setItem('cache:history', JSON.stringify(res.data)) } catch {}
+        return res.data
+      } catch {
+        try {
+          const raw = localStorage.getItem('cache:history')
+          if (raw) return JSON.parse(raw)
+        } catch {}
+        return []
+      }
+    },
+    initialData: () => {
+      try {
+        const raw = localStorage.getItem('cache:history')
+        if (raw) return JSON.parse(raw)
+      } catch {}
+      return undefined
+    },
     staleTime: STALE.history,
     enabled,
+    retry: false,
   })
 }
 

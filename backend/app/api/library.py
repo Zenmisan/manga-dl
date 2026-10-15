@@ -211,7 +211,7 @@ async def upload_manga(
     if file.size and file.size > MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="File exceeds 300 MB upload limit.")
     ext = Path(file.filename).suffix.lower()
-    if ext not in ('.zip', '.cbz'):
+    if ext not in ('.zip', '.cbz', '.epub'):
         raise HTTPException(status_code=400, detail=f"Invalid format: {ext}")
 
     temp_id = str(uuid.uuid4())
@@ -223,7 +223,7 @@ async def upload_manga(
             shutil.copyfileobj(file.file, buffer)
 
         file_size = temp_path.stat().st_size
-        manga_title = file.filename.replace('.cbz', '').replace('.zip', '')
+        manga_title = file.filename.replace('.cbz', '').replace('.zip', '').replace('.epub', '')
         if " Ch." in manga_title:
             manga_title = manga_title.split(" Ch.")[0].strip()
 
@@ -245,7 +245,7 @@ async def upload_manga(
             chapter_id=temp_id,
             provider="upload",
             manga_title=manga_title,
-            chapter_title=file.filename.replace('.cbz', '').replace('.zip', ''),
+            chapter_title=file.filename.replace('.cbz', '').replace('.zip', '').replace('.epub', ''),
             chapter_number=0.0,
             status="done",
             progress=100,

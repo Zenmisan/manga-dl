@@ -1,4 +1,7 @@
-# Tauri Update Signing
+# Tauri Update Signing (Archived / Legacy Prototype)
+
+> Note: This document describes the historical Tauri v2 hybrid desktop prototype.
+> Desktop applications are now developed natively in [manga-dl-windows](https://github.com/zenmisan/manga-dl-windows) (WinUI 3 / .NET 10 / C++) and [manga-dl-linux](https://github.com/zenmisan/manga-dl-linux) (GTK4 / libadwaita / Vala).
 
 ## Why Signing Is Required
 
@@ -15,7 +18,7 @@ bunx tauri signer generate -w ~/.tauri/manga-dl.key
 
 Output:
 ```
-✔ Generating keypair
+Generating keypair
 Your keypair was generated successfully
 Private: ~/.tauri/manga-dl.key (keep this secret)
 Public key: dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXkgQ...

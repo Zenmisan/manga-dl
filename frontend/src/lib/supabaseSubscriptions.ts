@@ -16,16 +16,39 @@ async function getUserId(): Promise<string | null> {
   return session?.user?.id ?? null
 }
 
+export function getCachedSubscriptions(): SupabaseSubscription[] {
+  try {
+    const raw = localStorage.getItem('cache:supabase_subscriptions')
+    if (raw) return JSON.parse(raw)
+  } catch {}
+  return []
+}
+
 export async function getSubscriptions(): Promise<SupabaseSubscription[]> {
-  const userId = await getUserId()
-  if (!userId) return []
-  const { data, error } = await supabase
-    .from('subscriptions')
-    .select('*')
-    .eq('user_id', userId)
-    .order('added_at', { ascending: false })
-  if (error) throw error
-  return data ?? []
+  // If device is offline, immediately return cached subscriptions without network stall
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    return getCachedSubscriptions()
+  }
+
+  try {
+    const userId = await getUserId()
+    if (!userId) return getCachedSubscriptions()
+    const { data, error } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('added_at', { ascending: false })
+    if (error) throw error
+    const subs = data ?? []
+    try {
+      localStorage.setItem('cache:supabase_subscriptions', JSON.stringify(subs))
+    } catch {}
+    return subs
+  } catch (err) {
+    const cached = getCachedSubscriptions()
+    if (cached.length > 0) return cached
+    throw err
+  }
 }
 
 export async function addSubscription(params: {
@@ -38,6 +61,26 @@ export async function addSubscription(params: {
   const userId = await getUserId()
   if (!userId) return
   const id = `${params.provider}/${params.mangaId}`
+
+  // Optimistically update cached subscriptions
+  try {
+    const current = getCachedSubscriptions()
+    const updated = [
+      {
+        id,
+        user_id: userId,
+        provider: params.provider,
+        manga_id: params.mangaId,
+        title: params.title,
+        cover_url: params.coverUrl ?? null,
+        type: params.type ?? 'manga',
+        added_at: new Date().toISOString(),
+      },
+      ...current.filter(s => s.id !== id),
+    ]
+    localStorage.setItem('cache:supabase_subscriptions', JSON.stringify(updated))
+  } catch {}
+
   const { error } = await supabase.from('subscriptions').upsert({
     id,
     user_id: userId,
@@ -54,6 +97,14 @@ export async function removeSubscription(provider: string, mangaId: string): Pro
   const userId = await getUserId()
   if (!userId) return
   const id = `${provider}/${mangaId}`
+
+  // Optimistically update cached subscriptions
+  try {
+    const current = getCachedSubscriptions()
+    const updated = current.filter(s => s.id !== id && !(s.provider === provider && s.manga_id === mangaId))
+    localStorage.setItem('cache:supabase_subscriptions', JSON.stringify(updated))
+  } catch {}
+
   const { error } = await supabase
     .from('subscriptions')
     .delete()

@@ -11,6 +11,9 @@ import type { NovelSettings } from '../components/reader/NovelViewport'
 import { buildNovelReadUrl } from '../lib/novelUrl'
 import { usePageTitle } from '../lib/usePageTitle'
 import CommentSheet from '../components/comments/CommentSheet'
+import { loadLocalNovelChapter } from '../lib/localLibrary'
+import { saveLocalHistoryEntry } from '../lib/historyTracking'
+import { markRead } from '../lib/readTracking'
 import { cn } from '../lib/utils'
 
 const SETTINGS_KEY = 'manga-novel-settings'
@@ -92,6 +95,40 @@ export default function NovelReader() {
     setContent(null)
 
     async function load() {
+      if (provider === 'local') {
+        try {
+          const res = await loadLocalNovelChapter(decodedNovelId, decodedChapterId)
+          if (!cancelled) {
+            setContent(res.content)
+            if (res.chapters && res.chapters.length > 0) {
+              setChapters(res.chapters.map(c => ({ id: c.id, title: c.title, number: c.number })))
+            }
+          }
+
+          const posKey = POS_KEY(provider, decodedNovelId, decodedChapterId)
+          const savedPos = localStorage.getItem(posKey)
+          if (savedPos) {
+            requestAnimationFrame(() => window.scrollTo(0, parseInt(savedPos, 10)))
+          }
+
+          saveLocalHistoryEntry({
+            provider: 'local',
+            manga_id: decodedNovelId,
+            chapter_id: decodedChapterId,
+            manga_title: res.title,
+            chapter_title: res.chapterTitle,
+            last_page: 1,
+            updated_at: new Date().toISOString(),
+          })
+          markRead('local', decodedNovelId, decodedChapterId)
+        } catch (e) {
+          if (!cancelled) setError(String(e))
+        } finally {
+          if (!cancelled) setLoading(false)
+        }
+        return
+      }
+
       const mgr = ExtensionManager.getInstance()
       await mgr.init()
       const ext = mgr.extensions.get(provider)
@@ -142,13 +179,17 @@ export default function NovelReader() {
     })
   }, [])
 
-  const currentIndex = chapters.findIndex(ch => ch.id === decodedChapterId)
+  const currentIndex = chapters.findIndex(ch => ch.id === decodedChapterId || ch.id.endsWith(`:${decodedChapterId}`))
   const prevChapter = currentIndex > 0 ? chapters[currentIndex - 1] : null
   const nextChapter = currentIndex >= 0 && currentIndex < chapters.length - 1 ? chapters[currentIndex + 1] : null
 
   const { show: toast } = useToast()
 
   const handleDownloadEpub = useCallback(() => {
+    if (provider === 'local') {
+      toast('Already reading an offline EPUB archive', 'info')
+      return
+    }
     clientDownloader.enqueue({
       provider,
       mangaId: decodedNovelId,
@@ -162,7 +203,14 @@ export default function NovelReader() {
 
   const goChapter = useCallback((ch: ChapterStub) => {
     window.scrollTo(0, 0)
-    navigate(buildNovelReadUrl(provider, decodedNovelId, ch.id, novelTitle, ch.title))
+    let targetNovelId = decodedNovelId
+    let targetChId = ch.id
+    if (provider === 'local' && ch.id.includes(':')) {
+      const parts = ch.id.split(':')
+      targetNovelId = parts[0]
+      targetChId = parts[1]
+    }
+    navigate(buildNovelReadUrl(provider, targetNovelId, targetChId, novelTitle, ch.title))
   }, [provider, decodedNovelId, novelTitle, navigate])
 
   // Native Volume keys (Android)
@@ -198,7 +246,7 @@ export default function NovelReader() {
         else if (showSettings) setShowSettings(false)
         else if (showChapters) setShowChapters(false)
         else if (showComments) setShowComments(false)
-        else navigate(`/manga/${provider}/${decodedNovelId}`)
+        else navigate(provider === 'local' ? `/local/${encodeURIComponent(decodedNovelId)}` : `/manga/${provider}/${decodedNovelId}`)
         return
       }
 
@@ -351,22 +399,30 @@ export default function NovelReader() {
 
       {/* Header */}
       <header className="fixed top-0.5 left-0 right-0 z-40 flex items-center gap-2 px-3 py-2 bg-black/60 backdrop-blur-sm border-b border-white/5">
-        <button onClick={() => navigate(`/manga/${provider}/${decodedNovelId}`)} className="p-1.5 rounded hover:bg-white/10 text-white/70 hover:text-white" title="Go Back (Esc)">
+        <button
+          onClick={() => navigate(provider === 'local' ? `/local/${encodeURIComponent(decodedNovelId)}` : `/manga/${provider}/${decodedNovelId}`)}
+          className="p-1.5 rounded hover:bg-white/10 text-white/70 hover:text-white"
+          title="Go Back (Esc)"
+        >
           <ArrowLeft size={18} />
         </button>
         <div className="flex-1 min-w-0">
           <p className="text-xs text-white/50 truncate">{novelTitle}</p>
           <p className="text-sm text-white/80 font-medium truncate">{chapterTitle || decodedChapterId}</p>
         </div>
-        <button onClick={handleDownloadEpub} className="p-1.5 rounded hover:bg-white/10 text-white/70 hover:text-white" title="Download Chapter as EPUB (D)">
-          <DownloadIcon size={18} />
-        </button>
+        {provider !== 'local' && (
+          <button onClick={handleDownloadEpub} className="p-1.5 rounded hover:bg-white/10 text-white/70 hover:text-white" title="Download Chapter as EPUB (D)">
+            <DownloadIcon size={18} />
+          </button>
+        )}
         <button onClick={() => setShowChapters(true)} className="p-1.5 rounded hover:bg-white/10 text-white/70 hover:text-white" title="Chapters (C)">
           <List size={18} />
         </button>
-        <button onClick={() => setShowComments(true)} className="p-1.5 rounded hover:bg-white/10 text-white/70 hover:text-white" title="Comments (M)">
-          <MessageCircle size={18} />
-        </button>
+        {provider !== 'local' && (
+          <button onClick={() => setShowComments(true)} className="p-1.5 rounded hover:bg-white/10 text-white/70 hover:text-white" title="Comments (M)">
+            <MessageCircle size={18} />
+          </button>
+        )}
         <button onClick={() => setShowSettings(true)} className="p-1.5 rounded hover:bg-white/10 text-white/70 hover:text-white" title="Reading Settings (S)">
           <Settings2 size={18} />
         </button>

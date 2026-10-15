@@ -5,11 +5,12 @@ import { useLibrary, useHistory, QK } from '../lib/queries'
 import api from '../lib/api'
 import { useAppStore } from '../lib/store'
 import { saveLocalManga, getAllLocalManga, deleteLocalManga, type LocalMangaEntry } from '../lib/localLibrary'
-import { getSubscriptions, removeSubscription, type SupabaseSubscription } from '../lib/supabaseSubscriptions'
+import { getSubscriptions, getCachedSubscriptions, removeSubscription, type SupabaseSubscription } from '../lib/supabaseSubscriptions'
 import { inspectArchive } from '../lib/archiveInspector'
 import { getReadCount } from '../lib/readTracking'
 import { getMangaCategoryList, getCategories } from '../lib/categories'
 import { supabase } from '../lib/supabase'
+import { useOnlineStatus } from './useOnlineStatus'
 
 export interface LibraryItem {
   title: string
@@ -41,7 +42,8 @@ async function buildLocalMangaEntry(file: File): Promise<LocalMangaEntry> {
       chaptersCount: inspection.chapters.length,
       rangeStart: inspection.rangeStart,
       rangeEnd: inspection.rangeEnd,
-      chaptersSummary: inspection.chapters.map(c => ({ id: c.id, number: c.chapterNumber, title: c.title })),
+      chaptersSummary: inspection.chapters.map(c => ({ id: c.id, number: c.chapterNumber, title: c.title, filePath: c.filePath })),
+      type: inspection.type || (file.name.toLowerCase().endsWith('.epub') ? 'novel' : 'manga'),
     }
   } catch {
     const title = file.name.replace(/\.(cbz|zip|epub)$/i, '')
@@ -52,6 +54,7 @@ async function buildLocalMangaEntry(file: File): Promise<LocalMangaEntry> {
       fileSize: file.size,
       addedAt: Date.now(),
       file,
+      type: file.name.toLowerCase().endsWith('.epub') ? 'novel' : 'manga',
     }
   }
 }
@@ -61,8 +64,10 @@ export type LastReadEntry = { provider: string; mangaId: string; chapterId: stri
 export function useDashboardData() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const { data: libraryRaw, isLoading: loading, isFetching: refreshing, isError: backendDown, refetch: refetchLibrary } = useLibrary()
-  const { data: historyRaw } = useHistory()
+  const isOnline = useOnlineStatus()
+  const { data: libraryRaw, isLoading: libraryLoading, isFetching: refreshing, isError: backendDown, refetch: refetchLibrary } = useLibrary(isOnline)
+  const { data: historyRaw } = useHistory(isOnline)
+  const loading = isOnline ? libraryLoading : false
   const backendDownRef = useRef(false)
   const [view, setView] = useState<'grid' | 'list'>('grid')
   const [selectedManga, setSelectedManga] = useState<LibraryItem | null>(null)
@@ -103,7 +108,21 @@ export function useDashboardData() {
   }, [])
   const [categories] = useState(() => getCategories())
   const [localItems, setLocalItems] = useState<LibraryItem[]>([])
-  const [supabaseSubItems, setSupabaseSubItems] = useState<LibraryItem[]>([])
+  const [supabaseSubItems, setSupabaseSubItems] = useState<LibraryItem[]>(() => {
+    const cached = getCachedSubscriptions()
+    return cached.map((s: SupabaseSubscription) => ({
+      title: s.title,
+      files: [],
+      chapters_downloading: 0,
+      chapters_failed: 0,
+      cover_url: s.cover_url,
+      subscribed: true,
+      total_chapters: 0,
+      provider: s.provider,
+      provider_manga_id: s.manga_id,
+      type: s.type,
+    }))
+  })
   const [bannerDismissed, setBannerDismissed] = useState(false)
   const [isDragOver, setIsDragOver] = useState(false)
   const [userEmail, setUserEmail] = useState<string | null>(null)
@@ -189,14 +208,15 @@ export function useDashboardData() {
           isLocal: true,
           localId: entry.id,
           total_chapters: entry.chaptersCount || 1,
+          type: entry.type || (entry.filename.toLowerCase().endsWith('.epub') ? 'novel' : 'manga'),
         }
         setLocalItems(prev => [newItem, ...prev.filter(x => x.localId !== entry.id)])
       } catch (err) {
         console.warn(`Local save note for ${file.name}:`, err)
       }
 
-      // 2. If backend is online, also sync to backend library
-      if (!backendDownRef.current) {
+      // 2. If backend is online and network is reachable, also sync to backend library
+      if (!backendDownRef.current && isOnline) {
         const formData = new FormData()
         formData.append('file', file)
 
@@ -212,7 +232,7 @@ export function useDashboardData() {
     }
 
     setUploading(false)
-    if (!backendDownRef.current) {
+    if (!backendDownRef.current && isOnline) {
       refetchLibrary()
     }
   }
@@ -265,17 +285,20 @@ export function useDashboardData() {
             isLocal: true,
             localId: e.id,
             total_chapters: e.chaptersCount || 1,
+            type: e.type || (e.filename.toLowerCase().endsWith('.epub') ? 'novel' : 'manga'),
           })
         } else {
           const item = seriesMap.get(sTitle)!
           if (!item.files.includes(e.filename)) item.files.push(e.filename)
           item.total_chapters = (item.total_chapters || 0) + (e.chaptersCount || 1)
+          if (!item.type && e.type) item.type = e.type
         }
       }
       setLocalItems(Array.from(seriesMap.values()))
     }).catch(() => {})
 
     const loadSupabaseSubs = async () => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return
       try {
         const subs = await getSubscriptions()
         setSupabaseSubItems(subs.map((s: SupabaseSubscription) => ({
@@ -318,6 +341,27 @@ export function useDashboardData() {
     }
   }, [queryClient])
 
+  // Automatically refresh library and subscriptions when network reconnects
+  useEffect(() => {
+    if (isOnline) {
+      refetchLibrary()
+      getSubscriptions().then(subs => {
+        setSupabaseSubItems(subs.map((s: SupabaseSubscription) => ({
+          title: s.title,
+          files: [],
+          chapters_downloading: 0,
+          chapters_failed: 0,
+          cover_url: s.cover_url,
+          subscribed: true,
+          total_chapters: 0,
+          provider: s.provider,
+          provider_manga_id: s.manga_id,
+          type: s.type,
+        })))
+      }).catch(() => {})
+    }
+  }, [isOnline, refetchLibrary])
+
   const handleScanFolder = async () => {
     try {
       const { open } = await import('@tauri-apps/plugin-dialog')
@@ -333,7 +377,7 @@ export function useDashboardData() {
 
       setUploading(true)
       const entries = await readDir(selected)
-      const validArchives = entries.filter(e => e.isFile && (e.name.endsWith('.cbz') || e.name.endsWith('.zip')))
+      const validArchives = entries.filter(e => e.isFile && (e.name.endsWith('.cbz') || e.name.endsWith('.zip') || e.name.endsWith('.epub')))
       
       let importedCount = 0
       for (const entry of validArchives) {
@@ -352,6 +396,7 @@ export function useDashboardData() {
             isLocal: true,
             localId: localEntry.id,
             total_chapters: localEntry.chaptersCount || 1,
+            type: localEntry.type || (localEntry.filename.toLowerCase().endsWith('.epub') ? 'novel' : 'manga'),
           }, ...prev])
           importedCount++
         } catch (e) {

@@ -212,6 +212,9 @@ export function buildSmartReadUrl(
   mangaTitle: string = 'manga',
   chapterTitle?: string
 ): string {
+  if (provider === 'local') {
+    return `/read/local/${encodeURIComponent(mangaId)}:${encodeURIComponent(chapterId)}`
+  }
   const smartSlug = createSmartSlug(mangaTitle, provider)
   const chSlug = toChapterSlug(chapterId, chapterTitle)
   const legacyParam = encodeOnlineParam(provider, mangaId, chapterId, mangaTitle, chapterTitle)
@@ -236,6 +239,9 @@ export function buildSmartMangaUrl(
   mangaId: string = '',
   mangaTitle: string = 'manga'
 ): string {
+  if (provider === 'local') {
+    return `/local/${encodeURIComponent(mangaId || mangaTitle)}`
+  }
   let cleanTitle = (mangaTitle || '').trim()
   if (!cleanTitle || cleanTitle === 'manga' || /^[\d.]+$/.test(cleanTitle)) {
     if (mangaId && !/^[\d.]+$/.test(mangaId)) {

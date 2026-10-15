@@ -6,7 +6,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useToast } from '../components/common/Toast'
 import api from '../lib/api'
 import { ExtensionManager } from '../lib/extensions'
-import { Search as SearchIcon, Globe, BookOpen, BookMarked, Check, SlidersHorizontal, X, LayoutGrid, LayoutList, Layers, Users, Flame, Trophy, Crown, Medal, Award, Zap, Shield, ChevronRight } from 'lucide-react'
+import { Search as SearchIcon, Globe, BookOpen, BookMarked, Check, SlidersHorizontal, X, LayoutGrid, LayoutList, Layers, Users, Flame, Trophy, Crown, Medal, Award, Zap, Shield, ChevronRight, HardDrive } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MILESTONES } from '../lib/milestones'
 import { cn, buildImageProxyUrl } from '../lib/utils'
@@ -19,6 +19,7 @@ import { SourceToggleModal } from '../components/search/SourceToggleModal'
 import { getEnabledSources } from '../lib/sourceManager'
 import { sortResultsByRelevance, filterByRelevance } from '../lib/relevanceScorer'
 import { usePageTitle } from '../lib/usePageTitle'
+import { getAllLocalManga } from '../lib/localLibrary'
 
 // Module-level discovery cache — survives navigation, cleared only on page refresh
 const _discoveryBySource: Record<string, { popular: MangaResult[]; latest: MangaResult[] }> = {}
@@ -156,7 +157,10 @@ function MangaCard({ r, idx, onSubscribe, subscribed, subscribing, navigate }: {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.4, delay: Math.min(idx * 0.03, 0.3) }}
-      onClick={() => navigate(buildSmartMangaUrl(r.provider, r.id, r.title))}
+      onClick={() => {
+        if (r.provider === 'local') navigate(`/local/${encodeURIComponent(r.id)}`)
+        else navigate(buildSmartMangaUrl(r.provider, r.id, r.title))
+      }}
       className="group cursor-pointer"
     >
       <div className="manga-cover" style={{ position: 'relative' }}>
@@ -180,8 +184,15 @@ function MangaCard({ r, idx, onSubscribe, subscribed, subscribing, navigate }: {
             Novel
           </div>
         )}
-        <div style={{ position: 'absolute', bottom: 6, left: 6, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)', padding: '2px 6px', borderRadius: 6, fontSize: 9, fontWeight: 800, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-          {r.provider}
+        <div style={{
+          position: 'absolute', bottom: 6, left: 6,
+          background: r.provider === 'local' ? 'rgba(245, 158, 11, 0.95)' : 'rgba(0,0,0,0.75)',
+          backdropFilter: 'blur(8px)', padding: '2px 6px', borderRadius: 6,
+          fontSize: 9, fontWeight: 800,
+          color: r.provider === 'local' ? '#000' : '#fff',
+          textTransform: 'uppercase', letterSpacing: '0.08em'
+        }}>
+          {r.provider === 'local' ? 'LOCAL' : r.provider}
         </div>
       </div>
 
@@ -189,25 +200,36 @@ function MangaCard({ r, idx, onSubscribe, subscribed, subscribing, navigate }: {
         <div className="manga-card-title" style={{ fontSize: 13.5 }}>{r.title}</div>
         <div style={{ fontSize: 11, color: 'var(--muted3)', marginTop: 2, fontWeight: 500 }}>{r.status || 'unknown'}</div>
 
-        <button
-          onClick={(e) => onSubscribe(e, r)}
-          disabled={isSubscribing}
-          className={cn(
-            "w-full mt-2 py-1.5 px-3 rounded-xl font-extrabold text-[11px] flex items-center justify-center gap-1.5 transition-all cursor-pointer border shadow-sm",
-            isSubscribed
-              ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-400 hover:bg-red-500/20 hover:border-red-500/30 hover:text-red-400"
-              : "bg-white/10 border-white/15 hover:bg-white/20 text-white"
-          )}
-          aria-label={isSubscribed ? `Remove ${r.title} from library` : `Add ${r.title} to library`}
-        >
-          {isSubscribing ? (
-            <ThemedSpinner size="xs" />
-          ) : isSubscribed ? (
-            <><Check className="w-3.5 h-3.5 text-emerald-400" /><span>In Library</span></>
-          ) : (
-            <><BookMarked className="w-3.5 h-3.5 text-white" /><span>Add to Library</span></>
-          )}
-        </button>
+        {r.provider === 'local' ? (
+          <button
+            onClick={(e) => { e.stopPropagation(); navigate(`/local/${encodeURIComponent(r.id)}`) }}
+            className="w-full mt-2 py-1.5 px-3 rounded-xl font-extrabold text-[11px] flex items-center justify-center gap-1.5 transition-all cursor-pointer border shadow-sm bg-amber-500/20 border-amber-500/40 text-amber-300 hover:bg-amber-500/30"
+            aria-label={`Open ${r.title}`}
+          >
+            <HardDrive className="w-3.5 h-3.5 text-amber-400" />
+            <span>Open Archive</span>
+          </button>
+        ) : (
+          <button
+            onClick={(e) => onSubscribe(e, r)}
+            disabled={isSubscribing}
+            className={cn(
+              "w-full mt-2 py-1.5 px-3 rounded-xl font-extrabold text-[11px] flex items-center justify-center gap-1.5 transition-all cursor-pointer border shadow-sm",
+              isSubscribed
+                ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-400 hover:bg-red-500/20 hover:border-red-500/30 hover:text-red-400"
+                : "bg-white/10 border-white/15 hover:bg-white/20 text-white"
+            )}
+            aria-label={isSubscribed ? `Remove ${r.title} from library` : `Add ${r.title} to library`}
+          >
+            {isSubscribing ? (
+              <ThemedSpinner size="xs" />
+            ) : isSubscribed ? (
+              <><Check className="w-3.5 h-3.5 text-emerald-400" /><span>In Library</span></>
+            ) : (
+              <><BookMarked className="w-3.5 h-3.5 text-white" /><span>Add to Library</span></>
+            )}
+          </button>
+        )}
       </div>
     </motion.div>
   )
@@ -385,9 +407,10 @@ export default function SearchPage() {
   }, [])
 
   const activeProviders = useMemo(() => {
+    const localOption = { id: 'local', name: 'Local Library' }
     const manager = ExtensionManager.getInstance()
     if (manager.extensions.size === 0) {
-      return searchMode === 'novel' ? NOVEL_PROVIDERS : FALLBACK_PROVIDERS
+      return searchMode === 'novel' ? [localOption, ...NOVEL_PROVIDERS] : [localOption, ...FALLBACK_PROVIDERS]
     }
     const all = Array.from(manager.extensions.values())
     if (searchMode === 'readers') return []
@@ -395,11 +418,14 @@ export default function SearchPage() {
       const novels = all
         .filter(ext => ext.type === 'novel' || NOVEL_PROVIDER_IDS.includes(ext.id))
         .map(ext => ({ id: ext.id, name: ext.name }))
-      return novels.length > 0 ? novels : NOVEL_PROVIDERS
+      return [localOption, ...(novels.length > 0 ? novels : NOVEL_PROVIDERS)]
     }
-    return all
-      .filter(ext => ext.type !== 'novel' && !NOVEL_PROVIDER_IDS.includes(ext.id))
-      .map(ext => ({ id: ext.id, name: ext.name }))
+    return [
+      localOption,
+      ...all
+        .filter(ext => ext.type !== 'novel' && !NOVEL_PROVIDER_IDS.includes(ext.id))
+        .map(ext => ({ id: ext.id, name: ext.name }))
+    ]
   // eslint-disable-next-line react-hooks/exhaustive-deps -- extCount triggers recompute when extensions load
   }, [extCount, searchMode])
 
@@ -592,13 +618,13 @@ export default function SearchPage() {
   const searchIdRef = useRef(0)
 
   const performSearch = useCallback((query: string, overrideMode?: 'manga' | 'novel' | 'readers', overrideProvider?: string | null) => {
-    if (!query) return
+    const providerToUse = overrideProvider !== undefined ? overrideProvider : selectedProvider
+    if (!query && providerToUse !== 'local') return
     const mode = overrideMode ?? searchMode
     if (mode === 'readers') {
       performReaderSearch(query)
       return
     }
-    const providerToUse = overrideProvider !== undefined ? overrideProvider : selectedProvider
     const searchId = ++searchIdRef.current
 
     setLoading(true)
@@ -606,12 +632,90 @@ export default function SearchPage() {
     setSearchResults([])
 
     const run = async () => {
+      // 1. If providerToUse === 'local', search IndexedDB local library exclusively:
+      if (providerToUse === 'local') {
+        try {
+          const localEntries = await getAllLocalManga()
+          const q = query.trim().toLowerCase()
+          const matches = localEntries.filter(entry => {
+            const isNovel = entry.type === 'novel' || entry.filename.toLowerCase().endsWith('.epub')
+            if (mode === 'novel' && !isNovel) return false
+            if (mode === 'manga' && isNovel) return false
+            if (!q) return true
+            const t = (entry.title || '').toLowerCase()
+            const st = (entry.seriesTitle || '').toLowerCase()
+            const fn = (entry.filename || '').toLowerCase()
+            return t.includes(q) || st.includes(q) || fn.includes(q)
+          })
+
+          const results: MangaResult[] = matches.map(entry => ({
+            id: entry.id,
+            title: entry.seriesTitle || entry.title,
+            cover_url: null,
+            provider: 'local',
+            url: `/local/${encodeURIComponent(entry.id)}`,
+            status: 'Downloaded',
+            type: entry.type || (entry.filename.toLowerCase().endsWith('.epub') ? 'novel' : 'manga'),
+          }))
+
+          if (searchIdRef.current === searchId) {
+            setSearchResults(results)
+            setHasSearched(true)
+            setLoading(false)
+          }
+        } catch (err) {
+          console.warn('[Search] Local query error:', err)
+          if (searchIdRef.current === searchId) {
+            setSearchResults([])
+            setHasSearched(true)
+            setLoading(false)
+          }
+        }
+        return
+      }
+
+      // Helper to query local library concurrently for "All Sources" searches
+      const searchLocalLibrary = async (): Promise<MangaResult[]> => {
+        try {
+          const localEntries = await getAllLocalManga()
+          const q = query.trim().toLowerCase()
+          const matches = localEntries.filter(entry => {
+            const isNovel = entry.type === 'novel' || entry.filename.toLowerCase().endsWith('.epub')
+            if (mode === 'novel' && !isNovel) return false
+            if (mode === 'manga' && isNovel) return false
+            if (!q) return false
+            const t = (entry.title || '').toLowerCase()
+            const st = (entry.seriesTitle || '').toLowerCase()
+            const fn = (entry.filename || '').toLowerCase()
+            return t.includes(q) || st.includes(q) || fn.includes(q)
+          })
+
+          return matches.map(entry => ({
+            id: entry.id,
+            title: entry.seriesTitle || entry.title,
+            cover_url: null,
+            provider: 'local',
+            url: `/local/${encodeURIComponent(entry.id)}`,
+            status: 'Downloaded',
+            type: entry.type || (entry.filename.toLowerCase().endsWith('.epub') ? 'novel' : 'manga'),
+          }))
+        } catch {
+          return []
+        }
+      }
+
       const manager = ExtensionManager.getInstance()
       if (manager.extensions.size === 0) await manager.init()
       if (manager.extensions.size === 0) {
         if (searchIdRef.current !== searchId) return
-        toast('No sources loaded. Check your API Key in Settings.', 'warning')
+        const localMatches = await searchLocalLibrary()
+        if (localMatches.length > 0) {
+          setSearchResults(localMatches)
+        } else {
+          toast('No sources loaded. Check your API Key in Settings.', 'warning')
+        }
         setLoading(false)
+        setHasSearched(true)
         return
       }
 
@@ -639,6 +743,8 @@ export default function SearchPage() {
 
       if (exts.length === 0) {
         if (searchIdRef.current !== searchId) return
+        const localMatches = await searchLocalLibrary()
+        setSearchResults(localMatches)
         setLoading(false)
         setHasSearched(true)
         return
@@ -688,9 +794,8 @@ export default function SearchPage() {
       let remaining = exts.length
       let hasError403 = false
 
-      const handleBatch = (newResults: MangaResult[]) => {
+      const addResults = (newResults: MangaResult[]) => {
         if (searchIdRef.current !== searchId) return
-        remaining--
         if (newResults.length > 0) {
           const sorted = sortResultsByRelevance([...acc, ...newResults], query, anilistVariants)
           const merged = remaining === 0
@@ -699,11 +804,24 @@ export default function SearchPage() {
           acc.splice(0, acc.length, ...merged)
           setSearchResults(merged)
         }
+      }
+
+      const handleBatch = (newResults: MangaResult[]) => {
+        if (searchIdRef.current !== searchId) return
+        remaining--
+        addResults(newResults)
         if (remaining === 0) {
           setLoading(false)
           setHasSearched(true)
           if (hasError403 && acc.length === 0) toast('Search failed (403). Check your API Key in Settings.', 'error')
         }
+      }
+
+      // Query local library concurrently for non-provider-specific searches
+      if (!providerToUse) {
+        searchLocalLibrary().then(localResults => {
+          if (localResults.length > 0) addResults(localResults)
+        })
       }
 
       for (const ext of exts) {
@@ -733,7 +851,11 @@ export default function SearchPage() {
   const isFirstSourceMount = useRef(true)
   useEffect(() => {
     if (isFirstSourceMount.current) { isFirstSourceMount.current = false; return }
-    if (searchQuery.trim() && searchMode !== 'readers') performSearch(searchQuery.trim(), searchMode, selectedProvider)
+    if (searchMode !== 'readers') {
+      if (searchQuery.trim() || selectedProvider === 'local') {
+        performSearch(searchQuery.trim(), searchMode, selectedProvider)
+      }
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProvider, enabledSources])
 

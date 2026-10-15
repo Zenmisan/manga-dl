@@ -285,14 +285,15 @@ async def import_manual_backup(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Restore cloud reading history from a manga-dl JSON backup.
+    Restore cloud reading history and subscribed library from a universal manga-dl JSON / .mangadl backup.
     Client-side data (library, bookmarks, read tracking, notes, etc.)
-    is restored directly by the frontend from the same JSON file.
+    is restored directly by the frontend from the same backup file.
     """
     if payload.get("app") != "manga-dl":
         raise HTTPException(400, "Not a manga-dl backup file")
 
     restored = 0
+    # 1. Restore legacy/web cloud_history
     for entry in payload.get("cloud_history", []):
         try:
             result = await db.execute(
@@ -321,5 +322,68 @@ async def import_manual_backup(
         except Exception:
             continue
 
+    # 2. Restore universal Manga-DL progress (Windows / Android / unified schema)
+    for entry in payload.get("progress", []):
+        try:
+            prov = entry.get("provider", "mangadex")
+            m_id = entry.get("mangaId") or entry.get("manga_id")
+            c_id = entry.get("chapterId") or entry.get("chapter_id")
+            if not m_id or not c_id:
+                continue
+            result = await db.execute(
+                select(ReadingProgress).where(
+                    ReadingProgress.user_id == user_id,
+                    ReadingProgress.provider == prov,
+                    ReadingProgress.manga_id == m_id,
+                    ReadingProgress.chapter_id == c_id,
+                )
+            )
+            record = result.scalar_one_or_none()
+            if record is None:
+                db.add(ReadingProgress(
+                    user_id=user_id,
+                    provider=prov,
+                    manga_id=m_id,
+                    chapter_id=c_id,
+                    last_page=entry.get("page", 1),
+                ))
+                restored += 1
+            else:
+                if entry.get("page", 1) > record.last_page:
+                    record.last_page = entry["page"]
+        except Exception:
+            continue
+
+    # 3. Restore library entries into MangaRecord if present
+    manga_restored = 0
+    for m in payload.get("library", []):
+        try:
+            m_id = m.get("id") or m.get("manga_id") or m.get("provider_manga_id")
+            prov = m.get("provider", "mangadex")
+            title = (m.get("title") or "").strip()
+            if not m_id or not title:
+                continue
+            db_record_id = f"{prov}:{m_id}:{user_id}"
+            res = await db.execute(select(MangaRecord).where(MangaRecord.id == db_record_id))
+            rec = res.scalar_one_or_none()
+            if rec is None:
+                db.add(MangaRecord(
+                    id=db_record_id,
+                    provider=prov,
+                    provider_manga_id=m_id,
+                    title=title,
+                    cover_url=m.get("coverUrl") or m.get("cover_url", ""),
+                    url=m.get("url", ""),
+                    subscribed=True,
+                    user_id=user_id,
+                ))
+                manga_restored += 1
+        except Exception:
+            continue
+
     await db.commit()
-    return {"restored": restored, "message": f"Restored {restored} history entries"}
+    return {
+        "restored": restored,
+        "manga_restored": manga_restored,
+        "message": f"Restored {restored} history entries and {manga_restored} library manga",
+    }

@@ -3,13 +3,23 @@ import { supabase } from './supabase'
 
 import { Capacitor } from '@capacitor/core'
 
-const isTauri = !!(window as unknown as Record<string, unknown>).__TAURI_INTERNALS__
+const isTauri = typeof window !== 'undefined' && !!(window as unknown as Record<string, unknown>).__TAURI_INTERNALS__
 const isCapacitor = Capacitor.isNativePlatform()
-const isProd = import.meta.env.PROD
+const isProd = import.meta.env?.PROD ?? false
 
 export function normalizeApiUrl(url: string): string {
   let clean = url.trim().replace(/\/+$/, '')
   if (!clean) return ''
+
+  // If missing protocol and not an internal relative path starting with '/', add protocol
+  if (!/^https?:\/\//i.test(clean) && !clean.startsWith('/')) {
+    if (/^(localhost|127\.0\.0\.1|0\.0\.0\.0|192\.168\.|10\.)/i.test(clean)) {
+      clean = `http://${clean}`
+    } else {
+      clean = `https://${clean}`
+    }
+  }
+
   if (!clean.endsWith('/api')) {
     clean += '/api'
   }
@@ -18,7 +28,7 @@ export function normalizeApiUrl(url: string): string {
 
 export function resolveBaseURL(): string {
   // Allow explicit override from settings (works across all platforms)
-  const custom = localStorage.getItem('manga-backend-url')
+  const custom = typeof localStorage !== 'undefined' ? localStorage.getItem('manga-backend-url') : null
   if (custom && custom.trim()) return normalizeApiUrl(custom)
 
   // Tauri desktop: backend is auto-started on localhost
@@ -56,6 +66,11 @@ const api = axios.create({
 })
 
 api.interceptors.request.use(async (config) => {
+  // Fast-fail immediately if device is offline (0ms delay instead of 15s timeout)
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    return Promise.reject(new axios.AxiosError('Network unreachable (device offline)', 'ERR_NETWORK', config))
+  }
+
   // Apply active base (may have switched to backup)
   config.baseURL = getActiveBase()
 
@@ -81,6 +96,10 @@ api.interceptors.request.use(async (config) => {
 api.interceptors.response.use(
   res => res,
   async (error) => {
+    // Do not attempt backup failover if device is completely offline
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      return Promise.reject(error)
+    }
     const isNetworkError = !error.response && (error.code === 'ERR_NETWORK' || error.code === 'ECONNABORTED' || error.message === 'Network Error')
     const isServerError = error.response?.status >= 500
     if ((isNetworkError || isServerError) && BACKUP_URL && !usingBackup && !error.config?._retried) {

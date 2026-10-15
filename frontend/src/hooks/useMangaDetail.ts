@@ -155,6 +155,10 @@ export function useMangaDetail() {
 
   useEffect(() => {
     if (!provider || !mangaId) return
+    if (provider === 'local') {
+      navigate(`/local/${encodeURIComponent(mangaId)}`, { replace: true })
+      return
+    }
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
 

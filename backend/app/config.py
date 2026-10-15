@@ -53,6 +53,12 @@ class Settings(BaseSettings):
     MAX_STORAGE_MB: int = 900          # Global hard cap (Supabase free = 1 GB)
     MAX_STORAGE_PER_USER_MB: int = 200  # Per-user eviction threshold
 
+    # Google OAuth / Auth credentials
+    MANGADL_GOOGLE_CLIENT_SECRET: str | None = None
+    MANGADL_GOOGLE_CLIENT_ID: str | None = None
+    GOOGLE_CLIENT_ID: str | None = None
+    GOOGLE_CLIENT_SECRET: str | None = None
+
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
     def ensure_async_pg(cls, v: str) -> str:
@@ -101,6 +107,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+        extra = "ignore"
 
 
 @lru_cache()

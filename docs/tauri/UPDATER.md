@@ -1,4 +1,7 @@
-# Tauri In-App Updater
+# Tauri In-App Updater (Archived / Legacy Prototype)
+
+> Note: This document describes the historical Tauri v2 hybrid desktop prototype.
+> Desktop applications are now developed natively in [manga-dl-windows](https://github.com/zenmisan/manga-dl-windows) (WinUI 3 / .NET 10 / C++) and [manga-dl-linux](https://github.com/zenmisan/manga-dl-linux) (GTK4 / libadwaita / Vala).
 
 ## How It Works
 

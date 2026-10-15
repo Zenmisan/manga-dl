@@ -1,130 +1,97 @@
 # Platform Feature Matrix
 
-manga-dl runs on three platforms. All web features work on desktop and Android.
-Native platform additions are listed per platform.
+Last updated: 2026-10-08
 
-Legend: ✅ Done · 🔨 Partial · ⬜ Planned · ❌ Not possible · — Not applicable
+The manga-dl ecosystem spans multiple targets: Web (PWA), Native Android ([manga-dl-android](https://github.com/zenmisan/manga-dl-android)), Native Windows ([manga-dl-windows](https://github.com/zenmisan/manga-dl-windows)), and Native Linux ([manga-dl-linux](https://github.com/zenmisan/manga-dl-linux)).
 
-Last updated: 2026-06-13
-
----
-
-## 🌐 Web (PWA)
-
-Web is the baseline. Everything that doesn't require native OS access is here.
-
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Full manga reader (LTR/RTL/webtoon/vertical pager) | ✅ | |
-| Online streaming (no download required) | ✅ | |
-| Library management (grid/list, sort, filter, batch select) | ✅ | |
-| Dynamic grid columns (2–6) | ✅ | |
-| Library categories + batch move | ✅ | |
-| Search + browse sources (popular/latest/filters) | ✅ | |
-| Download queue + pause/resume/cancel/retry | ✅ | |
-| Reading history + date filter + search | ✅ | |
-| Stats: time, pace, category, heatmap, goals | ✅ | |
-| AniList / MAL / Kitsu / MangaUpdates / Shikimori / Bangumi | ✅ | |
-| Tracker sync modal (status/score/dates) | ✅ | AniList + MAL |
-| Reader brightness/contrast/filters | ✅ | CSS filter |
-| Crop borders (pager + webtoon) | ✅ | |
-| Webtoon side padding config | ✅ | |
-| Dual-page spread | ✅ | |
-| Tap zone layouts | ✅ | |
-| Skip read chapters | ✅ | |
-| Image prefetch | ✅ | |
-| PWA offline mode | ✅ | vite-plugin-pwa + workbox |
-| Web Share API (share chapter link) | ✅ | Clipboard fallback |
-| Browser push notifications | ✅ | |
-| Cloud backup / restore (Supabase) | ✅ | |
-| Auto-backup (daily/weekly schedule) | ✅ | Browser download |
-| Tachiyomi JSON + .tachibk import | ✅ | |
-| Source migration UI | ✅ | |
-| EPUB import + reading | ✅ | JSZip + OPF spine |
-| Metadata edit (title/cover/description) | ✅ | |
-| Per-manga notification mute | ✅ | |
-| Extension install/uninstall/enable/disable/update | ✅ | |
-| Incognito mode | ✅ | |
-| Reading goals | ✅ | |
-| Manga notes + rating | ✅ | |
-| Library categories | ✅ | |
-| Chapter bookmarks + scanlator filter | ✅ | |
-| Unread badge + download badge | ✅ | |
-| Public profile page | ✅ | |
-| Dynamic source filters (MangaDex) | ✅ | |
-| Auto-sync subscribed manga (30 min poll) | ✅ | Web/Android; Tauri uses Rust task |
-| Background chapter sync | ❌ | No persistent background on web |
-| Full filesystem access (custom path) | ❌ | Browser sandboxed |
-| Discord Rich Presence | ❌ | No IPC to Discord client |
-| Volume hardware keys | ❌ | Browser intercepts volume |
-| Biometric lock | ❌ | WebAuthn possible future |
-| System tray | ❌ | — |
+Legend:
+- `[Supported]`: Feature is implemented and functional.
+- `[Partial]`: Feature is partially implemented or under active polish.
+- `[Planned]`: Feature is planned on the roadmap.
+- `[Not Supported]`: Platform constraint prevents feature support.
+- `[N/A]`: Not applicable to this platform form factor.
 
 ---
 
-## 🖥️ Desktop (Tauri v2)
+## Ecosystem Feature Comparison
 
-All web features plus native OS capabilities.
-
-| Feature | Status | Notes |
-|---------|--------|-------|
-| All web features | ✅ | |
-| Full filesystem access | ✅ | tauri-plugin-fs |
-| Custom download location | ✅ | Folder picker; shown in Settings → Desktop |
-| Reveal in file manager | ✅ | Nautilus/Finder/Explorer |
-| System tray (hide to tray on close) | ✅ | |
-| Background chapter sync (Rust task) | ✅ | Configurable 15/30/60/120 min |
-| OS notifications (new chapters) | ✅ | tauri-plugin-notification |
-| Auto-launch on startup | ✅ | tauri-plugin-autostart |
-| In-app update checker | ✅ | GitHub releases API |
-| Drag-and-drop CBZ/EPUB import | ✅ | tauri://drag-drop event |
-| Discord Rich Presence | ✅ | discord-rich-presence Rust crate |
-| Volume key navigation | ✅ | Global keyboard events |
-| Biometric (OS keychain lock) | ⬜ | Windows Hello / macOS Touch ID |
-| Window remember size/position | ⬜ | |
-
----
-
-## 📱 Android (Capacitor)
-
-All web features plus native Android capabilities.
-
-| Feature | Status | Notes |
-|---------|--------|-------|
-| All web features | ✅ | |
-| Volume key page navigation | ✅ | Kotlin VolumeKeysPlugin + dispatchKeyEvent |
-| Hardware back button | ✅ | App.addListener('backButton') in Reader/Detail/Dashboard |
-| Keep screen on while reading | ✅ | @capacitor-community/keep-awake |
-| Status bar colour sync (ambilight) | ✅ | @capacitor/status-bar setBackgroundColor |
-| Haptic feedback on page turn | ✅ | @capacitor/haptics ImpactStyle.Light (configurable) |
-| Save chapter to device storage | ✅ | @capacitor/filesystem → Documents/manga-dl/ |
-| Download completion notification | ✅ | @capacitor/local-notifications |
-| Auto-sync (frontend poll) | ✅ | Calls /manga/sync every 30 min |
-| Biometric / PIN lock | ⬜ | @capacitor-community/biometric-auth |
-| Secure screen (block screenshots) | ⬜ | FLAG_SECURE via native plugin |
-| Push notifications (FCM) | ⬜ | @capacitor/push-notifications + Firebase |
-| Background sync (WorkManager) | ⬜ | @capacitor/background-task |
-| Badge count on app icon | ⬜ | @capacitor/badge (requires FCM) |
-| Material You dynamic colours | ⬜ | Android 12+ DynamicColors |
-| Discord Rich Presence | ❌ | Discord mobile doesn't expose RPC |
+| Feature | Web (PWA) | Android (Native) | Windows (Native) | Linux (Native) | Notes |
+|---------|-----------|------------------|------------------|----------------|-------|
+| Reading modes (LTR, RTL, Webtoon, Pager) | [Supported] | [Supported] | [Supported] | [Supported] | Native implementations use platform-optimized viewports |
+| Online streaming without downloading | [Supported] | [Supported] | [Supported] | [Supported] | Web relays via proxy; Native connects directly |
+| On-device scraper execution | [Supported] | [Supported] | [Supported] | [Supported] | Web uses Web Workers; Native uses embedded JS engines |
+| Direct source networking (no proxy) | [Not Supported] | [Supported] | [Supported] | [Supported] | Web is constrained by browser CORS |
+| Local library management | [Supported] | [Supported] | [Supported] | [Supported] | Web uses IndexedDB; Native uses local SQLite and filesystem |
+| CBZ / EPUB reading | [Supported] | [Supported] | [Supported] | [Supported] | Native platforms parse via platform runtimes |
+| Cloud reading progress sync | [Supported] | [Supported] | [Supported] | [Supported] | Supabase and Firebase sync |
+| Trackers (AniList, MyAnimeList) | [Supported] | [Supported] | [Supported] | [Supported] | OAuth tokens and status updates |
+| Background chapter update polling | [Not Supported] | [Supported] | [Supported] | [Supported] | Android WorkManager, Windows BackgroundService, Linux daemon |
+| Arbitrary filesystem path selection | [Not Supported] | [Supported] | [Supported] | [Supported] | Sandboxed on browser |
+| Hardware volume button page navigation | [Not Supported] | [Supported] | [N/A] | [N/A] | Native key event interception on Android |
+| Keyboard shortcut navigation | [Supported] | [N/A] | [Supported] | [Supported] | Desktop key events |
+| Keep screen awake during reading | [Supported] | [Supported] | [N/A] | [N/A] | Android WakeLock / Web Screen Wake Lock API |
+| Biometric lock (Fingerprint / Face) | [Planned] | [Supported] | [Planned] | [Planned] | Android BiometricPrompt; Windows Hello |
+| System tray integration | [N/A] | [N/A] | [Supported] | [Supported] | Minimize to tray, background polling status |
+| Discord Rich Presence | [Not Supported] | [N/A] | [Supported] | [Supported] | Native IPC socket to local Discord desktop client |
+| High-performance image rendering | [Supported] | [Supported] | [Supported] | [Supported] | Windows uses C++20 Direct2D; Android uses Compose GraphicsLayer |
 
 ---
 
-## Remaining Platform Work
+## Platform Details
 
-### Desktop
-- Biometric lock (Windows Hello / macOS Touch ID)
-- Window state persistence
+### 1. Web (PWA) — [manga-dl](file:///home/zenmi/Projects/manga-dl)
+Web is the baseline cross-platform entry point, accessible through modern browsers and installable as a Progressive Web App.
+- **Frontend Stack:** React 19, Vite, TanStack Query v5, Zustand, Tailwind CSS.
+- **Scraper Execution:** Web Workers executing shared JavaScript source definitions.
+- **Network Model:** Outbound requests relay through the FastAPI backend proxy (`/api/manga/proxy/*`) to circumvent browser CORS restrictions.
+- **Local Storage:** IndexedDB for cached chapters, cover blobs, and local CBZ/EPUB imports.
+- **Sync:** Real-time sync with Supabase PostgreSQL and Storage.
 
-### Android
-- Biometric / PIN lock
-- Background sync (WorkManager — currently needs app open)
-- FCM push notifications + badge count
-- Secure screen (FLAG_SECURE)
-- Material You theming
+### 2. Android (Native) — [manga-dl-android](https://github.com/zenmisan/manga-dl-android)
+A fully native Android application engineered for mobile performance, low memory overhead, and full on-device capabilities.
+- **Stack:** Kotlin, Jetpack Compose, Material Design 3, Room SQLite, OkHttp, QuickJS embedded runtime.
+- **Key Capabilities:**
+  - Hardware volume rocker interception for instant page turns.
+  - Native background workers using Android WorkManager for scheduled library updates.
+  - Direct connection to upstream sources via OkHttp, completely bypassing backend proxy requirements.
+  - On-device database storage using Room for instant startup and offline capability.
+  - Biometric authentication via Android `BiometricPrompt`.
+  - Ambient lighting status bar matching dominant page colors.
 
-### Both
-- WiFi-only / charging-only gates for sync + downloads
-- WebView fallback for Cloudflare-protected sources
-</content>
-</invoke>
+### 3. Windows (Native) — [manga-dl-windows](https://github.com/zenmisan/manga-dl-windows)
+A modern desktop application built on Microsoft WinUI 3 and the Windows App SDK.
+- **Stack:** C#, .NET 10, WinUI 3, XAML, C++20 native dynamic library (`MangaDl.Native`), SQLite-net, CommunityToolkit.Mvvm.
+- **Key Capabilities:**
+  - Direct2D / Win2D hardware-accelerated image decoding and custom border cropping in C++20.
+  - Deep Windows 11 design language alignment (Mica material, custom titlebar chrome, fluent controls).
+  - Native filesystem access with arbitrary directory choices for chapter storage.
+  - Background synchronization service for library updates.
+  - System tray icon with background minimization and notification toasts.
+  - Discord Rich Presence integration via local IPC pipe.
+
+### 4. Linux (Native) — [manga-dl-linux](https://github.com/zenmisan/manga-dl-linux)
+A native desktop client adhering to the GNOME Human Interface Guidelines.
+- **Stack:** GTK4, libadwaita, Vala / C, SQLite3, libsoup3, embedded QuickJS engine.
+- **Key Capabilities:**
+  - Adaptive Adwaita interface with native dark mode and accent colors.
+  - Minimal resource consumption and fast cold-start performance.
+  - Direct filesystem and desktop notifications integration.
+  - MPRIS / desktop environment integration.
+
+---
+
+## Active Roadmap and Platform Priorities
+
+### Android Focus
+- Finalize Firebase DataConnect reading progress synchronization.
+- Implement fine-grained WiFi-only and charging-only synchronization guards in WorkManager.
+- Add notification channel management for new chapter releases.
+
+### Windows Focus
+- Wire real business services into the WinUI 3 MVVM viewmodels replacing sample data stubs.
+- Finalize image processing pipeline inside `MangaDl.Native` (C++20).
+- Windows Hello authentication integration.
+
+### Linux Focus
+- Complete QuickJS extension bridge binding in Vala.
+- Package for distribution via Flatpak and native distribution packages.

@@ -121,7 +121,7 @@ async def list_library_items(db: AsyncSession, user_id: str) -> list[dict]:
             "total_chapters": data.get("total_chapters", 0),
             "provider": data.get("provider"),
             "provider_manga_id": data.get("provider_manga_id"),
-            "type": "novel" if data.get("provider") in _novel_providers else "manga",
+            "type": "novel" if data.get("provider") in _novel_providers or any(f.lower().endswith('.epub') for f in data["files"]) else "manga",
         }
         for title, data in grouped.items()
         if data.get("subscribed") or len(data["files"]) > 0

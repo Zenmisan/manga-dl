@@ -175,6 +175,12 @@ export function useBackgroundSync() {
 
   useEffect(() => {
     ExtensionManager.getInstance().init().catch(() => {})
+
+    // Skip cloud synchronizers when offline to prevent stalled network requests
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      return
+    }
+
     syncReadTrackingFromCloud().catch(() => {})
     syncCategoriesFromCloud().catch(() => {})
     syncMangaNotesFromCloud().catch(() => {})
@@ -182,6 +188,7 @@ export function useBackgroundSync() {
 
     // Check for extension updates in the background
     const checkExtUpdates = async () => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return
       try {
         const res = await api.get('/sources/market')
         const market: Array<{ id: string; version: string }> = res.data

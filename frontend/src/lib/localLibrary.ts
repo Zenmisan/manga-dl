@@ -1,6 +1,5 @@
 import JSZip from 'jszip'
-import { inspectArchive, extractChapterPages, type ParsedLocalChapter } from './archiveInspector'
-import { findNextBatchInIndexedDB, findPrevBatchInIndexedDB } from './batchDetector'
+import { inspectArchive, extractChapterPages, normalizeZipPath, type ParsedLocalChapter } from './archiveInspector'
 
 const DB_NAME = 'manga-dl-local'
 const DB_VERSION = 1
@@ -10,6 +9,7 @@ export interface LocalChapterMeta {
   id: string
   number: number
   title: string
+  filePath?: string
 }
 
 export interface LocalMangaEntry {
@@ -25,6 +25,7 @@ export interface LocalMangaEntry {
   rangeStart?: number
   rangeEnd?: number
   chaptersSummary?: LocalChapterMeta[]
+  type?: 'manga' | 'novel'
 }
 
 export interface LocalMangaSession {
@@ -152,43 +153,62 @@ export async function loadLocalMangaIntoSession(
   // Extract page Blobs for the active chapter
   const blobs = await extractChapterPages(zip, activeChapter.imageFileNames)
 
-  // Build full list of chapters (including sibling batches if available)
-  const fullChapterList: LocalChapterMeta[] = parsedChapters.map(c => ({
-    id: c.id,
-    number: c.chapterNumber,
-    title: c.title
-  }))
+  // Build full list of chapters across all uploaded archives sharing this series title
+  const sTitle = (entry.seriesTitle || entry.title).toLowerCase().trim()
+  const allEntries = await getAllLocalManga()
+  const related = allEntries
+    .filter(x => (x.seriesTitle || x.title).toLowerCase().trim() === sTitle)
+    .sort((a, b) => a.addedAt - b.addedAt)
 
-  const seriesKey = entry.seriesTitle || entry.title
-  const firstCh = parsedChapters[0]
-  const lastCh = parsedChapters[parsedChapters.length - 1]
+  const fullChapterList: LocalChapterMeta[] = []
 
-  // Sibling pre-discovery: check next batch in IndexedDB
-  if (lastCh) {
-    try {
-      const nextBatch = await findNextBatchInIndexedDB(seriesKey, lastCh.chapterNumber)
-      if (nextBatch && nextBatch.chaptersSummary) {
-        for (const ch of nextBatch.chaptersSummary) {
-          if (!fullChapterList.some(existing => existing.number === ch.number)) {
-            fullChapterList.push({ id: `${nextBatch.id}:${ch.id}`, number: ch.number, title: ch.title })
+  if (related.length > 0) {
+    for (const rel of related) {
+      if (rel.id === entry.id) {
+        // For currently loaded archive, use its inspected parsedChapters
+        for (const ch of parsedChapters) {
+          if (!fullChapterList.some(existing => existing.number === ch.chapterNumber && existing.id === ch.id)) {
+            fullChapterList.push({
+              id: ch.id,
+              number: ch.chapterNumber,
+              title: ch.title,
+              filePath: ch.filePath,
+            })
           }
         }
-      }
-    } catch { /* non-fatal */ }
-  }
-
-  // Sibling pre-discovery: check previous batch in IndexedDB
-  if (firstCh) {
-    try {
-      const prevBatch = await findPrevBatchInIndexedDB(seriesKey, firstCh.chapterNumber)
-      if (prevBatch && prevBatch.chaptersSummary) {
-        for (const ch of prevBatch.chaptersSummary) {
+      } else if (rel.chaptersSummary && rel.chaptersSummary.length > 0) {
+        // For sibling archives with chaptersSummary, use compound ID
+        for (const ch of rel.chaptersSummary) {
           if (!fullChapterList.some(existing => existing.number === ch.number)) {
-            fullChapterList.push({ id: `${prevBatch.id}:${ch.id}`, number: ch.number, title: ch.title })
+            fullChapterList.push({
+              id: `${rel.id}:${ch.id}`,
+              number: ch.number,
+              title: ch.title,
+              filePath: ch.filePath,
+            })
           }
         }
+      } else {
+        // Fallback for sibling archive without chaptersSummary
+        const chNum = rel.rangeStart || 1
+        if (!fullChapterList.some(existing => existing.number === chNum)) {
+          fullChapterList.push({
+            id: `${rel.id}:ch-${chNum}`,
+            number: chNum,
+            title: rel.title,
+          })
+        }
       }
-    } catch { /* non-fatal */ }
+    }
+  } else {
+    for (const ch of parsedChapters) {
+      fullChapterList.push({
+        id: ch.id,
+        number: ch.chapterNumber,
+        title: ch.title,
+        filePath: ch.filePath,
+      })
+    }
   }
 
   fullChapterList.sort((a, b) => a.number - b.number)
@@ -208,3 +228,151 @@ export async function loadLocalMangaIntoSession(
 
   return true
 }
+
+export interface LocalNovelChapterResult {
+  content: string
+  title: string
+  chapterTitle: string
+  chapters: LocalChapterMeta[]
+}
+
+/**
+ * Loads a specific chapter from a local novel EPUB archive, resolves inline images,
+ * and returns readable HTML for the NovelViewport.
+ */
+export async function loadLocalNovelChapter(
+  idOrTitle: string,
+  targetChapterIdOrNum?: string | number
+): Promise<LocalNovelChapterResult> {
+  let entry = await getLocalManga(idOrTitle)
+  if (!entry) {
+    entry = await findLocalMangaByTitleOrFilename(idOrTitle)
+  }
+  if (!entry) {
+    throw new Error(`Local entry "${idOrTitle}" not found.`)
+  }
+
+  const zip = await JSZip.loadAsync(entry.file)
+  const inspection = await inspectArchive(entry.file, entry.filename)
+
+  if (inspection.chapters.length === 0) {
+    throw new Error('No chapters found in local novel archive.')
+  }
+
+  let activeChapter: ParsedLocalChapter | undefined
+  if (targetChapterIdOrNum !== undefined && targetChapterIdOrNum !== null && targetChapterIdOrNum !== '') {
+    const rawTarget = decodeURIComponent(String(targetChapterIdOrNum))
+    const num = typeof targetChapterIdOrNum === 'number'
+      ? targetChapterIdOrNum
+      : parseFloat(rawTarget.replace(/[^0-9.]/g, ''))
+    activeChapter = inspection.chapters.find(
+      c => c.id === rawTarget ||
+           c.filePath === rawTarget ||
+           c.id.endsWith(rawTarget) ||
+           (!isNaN(num) && c.chapterNumber === num)
+    )
+  }
+
+  if (!activeChapter) {
+    activeChapter = inspection.chapters[0]
+  }
+
+  const targetPath = activeChapter.filePath || activeChapter.id
+  let chapterFile = zip.files[targetPath]
+  if (!chapterFile) {
+    const matchedKey = Object.keys(zip.files).find(
+      k => k.toLowerCase() === targetPath.toLowerCase() || k.toLowerCase().endsWith(targetPath.toLowerCase())
+    )
+    if (matchedKey) chapterFile = zip.files[matchedKey]
+  }
+
+  if (!chapterFile) {
+    throw new Error(`Chapter file "${targetPath}" not found in archive.`)
+  }
+
+  const rawHtml = await chapterFile.async('text')
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(rawHtml, 'text/html')
+  const chapterDir = targetPath.includes('/') ? targetPath.substring(0, targetPath.lastIndexOf('/') + 1) : ''
+
+  // Resolve embedded images into blob URLs
+  const imgElements = Array.from(doc.querySelectorAll('img, image'))
+  for (const img of imgElements) {
+    const rawSrc = img.getAttribute('src') || img.getAttribute('href') || img.getAttribute('xlink:href')
+    if (rawSrc && !rawSrc.startsWith('http') && !rawSrc.startsWith('data:') && !rawSrc.startsWith('blob:')) {
+      const cleanSrc = rawSrc.split('#')[0].split('?')[0]
+      const resolved = normalizeZipPath(chapterDir + cleanSrc)
+      const imgKey = Object.keys(zip.files).find(
+        k => k.toLowerCase() === resolved.toLowerCase() || k.toLowerCase().endsWith(cleanSrc.toLowerCase())
+      )
+      if (imgKey && zip.files[imgKey]) {
+        try {
+          const blob = await zip.files[imgKey].async('blob')
+          const blobUrl = URL.createObjectURL(blob)
+          if (img.tagName.toLowerCase() === 'image') {
+            img.setAttribute('href', blobUrl)
+          } else {
+            img.setAttribute('src', blobUrl)
+          }
+        } catch { /* skip */ }
+      }
+    }
+  }
+
+  const sTitle = (entry.seriesTitle || entry.title).toLowerCase().trim()
+  const allEntries = await getAllLocalManga()
+  const related = allEntries
+    .filter(x => (x.seriesTitle || x.title).toLowerCase().trim() === sTitle)
+    .sort((a, b) => a.addedAt - b.addedAt)
+
+  const chaptersMeta: LocalChapterMeta[] = []
+  if (related.length > 0) {
+    for (const rel of related) {
+      if (rel.id === entry.id) {
+        for (const c of inspection.chapters) {
+          if (!chaptersMeta.some(existing => existing.id === c.id || existing.number === c.chapterNumber)) {
+            chaptersMeta.push({
+              id: c.id,
+              number: c.chapterNumber,
+              title: c.title,
+              filePath: c.filePath,
+            })
+          }
+        }
+      } else if (rel.chaptersSummary && rel.chaptersSummary.length > 0) {
+        for (const ch of rel.chaptersSummary) {
+          if (!chaptersMeta.some(existing => existing.number === ch.number)) {
+            chaptersMeta.push({
+              id: `${rel.id}:${ch.id}`,
+              number: ch.number,
+              title: ch.title,
+              filePath: ch.filePath,
+            })
+          }
+        }
+      }
+    }
+  } else {
+    for (const c of inspection.chapters) {
+      chaptersMeta.push({
+        id: c.id,
+        number: c.chapterNumber,
+        title: c.title,
+        filePath: c.filePath,
+      })
+    }
+  }
+  chaptersMeta.sort((a, b) => a.number - b.number)
+
+  try {
+    localStorage.setItem(`manga-dl-last-chapter:local:${entry.id}`, activeChapter.id)
+  } catch { /* quota */ }
+
+  return {
+    content: doc.body.innerHTML || rawHtml,
+    title: entry.seriesTitle || entry.title,
+    chapterTitle: activeChapter.title,
+    chapters: chaptersMeta,
+  }
+}
+

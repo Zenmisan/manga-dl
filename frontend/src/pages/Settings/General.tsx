@@ -68,34 +68,71 @@ export default function GeneralSettings() {
   const [connStatus, setConnStatus] = useState<{ type: 'ok' | 'error'; msg: string } | null>(null)
 
   const testConnection = async (urlOverride?: string, keyOverride?: string) => {
-    const url = urlOverride ?? backendUrl
+    const rawUrl = urlOverride ?? backendUrl
     const key = keyOverride ?? apiKey
     setSaving(true); setConnStatus(null)
+    const base = rawUrl.trim() ? normalizeApiUrl(rawUrl) : resolveBaseURL()
     try {
-      const base = url.trim() ? normalizeApiUrl(url) : resolveBaseURL()
       const controller = new AbortController()
       const tid = setTimeout(() => controller.abort(), 10000)
-      const res = await fetch(`${base}/sources/builtins`, { signal: controller.signal, headers: { 'X-API-Key': key || 'mgdl-creator' } })
+      const res = await fetch(`${base}/sources/builtins`, {
+        signal: controller.signal,
+        headers: { 'X-API-Key': key || 'mgdl-creator' }
+      })
       clearTimeout(tid)
-      if (res.ok) { setConnStatus({ type: 'ok', msg: 'Backend connected!' }) }
-      else if (res.status === 403) setConnStatus({ type: 'error', msg: 'API key rejected (403).' })
-      else if (res.status === 400) setConnStatus({ type: 'error', msg: 'CORS or bad request (400).' })
-      else setConnStatus({ type: 'error', msg: `Backend returned ${res.status}.` })
+
+      if (res.ok) {
+        setConnStatus({ type: 'ok', msg: 'Backend connected and verified!' })
+      } else if (res.status === 403) {
+        setConnStatus({ type: 'error', msg: 'Connected to server, but API key was rejected (403).' })
+      } else if (res.status === 404) {
+        const rootHealth = await fetch(`${base.replace(/\/api$/, '')}/health`).catch(() => null)
+        if (rootHealth && rootHealth.ok) {
+          setConnStatus({ type: 'ok', msg: 'Backend reachable! (Health check passed)' })
+        } else {
+          setConnStatus({ type: 'error', msg: `Server responded with 404 at ${base}.` })
+        }
+      } else if (res.status === 400) {
+        setConnStatus({ type: 'error', msg: 'CORS or bad request (400).' })
+      } else {
+        setConnStatus({ type: 'error', msg: `Backend returned ${res.status}.` })
+      }
     } catch (err) {
       const isTimeout = err instanceof Error && err.name === 'AbortError'
-      setConnStatus({ type: 'error', msg: isTimeout ? 'Backend slow to respond (cold start).' : 'Backend unreachable or CORS blocked.' })
+      const isLocal = /localhost|127\.0\.0\.1|0\.0\.0\.0/i.test(rawUrl)
+      if (isTimeout) {
+        setConnStatus({ type: 'error', msg: 'Backend slow to respond (cold start). Please retry.' })
+      } else if (isLocal) {
+        setConnStatus({
+          type: 'error',
+          msg: `Local backend server unreachable at ${base}. Make sure your local server is running (e.g. uvicorn app.main:app --port 8000).`
+        })
+      } else {
+        setConnStatus({ type: 'error', msg: `Backend unreachable or CORS blocked at ${base}.` })
+      }
     } finally { setSaving(false) }
   }
 
   const handleSave = async () => {
-    if (apiKey.trim()) localStorage.setItem('manga-api-key', apiKey.trim())
+    const trimmedKey = apiKey.trim()
+    const trimmedUrl = backendUrl.trim()
+    const normalizedUrl = trimmedUrl ? normalizeApiUrl(trimmedUrl) : ''
+
+    if (trimmedKey) localStorage.setItem('manga-api-key', trimmedKey)
     else localStorage.setItem('manga-api-key', '')
-    if (backendUrl.trim()) localStorage.setItem('manga-backend-url', backendUrl.trim())
-    else localStorage.removeItem('manga-backend-url')
+
+    if (normalizedUrl) {
+      localStorage.setItem('manga-backend-url', normalizedUrl)
+      setBackendUrl(normalizedUrl)
+    } else {
+      localStorage.removeItem('manga-backend-url')
+      setBackendUrl('')
+    }
+
     api.defaults.baseURL = resolveBaseURL()
     const { ExtensionManager } = await import('../../lib/extensions')
     ExtensionManager.getInstance().reinit()
-    await testConnection(backendUrl, apiKey)
+    await testConnection(normalizedUrl, trimmedKey)
   }
 
   const [notifEnabled, setNotifEnabled] = useState(localStorage.getItem('notifications-enabled') === 'true')
