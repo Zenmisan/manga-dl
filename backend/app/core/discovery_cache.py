@@ -415,3 +415,75 @@ def _parse_madara_html(html: str, provider: str) -> list[dict]:
             "status": None,
         })
     return results
+
+
+def _normalize_match_key(value: str) -> str:
+    import re as _re
+    return _re.sub(r"[^a-z0-9]+", "", (value or "").lower())
+
+
+async def lookup_manga_metadata(
+    provider: str | None = None,
+    manga_id: str | None = None,
+    slug: str | None = None,
+    title: str | None = None,
+) -> dict | None:
+    """Resolve cached manga metadata by provider+id, slug, or normalized title."""
+    target_id_norm = _normalize_match_key(manga_id or slug or "")
+    target_title_norm = _normalize_match_key(title or slug or manga_id or "")
+
+    # 1. Search in-memory discovery cache first
+    provider_buckets = (
+        [_cache[provider]]
+        if provider and provider in _cache
+        else list(_cache.values())
+    )
+    for bucket in provider_buckets:
+        for section in ("popular", "latest"):
+            for item in bucket.get(section, []):
+                item_id = str(item.get("id") or "")
+                item_title = str(item.get("title") or "")
+                if (
+                    (manga_id and item_id.lower() == manga_id.lower())
+                    or (target_id_norm and _normalize_match_key(item_id) == target_id_norm)
+                    or (target_title_norm and _normalize_match_key(item_title) == target_title_norm)
+                ):
+                    return {
+                        "id": item_id,
+                        "provider": item.get("provider") or provider,
+                        "title": item_title,
+                        "cover_url": item.get("cover_url"),
+                        "description": item.get("description") or item.get("synopsis"),
+                        "author": item.get("author"),
+                        "status": item.get("status"),
+                        "genres": item.get("genres") or [],
+                        "url": item.get("url"),
+                    }
+
+    # 2. Fallback across all cached providers if provider-scoped search missed
+    if provider and provider in _cache:
+        for pid, bucket in _cache.items():
+            if pid == provider:
+                continue
+            for section in ("popular", "latest"):
+                for item in bucket.get(section, []):
+                    item_id = str(item.get("id") or "")
+                    item_title = str(item.get("title") or "")
+                    if (
+                        (target_id_norm and _normalize_match_key(item_id) == target_id_norm)
+                        or (target_title_norm and _normalize_match_key(item_title) == target_title_norm)
+                    ):
+                        return {
+                            "id": item_id,
+                            "provider": item.get("provider") or pid,
+                            "title": item_title,
+                            "cover_url": item.get("cover_url"),
+                            "description": item.get("description") or item.get("synopsis"),
+                            "author": item.get("author"),
+                            "status": item.get("status"),
+                            "genres": item.get("genres") or [],
+                            "url": item.get("url"),
+                        }
+
+    return None
+

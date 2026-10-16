@@ -132,6 +132,7 @@ app.include_router(backup.router, prefix="/api")
 app.include_router(support.router, prefix="/api")  # No auth — public contact form
 app.include_router(comments_router.router, prefix="/api")  # Supabase JWT auth for write ops
 app.include_router(discovery_router_module.router, prefix="/api", dependencies=api_deps)
+app.include_router(discovery_router_module.public_router, prefix="/api")
 
 # Serve built frontend in production
 _frontend_dist = Path(__file__).parent.parent.parent / "frontend" / "dist"

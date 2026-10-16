@@ -1,3 +1,7 @@
-name = "manga-image-proxy"
+name = "manga-img-proxy"
 main = "index.js"
-compatibility_date = "2024-01-01"
+compatibility_date = "2024-12-01"
+
+[vars]
+ORIGIN_URL = "https://manga-dl.web.app"
+BACKEND_API_URL = ""

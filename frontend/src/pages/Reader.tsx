@@ -127,7 +127,11 @@ export default function Reader() {
   const readerTitle = pages.length > 0 && onlinePartsRef.current
     ? `${onlinePartsRef.current.mangaTitle || mangaTitle} · ${onlinePartsRef.current.chapterTitle || filename}`
     : (localTitle ?? null)
-  usePageTitle(readerTitle)
+  usePageTitle(readerTitle, {
+    description: readerTitle ? `Read ${readerTitle} online on manga-dl.` : undefined,
+    url: typeof window !== 'undefined' ? window.location.href : undefined,
+    type: 'article',
+  })
 
   const handleBack = useCallback(() => {
     // 1. If onlinePartsRef has resolved provider and mangaId:

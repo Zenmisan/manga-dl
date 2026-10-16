@@ -64,7 +64,12 @@ export default function NovelReader() {
   const novelTitle = searchParams.get('title') || novelId
   const chapterTitle = searchParams.get('ch') || ''
 
-  usePageTitle(chapterTitle ? `${chapterTitle} — ${novelTitle}` : novelTitle)
+  const displayNovelTitle = chapterTitle ? `${chapterTitle} — ${novelTitle}` : novelTitle
+  usePageTitle(displayNovelTitle, {
+    description: displayNovelTitle ? `Read ${displayNovelTitle} online on manga-dl.` : undefined,
+    url: typeof window !== 'undefined' ? window.location.href : undefined,
+    type: 'book',
+  })
 
   const [content, setContent] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
