@@ -1,8 +1,12 @@
 # manga-dl
 
-A modern manga and web novel reading ecosystem spanning Web, native Android, and native Windows.
+[![Web App](https://img.shields.io/badge/Web_App-manga--dl.web.app-3b82f6?style=for-the-badge&logo=google-chrome&logoColor=white)](https://manga-dl.web.app)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
+[![Platform](https://img.shields.io/badge/Platform-Web%20%7C%20Android%20%7C%20Windows%20%7C%20Linux-emerald?style=for-the-badge)](https://manga-dl.web.app)
 
-Built as an open-source alternative to Tachiyomi with a glassmorphic UI, on-device scraping, and cloud synchronization.
+> **Live Web App & PWA**: [**https://manga-dl.web.app**](https://manga-dl.web.app)
+> 
+> A modern manga, manhwa, and web novel reading ecosystem spanning Web (PWA), native Android, native Windows, and native Linux. Free, open-source alternative to Tachiyomi / Mihon with 50+ built-in scrapers, ad-free offline CBZ/EPUB downloads, and multi-tracker synchronization.
 
 ---
 
