@@ -63,7 +63,7 @@ const STATIC_ASSET_EXT_RE = /\.(?:js|mjs|css|map|json|webmanifest|ico|png|jpg|jp
 
 const DEFAULT_META = {
   siteName: 'Comics',
-  title: 'Comics — Manga, Manhwa & Webnovel Reader',
+  title: 'Comics | Manga, Manhwa & Webnovel Reader',
   description: 'Read and track manga, manhwa, webtoons, and light novels across multiple sources with a fast, distraction-free reader.',
   image: 'https://manga-dl.web.app/pwa-512x512.png',
   type: 'website',
@@ -532,7 +532,7 @@ export async function resolveRouteMetadata(route, requestUrl, env) {
   const providerLabel = route.provider ? humanizeSlug(route.provider) : null;
 
   const displayTitle = isReader && chapterLabel
-    ? `${seriesTitle} — ${chapterLabel} | Comics`
+    ? `${seriesTitle} | ${chapterLabel} | Comics`
     : `${seriesTitle} | Comics`;
 
   let description = resolved && resolved.description ? truncateText(resolved.description, 220) : '';
