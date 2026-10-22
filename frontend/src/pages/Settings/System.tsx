@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Database, RefreshCw, CheckCircle2, DownloadCloud, UploadCloud, BookOpen, Cloud, Save, User, LogOut, UserPlus, Wifi, Server } from 'lucide-react'
+import { Database, RefreshCw, CheckCircle2, DownloadCloud, UploadCloud, BookOpen, Cloud, Save, User, LogOut, UserPlus, Wifi, Server, HardDrive, Trash2 } from 'lucide-react'
 import { ThemedSpinner } from '../../components/common/ThemedLoader'
 import { motion } from 'framer-motion'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
@@ -10,6 +10,7 @@ import api from '../../lib/api'
 import { supabase } from '../../lib/supabase'
 import { useAppStore } from '../../lib/store'
 import { batchAddSubscriptions } from '../../lib/supabaseSubscriptions'
+import { getStorageEstimate, clearImageAndReadingCaches, clearLocalUploadedArchives, clearAllOfflineStorage, type StorageEstimateInfo } from '../../lib/storageManager'
 
 const SECTION: React.CSSProperties = { padding: '22px 20px', marginBottom: 14 }
 const ROW: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '14px 0', borderTop: '1px solid var(--border)', minHeight: 52 }
@@ -58,6 +59,74 @@ export default function SystemSettings() {
   const [downloadPath, setDownloadPath] = useState(localStorage.getItem('manga-dl-download-path') || '')
   const [syncEnabled, setSyncEnabled] = useState(localStorage.getItem('desktop-sync-enabled') === 'true')
   const [syncInterval, setSyncInterval] = useState(Number(localStorage.getItem('desktop-sync-interval') || '60'))
+  const [storageInfo, setStorageInfo] = useState<StorageEstimateInfo | null>(null)
+  const [clearingCache, setClearingCache] = useState(false)
+  const [clearingUploads, setClearingUploads] = useState(false)
+  const [purgingAll, setPurgingAll] = useState(false)
+  const [storageNotice, setStorageNotice] = useState<string | null>(null)
+
+  const refreshStorage = useCallback(async () => {
+    try {
+      const info = await getStorageEstimate()
+      setStorageInfo(info)
+    } catch {
+      // Non-fatal
+    }
+  }, [])
+
+  useEffect(() => {
+    refreshStorage()
+  }, [refreshStorage])
+
+  const handleClearCache = async () => {
+    if (!window.confirm('Clear temporary reading and image cache? Your offline archives and reading progress will remain intact.')) return
+    setClearingCache(true)
+    setStorageNotice(null)
+    try {
+      await clearImageAndReadingCaches()
+      await refreshStorage()
+      setStorageNotice('Image and reading cache successfully cleared.')
+      setTimeout(() => setStorageNotice(null), 4000)
+    } catch (e) {
+      alert('Failed to clear cache: ' + String(e))
+    } finally {
+      setClearingCache(false)
+    }
+  }
+
+  const handleClearUploads = async () => {
+    if (!window.confirm(`Delete all ${storageInfo?.localArchivesCount || 0} local uploaded archives from browser storage? This cannot be undone.`)) return
+    setClearingUploads(true)
+    setStorageNotice(null)
+    try {
+      await clearLocalUploadedArchives()
+      await refreshStorage()
+      queryClient.invalidateQueries({ queryKey: QK.library })
+      setStorageNotice('All local uploaded archives removed from browser storage.')
+      setTimeout(() => setStorageNotice(null), 4000)
+    } catch (e) {
+      alert('Failed to delete uploads: ' + String(e))
+    } finally {
+      setClearingUploads(false)
+    }
+  }
+
+  const handlePurgeAll = async () => {
+    if (!window.confirm('Purge all offline data, image caches, and uploaded archives? This will free up all browser storage used by manga-dl.')) return
+    setPurgingAll(true)
+    setStorageNotice(null)
+    try {
+      await clearAllOfflineStorage()
+      await refreshStorage()
+      queryClient.invalidateQueries({ queryKey: QK.library })
+      setStorageNotice('All offline data and caches purged.')
+      setTimeout(() => setStorageNotice(null), 4000)
+    } catch (e) {
+      alert('Failed to purge data: ' + String(e))
+    } finally {
+      setPurgingAll(false)
+    }
+  }
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => { setSupabaseUser(data.session?.user ?? null) })
@@ -826,6 +895,87 @@ export default function SystemSettings() {
 
       <motion.section className="glass-card" style={SECTION}
         initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+        transition={{ delay: 0.12, duration: 0.4, ease }}
+      >
+        <CardLabel icon={HardDrive} title="Storage &amp; Offline Data" />
+
+        <div style={{ marginBottom: 18 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--fg)' }}>Total Browser Storage Used</span>
+            <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--accent)' }}>
+              {storageInfo ? storageInfo.usageFormatted : '...'} {storageInfo?.quotaBytes ? `/ ${storageInfo.quotaFormatted}` : ''}
+            </span>
+          </div>
+          {storageInfo && storageInfo.quotaBytes > 0 && (
+            <div style={{ width: '100%', height: 6, borderRadius: 999, background: 'var(--surface-hover)', overflow: 'hidden' }}>
+              <div style={{ width: `${storageInfo.percentUsed}%`, height: '100%', background: 'var(--accent)', borderRadius: 999, transition: 'width 0.3s' }} />
+            </div>
+          )}
+        </div>
+
+        {storageNotice && (
+          <div style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(74,222,128,0.1)', color: 'rgb(74,222,128)', fontSize: 12, fontWeight: 700, marginBottom: 14 }}>
+            {storageNotice}
+          </div>
+        )}
+
+        <div style={ROW}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--fg)' }}>Reading &amp; Image Cache</div>
+            <div style={{ fontSize: 12, color: 'var(--muted2)', marginTop: 3 }}>
+              Temporary cached pages and cover images from reading online (CacheStorage API).
+            </div>
+          </div>
+          <button
+            onClick={handleClearCache}
+            disabled={clearingCache}
+            className="btn-secondary"
+            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, flexShrink: 0 }}
+          >
+            {clearingCache ? <ThemedSpinner size="xs" /> : <Trash2 style={{ width: 13, height: 13 }} />}
+            Clear Cache
+          </button>
+        </div>
+
+        <div style={ROW}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--fg)' }}>Local Uploaded Archives</div>
+            <div style={{ fontSize: 12, color: 'var(--muted2)', marginTop: 3 }}>
+              {storageInfo?.localArchivesCount || 0} archive(s) ({storageInfo?.localArchivesFormatted || '0 B'}) stored in browser IndexedDB.
+            </div>
+          </div>
+          <button
+            onClick={handleClearUploads}
+            disabled={clearingUploads || !storageInfo?.localArchivesCount}
+            className="btn-secondary"
+            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, flexShrink: 0, opacity: !storageInfo?.localArchivesCount ? 0.4 : 1 }}
+          >
+            {clearingUploads ? <ThemedSpinner size="xs" /> : <Trash2 style={{ width: 13, height: 13 }} />}
+            Clear Uploads
+          </button>
+        </div>
+
+        <div style={{ ...ROW, borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)' }}>Purge All Offline Data</div>
+            <div style={{ fontSize: 12, color: 'var(--muted2)', marginTop: 3 }}>
+              Wipes both image caches and all uploaded offline archives for a clean slate.
+            </div>
+          </div>
+          <button
+            onClick={handlePurgeAll}
+            disabled={purgingAll}
+            className="btn-secondary"
+            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--accent)', borderColor: 'rgba(239,68,68,0.3)', flexShrink: 0 }}
+          >
+            {purgingAll ? <ThemedSpinner size="xs" /> : <Trash2 style={{ width: 13, height: 13 }} />}
+            Purge All
+          </button>
+        </div>
+      </motion.section>
+
+      <motion.section className="glass-card" style={SECTION}
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }}
         transition={{ delay: 0.14, duration: 0.4, ease }}
       >
         <CardLabel icon={Server} title="Self-Hosted Sources" />
@@ -881,7 +1031,7 @@ export default function SystemSettings() {
 
           {syncEnabled && (
             <div style={{ ...ROW, flexDirection: 'column', alignItems: 'flex-start', gap: 8 }}>
-              <div style={{ fontSize: 11, color: 'var(--muted3)', fontWeight: 700 }}>Sync Interval — {syncInterval} min</div>
+              <div style={{ fontSize: 11, color: 'var(--muted3)', fontWeight: 700 }}>Sync Interval | {syncInterval} min</div>
               <input type="range" min={15} max={720} step={15} value={syncInterval}
                 onChange={e => { const val = Number(e.target.value); setSyncInterval(val); localStorage.setItem('desktop-sync-interval', String(val)); import('@tauri-apps/api/core').then(({ invoke }) => invoke('start_background_sync', { intervalMinutes: val })).catch(() => {}) }}
                 style={{ width: '100%', accentColor: 'var(--accent)' }}

@@ -36,9 +36,9 @@ interface Props {
 }
 
 const READING_MODES = [
+  { id: 'manga-rtl' as const, label: 'RTL Manga' },
+  { id: 'manga' as const, label: 'LTR Comic' },
   { id: 'webtoon' as const, label: 'Webtoon' },
-  { id: 'manga' as const, label: 'L→R' },
-  { id: 'manga-rtl' as const, label: 'R←L' },
   { id: 'vertical-pager' as const, label: 'Vertical' },
 ]
 
@@ -184,38 +184,47 @@ export function ReaderSettingsSheet({
               </div>
             </div>
 
-            {/* Page layout: single / double (LTR + RTL only) */}
+            {/* Page layout: single / double (LTR + RTL on desktop only) */}
             {(readingMode === 'manga' || readingMode === 'manga-rtl') && (
               <div className="mb-6">
                 <SectionLabel>Page Layout</SectionLabel>
-                <div
-                  className="flex gap-1 p-1 rounded-2xl"
-                  style={{ background: 'rgba(255,255,255,0.05)' }}
-                  role="group"
-                  aria-label="Page layout"
-                >
-                  {([
-                    { id: 'off' as const, label: 'Single' },
-                    { id: 'auto' as const, label: 'Auto' },
-                    { id: 'on' as const, label: 'Double' },
-                  ] as const).map(({ id, label }) => (
-                    <button
-                      key={id}
-                      onClick={() => setDualPageSpread(id)}
-                      aria-pressed={dualPageSpread === id}
-                      className={cn(
-                        'flex-1 h-11 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all',
-                        dualPageSpread === id
-                          ? 'bg-[var(--accent,#dc2626)] text-white shadow-[0_0_12px_rgba(220,38,38,0.3)]'
-                          : 'text-white/40 hover:text-white/60',
-                        FOCUS_RING
-                      )}
+                {typeof window !== 'undefined' && window.innerWidth >= 1024 ? (
+                  <>
+                    <div
+                      className="flex gap-1 p-1 rounded-2xl"
+                      style={{ background: 'rgba(255,255,255,0.05)' }}
+                      role="group"
+                      aria-label="Page layout"
                     >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                <p className="text-[10px] text-white/20 mt-2 px-1">Auto = double on landscape screens</p>
+                      {([
+                        { id: 'off' as const, label: 'Single' },
+                        { id: 'auto' as const, label: 'Auto' },
+                        { id: 'on' as const, label: 'Double' },
+                      ] as const).map(({ id, label }) => (
+                        <button
+                          key={id}
+                          onClick={() => setDualPageSpread(id)}
+                          aria-pressed={dualPageSpread === id}
+                          className={cn(
+                            'flex-1 h-11 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all',
+                            dualPageSpread === id
+                              ? 'bg-[var(--accent,#dc2626)] text-white shadow-[0_0_12px_rgba(220,38,38,0.3)]'
+                              : 'text-white/40 hover:text-white/60',
+                            FOCUS_RING
+                          )}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-white/20 mt-2 px-1">Auto = double on landscape screens</p>
+                  </>
+                ) : (
+                  <div className="px-3 py-2.5 rounded-xl border border-white/10 bg-white/5 flex items-center justify-between">
+                    <span className="text-xs font-bold text-white/70">Single Page</span>
+                    <span className="text-[10px] font-mono text-white/40 uppercase">Mobile Optimized</span>
+                  </div>
+                )}
               </div>
             )}
 

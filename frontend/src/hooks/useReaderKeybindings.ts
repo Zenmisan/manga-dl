@@ -56,26 +56,34 @@ export function useReaderKeybindings({
         e.preventDefault()
         onPrevChapter?.()
       } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-        if (readingMode !== 'webtoon') setCurrentPage(p => Math.min(p + 1, pagesLength))
+        if (readingMode !== 'webtoon' && readingMode !== 'vertical-pager') {
+          setCurrentPage(p => Math.min(p + 1, pagesLength))
+        } else {
+          window.scrollBy({ top: 300, behavior: 'smooth' })
+        }
       } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-        if (readingMode !== 'webtoon') setCurrentPage(p => Math.max(p - 1, 1))
+        if (readingMode !== 'webtoon' && readingMode !== 'vertical-pager') {
+          setCurrentPage(p => Math.max(p - 1, 1))
+        } else {
+          window.scrollBy({ top: -300, behavior: 'smooth' })
+        }
       } else if ((e.key === 'd' || e.key === 'D') && !e.ctrlKey && !e.metaKey && !e.altKey) {
         const target = e.target as HTMLElement | null
         if (target?.tagName !== 'INPUT' && target?.tagName !== 'TEXTAREA') {
           e.preventDefault()
-          if (readingMode !== 'webtoon') setCurrentPage(p => Math.min(p + 1, pagesLength))
+          if (readingMode !== 'webtoon' && readingMode !== 'vertical-pager') setCurrentPage(p => Math.min(p + 1, pagesLength))
         }
       } else if ((e.key === 'a' || e.key === 'A') && !e.ctrlKey && !e.metaKey && !e.altKey) {
         const target = e.target as HTMLElement | null
         if (target?.tagName !== 'INPUT' && target?.tagName !== 'TEXTAREA') {
           e.preventDefault()
-          if (readingMode !== 'webtoon') setCurrentPage(p => Math.max(p - 1, 1))
+          if (readingMode !== 'webtoon' && readingMode !== 'vertical-pager') setCurrentPage(p => Math.max(p - 1, 1))
         }
       } else if ((e.key === 's' || e.key === 'S') && !e.ctrlKey && !e.metaKey && !e.altKey) {
         const target = e.target as HTMLElement | null
         if (target?.tagName !== 'INPUT' && target?.tagName !== 'TEXTAREA') {
           e.preventDefault()
-          if (readingMode === 'webtoon') {
+          if (readingMode === 'webtoon' || readingMode === 'vertical-pager') {
             window.scrollBy({ top: 300, behavior: 'smooth' })
           } else {
             setCurrentPage(p => Math.min(p + 1, pagesLength))
@@ -85,7 +93,7 @@ export function useReaderKeybindings({
         const target = e.target as HTMLElement | null
         if (target?.tagName !== 'INPUT' && target?.tagName !== 'TEXTAREA') {
           e.preventDefault()
-          if (readingMode === 'webtoon') {
+          if (readingMode === 'webtoon' || readingMode === 'vertical-pager') {
             window.scrollBy({ top: -300, behavior: 'smooth' })
           } else {
             setCurrentPage(p => Math.max(p - 1, 1))

@@ -41,10 +41,17 @@ export function DashboardHeader({
       className="sticky-header border-b"
       style={{ borderColor: 'var(--border)' }}
     >
-      {/* Mobile header — title + search + filter only */}
+      {/* Mobile header | title + search + upload + view toggle + filter */}
       <div className="flex sm:hidden items-center justify-between px-4 h-[60px]">
         <h1 className="page-title" style={{ fontSize: 24, letterSpacing: '0.02em', textTransform: 'uppercase' }}>Library</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          <label
+            className={cn('icon-btn cursor-pointer', uploading && 'opacity-50 pointer-events-none')}
+            aria-label="Upload manga archives"
+          >
+            <input type="file" multiple className="hidden" accept=".zip,.cbz,.epub" onChange={handleUpload} />
+            {uploading ? <RefreshCw className="w-[18px] h-[18px] animate-spin" style={{ color: 'var(--accent)' }} /> : <Upload className="w-[18px] h-[18px]" />}
+          </label>
           <button
             onClick={() => navigate('/search')}
             className="icon-btn"

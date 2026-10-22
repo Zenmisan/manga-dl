@@ -101,13 +101,13 @@ export function ReaderViewport({
       return
     }
 
-    // LTR / RTL: horizontal swipe only
+    // LTR / RTL: horizontal swipe
     if (Math.abs(dx) < 30 || Math.abs(dx) < Math.abs(dy)) return
     e.preventDefault()
-    if (readingMode === 'manga') {
-      if (dx < 0) { setNavDir('forward'); nextPage() } else { setNavDir('back'); prevPage() }
-    } else {
+    if (readingMode === 'manga-rtl') {
       if (dx < 0) { setNavDir('back'); prevPage() } else { setNavDir('forward'); nextPage() }
+    } else {
+      if (dx < 0) { setNavDir('forward'); nextPage() } else { setNavDir('back'); prevPage() }
     }
   }
 
@@ -121,59 +121,80 @@ export function ReaderViewport({
   return (
     <main
       className={cn(
-        "relative z-10 mx-auto transition-all duration-500",
-        readingMode === 'webtoon' || readingMode === 'manga-ltr' || readingMode === 'manga-rtl'
-          ? "max-w-3xl"
-          : "w-full h-screen flex items-center justify-center overflow-hidden"
+        "relative z-10 mx-auto transition-all duration-300 min-h-screen",
+        readingMode === 'webtoon' || readingMode === 'vertical-pager'
+          ? "w-full max-w-3xl block overflow-visible"
+          : currentSlot.type === 'pair'
+          ? "w-full max-w-[95vw] lg:max-w-7xl flex items-center justify-center px-2"
+          : "w-full max-w-4xl flex items-center justify-center px-2"
       )}
       onClick={onTap}
     >
       {readingMode === 'vertical-pager' ? (
+        /* Vertical Mode: distinct manga pages stacked with clear margins and shadows */
         <div
-          className="relative w-full h-full flex items-center justify-center"
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
+          className="flex flex-col items-center py-6 px-3 gap-6 max-w-3xl mx-auto w-full"
+          style={{
+            ...(zoomLevel !== 1 ? { transform: `scale(${zoomLevel})`, transformOrigin: 'top center' } : {}),
+          }}
         >
-          <div
-            role="button" tabIndex={disabled ? -1 : 0} aria-label="Previous page"
-            className={`absolute inset-y-0 left-0 ${tapZoneLeft} z-20 cursor-pointer`}
-            onClick={!disabled ? handlePrevPage : undefined}
-            onKeyDown={!disabled ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handlePrevPage() } } : undefined}
-          />
-          <div
-            role="button" tabIndex={disabled ? -1 : 0} aria-label="Next page"
-            className={`absolute inset-y-0 right-0 ${tapZoneRight} z-20 cursor-pointer`}
-            onClick={!disabled ? handleNextPage : undefined}
-            onKeyDown={!disabled ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleNextPage() } } : undefined}
-          />
-          <AnimatePresence mode="wait">
+          {pages.map((page, idx) => (
             <motion.div
-              key={currentPage}
-              initial={{ opacity: 0, y: navDir === 'forward' ? 30 : -30 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: navDir === 'forward' ? -30 : 30 }}
-              transition={{ duration: 0.18, ease: 'easeOut' }}
-              className="h-full w-full flex items-center justify-center p-4"
-              style={zoomStyle}
+              key={page}
+              id={`page-${idx + 1}`}
+              data-page={idx + 1}
+              initial={{ opacity: 0, y: 15 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '200px' }}
+              transition={{ duration: 0.2 }}
+              className="relative w-full flex flex-col items-center"
             >
-              <ReaderPageImage
-                src={getImageUrl(pages[currentPage - 1])}
-                alt={`Page ${currentPage}`}
-                className={cn(
-                  "shadow-2xl rounded-sm",
-                  cropBorders ? "object-cover" : "object-contain",
-                  imageScale === 'fit-screen' && "max-h-[90dvh] max-w-full",
-                  imageScale === 'fit-width' && "w-full max-h-none",
-                  imageScale === 'fit-height' && "h-[95dvh] w-auto max-w-full",
-                  imageScale === 'original' && "max-w-none",
-                  cropBorders && "w-full h-[90dvh]",
-                )}
-                onLoad={handlePageLoad}
-                style={filterStyle}
-              />
+              <div className="relative shadow-2xl rounded-md border border-white/10 bg-neutral-900/60 overflow-hidden max-h-[92dvh] flex items-center justify-center">
+                <ReaderPageImage
+                  src={getImageUrl(page)}
+                  alt={`Page ${idx + 1}`}
+                  className={cn(
+                    cropBorders ? "object-cover" : "object-contain",
+                    "max-h-[92dvh] w-auto max-w-full"
+                  )}
+                  loading={idx < 3 ? "eager" : "lazy"}
+                  onLoad={idx === 0 ? handlePageLoad : undefined}
+                  style={filterStyle}
+                />
+                <div aria-live="polite" aria-atomic="true" className="absolute bottom-3 right-3 px-2 py-1 bg-black/60 backdrop-blur-md rounded text-[10px] font-mono text-white/50 border border-white/10">
+                  {idx + 1} / {pages.length}
+                </div>
+              </div>
             </motion.div>
-          </AnimatePresence>
+          ))}
+
+          {/* End of chapter panel */}
+          <div className="flex flex-col items-center py-16 px-6 gap-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">End of chapter</p>
+            <p className="font-bold text-sm text-white/60">{filename?.replace('.cbz', '') ?? 'Chapter'}</p>
+            <div className="flex gap-3 flex-wrap justify-center">
+              {prevChapterId && (
+                <button
+                  onClick={navigateToPrevChapter}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/15 text-white/60 hover:text-white hover:bg-white/10 text-xs font-black uppercase tracking-widest transition-all"
+                >
+                  <ArrowLeft className="w-4 h-4" /> Prev Chapter
+                </button>
+              )}
+              {nextUnreadChapterId ? (
+                <button
+                  onClick={navigateToNextChapter}
+                  className="flex items-center gap-2 px-5 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+                >
+                  {skipReadChapters ? 'Next Unread' : 'Next Chapter'} <ArrowRight className="w-4 h-4" />
+                </button>
+              ) : (
+                <p className="text-[10px] text-white/20 font-bold uppercase tracking-widest">
+                  {skipReadChapters && nextChapterId ? 'All caught up!' : 'No next chapter'}
+                </p>
+              )}
+            </div>
+          </div>
         </div>
 
       ) : readingMode === 'webtoon' ? (
@@ -248,17 +269,17 @@ export function ReaderViewport({
         >
           <div
             role="button" tabIndex={disabled ? -1 : 0}
-            aria-label={readingMode === 'manga' ? 'Previous page' : 'Next page'}
+            aria-label={readingMode === 'manga-rtl' ? 'Next page' : 'Previous page'}
             className={`fixed inset-y-0 left-0 ${tapZoneLeft} z-20 cursor-pointer`}
-            onClick={!disabled ? (readingMode === 'manga' ? handlePrevPage : handleNextPage) : undefined}
-            onKeyDown={!disabled ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (readingMode === 'manga') handlePrevPage(); else handleNextPage() } } : undefined}
+            onClick={!disabled ? (readingMode === 'manga-rtl' ? handleNextPage : handlePrevPage) : undefined}
+            onKeyDown={!disabled ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (readingMode === 'manga-rtl') handleNextPage(); else handlePrevPage() } } : undefined}
           />
           <div
             role="button" tabIndex={disabled ? -1 : 0}
-            aria-label={readingMode === 'manga' ? 'Next page' : 'Previous page'}
+            aria-label={readingMode === 'manga-rtl' ? 'Previous page' : 'Next page'}
             className={`fixed inset-y-0 right-0 ${tapZoneRight} z-20 cursor-pointer`}
-            onClick={!disabled ? (readingMode === 'manga' ? handleNextPage : handlePrevPage) : undefined}
-            onKeyDown={!disabled ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (readingMode === 'manga') handleNextPage(); else handlePrevPage() } } : undefined}
+            onClick={!disabled ? (readingMode === 'manga-rtl' ? handlePrevPage : handleNextPage) : undefined}
+            onKeyDown={!disabled ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (readingMode === 'manga-rtl') handlePrevPage(); else handleNextPage() } } : undefined}
           />
 
           <AnimatePresence mode="wait">
@@ -270,22 +291,21 @@ export function ReaderViewport({
               transition={{ duration: 0.18, ease: 'easeOut' }}
               className={cn(
                 "w-full flex items-center justify-center",
-                currentSlot.type === 'pair' ? "gap-3 px-2" : "px-2 py-6"
+                currentSlot.type === 'pair' ? "gap-2 px-1" : "px-2 py-4"
               )}
               style={zoomStyle}
             >
               {currentSlot.type === 'pair' && currentSlot.page2 != null ? (
-                // Spread pair — RTL ('manga' mode): page1 on right, page2 on left.
-                // Each half gets flex-1 so both fill exactly 50% of the container — no gap.
-                (readingMode === 'manga'
+                // Spread pair: RTL = page 2 on left, page 1 on right. LTR = page 1 on left, page 2 on right.
+                (readingMode === 'manga-rtl'
                   ? [currentSlot.page2, currentSlot.page1]
                   : [currentSlot.page1, currentSlot.page2]
                 ).map((pageNum, i) => (
-                  <div key={pageNum} className="flex-1 flex items-center justify-center min-w-0 min-h-0 overflow-hidden" style={{ maxHeight: '95dvh' }}>
+                  <div key={pageNum} className="flex-1 flex items-center justify-center min-w-0 min-h-0 overflow-hidden" style={{ maxHeight: '92dvh' }}>
                     <ReaderPageImage
                       src={getImageUrl(pages[pageNum - 1])}
                       alt={`Page ${pageNum}`}
-                      className="shadow-2xl rounded-sm object-contain w-full max-h-[95dvh]"
+                      className="shadow-2xl rounded-sm object-contain w-auto max-h-[92dvh] max-w-full"
                       onLoad={i === 0 ? handlePageLoad : undefined}
                       style={filterStyle}
                     />
@@ -293,24 +313,26 @@ export function ReaderViewport({
                 ))
               ) : (
                 // Single page or wide splash
-                <ReaderPageImage
-                  src={getImageUrl(pages[currentSlot.page1 - 1])}
-                  alt={`Page ${currentSlot.page1}`}
-                  className={cn(
-                    "shadow-2xl rounded-sm",
-                    cropBorders ? "object-cover" : "object-contain",
-                    currentSlot.type === 'wide'
-                      ? "w-full h-auto max-h-[95dvh]"
-                      : imageScale === 'fit-screen' ? "w-full h-auto"
-                      : imageScale === 'fit-width' ? "w-full h-auto max-h-none"
-                      : imageScale === 'fit-height' ? "h-[95dvh] w-auto max-w-full"
-                      : imageScale === 'original' ? "max-w-none"
-                      : "w-full h-auto",
-                    cropBorders && currentSlot.type !== 'wide' && "w-full",
-                  )}
-                  onLoad={handlePageLoad}
-                  style={filterStyle}
-                />
+                <div className="w-full flex items-center justify-center min-h-0" style={{ maxHeight: '92dvh' }}>
+                  <ReaderPageImage
+                    src={getImageUrl(pages[currentSlot.page1 - 1])}
+                    alt={`Page ${currentSlot.page1}`}
+                    className={cn(
+                      "shadow-2xl rounded-sm mx-auto",
+                      cropBorders ? "object-cover" : "object-contain",
+                      currentSlot.type === 'wide'
+                        ? "w-auto max-h-[92dvh] max-w-full"
+                        : imageScale === 'fit-screen' ? "max-h-[92dvh] w-auto max-w-full"
+                        : imageScale === 'fit-width' ? "w-full max-h-none"
+                        : imageScale === 'fit-height' ? "h-[92dvh] w-auto max-w-full"
+                        : imageScale === 'original' ? "max-w-none"
+                        : "max-h-[92dvh] w-auto max-w-full",
+                      cropBorders && currentSlot.type !== 'wide' && "w-full",
+                    )}
+                    onLoad={handlePageLoad}
+                    style={filterStyle}
+                  />
+                </div>
               )}
             </motion.div>
           </AnimatePresence>
@@ -365,19 +387,25 @@ export function ReaderViewport({
             )}
           </AnimatePresence>
 
-          {/* Nav chevrons — desktop only; mobile uses tap zones + swipe */}
+          {/* Nav chevrons | desktop only */}
           <div className="absolute bottom-10 right-10 hidden sm:flex gap-4 z-30">
             <button
-              onClick={readingMode === 'manga' ? handlePrevPage : handleNextPage}
-              aria-label={readingMode === 'manga' ? 'Previous page' : 'Next page'}
-              className={cn("p-4 glass-panel hover:bg-white/10 transition-all focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-black", ((readingMode === 'manga' && currentPage === 1) || (readingMode === 'manga-rtl' && currentPage === pages.length)) && "opacity-0 pointer-events-none")}
+              onClick={readingMode === 'manga-rtl' ? handleNextPage : handlePrevPage}
+              aria-label={readingMode === 'manga-rtl' ? 'Next page' : 'Previous page'}
+              className={cn(
+                "p-4 glass-panel hover:bg-white/10 transition-all focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-black",
+                ((readingMode === 'manga-rtl' && currentPage >= pages.length) || (readingMode === 'manga' && currentPage <= 1)) && "opacity-0 pointer-events-none"
+              )}
             >
               <ChevronLeft className="w-6 h-6" />
             </button>
             <button
-              onClick={readingMode === 'manga' ? handleNextPage : handlePrevPage}
-              aria-label={readingMode === 'manga' ? 'Next page' : 'Previous page'}
-              className={cn("p-4 glass-panel hover:bg-white/10 transition-all focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-black", ((readingMode === 'manga' && currentPage === pages.length) || (readingMode === 'manga-rtl' && currentPage === 1)) && "opacity-0 pointer-events-none")}
+              onClick={readingMode === 'manga-rtl' ? handlePrevPage : handleNextPage}
+              aria-label={readingMode === 'manga-rtl' ? 'Previous page' : 'Next page'}
+              className={cn(
+                "p-4 glass-panel hover:bg-white/10 transition-all focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-black",
+                ((readingMode === 'manga-rtl' && currentPage <= 1) || (readingMode === 'manga' && currentPage >= pages.length)) && "opacity-0 pointer-events-none"
+              )}
             >
               <ChevronRight className="w-6 h-6" />
             </button>

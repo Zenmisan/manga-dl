@@ -30,7 +30,16 @@ function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
 const ease = [0.16, 1, 0.3, 1] as const
 
 export default function ReaderSettings() {
-  const { tapZoneLayout, setTapZoneLayout, cropBorders, setCropBorders, dualPageSpread, setDualPageSpread, webtoonSidePadding, setWebtoonSidePadding, cropBordersWebtoon, setCropBordersWebtoon } = useAppStore()
+  const {
+    readingMode, setReadingMode,
+    tapZoneLayout, setTapZoneLayout,
+    cropBorders, setCropBorders,
+    dualPageSpread, setDualPageSpread,
+    webtoonSidePadding, setWebtoonSidePadding,
+    cropBordersWebtoon, setCropBordersWebtoon,
+  } = useAppStore()
+
+  const isDesktopScreen = typeof window !== 'undefined' && window.innerWidth >= 1024
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -43,7 +52,29 @@ export default function ReaderSettings() {
         initial={{ opacity: 0 }} animate={{ opacity: 1 }}
         transition={{ delay: 0, duration: 0.4, ease }}
       >
-        <CardLabel icon={BookOpen} title="Reader Appearance" />
+        <CardLabel icon={BookOpen} title="Reading Mode &amp; Layout" />
+
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)', marginBottom: 10 }}>Default Reading Mode</div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {([
+              ['manga-rtl', 'RTL Manga'],
+              ['manga', 'LTR Comic'],
+              ['webtoon', 'Webtoon'],
+              ['vertical-pager', 'Vertical'],
+            ] as const).map(([v, label]) => (
+              <button key={v} onClick={() => setReadingMode(v)} className={cn('filter-pill', readingMode === v && 'active')}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--muted3)', marginTop: 8 }}>
+            {readingMode === 'manga-rtl' && 'Right-to-left paging: standard format for Japanese manga'}
+            {readingMode === 'manga' && 'Left-to-right paging: Western comics and manhwa'}
+            {readingMode === 'webtoon' && 'Continuous vertical scroll: seamless full-width strip'}
+            {readingMode === 'vertical-pager' && 'Vertical flow: distinct page cards with margins and vertical navigation'}
+          </div>
+        </div>
 
         <div style={{ marginBottom: 20 }}>
           <div style={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)', marginBottom: 10 }}>Tap Zones</div>
@@ -56,7 +87,7 @@ export default function ReaderSettings() {
             {tapZoneLayout === 'default' && 'Left 1/3 = prev, right 1/3 = next, center = toggle UI'}
             {tapZoneLayout === 'l-nav' && 'Left half = prev, right half = next'}
             {tapZoneLayout === 'edge' && '15% edges only for navigation'}
-            {tapZoneLayout === 'disabled' && 'Taps only toggle UI — no navigation'}
+            {tapZoneLayout === 'disabled' && 'Taps only toggle UI | no navigation'}
           </div>
         </div>
 
@@ -69,12 +100,28 @@ export default function ReaderSettings() {
         </div>
 
         <div style={{ ...ROW, flexDirection: 'column', alignItems: 'flex-start', gap: 10 }}>
-          <div style={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted3)' }}>Dual-Page Spread</div>
-          <div style={{ display: 'flex', gap: 6 }}>
-            {([['auto', 'Auto'], ['on', 'Always On'], ['off', 'Off']] as const).map(([v, label]) => (
-              <button key={v} onClick={() => setDualPageSpread(v)} className={cn('filter-pill', dualPageSpread === v && 'active')}>{label}</button>
-            ))}
+          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--fg)' }}>Dual-Page Spread</div>
+              <div style={{ fontSize: 12, color: 'var(--muted2)', marginTop: 3 }}>
+                {isDesktopScreen
+                  ? 'Display 2 pages side-by-side on wide screens'
+                  : 'Desktop & wide tablets only. Mobile phones use single-page view.'}
+              </div>
+            </div>
+            {!isDesktopScreen && (
+              <span style={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted3)', background: 'var(--surface-hover)', padding: '4px 8px', borderRadius: 6 }}>
+                Desktop Only
+              </span>
+            )}
           </div>
+          {isDesktopScreen && (
+            <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+              {([['auto', 'Auto'], ['on', 'Always On'], ['off', 'Off']] as const).map(([v, label]) => (
+                <button key={v} onClick={() => setDualPageSpread(v)} className={cn('filter-pill', dualPageSpread === v && 'active')}>{label}</button>
+              ))}
+            </div>
+          )}
         </div>
       </motion.section>
 

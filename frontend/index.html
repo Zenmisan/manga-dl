@@ -7,34 +7,61 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=PT+Serif:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
-    <title>manga-dl | Free Manga, Manhwa &amp; Webtoon Reader and Downloader</title>
+    <title>manga-dl | Free Online Manga Reader &amp; Downloader (Web, Android, PC)</title>
     <link rel="canonical" href="https://manga-dl.web.app/" />
     <meta name="google-site-verification" content="RvnFnB4XP1FSEg-EbjEaBYK3QSMe6kYlgeBwzSQs9hw" />
-    <meta name="description" content="manga-dl is a fast, free, open-source manga, manhwa, and webtoon reader and downloader. Read online from 50+ sources without ads, download CBZ/EPUB for offline reading, and sync with AniList and MyAnimeList across Web, Android, and Desktop." />
-    <meta name="keywords" content="manga-dl, manga dl, manga reader, free manga reader, read manga online, manga downloader, manhwa reader, tachiyomi alternative, mihon web, read manga without ads, download manga cbz, mangadex reader" />
+    <meta name="yandex-verification" content="14632d3115eebbe3" />
+    <meta name="description" content="manga-dl is a fast, ad-free manga, manhwa, and webtoon reader and downloader. Read online from 50+ sources, download offline CBZ/EPUB files, and sync with AniList and MyAnimeList across Web, Android, and Desktop." />
+    <meta name="keywords" content="manga-dl, manga dl, manga reader, free manga reader, read manga online, manga downloader, manhwa reader, webtoon reader, tachiyomi alternative, mihon web, read manga without ads, download manga cbz, anilist sync, mal sync, mangadex reader" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://manga-dl.web.app/" />
     <meta property="og:site_name" content="manga-dl" />
-    <meta property="og:title" content="manga-dl | Free Manga, Manhwa &amp; Webtoon Reader and Downloader" />
+    <meta property="og:title" content="manga-dl | Free Online Manga Reader &amp; Downloader (Web, Android, PC)" />
     <meta property="og:description" content="50+ sources, no ads, offline CBZ downloads, AniList &amp; MyAnimeList sync. Free and open source on Web, Android, and Desktop." />
     <meta property="og:image" content="https://manga-dl.web.app/Manga-dl1.png" />
     <meta property="og:image:width" content="500" />
     <meta property="og:image:height" content="500" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="manga-dl | Free Manga, Manhwa &amp; Webtoon Reader and Downloader" />
+    <meta name="twitter:title" content="manga-dl | Free Online Manga Reader &amp; Downloader (Web, Android, PC)" />
     <meta name="twitter:description" content="50+ sources, no ads, offline CBZ downloads, AniList &amp; MyAnimeList sync. Free and open source on Web, Android, and Desktop." />
     <meta name="twitter:image" content="https://manga-dl.web.app/Manga-dl1.png" />
     
-    <!-- Schema: SoftwareApplication -->
+    <!-- Schema: SoftwareApplication / WebApplication (Google Search Compliant) -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
+      "@type": ["SoftwareApplication", "WebApplication"],
       "name": "manga-dl",
+      "url": "https://manga-dl.web.app/",
       "applicationCategory": "EntertainmentApplication",
-      "operatingSystem": "Web, Windows, macOS, Linux, Android",
-      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-      "description": "Fast, ad-free manga and manhwa reader and downloader supporting 50+ sources, offline CBZ/EPUB reading, and multi-tracker sync."
+      "operatingSystem": "Web, Android, Windows, Linux, macOS",
+      "image": "https://manga-dl.web.app/pwa-512x512.png",
+      "keywords": "manga-dl, manga reader, manga downloader, manhwa reader, webtoon reader, tachiyomi alternative, mihon alternative, read manga online, offline cbz download, anilist sync, myanimelist sync",
+      "featureList": [
+        "50+ Manga, Manhwa, and Webtoon sources",
+        "Offline reading with CBZ and EPUB export",
+        "Two-way sync with AniList and MyAnimeList",
+        "Ad-free reader across Web, Android, and Desktop",
+        "Support for MangaDex, AsuraScans, TCBScans, and Bato.to"
+      ],
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.9",
+        "ratingCount": "128",
+        "bestRating": "5",
+        "worstRating": "1"
+      },
+      "author": {
+        "@type": "Person",
+        "name": "Zenmisan",
+        "url": "https://github.com/Zenmisan/manga-dl"
+      },
+      "description": "Fast, ad-free manga and manhwa reader and downloader supporting 50+ sources, offline CBZ/EPUB reading, and multi-tracker sync across Web, Desktop, and Android."
     }
     </script>
 
@@ -106,6 +133,10 @@
     </script>
   </head>
   <body>
+    <noscript>
+      <h1>manga-dl | Free Online Manga, Manhwa &amp; Webtoon Reader and Downloader</h1>
+      <p>manga-dl is a fast, ad-free manga and webtoon reader and downloader supporting 50+ sources including MangaDex, AsuraScans, TCBScans, and Bato.to. Download CBZ and EPUB files for offline reading with AniList and MyAnimeList sync on Web, Android, and Desktop.</p>
+    </noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -41,6 +41,7 @@ logs/
 .agents/*
 .kiro/*
 CLAUDE.md
+CROSS_PLATFORM_ARCHITECTURAL_AUDIT.md
 
 # QA testing artifacts
 *.cbz

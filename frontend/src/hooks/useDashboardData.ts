@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useLibrary, useHistory, QK } from '../lib/queries'
 import api from '../lib/api'
 import { useAppStore } from '../lib/store'
-import { saveLocalManga, getAllLocalManga, deleteLocalManga, type LocalMangaEntry } from '../lib/localLibrary'
+import { saveLocalManga, getAllLocalManga, deleteLocalMangaBatch, deleteLocalMangaBySeries, type LocalMangaEntry } from '../lib/localLibrary'
 import { getSubscriptions, getCachedSubscriptions, removeSubscription, type SupabaseSubscription } from '../lib/supabaseSubscriptions'
 import { inspectArchive } from '../lib/archiveInspector'
 import { getReadCount } from '../lib/readTracking'
@@ -19,6 +19,7 @@ export interface LibraryItem {
   chapters_failed: number
   isLocal?: boolean
   localId?: string
+  localIds?: string[]
   total_chapters?: number
   provider?: string
   provider_manga_id?: string
@@ -284,12 +285,15 @@ export function useDashboardData() {
             chapters_failed: 0,
             isLocal: true,
             localId: e.id,
+            localIds: [e.id],
             total_chapters: e.chaptersCount || 1,
             type: e.type || (e.filename.toLowerCase().endsWith('.epub') ? 'novel' : 'manga'),
           })
         } else {
           const item = seriesMap.get(sTitle)!
           if (!item.files.includes(e.filename)) item.files.push(e.filename)
+          if (!item.localIds) item.localIds = [item.localId || e.id]
+          if (!item.localIds.includes(e.id)) item.localIds.push(e.id)
           item.total_chapters = (item.total_chapters || 0) + (e.chaptersCount || 1)
           if (!item.type && e.type) item.type = e.type
         }
@@ -413,9 +417,15 @@ export function useDashboardData() {
 
   const handleDeleteItem = async (item: LibraryItem) => {
     if (!window.confirm(`Remove "${item.title}" from your library?`)) return
-    if (item.isLocal && item.localId) {
-      await deleteLocalManga(item.localId)
-      setLocalItems(prev => prev.filter(i => i.localId !== item.localId))
+    if (item.isLocal) {
+      const idsToDelete = item.localIds && item.localIds.length > 0
+        ? item.localIds
+        : (item.localId ? [item.localId] : [])
+      if (idsToDelete.length > 0) {
+        await deleteLocalMangaBatch(idsToDelete)
+      }
+      await deleteLocalMangaBySeries(item.title)
+      setLocalItems(prev => prev.filter(i => i.title !== item.title && (!item.localId || i.localId !== item.localId)))
     } else if (item.provider && item.provider_manga_id) {
       try {
         await removeSubscription(item.provider, item.provider_manga_id)
@@ -446,9 +456,15 @@ export function useDashboardData() {
     for (const title of selectedItems) {
       const item = items.find(i => i.title === title)
       if (item) {
-        if (item.isLocal && item.localId) {
-          await deleteLocalManga(item.localId)
-          setLocalItems(prev => prev.filter(i => i.localId !== item.localId))
+        if (item.isLocal) {
+          const idsToDelete = item.localIds && item.localIds.length > 0
+            ? item.localIds
+            : (item.localId ? [item.localId] : [])
+          if (idsToDelete.length > 0) {
+            await deleteLocalMangaBatch(idsToDelete)
+          }
+          await deleteLocalMangaBySeries(item.title)
+          setLocalItems(prev => prev.filter(i => i.title !== item.title && (!item.localId || i.localId !== item.localId)))
         } else if (item.provider && item.provider_manga_id) {
           try {
             await removeSubscription(item.provider, item.provider_manga_id)

@@ -125,7 +125,7 @@ export default function TrackerSettings() {
     const token = manualAnilistToken.trim()
     if (!token) return
     const name = await fetchAniListUsername(token)
-    if (!name) { alert('Invalid token — could not verify with AniList.'); return }
+    if (!name) { alert('Invalid token | could not verify with AniList.'); return }
     localStorage.setItem('anilist-token', token)
     setAnilistToken(token)
     setUserName(name)

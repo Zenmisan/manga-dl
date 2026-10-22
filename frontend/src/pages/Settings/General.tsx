@@ -6,6 +6,7 @@ import { motion } from 'framer-motion'
 import { useAppStore } from '../../lib/store'
 import type { AccentColor } from '../../lib/store'
 import api, { resolveBaseURL, normalizeApiUrl } from '../../lib/api'
+import { clearImageAndReadingCaches } from '../../lib/storageManager'
 
 const SECTION: React.CSSProperties = { padding: '22px 20px', marginBottom: 14 }
 const ROW: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '14px 0', borderTop: '1px solid var(--border)', minHeight: 52 }
@@ -66,6 +67,22 @@ export default function GeneralSettings() {
   const [showKey, setShowKey] = useState(false)
   const [saving, setSaving] = useState(false)
   const [connStatus, setConnStatus] = useState<{ type: 'ok' | 'error'; msg: string } | null>(null)
+  const [clearingCache, setClearingCache] = useState(false)
+  const [cacheClearedSuccess, setCacheClearedSuccess] = useState(false)
+
+  const handleClearImageCache = async () => {
+    if (!window.confirm('Clear temporary image & reading cache? This frees up space used by cached pages without affecting your library or history.')) return
+    setClearingCache(true)
+    try {
+      await clearImageAndReadingCaches()
+      setCacheClearedSuccess(true)
+      setTimeout(() => setCacheClearedSuccess(false), 3000)
+    } catch (err) {
+      alert('Failed to clear cache: ' + String(err))
+    } finally {
+      setClearingCache(false)
+    }
+  }
 
   const testConnection = async (urlOverride?: string, keyOverride?: string) => {
     const rawUrl = urlOverride ?? backendUrl
@@ -354,11 +371,12 @@ export default function GeneralSettings() {
       </motion.section>
 
       <button
-        onClick={() => { if (confirm('Clear all cached temporary files?')) alert('Cache cleared.') }}
-        style={{ width: '100%', padding: '14px', borderRadius: 16, border: '1px solid rgba(220,38,38,0.2)', background: 'rgba(220,38,38,0.06)', color: 'var(--accent)', fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+        onClick={handleClearImageCache}
+        disabled={clearingCache}
+        style={{ width: '100%', padding: '14px', borderRadius: 16, border: '1px solid rgba(220,38,38,0.2)', background: 'rgba(220,38,38,0.06)', color: 'var(--accent)', fontSize: 14, fontWeight: 700, cursor: clearingCache ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: clearingCache ? 0.6 : 1 }}
       >
-        <Trash2 style={{ width: 16, height: 16 }} />
-        Clear Image Cache
+        {clearingCache ? <ThemedSpinner size="xs" /> : <Trash2 style={{ width: 16, height: 16 }} />}
+        {cacheClearedSuccess ? 'Cache Cleared!' : 'Clear Image & Reading Cache'}
       </button>
     </div>
   )

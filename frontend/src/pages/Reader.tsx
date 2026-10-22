@@ -247,7 +247,7 @@ export default function Reader() {
     const currentChapterKey = `${onlinePartsRef.current?.provider}:${onlinePartsRef.current?.mangaId}:${onlinePartsRef.current?.chapterId}:${filename}`
     if (hasResumedChapterRef.current === currentChapterKey) return
 
-    if (readingMode === 'webtoon' && currentPage > 1) {
+    if ((readingMode === 'webtoon' || readingMode === 'vertical-pager') && currentPage > 1) {
       isResumingScrollRef.current = true
       hasResumedChapterRef.current = currentChapterKey
 
@@ -275,7 +275,7 @@ export default function Reader() {
 
   // Webtoon scroll tracker — captures current page immediately on scroll (0 delay) and links to counter
   useEffect(() => {
-    if (readingMode !== 'webtoon' || !pages.length) return
+    if ((readingMode !== 'webtoon' && readingMode !== 'vertical-pager') || !pages.length) return
 
     let ticking = false
     const onScroll = () => {
@@ -316,7 +316,7 @@ export default function Reader() {
 
   // In LTR, RTL, and vertical-pager modes, immediately save progress whenever turning pages
   useEffect(() => {
-    if (readingMode === 'webtoon' || !pages.length) return
+    if (readingMode === 'webtoon' || readingMode === 'vertical-pager' || !pages.length) return
     saveOnlineProgress(currentPage)
   }, [currentPage, readingMode, pages.length, saveOnlineProgress])
 
@@ -358,6 +358,14 @@ export default function Reader() {
     const base = api.defaults.baseURL || ''
     const apiKey = localStorage.getItem('manga-api-key') || ''
     window.open(`${base}/${path}/${encodeURIComponent(mangaTitle || '')}/${encodeURIComponent(filename || '')}?api_key=${apiKey}`, '_blank')
+  }
+
+  const handleConvertToPdf = () => {
+    if (mangaTitle === 'local' || !api.defaults.baseURL) {
+      window.print()
+      return
+    }
+    openLibraryUrl('library/pdf')
   }
 
   const handleDownloadChapter = () => {
@@ -473,7 +481,7 @@ export default function Reader() {
         uploading={uploading}
         handleCloudUpload={handleCloudUpload}
         handleDownload={handleDownloadChapter}
-        handleConvertToPdf={() => openLibraryUrl('library/pdf')}
+        handleConvertToPdf={handleConvertToPdf}
         readingMode={readingMode}
         setReadingMode={setReadingMode}
         onBack={handleBack}

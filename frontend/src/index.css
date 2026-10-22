@@ -417,3 +417,25 @@ select.select-styled option {
 .animate-float { animation: floatY 5s ease-in-out infinite; }
 .animate-fade-up { animation: fadeUp 0.4s ease both; }
 .animate-fade-in { animation: fadeIn 0.3s ease both; }
+
+/* ── Print Styles for Clean Manga PDF Export ────────────── */
+@media print {
+  header, nav, button, .glass-panel, .fixed, .absolute, [role="button"] {
+    display: none !important;
+  }
+  body, main {
+    background: #ffffff !important;
+    color: #000000 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    min-height: auto !important;
+  }
+  img {
+    page-break-after: always !important;
+    break-after: page !important;
+    max-width: 100% !important;
+    height: auto !important;
+    display: block !important;
+    margin: 0 auto !important;
+  }
+}

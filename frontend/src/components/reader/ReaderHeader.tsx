@@ -75,10 +75,10 @@ export function ReaderHeader({
   }, [showLayoutDrop])
 
   const LAYOUT_MODES = [
-    { id: 'webtoon' as const, label: 'Webtoon', desc: 'Vertical scroll' },
-    { id: 'manga' as const, label: 'L→R Paged', desc: 'Left to right' },
-    { id: 'manga-rtl' as const, label: 'R←L Paged', desc: 'Right to left' },
-    { id: 'vertical-pager' as const, label: 'Vertical Paged', desc: 'Tap to page' },
+    { id: 'manga-rtl' as const, label: 'RTL Manga', desc: 'Standard Japanese right-to-left' },
+    { id: 'manga' as const, label: 'LTR Comic', desc: 'Western left-to-right' },
+    { id: 'webtoon' as const, label: 'Webtoon', desc: 'Continuous seamless strip' },
+    { id: 'vertical-pager' as const, label: 'Vertical Flow', desc: 'Continuous with margins' },
   ]
 
   useEffect(() => {

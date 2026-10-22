@@ -77,18 +77,25 @@ export function useReaderNavigation({
   onlinePartsRef, chapterListRef, nextChapterId, prevChapterId, mangaTitle, navigate,
   readerFilters, setReaderFilters, isWidePage, onExit,
 }: Params) {
-  const [isLandscape, setIsLandscape] = useState(window.innerWidth > window.innerHeight)
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200)
+  const [isLandscape, setIsLandscape] = useState(typeof window !== 'undefined' ? window.innerWidth > window.innerHeight : true)
   const [volumeKeyMode, setVolumeKeyMode] = useState<'navigation' | 'brightness'>('navigation')
 
   useEffect(() => {
-    const update = () => setIsLandscape(window.innerWidth > window.innerHeight)
+    const update = () => {
+      setWindowWidth(window.innerWidth)
+      setIsLandscape(window.innerWidth > window.innerHeight)
+    }
     window.addEventListener('resize', update)
     return () => window.removeEventListener('resize', update)
   }, [])
 
-  const spreadActive = dualPageSpread === 'on' || (dualPageSpread === 'auto' && isLandscape)
-  const pagerMode = readingMode === 'manga' || readingMode === 'manga-rtl' || readingMode === 'vertical-pager'
-  const spreadEnabled = spreadActive && pagerMode && readingMode !== 'vertical-pager'
+  // Spread (dual-page) requires desktop or wide tablet screen (>= 1024px) to preserve readability.
+  // On mobile screens, dual-page mode is forced off.
+  const isDesktopOrWideTablet = windowWidth >= 1024
+  const spreadActive = isDesktopOrWideTablet && (dualPageSpread === 'on' || (dualPageSpread === 'auto' && isLandscape))
+  const pagerMode = readingMode === 'manga' || readingMode === 'manga-rtl'
+  const spreadEnabled = spreadActive && pagerMode
 
   // Slot-based page model — eliminates step=2 navigation and pairing parity bugs.
   // Each slot is one "screen": single page, a spread pair, or a wide/splash image shown alone.

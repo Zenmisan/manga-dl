@@ -80,6 +80,9 @@ export interface LocalMangaSession {
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
+    if (typeof indexedDB === 'undefined') {
+      return reject(new Error('IndexedDB is not available in this environment'))
+    }
     const req = indexedDB.open(DB_NAME, DB_VERSION)
     req.onupgradeneeded = () => {
       req.result.createObjectStore(STORE, { keyPath: 'id' })
@@ -133,12 +136,76 @@ export async function findLocalMangaByTitleOrFilename(identifier: string): Promi
 
 export async function deleteLocalManga(id: string): Promise<void> {
   const db = await openDB()
+  zipCache.delete(id)
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readwrite')
     tx.objectStore(STORE).delete(id)
     tx.oncomplete = () => resolve()
     tx.onerror = () => reject(tx.error)
   })
+}
+
+export async function deleteLocalMangaBatch(ids: string[]): Promise<void> {
+  if (!ids || ids.length === 0) return
+  const db = await openDB()
+  for (const id of ids) {
+    zipCache.delete(id)
+  }
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite')
+    const store = tx.objectStore(STORE)
+    for (const id of ids) {
+      store.delete(id)
+    }
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+  })
+}
+
+export async function deleteLocalMangaBySeries(seriesTitleOrTitle: string): Promise<number> {
+  const all = await getAllLocalManga()
+  const clean = decodeURIComponent(seriesTitleOrTitle).toLowerCase().trim()
+  const norm = normalizeTitleForGrouping(clean)
+  const toDelete = all.filter(entry => {
+    if (entry.id === seriesTitleOrTitle) return true
+    if (entry.title.toLowerCase().trim() === clean) return true
+    if (entry.seriesTitle && entry.seriesTitle.toLowerCase().trim() === clean) return true
+    const entryNorm = normalizeTitleForGrouping(entry.seriesTitle || entry.title)
+    if (norm && entryNorm && (norm === entryNorm || entryNorm.includes(norm) || norm.includes(entryNorm))) return true
+    return false
+  })
+  if (toDelete.length > 0) {
+    await deleteLocalMangaBatch(toDelete.map(e => e.id))
+  }
+  return toDelete.length
+}
+
+export async function clearAllLocalManga(): Promise<void> {
+  const db = await openDB()
+  zipCache.clear()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite')
+    tx.objectStore(STORE).clear()
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+  })
+}
+
+export async function getLocalLibraryStats(): Promise<{ count: number; totalSizeBytes: number }> {
+  try {
+    const all = await getAllLocalManga()
+    let totalSizeBytes = 0
+    for (const e of all) {
+      totalSizeBytes += e.fileSize || (e.file ? e.file.size : 0)
+    }
+    return { count: all.length, totalSizeBytes }
+  } catch {
+    return { count: 0, totalSizeBytes: 0 }
+  }
+}
+
+export function clearZipMemoryCache(): void {
+  zipCache.clear()
 }
 
 // In-memory cache of parsed zip instances to avoid re-parsing on chapter transitions
