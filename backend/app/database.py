@@ -8,7 +8,23 @@ log = logging.getLogger(__name__)
 
 settings = get_settings()
 
-engine = create_async_engine(settings.DATABASE_URL, echo=False, pool_pre_ping=True)
+is_postgres = "postgres" in settings.DATABASE_URL.lower()
+engine_kwargs = {
+    "echo": False,
+    "pool_pre_ping": True,
+}
+
+if is_postgres:
+    # Supabase pooler caps session mode at 15 clients (EMAXCONNSESSION).
+    # Restrict local pool size so rolling deploys and multiple workers never exhaust the limit.
+    engine_kwargs.update({
+        "pool_size": 3,
+        "max_overflow": 2,
+        "pool_recycle": 300,
+        "pool_timeout": 15,
+    })
+
+engine = create_async_engine(settings.DATABASE_URL, **engine_kwargs)
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
 
