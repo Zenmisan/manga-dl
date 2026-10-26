@@ -13,6 +13,18 @@ build/
 .coverage
 .agents
 
+# Databases & Runtime State
+*.db
+*.sqlite
+*.sqlite3
+manga_dl.db
+**/manga_dl.db
+runtime_cache.json
+**/runtime_cache.json
+runtime_tokens.json
+**/runtime_tokens.json
+backend/*.html
+
 # Node
 node_modules/
 frontend/dist/

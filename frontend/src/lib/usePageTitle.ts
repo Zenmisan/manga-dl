@@ -3,7 +3,7 @@ import { useEffect } from 'react'
 export const DEFAULT_TITLE = 'manga-dl | Read & Download Manga from 50+ Sources, Free'
 export const DEFAULT_DESCRIPTION =
   'Read and download manga, manhwa, webtoons, and light novels across 50+ sources with a fast, distraction-free reader.'
-export const DEFAULT_IMAGE = 'https://manga-dl.web.app/pwa-512x512.png'
+export const DEFAULT_IMAGE = 'https://manga-dl.me/pwa-512x512.png'
 
 export interface PageMeta {
   description?: string | null
@@ -43,7 +43,7 @@ export function applyPageMetadata(title: string | null | undefined, meta?: PageM
   const image = meta?.image || DEFAULT_IMAGE
   const url =
     meta?.url ||
-    (typeof window !== 'undefined' && window.location ? window.location.href : 'https://manga-dl.web.app/')
+    (typeof window !== 'undefined' && window.location ? window.location.href : 'https://manga-dl.me/')
   const ogType = meta?.type || (title ? 'article' : 'website')
 
   document.title = fullTitle

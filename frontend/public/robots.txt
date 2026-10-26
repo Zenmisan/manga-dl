@@ -10,4 +10,4 @@ Allow: /read/
 Disallow: /settings/
 Disallow: /onboarding
 
-Sitemap: https://manga-dl.web.app/sitemap.xml
+Sitemap: https://manga-dl.me/sitemap.xml

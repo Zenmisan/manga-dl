@@ -1,0 +1,32 @@
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+manga_dl.db
+
+# Cache & Tokens
+runtime_cache.json
+runtime_tokens.json
+.manga-dl-cache/
+__pycache__
+*.pyc
+
+# Environments & Git
+.git
+.github
+.agents
+.venv
+venv
+.env
+.env.*
+
+# Frontend build artifacts if building backend
+node_modules
+frontend/node_modules
+
+# Storage and archives
+*.cbz
+*.epub
+*.zip
+downloads/
+data/
