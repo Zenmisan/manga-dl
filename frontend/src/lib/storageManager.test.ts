@@ -1,7 +1,19 @@
 import { describe, it, expect, beforeEach } from 'bun:test'
 
-// Polyfill minimal indexedDB for Bun runtime tests
+// Polyfill minimal indexedDB and localStorage for Bun runtime tests
 const store = new Map<string, any>()
+const localStore = new Map<string, string>()
+
+if (typeof (globalThis as any).localStorage === 'undefined') {
+  ;(globalThis as any).localStorage = {
+    getItem: (k: string) => localStore.get(k) ?? null,
+    setItem: (k: string, v: string) => localStore.set(k, String(v)),
+    removeItem: (k: string) => localStore.delete(k),
+    clear: () => localStore.clear(),
+    get length() { return localStore.size },
+    key: (i: number) => Array.from(localStore.keys())[i] ?? null,
+  }
+}
 if (typeof (globalThis as any).indexedDB === 'undefined') {
   ;(globalThis as any).indexedDB = {
     open: () => {
@@ -55,12 +67,13 @@ if (typeof (globalThis as any).indexedDB === 'undefined') {
   }
 }
 
-import { formatBytes, getStorageEstimate, clearImageAndReadingCaches } from './storageManager'
+import { formatBytes, getStorageEstimate, clearImageAndReadingCaches, pruneStaleCaches } from './storageManager'
 import { saveLocalManga, getAllLocalManga, clearAllLocalManga, deleteLocalMangaBySeries, getLocalLibraryStats } from './localLibrary'
 
 describe('storageManager and localLibrary cleanup', () => {
   beforeEach(async () => {
     store.clear()
+    localStorage.clear()
     await clearAllLocalManga()
   })
 
@@ -124,5 +137,29 @@ describe('storageManager and localLibrary cleanup', () => {
   it('clears image and reading caches without throwing', async () => {
     const res = await clearImageAndReadingCaches()
     expect(Array.isArray(res.clearedCaches)).toBe(true)
+  })
+
+  it('prunes stale caches and expired ephemeral keys older than 30 days', async () => {
+    const now = Date.now()
+    const thirtyOneDaysAgo = now - 31 * 24 * 60 * 60 * 1000
+    const fiveDaysAgo = now - 5 * 24 * 60 * 60 * 1000
+
+    localStorage.setItem('smart-ctx:stale', JSON.stringify({ timestamp: thirtyOneDaysAgo, data: 'old' }))
+    localStorage.setItem('smart-ctx:fresh', JSON.stringify({ timestamp: fiveDaysAgo, data: 'new' }))
+    localStorage.setItem('cache:stale-search', JSON.stringify({ cachedAt: thirtyOneDaysAgo, results: [] }))
+    localStorage.setItem('manga-dl-offline-cached', JSON.stringify({
+      'ch-old': thirtyOneDaysAgo,
+      'ch-new': fiveDaysAgo,
+    }))
+
+    const result = await pruneStaleCaches(30)
+    expect(result.prunedEntriesCount).toBeGreaterThanOrEqual(3)
+    expect(localStorage.getItem('smart-ctx:stale')).toBeNull()
+    expect(localStorage.getItem('smart-ctx:fresh')).not.toBeNull()
+    expect(localStorage.getItem('cache:stale-search')).toBeNull()
+
+    const offlineRemains = JSON.parse(localStorage.getItem('manga-dl-offline-cached') || '{}')
+    expect(offlineRemains['ch-old']).toBeUndefined()
+    expect(offlineRemains['ch-new']).toBeDefined()
   })
 })

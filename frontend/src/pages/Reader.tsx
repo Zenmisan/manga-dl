@@ -131,6 +131,7 @@ export default function Reader() {
     description: readerTitle ? `Read ${readerTitle} online on manga-dl.` : undefined,
     url: typeof window !== 'undefined' ? window.location.href : undefined,
     type: 'article',
+    noindex: !loading && pages.length === 0,
   })
 
   const handleBack = useCallback(() => {
@@ -231,6 +232,9 @@ export default function Reader() {
     readingMode, dualPageSpread, tapZoneLayout, hapticFeedback, skipReadChapters,
     onlinePartsRef, chapterListRef, nextChapterId, prevChapterId, mangaTitle, navigate,
     readerFilters, setReaderFilters, isWidePage, onExit: handleBack,
+    readingDirection: readingMode === 'manga-rtl' ? 'rtl' : 'ltr',
+    onToggleUi: handleTap,
+    onToggleShortcuts: () => setShowShortcutOverlay(prev => !prev),
   })
 
   // Keep a live ref to currentPage so the session cleanup can read the final page reached

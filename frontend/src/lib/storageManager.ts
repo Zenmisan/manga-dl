@@ -110,6 +110,130 @@ export async function clearLocalUploadedArchives(): Promise<void> {
 }
 
 /**
+ * 30-day LRU cache eviction policy:
+ * Scans CacheStorage and temporary localStorage caches (smart-ctx:*, cache:*, offline chapter markers),
+ * purging stale entries older than maxAgeDays (default 30 days) while preserving user library,
+ * bookmarks, subscriptions, and active reading progress.
+ */
+export async function pruneStaleCaches(maxAgeDays = 30): Promise<{ prunedEntriesCount: number }> {
+  let prunedCount = 0
+  const maxAgeMs = maxAgeDays * 24 * 60 * 60 * 1000
+  const now = Date.now()
+
+  // 1. Prune stale requests from CacheStorage API
+  if (typeof window !== 'undefined' && 'caches' in window) {
+    try {
+      const cacheNames = await window.caches.keys()
+      for (const name of cacheNames) {
+        // We only prune non-essential caches (images, api cache)
+        if (name.includes('sw') || name.includes('workbox') || name.includes('precache')) continue
+        const cache = await window.caches.open(name)
+        const requests = await cache.keys()
+        for (const req of requests) {
+          const resp = await cache.match(req)
+          if (!resp) continue
+          const dateHeader = resp.headers.get('date')
+          if (dateHeader) {
+            const entryTime = new Date(dateHeader).getTime()
+            if (!isNaN(entryTime) && now - entryTime > maxAgeMs) {
+              await cache.delete(req)
+              prunedCount++
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[storageManager] Stale CacheStorage prune non-fatal error:', err)
+    }
+  }
+
+  // 2. Prune ephemeral localStorage caches and smart routing contexts
+  try {
+    const keysToRemove: string[] = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)
+      if (!k) continue
+      if (k.startsWith('smart-ctx:') || k.startsWith('cache:')) {
+        try {
+          const val = localStorage.getItem(k)
+          if (val) {
+            const parsed = JSON.parse(val)
+            const timestamp = parsed.timestamp || parsed.cachedAt || parsed.savedAt
+            if (timestamp && typeof timestamp === 'number' && now - timestamp > maxAgeMs) {
+              keysToRemove.push(k)
+            } else if (!timestamp) {
+              // Unversioned ephemeral key older than default cleanup interval
+              keysToRemove.push(k)
+            }
+          }
+        } catch {
+          keysToRemove.push(k)
+        }
+      }
+    }
+
+    for (const k of keysToRemove) {
+      localStorage.removeItem(k)
+      prunedCount++
+    }
+
+    // 3. Prune stale offline chapter download markers
+    const offlineRaw = localStorage.getItem('manga-dl-offline-cached')
+    if (offlineRaw) {
+      try {
+        const offlineMap = JSON.parse(offlineRaw)
+        if (typeof offlineMap === 'object' && offlineMap !== null) {
+          let modified = false
+          for (const [key, val] of Object.entries(offlineMap)) {
+            const time = typeof val === 'number' ? val : (val as { timestamp?: number })?.timestamp
+            if (time && now - time > maxAgeMs) {
+              delete (offlineMap as Record<string, unknown>)[key]
+              modified = true
+              prunedCount++
+            }
+          }
+          if (modified) {
+            localStorage.setItem('manga-dl-offline-cached', JSON.stringify(offlineMap))
+          }
+        }
+      } catch { /* ignore */ }
+    }
+  } catch (err) {
+    console.warn('[storageManager] Stale localStorage prune non-fatal error:', err)
+  }
+
+  // Mark last run timestamp
+  try {
+    localStorage.setItem('manga-dl-last-lru-prune', String(now))
+  } catch { /* ignore */ }
+
+  return { prunedEntriesCount: prunedCount }
+}
+
+/**
+ * Runs a debounced background LRU cache prune on application startup
+ * (at most once every 24 hours).
+ */
+export function runBackgroundAutoPrune(maxAgeDays = 30): void {
+  try {
+    const lastRun = parseInt(localStorage.getItem('manga-dl-last-lru-prune') || '0', 10)
+    const oneDayMs = 24 * 60 * 60 * 1000
+    if (Date.now() - lastRun > oneDayMs) {
+      // Execute in idle callback or background microtask
+      if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+        (window as Window & { requestIdleCallback: (cb: () => void) => void }).requestIdleCallback(() => {
+          pruneStaleCaches(maxAgeDays).catch(() => {})
+        })
+      } else {
+        setTimeout(() => {
+          pruneStaleCaches(maxAgeDays).catch(() => {})
+        }, 5000)
+      }
+    }
+  } catch { /* ignore */ }
+}
+
+/**
  * Nuclear option: Clears both CacheStorage and IndexedDB uploaded archives.
  */
 export async function clearAllOfflineStorage(): Promise<void> {

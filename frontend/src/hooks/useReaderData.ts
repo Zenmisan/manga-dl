@@ -9,6 +9,7 @@ import { ExtensionManager } from '../lib/extensions'
 import { resolveSmartContext } from '../lib/smartUrl'
 import { buildImageProxyUrl } from '../lib/utils'
 import { extractChapterNumber } from '../lib/archiveInspector'
+import { enqueueTrackerMutation } from '../lib/trackerQueue'
 
 export interface OnlineParts {
   provider: string
@@ -41,6 +42,11 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
   const [prevChapterId, setPrevChapterId] = useState<string | null>(null)
   const [isWidePage, setIsWidePage] = useState<boolean[]>([])
   const [chapterList, setChapterList] = useState<{ id: string; number?: number; title?: string }[]>([])
+
+  const pagesRef = useRef<string[]>([])
+  useEffect(() => {
+    pagesRef.current = pages
+  }, [pages])
 
   const malAutoSyncedRef = useRef(false)
   const progressSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -145,7 +151,11 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
             malId = searchRes.data?.results?.[0]?.id ?? null
           }
           if (malId) {
-            await api.post('/auth/mal/track', { access_token: malToken, manga_id: malId, status: 'reading', chapters_read: chapterNum })
+            try {
+              await api.post('/auth/mal/track', { access_token: malToken, manga_id: malId, status: 'reading', chapters_read: chapterNum })
+            } catch {
+              enqueueTrackerMutation({ tracker: 'mal', targetId: malId, chapterProgress: chapterNum, status: 'reading' }).catch(() => {})
+            }
           }
         } catch { /* silent */ }
       }
@@ -155,12 +165,17 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
           const links = JSON.parse(localStorage.getItem('manga-dl-tracker-links') || '{}')
           const anilistId = links[`${parts.provider}:${parts.mangaId}`]?.anilist?.id
           if (anilistId) {
-            const mutation = `mutation($id:Int,$progress:Int){SaveMediaListEntry(mediaId:$id,status:CURRENT,progress:$progress){id}}`
-            await fetch('https://graphql.anilist.co', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${anilistToken}` },
-              body: JSON.stringify({ query: mutation, variables: { id: anilistId, progress: chapterNum } }),
-            })
+            try {
+              const mutation = `mutation($id:Int,$progress:Int){SaveMediaListEntry(mediaId:$id,status:CURRENT,progress:$progress){id}}`
+              const res = await fetch('https://graphql.anilist.co', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${anilistToken}` },
+                body: JSON.stringify({ query: mutation, variables: { id: anilistId, progress: chapterNum } }),
+              })
+              if (!res.ok) throw new Error('AniList response not ok')
+            } catch {
+              enqueueTrackerMutation({ tracker: 'anilist', targetId: anilistId, chapterProgress: chapterNum, status: 'CURRENT' }).catch(() => {})
+            }
           }
         } catch { /* silent */ }
       }
@@ -187,6 +202,14 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
      
     setFetchError(null)
      
+    // Revoke previous blob URLs to immediately reclaim memory
+    if (pagesRef.current && pagesRef.current.length > 0) {
+      for (const p of pagesRef.current) {
+        if (typeof p === 'string' && p.startsWith('blob:')) {
+          try { URL.revokeObjectURL(p) } catch { /* ignore */ }
+        }
+      }
+    }
     setPages([])
 
     const fetchManifest = async () => {
@@ -355,7 +378,7 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
             setPrevChapterId(currentIdx > 0 ? (chapters[currentIdx - 1]?.id ?? null) : null)
           }
 
-          setLocalTitle(`${session.title} — ${session.chapterTitle || 'Chapter ' + session.currentChapterNumber}`)
+          setLocalTitle(`${session.title} | ${session.chapterTitle || 'Chapter ' + session.currentChapterNumber}`)
           setPages(session.pages)
           // Restore saved page position for this chapter
           try {
@@ -426,11 +449,19 @@ export function useReaderData({ mangaTitle, filename, location, readingMode, inc
       clearTimeout(timer)
       if (progressSaveTimerRef.current) clearTimeout(progressSaveTimerRef.current)
       saveOnlineProgress(currentPageRef.current)
+      // Revoke any allocated blob URLs on unmount/chapter switch
+      if (pagesRef.current && pagesRef.current.length > 0) {
+        for (const p of pagesRef.current) {
+          if (typeof p === 'string' && p.startsWith('blob:')) {
+            try { URL.revokeObjectURL(p) } catch { /* ignore */ }
+          }
+        }
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mangaTitle, filename, location.search])
 
-  // Spread auto-detection — probe each page's aspect ratio after load
+  // Spread auto-detection - probe each page's aspect ratio after load
   useEffect(() => {
     if (!pages.length) { setIsWidePage([]); return }
     const results: boolean[] = new Array(pages.length).fill(false)

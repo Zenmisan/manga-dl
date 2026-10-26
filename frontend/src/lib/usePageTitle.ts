@@ -10,6 +10,7 @@ export interface PageMeta {
   image?: string | null
   url?: string | null
   type?: 'website' | 'article' | 'book'
+  noindex?: boolean
 }
 
 function upsertMetaTag(attr: 'name' | 'property', key: string, content: string) {
@@ -57,6 +58,11 @@ export function applyPageMetadata(title: string | null | undefined, meta?: PageM
   upsertMetaTag('name', 'twitter:title', fullTitle)
   upsertMetaTag('name', 'twitter:description', description)
   upsertMetaTag('name', 'twitter:image', image)
+  if (meta?.noindex) {
+    upsertMetaTag('name', 'robots', 'noindex, nofollow')
+  } else {
+    upsertMetaTag('name', 'robots', 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1')
+  }
   upsertCanonicalLink(url)
 }
 
@@ -65,11 +71,12 @@ export function usePageTitle(title: string | null | undefined, meta?: PageMeta) 
   const image = meta?.image ?? null
   const url = meta?.url ?? null
   const type = meta?.type
+  const noindex = meta?.noindex ?? false
 
   useEffect(() => {
-    applyPageMetadata(title, { description, image, url, type })
+    applyPageMetadata(title, { description, image, url, type, noindex })
     return () => {
       applyPageMetadata(null)
     }
-  }, [title, description, image, url, type])
+  }, [title, description, image, url, type, noindex])
 }

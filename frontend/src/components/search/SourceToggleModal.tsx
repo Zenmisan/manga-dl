@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Layers, AlertCircle, Check, CheckSquare } from 'lucide-react'
-import { toggleSource, enableAllSources } from '../../lib/sourceManager'
+import { X, Layers, AlertCircle, Check, CheckSquare, ShieldAlert } from 'lucide-react'
+import { toggleSource, enableAllSources, getSourceHealth } from '../../lib/sourceManager'
 import { cn } from '../../lib/utils'
 
 interface SourceItem {
@@ -107,6 +107,7 @@ export function SourceToggleModal({
             <div className="p-4 overflow-y-auto space-y-2 flex-1">
               {availableSources.map(source => {
                 const isEnabled = enabledSources.includes(source.id)
+                const health = getSourceHealth(source.id)
                 return (
                   <button
                     key={source.id}
@@ -130,7 +131,27 @@ export function SourceToggleModal({
                         {isEnabled && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                       </div>
                       <div>
-                        <div className="font-extrabold text-xs text-[var(--fg)]">{source.name}</div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <div className="font-extrabold text-xs text-[var(--fg)]">{source.name}</div>
+                          {health?.status === 'cloudflare' && (
+                            <span
+                              title={health.reason}
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/15 border border-amber-500/30 text-amber-400"
+                            >
+                              <ShieldAlert className="w-2.5 h-2.5" />
+                              Cloudflare
+                            </span>
+                          )}
+                          {health?.status === 'offline' && (
+                            <span
+                              title={health.reason}
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-500/15 border border-rose-500/30 text-rose-400"
+                            >
+                              <AlertCircle className="w-2.5 h-2.5" />
+                              {health.badge}
+                            </span>
+                          )}
+                        </div>
                         <div className="text-[10px] text-[var(--muted3)] uppercase tracking-wider font-semibold">
                           {source.id}
                         </div>
@@ -139,7 +160,7 @@ export function SourceToggleModal({
 
                     <div
                       className={cn(
-                        "text-[10px] font-bold px-2 py-0.5 rounded-full border",
+                        "text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0",
                         isEnabled
                           ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400"
                           : "bg-neutral-500/15 border-neutral-500/30 text-neutral-400"

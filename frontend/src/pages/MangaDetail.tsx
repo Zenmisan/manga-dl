@@ -29,11 +29,12 @@ export default function MangaDetail() {
     metaDraft, setMetaDraft, saveMetaEdit, scanlators, displayedChapters, resumeTarget,
   } = useMangaDetail()
 
-  usePageTitle(manga?.title ?? null, {
+  usePageTitle(manga?.title ?? (!loading && !manga ? 'Manga Not Found' : null), {
     description: manga?.description,
     image: manga?.cover_url,
     url: typeof window !== 'undefined' ? window.location.href : undefined,
     type: manga?.type === 'novel' ? 'book' : 'article',
+    noindex: !loading && !manga,
   })
   const [imgError, setImgError] = useState(false)
   const [imgKey, setImgKey] = useState(0)

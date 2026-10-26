@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { ArrowLeft, BookOpen, Search as SearchIcon, X } from 'lucide-react'
 import { motion } from 'framer-motion'
 import api from '../lib/api'
@@ -19,54 +19,59 @@ interface MangaResult {
 
 type DiscoveryResponse = Record<string, { popular: MangaResult[]; latest: MangaResult[] }>
 
-function BrowseCard({ r, idx, navigate }: { r: MangaResult; idx: number; navigate: ReturnType<typeof useNavigate> }) {
+function BrowseCard({ r, idx }: { r: MangaResult; idx: number; navigate?: ReturnType<typeof useNavigate> }) {
   const [coverError, setCoverError] = useState(false)
   const apiBase = api.defaults.baseURL || ''
   const apiKey = localStorage.getItem('manga-api-key') || ''
   const coverSrc = r.cover_url ? buildImageProxyUrl(r.cover_url, apiBase, apiKey) : null
+  const mangaUrl = buildSmartMangaUrl(r.provider, r.id, r.title)
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: Math.min(idx * 0.02, 0.4), ease: [0.16, 1, 0.3, 1] }}
-      onClick={() => navigate(buildSmartMangaUrl(r.provider, r.id, r.title))}
-      style={{ cursor: 'pointer' }}
     >
-      <div style={{ height: 155, borderRadius: 10, overflow: 'hidden', background: 'var(--surface)', position: 'relative' }}>
-        {coverSrc && !coverError ? (
-          <img
-            src={coverSrc}
-            alt=""
-            loading="lazy"
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: 0, transition: 'opacity 0.25s ease' }}
-            onLoad={e => { (e.currentTarget as HTMLImageElement).style.opacity = '1' }}
-            onError={() => setCoverError(true)}
-          />
-        ) : (
-          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <BookOpen style={{ width: 24, height: 24, color: 'var(--muted3)' }} />
-          </div>
-        )}
-        <div style={{
-          position: 'absolute', bottom: 4, left: 4,
-          background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(4px)',
-          padding: '2px 5px', borderRadius: 5,
-          fontSize: 9, fontWeight: 800, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.06em',
-        }}>
-          {r.provider}
-        </div>
-      </div>
-      <div
-        className="manga-card-title"
-        style={{
-          marginTop: 6, fontSize: 13,
-          display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
-          whiteSpace: 'normal',
-        }}
+      <Link
+        to={mangaUrl}
+        className="block no-underline text-inherit group"
+        aria-label={`${r.title} (${r.provider})`}
       >
-        {r.title}
-      </div>
+        <div style={{ height: 155, borderRadius: 10, overflow: 'hidden', background: 'var(--surface)', position: 'relative' }}>
+          {coverSrc && !coverError ? (
+            <img
+              src={coverSrc}
+              alt={`${r.title} manga cover`}
+              loading="lazy"
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: 0, transition: 'opacity 0.25s ease' }}
+              onLoad={e => { (e.currentTarget as HTMLImageElement).style.opacity = '1' }}
+              onError={() => setCoverError(true)}
+            />
+          ) : (
+            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <BookOpen style={{ width: 24, height: 24, color: 'var(--muted3)' }} />
+            </div>
+          )}
+          <div style={{
+            position: 'absolute', bottom: 4, left: 4,
+            background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(4px)',
+            padding: '2px 5px', borderRadius: 5,
+            fontSize: 9, fontWeight: 800, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.06em',
+          }}>
+            {r.provider}
+          </div>
+        </div>
+        <div
+          className="manga-card-title group-hover:text-red-500 transition-colors"
+          style={{
+            marginTop: 6, fontSize: 13,
+            display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+            whiteSpace: 'normal',
+          }}
+        >
+          {r.title}
+        </div>
+      </Link>
     </motion.div>
   )
 }

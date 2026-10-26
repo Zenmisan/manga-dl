@@ -9,6 +9,8 @@ import { syncReadTrackingFromCloud } from '../lib/readTracking'
 import { syncCategoriesFromCloud } from '../lib/categories'
 import { syncMangaNotesFromCloud } from '../lib/mangaNotes'
 import { syncMetaOverridesFromCloud } from '../lib/metaOverrides'
+import { runBackgroundAutoPrune } from '../lib/storageManager'
+import { drainTrackerQueue } from '../lib/trackerQueue'
 import { ExtensionManager } from '../lib/extensions'
 import { signOutGoogle } from '../lib/googleAuth'
 import type { Session } from '@supabase/supabase-js'
@@ -175,6 +177,8 @@ export function useBackgroundSync() {
 
   useEffect(() => {
     ExtensionManager.getInstance().init().catch(() => {})
+    runBackgroundAutoPrune()
+    drainTrackerQueue().catch(() => {})
 
     // Skip cloud synchronizers when offline to prevent stalled network requests
     if (typeof navigator !== 'undefined' && !navigator.onLine) {

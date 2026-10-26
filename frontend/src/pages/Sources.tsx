@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ThemedSpinner } from '../components/common/ThemedLoader'
 import { cn } from '../lib/utils'
 import { ExtensionManager, NOVEL_EXTENSION_IDS } from '../lib/extensions'
+import { getSourceHealth } from '../lib/sourceManager'
 import { usePageTitle } from '../lib/usePageTitle'
 
 const CUSTOM_REPOS_KEY = 'manga-dl-custom-repos'
@@ -431,10 +432,26 @@ export default function SourcesPage() {
                       )}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}</span>
+                        {getSourceHealth(m.id)?.status === 'cloudflare' && (
+                          <span style={{ fontSize: 9, fontWeight: 800, padding: '1px 5px', borderRadius: 6, background: 'rgba(245, 158, 11, 0.15)', border: '1px solid rgba(245, 158, 11, 0.3)', color: '#fbbf24' }}>
+                            Cloudflare
+                          </span>
+                        )}
+                        {getSourceHealth(m.id)?.status === 'offline' && (
+                          <span style={{ fontSize: 9, fontWeight: 800, padding: '1px 5px', borderRadius: 6, background: 'rgba(244, 63, 94, 0.15)', border: '1px solid rgba(244, 63, 94, 0.3)', color: '#fb7185' }}>
+                            Offline
+                          </span>
+                        )}
+                      </div>
                       <div style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted3)', marginTop: 2 }}>{m.lang} · v{m.version}</div>
                     </div>
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'rgb(74,222,128)', flexShrink: 0 }} />
+                    {getSourceHealth(m.id)?.status ? (
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: getSourceHealth(m.id)?.status === 'cloudflare' ? 'rgb(251,191,36)' : 'rgb(244,63,94)', flexShrink: 0 }} />
+                    ) : (
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'rgb(74,222,128)', flexShrink: 0 }} />
+                    )}
                   </button>
                 )
               })}

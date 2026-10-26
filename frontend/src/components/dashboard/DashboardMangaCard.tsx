@@ -1,6 +1,7 @@
 import type React from 'react'
 import { useState, memo, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
+import { Link } from 'react-router-dom'
 import {
   Book, Pin, PinOff, Trash2, BookOpen, HardDrive, WifiOff, CheckSquare, Square, Download,
 } from 'lucide-react'
@@ -56,17 +57,21 @@ export const DashboardMangaCard = memo(function DashboardMangaCard({
     setCtxMenu({ x: e.clientX, y: e.clientY })
   }
 
+  const targetHref = item.isLocal
+    ? `/local/${encodeURIComponent(item.localId || item.title)}`
+    : item.provider && item.provider_manga_id
+    ? buildSmartMangaUrl(item.provider, item.provider_manga_id, item.title)
+    : item.title
+    ? `/browse?q=${encodeURIComponent(item.title)}`
+    : '#'
+
   const handleClick = (e: React.MouseEvent) => {
     if (selectMode) {
       onToggleSelect(item.title, e)
       return
     }
-    if (item.isLocal) {
-      navigate(`/local/${encodeURIComponent(item.localId || item.title)}`)
-    } else if (item.provider && item.provider_manga_id) {
-      navigate(buildSmartMangaUrl(item.provider, item.provider_manga_id, item.title))
-    } else if (item.title) {
-      navigate(`/browse?q=${encodeURIComponent(item.title)}`)
+    if (targetHref && targetHref !== '#') {
+      navigate(targetHref)
     }
   }
 
@@ -106,7 +111,7 @@ export const DashboardMangaCard = memo(function DashboardMangaCard({
           )}
           <div style={{ width: 44, height: 60, borderRadius: 8, background: 'var(--surface-hover)', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border)', position: 'relative' }}>
             {coverSrc && !coverError ? (
-              <img src={coverSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0, transition: 'opacity 0.25s ease' }} onLoad={e => { (e.currentTarget as HTMLImageElement).style.opacity = '1' }} onError={() => setCoverError(true)} />
+              <img src={coverSrc} alt={`${item.title} cover`} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0, transition: 'opacity 0.25s ease' }} onLoad={e => { (e.currentTarget as HTMLImageElement).style.opacity = '1' }} onError={() => setCoverError(true)} />
             ) : (
               <Book style={{ width: 18, height: 18, color: 'var(--muted3)' }} />
             )}
@@ -119,7 +124,18 @@ export const DashboardMangaCard = memo(function DashboardMangaCard({
           <div style={{ minWidth: 0, flex: 1, paddingRight: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <h3 className="manga-card-title" style={{ fontSize: 14 }}>
-                {item.title}
+                <Link
+                  to={targetHref}
+                  onClick={(e) => {
+                    if (selectMode) {
+                      e.preventDefault()
+                      onToggleSelect(item.title, e)
+                    }
+                  }}
+                  className="hover:text-red-500 transition-colors"
+                >
+                  {item.title}
+                </Link>
               </h3>
               {item.subscribed && (
                 <span style={{ fontSize: 9, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', background: 'rgba(52,211,153,0.15)', color: 'rgb(52,211,153)', border: '1px solid rgba(52,211,153,0.3)', padding: '1px 6px', borderRadius: 6, flexShrink: 0 }}>Sub</span>
@@ -138,16 +154,14 @@ export const DashboardMangaCard = memo(function DashboardMangaCard({
               {item.chapters_downloading > 0 && <span style={{ color: 'rgb(251,191,36)', marginLeft: 8 }}> ↓{item.chapters_downloading}</span>}
             </p>
             {lastRead && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  navigate(buildSmartReadUrl(lastRead.provider, lastRead.mangaId, lastRead.chapterId, lastRead.mangaTitle, lastRead.chapterTitle))
-                }}
-                style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 4, padding: '3px 8px', background: 'var(--accent-muted)', border: '1px solid rgba(220,38,38,0.25)', borderRadius: 8, fontSize: 9, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent)', cursor: 'pointer' }}
+              <Link
+                to={buildSmartReadUrl(lastRead.provider, lastRead.mangaId, lastRead.chapterId, lastRead.mangaTitle, lastRead.chapterTitle)}
+                onClick={(e) => e.stopPropagation()}
+                style={{ marginTop: 4, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 7px', background: 'var(--accent)', borderRadius: 6, fontSize: 9, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#fff' }}
               >
-                <BookOpen style={{ width: 10, height: 10 }} />
+                <BookOpen style={{ width: 9, height: 9 }} />
                 Continue
-              </button>
+              </Link>
             )}
           </div>
         </div>
@@ -195,7 +209,7 @@ export const DashboardMangaCard = memo(function DashboardMangaCard({
         {coverSrc && !coverError ? (
           <img
             src={coverSrc}
-            alt=""
+            alt={`${item.title} cover`}
             style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'opacity 0.25s ease, transform 0.4s ease', display: 'block', opacity: 0 }}
             className="group-hover:brightness-105"
             onLoad={e => { (e.currentTarget as HTMLImageElement).style.opacity = '1' }}
@@ -258,7 +272,18 @@ export const DashboardMangaCard = memo(function DashboardMangaCard({
       {!isCompact && (
         <div style={{ marginTop: 8, paddingLeft: 2 }}>
           <h3 className="manga-card-title">
-            {item.title}
+            <Link
+              to={targetHref}
+              onClick={(e) => {
+                if (selectMode) {
+                  e.preventDefault()
+                  onToggleSelect(item.title, e)
+                }
+              }}
+              className="hover:text-red-500 transition-colors"
+            >
+              {item.title}
+            </Link>
           </h3>
           {(item.isLocal || chapterCount > 0) && (
             <p style={{ fontSize: 11, color: 'var(--muted3)', margin: '3px 0 0', fontWeight: 500 }}>
@@ -266,16 +291,14 @@ export const DashboardMangaCard = memo(function DashboardMangaCard({
             </p>
           )}
           {lastRead && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                navigate(buildSmartReadUrl(lastRead.provider, lastRead.mangaId, lastRead.chapterId, lastRead.mangaTitle, lastRead.chapterTitle))
-              }}
-              style={{ marginTop: 5, display: 'flex', alignItems: 'center', gap: 4, padding: '2px 7px', background: 'var(--accent)', borderRadius: 6, fontSize: 9, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#fff', cursor: 'pointer', border: 'none' }}
+            <Link
+              to={buildSmartReadUrl(lastRead.provider, lastRead.mangaId, lastRead.chapterId, lastRead.mangaTitle, lastRead.chapterTitle)}
+              onClick={(e) => e.stopPropagation()}
+              style={{ marginTop: 5, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 7px', background: 'var(--accent)', borderRadius: 6, fontSize: 9, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#fff' }}
             >
               <BookOpen style={{ width: 9, height: 9 }} />
               Continue
-            </button>
+            </Link>
           )}
         </div>
       )}

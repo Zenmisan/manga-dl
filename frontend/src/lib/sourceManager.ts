@@ -1,3 +1,48 @@
+export type SourceHealthStatus = 'operational' | 'cloudflare' | 'offline' | 'degraded'
+
+export interface SourceHealthInfo {
+  status: SourceHealthStatus
+  badge: string
+  reason: string
+}
+
+export const KNOWN_SOURCE_HEALTH: Record<string, SourceHealthInfo> = {
+  mangakakalot: {
+    status: 'cloudflare',
+    badge: 'Cloudflare',
+    reason: 'Cloudflare Turnstile challenge barrier',
+  },
+  scribblehub: {
+    status: 'cloudflare',
+    badge: 'Cloudflare',
+    reason: 'Cloudflare bot challenge protection',
+  },
+  ranobes: {
+    status: 'cloudflare',
+    badge: 'Cloudflare',
+    reason: 'Cloudflare bot challenge protection',
+  },
+  manganato: {
+    status: 'offline',
+    badge: 'Domain Offline',
+    reason: 'Domain parked or moved to third-party host',
+  },
+  novelarrow: {
+    status: 'offline',
+    badge: 'Dead DNS',
+    reason: 'Host DNS resolution failure',
+  },
+  lightnovelworld: {
+    status: 'offline',
+    badge: 'Merged',
+    reason: 'Source merged into Chikari',
+  },
+}
+
+export function getSourceHealth(sourceId: string): SourceHealthInfo | null {
+  return KNOWN_SOURCE_HEALTH[sourceId] || null
+}
+
 const STORAGE_KEY = 'manga-dl-enabled-sources'
 const DEFAULT_SOURCES = ['mangakatana', 'mangadex', 'asurascans', 'omegascans']
 

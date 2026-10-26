@@ -390,12 +390,12 @@ function OfflineStatusEffect() {
     if (prevOnline.current === null) {
       prevOnline.current = isOnline
       if (!isOnline) {
-        offlineId.current = show('Offline — downloaded chapters still available', 'warning', 0)
+        offlineId.current = show('Offline - downloaded chapters still available', 'warning', 0)
       }
       return
     }
     if (!isOnline && prevOnline.current) {
-      offlineId.current = show('Offline — downloaded chapters still available', 'warning', 0)
+      offlineId.current = show('Offline - downloaded chapters still available', 'warning', 0)
     } else if (isOnline && !prevOnline.current) {
       if (offlineId.current) { dismiss(offlineId.current); offlineId.current = null }
       show('Back online', 'success', 3000)
@@ -403,7 +403,14 @@ function OfflineStatusEffect() {
     prevOnline.current = isOnline
   }, [isOnline, show, dismiss])
 
-  return null
+  if (isOnline) return null
+
+  return (
+    <div className="fixed top-0 left-0 right-0 z-50 bg-amber-500/15 border-b border-amber-500/30 text-amber-300 text-xs py-1 px-3 text-center flex items-center justify-center gap-2 backdrop-blur-md">
+      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+      <span className="font-medium">Offline Mode: You can read your downloaded chapters and offline library.</span>
+    </div>
+  )
 }
 
 // ── App ──────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useToast } from '../components/common/Toast'
-import { Download as DownloadIcon, CheckCircle2, XCircle, Pause, Play, Trash2, X, RotateCcw, ShieldCheck, FileArchive } from 'lucide-react'
+import { Download as DownloadIcon, CheckCircle2, XCircle, Pause, Play, Trash2, X, RotateCcw, FileArchive } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ThemedSpinner } from '../components/common/ThemedLoader'
 import { usePageTitle } from '../lib/usePageTitle'
@@ -37,7 +37,7 @@ function getStatusLabel(task: ClientDownloadTask): string {
     case 'packaging':
       return `Packaging ${format} archive in browser...`
     case 'queued':
-      return 'Waiting in queue (concurrency protected)...'
+      return 'Waiting in queue...'
     case 'paused':
       return 'Download paused'
     default:
@@ -210,28 +210,6 @@ export default function DownloadsPage() {
       </header>
 
       <div className="px-4 md:px-6 pt-4 pb-28 flex-1" style={{ maxWidth: 720 }}>
-        {/* Concurrency protection banner */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: 10,
-            padding: '10px 14px',
-            borderRadius: 12,
-            border: '1px solid var(--border)',
-            background: 'var(--surface)',
-            marginBottom: 16,
-            fontSize: 11.5,
-            color: 'var(--muted2)',
-            lineHeight: 1.4,
-          }}
-        >
-          <ShieldCheck style={{ width: 16, height: 16, color: 'rgb(74,222,128)', flexShrink: 0, marginTop: 2 }} />
-          <div>
-            <strong style={{ color: 'var(--fg)', fontWeight: 700 }}>Client-Side Fast Downloads Active:</strong> Chapters are packaged directly into CBZ comic archives in your browser with strict concurrency limiting (1 chapter at a time, 2 pages per batch) to keep memory low and prevent browser slowdowns.
-          </div>
-        </div>
-
         {/* Tab bar */}
         <div style={{ display: 'flex', gap: 4, padding: 4, borderRadius: 999, background: 'rgba(255,255,255,0.05)', marginBottom: 20, width: 'fit-content' }}>
           {TABS.map((t) => (

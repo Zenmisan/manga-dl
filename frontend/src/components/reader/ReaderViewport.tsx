@@ -147,6 +147,7 @@ export function ReaderViewport({
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '200px' }}
               transition={{ duration: 0.2 }}
+              style={{ contentVisibility: 'auto', containIntrinsicSize: '900px' }}
               className="relative w-full flex flex-col items-center"
             >
               <div className="relative shadow-2xl rounded-md border border-white/10 bg-neutral-900/60 overflow-hidden max-h-[92dvh] flex items-center justify-center">
@@ -214,6 +215,7 @@ export function ReaderViewport({
               initial={{ opacity: 0 }}
               whileInView={{ opacity: 1 }}
               viewport={{ once: true, margin: '400px' }}
+              style={{ contentVisibility: 'auto', containIntrinsicSize: '900px' }}
               className="relative w-full"
             >
               <ReaderPageImage

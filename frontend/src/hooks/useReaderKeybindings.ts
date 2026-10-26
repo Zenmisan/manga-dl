@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { Capacitor } from '@capacitor/core'
 
-interface ReaderFilters {
+export interface ReaderFilters {
   brightness: number
   contrast: number
   grayscale: boolean
@@ -9,8 +9,9 @@ interface ReaderFilters {
   sepia: boolean
 }
 
-interface Params {
+export interface ReaderKeybindingParams {
   readingMode: string
+  readingDirection?: 'ltr' | 'rtl'
   volumeKeyMode: 'navigation' | 'brightness'
   readerFilters: ReaderFilters
   setReaderFilters: (partial: Partial<ReaderFilters>) => void
@@ -21,13 +22,174 @@ interface Params {
   onExit?: () => void
   onNextChapter?: () => void
   onPrevChapter?: () => void
+  onToggleUi?: () => void
+  onToggleShortcuts?: () => void
+}
+
+export function handleReaderKeydown(
+  e: KeyboardEvent,
+  params: {
+    readingMode: string
+    readingDirection?: 'ltr' | 'rtl'
+    volumeKeyMode?: 'navigation' | 'brightness'
+    readerFilters?: ReaderFilters
+    setReaderFilters?: (partial: Partial<ReaderFilters>) => void
+    prevPage: () => void
+    nextPage: () => void
+    onExit?: () => void
+    onNextChapter?: () => void
+    onPrevChapter?: () => void
+    onToggleUi?: () => void
+    onToggleShortcuts?: () => void
+  }
+) {
+  const target = e.target as HTMLElement | null
+  const isInput = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || (target as any)?.isContentEditable
+
+  if (e.key === 'Escape') {
+    e.preventDefault?.()
+    params.onExit?.()
+    return
+  }
+
+  if (isInput) return
+
+  const isRtl = params.readingDirection === 'rtl' || params.readingMode === 'manga-rtl'
+  const isScrollMode = params.readingMode === 'webtoon' || params.readingMode === 'vertical-pager'
+
+  if (e.ctrlKey && e.key === 'ArrowRight') {
+    e.preventDefault?.()
+    params.onNextChapter?.()
+  } else if (e.ctrlKey && e.key === 'ArrowLeft') {
+    e.preventDefault?.()
+    params.onPrevChapter?.()
+  } else if (e.key === 'ArrowRight') {
+    e.preventDefault?.()
+    if (isScrollMode) {
+      if (typeof window !== 'undefined' && window.scrollBy) window.scrollBy({ top: 350, behavior: 'smooth' })
+    } else if (isRtl) {
+      params.prevPage()
+    } else {
+      params.nextPage()
+    }
+  } else if (e.key === 'ArrowLeft') {
+    e.preventDefault?.()
+    if (isScrollMode) {
+      if (typeof window !== 'undefined' && window.scrollBy) window.scrollBy({ top: -350, behavior: 'smooth' })
+    } else if (isRtl) {
+      params.nextPage()
+    } else {
+      params.prevPage()
+    }
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault?.()
+    if (isScrollMode) {
+      if (typeof window !== 'undefined' && window.scrollBy) window.scrollBy({ top: 350, behavior: 'smooth' })
+    } else {
+      params.nextPage()
+    }
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault?.()
+    if (isScrollMode) {
+      if (typeof window !== 'undefined' && window.scrollBy) window.scrollBy({ top: -350, behavior: 'smooth' })
+    } else {
+      params.prevPage()
+    }
+  } else if (e.code === 'Space') {
+    e.preventDefault?.()
+    if (e.shiftKey) {
+      if (isScrollMode) {
+        if (typeof window !== 'undefined' && window.scrollBy) window.scrollBy({ top: -450, behavior: 'smooth' })
+      } else {
+        params.prevPage()
+      }
+    } else {
+      if (isScrollMode) {
+        if (typeof window !== 'undefined' && window.scrollBy) window.scrollBy({ top: 450, behavior: 'smooth' })
+      } else {
+        params.nextPage()
+      }
+    }
+  } else if ((e.key === 'd' || e.key === 'D') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    e.preventDefault?.()
+    if (isScrollMode) {
+      if (typeof window !== 'undefined' && window.scrollBy) window.scrollBy({ top: 350, behavior: 'smooth' })
+    } else if (isRtl) {
+      params.prevPage()
+    } else {
+      params.nextPage()
+    }
+  } else if ((e.key === 'a' || e.key === 'A') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    e.preventDefault?.()
+    if (isScrollMode) {
+      if (typeof window !== 'undefined' && window.scrollBy) window.scrollBy({ top: -350, behavior: 'smooth' })
+    } else if (isRtl) {
+      params.nextPage()
+    } else {
+      params.prevPage()
+    }
+  } else if ((e.key === 's' || e.key === 'S') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    e.preventDefault?.()
+    if (isScrollMode) {
+      if (typeof window !== 'undefined' && window.scrollBy) window.scrollBy({ top: 350, behavior: 'smooth' })
+    } else {
+      params.nextPage()
+    }
+  } else if ((e.key === 'w' || e.key === 'W') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    e.preventDefault?.()
+    if (isScrollMode) {
+      if (typeof window !== 'undefined' && window.scrollBy) window.scrollBy({ top: -350, behavior: 'smooth' })
+    } else {
+      params.prevPage()
+    }
+  } else if ((e.key === 'm' || e.key === 'M' || e.key === 'h' || e.key === 'H') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    e.preventDefault?.()
+    params.onToggleUi?.()
+  } else if (e.key === '?' || (e.shiftKey && e.key === '/')) {
+    e.preventDefault?.()
+    params.onToggleShortcuts?.()
+  } else if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    e.preventDefault?.()
+    if (typeof document !== 'undefined') {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen?.().catch?.(() => {})
+      } else {
+        document.exitFullscreen?.().catch?.(() => {})
+      }
+    }
+  } else if (e.key === 'VolumeDown') {
+    e.preventDefault?.()
+    if (params.volumeKeyMode === 'navigation') {
+      if (params.readingMode !== 'webtoon') params.nextPage()
+    } else if (params.readerFilters && params.setReaderFilters) {
+      params.setReaderFilters({ brightness: Math.max(0.3, params.readerFilters.brightness - 0.1) })
+    }
+  } else if (e.key === 'VolumeUp') {
+    e.preventDefault?.()
+    if (params.volumeKeyMode === 'navigation') {
+      if (params.readingMode !== 'webtoon') params.prevPage()
+    } else if (params.readerFilters && params.setReaderFilters) {
+      params.setReaderFilters({ brightness: Math.min(2, params.readerFilters.brightness + 0.1) })
+    }
+  }
 }
 
 export function useReaderKeybindings({
-  readingMode, volumeKeyMode, readerFilters, setReaderFilters,
-  pagesLength, setCurrentPage, prevPage, nextPage, onExit,
-  onNextChapter, onPrevChapter,
-}: Params) {
+  readingMode,
+  readingDirection,
+  volumeKeyMode,
+  readerFilters,
+  setReaderFilters,
+  pagesLength: _pagesLength,
+  setCurrentPage: _setCurrentPage,
+  prevPage,
+  nextPage,
+  onExit,
+  onNextChapter,
+  onPrevChapter,
+  onToggleUi,
+  onToggleShortcuts,
+}: ReaderKeybindingParams) {
   // Native Volume keys (Android)
   useEffect(() => {
     if (!Capacitor.isNativePlatform() || readingMode === 'webtoon') return
@@ -46,86 +208,36 @@ export function useReaderKeybindings({
   // Keyboard navigation
   useEffect(() => {
     const handle = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        onExit?.()
-      } else if (e.ctrlKey && e.key === 'ArrowRight') {
-        e.preventDefault()
-        onNextChapter?.()
-      } else if (e.ctrlKey && e.key === 'ArrowLeft') {
-        e.preventDefault()
-        onPrevChapter?.()
-      } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-        if (readingMode !== 'webtoon' && readingMode !== 'vertical-pager') {
-          setCurrentPage(p => Math.min(p + 1, pagesLength))
-        } else {
-          window.scrollBy({ top: 300, behavior: 'smooth' })
-        }
-      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-        if (readingMode !== 'webtoon' && readingMode !== 'vertical-pager') {
-          setCurrentPage(p => Math.max(p - 1, 1))
-        } else {
-          window.scrollBy({ top: -300, behavior: 'smooth' })
-        }
-      } else if ((e.key === 'd' || e.key === 'D') && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        const target = e.target as HTMLElement | null
-        if (target?.tagName !== 'INPUT' && target?.tagName !== 'TEXTAREA') {
-          e.preventDefault()
-          if (readingMode !== 'webtoon' && readingMode !== 'vertical-pager') setCurrentPage(p => Math.min(p + 1, pagesLength))
-        }
-      } else if ((e.key === 'a' || e.key === 'A') && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        const target = e.target as HTMLElement | null
-        if (target?.tagName !== 'INPUT' && target?.tagName !== 'TEXTAREA') {
-          e.preventDefault()
-          if (readingMode !== 'webtoon' && readingMode !== 'vertical-pager') setCurrentPage(p => Math.max(p - 1, 1))
-        }
-      } else if ((e.key === 's' || e.key === 'S') && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        const target = e.target as HTMLElement | null
-        if (target?.tagName !== 'INPUT' && target?.tagName !== 'TEXTAREA') {
-          e.preventDefault()
-          if (readingMode === 'webtoon' || readingMode === 'vertical-pager') {
-            window.scrollBy({ top: 300, behavior: 'smooth' })
-          } else {
-            setCurrentPage(p => Math.min(p + 1, pagesLength))
-          }
-        }
-      } else if ((e.key === 'w' || e.key === 'W') && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        const target = e.target as HTMLElement | null
-        if (target?.tagName !== 'INPUT' && target?.tagName !== 'TEXTAREA') {
-          e.preventDefault()
-          if (readingMode === 'webtoon' || readingMode === 'vertical-pager') {
-            window.scrollBy({ top: -300, behavior: 'smooth' })
-          } else {
-            setCurrentPage(p => Math.max(p - 1, 1))
-          }
-        }
-      } else if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        const target = e.target as HTMLElement | null
-        if (target?.tagName !== 'INPUT' && target?.tagName !== 'TEXTAREA') {
-          e.preventDefault()
-          if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen().catch(() => {})
-          } else {
-            document.exitFullscreen().catch(() => {})
-          }
-        }
-      } else if (e.key === 'VolumeDown') {
-        e.preventDefault()
-        if (volumeKeyMode === 'navigation') {
-          if (readingMode !== 'webtoon') setCurrentPage(p => Math.min(p + 1, pagesLength))
-        } else {
-          setReaderFilters({ brightness: Math.max(0.3, readerFilters.brightness - 0.1) })
-        }
-      } else if (e.key === 'VolumeUp') {
-        e.preventDefault()
-        if (volumeKeyMode === 'navigation') {
-          if (readingMode !== 'webtoon') setCurrentPage(p => Math.max(p - 1, 1))
-        } else {
-          setReaderFilters({ brightness: Math.min(2, readerFilters.brightness + 0.1) })
-        }
-      }
+      handleReaderKeydown(e, {
+        readingMode,
+        readingDirection,
+        volumeKeyMode,
+        readerFilters,
+        setReaderFilters,
+        prevPage: () => prevPage(),
+        nextPage: () => nextPage(),
+        onExit,
+        onNextChapter,
+        onPrevChapter,
+        onToggleUi,
+        onToggleShortcuts,
+      })
     }
+
     window.addEventListener('keydown', handle)
     return () => window.removeEventListener('keydown', handle)
-  }, [readingMode, pagesLength, volumeKeyMode, readerFilters.brightness, setCurrentPage, setReaderFilters, onExit, onNextChapter, onPrevChapter])
+  }, [
+    readingMode,
+    readingDirection,
+    volumeKeyMode,
+    readerFilters,
+    setReaderFilters,
+    prevPage,
+    nextPage,
+    onExit,
+    onNextChapter,
+    onPrevChapter,
+    onToggleUi,
+    onToggleShortcuts,
+  ])
 }

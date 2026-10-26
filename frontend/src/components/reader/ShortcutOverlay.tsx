@@ -7,10 +7,13 @@ interface Props {
 }
 
 const SHORTCUTS = [
-  { label: 'Next Page / Right', keys: ['→', 'D'] },
-  { label: 'Prev Page / Left', keys: ['←', 'A'] },
+  { label: 'Next Page / Forward', keys: ['→', 'D', 'Space'] },
+  { label: 'Prev Page / Backward', keys: ['←', 'A', 'Shift+Space'] },
   { label: 'Scroll Down / Next', keys: ['↓', 'S'] },
   { label: 'Scroll Up / Prev', keys: ['↑', 'W'] },
+  { label: 'Toggle UI / Fullscreen', keys: ['M', 'F'] },
+  { label: 'Next / Prev Chapter', keys: ['Ctrl+→', 'Ctrl+←'] },
+  { label: 'Gamepad Controls', keys: ['A / R1', 'B / L1', 'D-Pad'] },
   { label: 'Exit Reader', keys: ['Esc'] },
 ]
 

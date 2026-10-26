@@ -1,12 +1,24 @@
 import { useState, useEffect } from 'react'
 import { Capacitor } from '@capacitor/core'
-import { Moon, Sun, Smartphone, Check, Eye, EyeOff, Link2, Key, Bell, BellOff, Palette, Plug, Trash2, BellRing, ShieldCheck } from 'lucide-react'
+import { Moon, Sun, Smartphone, Check, Eye, EyeOff, Link2, Key, Bell, BellOff, Palette, Plug, Trash2, BellRing, ShieldCheck, FolderOpen, FolderCheck } from 'lucide-react'
 import { ThemedSpinner } from '../../components/common/ThemedLoader'
 import { motion } from 'framer-motion'
 import { useAppStore } from '../../lib/store'
 import type { AccentColor } from '../../lib/store'
 import api, { resolveBaseURL, normalizeApiUrl } from '../../lib/api'
 import { clearImageAndReadingCaches } from '../../lib/storageManager'
+import {
+  detectLocalDownloadEnvironment,
+  getLocalConcurrentDownloadsSetting,
+  setLocalConcurrentDownloadsSetting,
+  type LocalDownloadEnvInfo,
+} from '../../lib/downloadConcurrency'
+import {
+  isFileSystemAccessSupported,
+  getSavedDirectoryHandle,
+  saveDirectoryHandle,
+  clearSavedDirectoryHandle,
+} from '../../lib/directoryPicker'
 
 const SECTION: React.CSSProperties = { padding: '22px 20px', marginBottom: 14 }
 const ROW: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '14px 0', borderTop: '1px solid var(--border)', minHeight: 52 }
@@ -69,6 +81,42 @@ export default function GeneralSettings() {
   const [connStatus, setConnStatus] = useState<{ type: 'ok' | 'error'; msg: string } | null>(null)
   const [clearingCache, setClearingCache] = useState(false)
   const [cacheClearedSuccess, setCacheClearedSuccess] = useState(false)
+  const [downloadEnv] = useState<LocalDownloadEnvInfo>(() => detectLocalDownloadEnvironment())
+  const [localConcurrency, setLocalConcurrency] = useState<number>(() => getLocalConcurrentDownloadsSetting())
+  const [localDirName, setLocalDirName] = useState<string | null>(null)
+  const isFsSupported = isFileSystemAccessSupported()
+
+  useEffect(() => {
+    if (isFsSupported) {
+      getSavedDirectoryHandle().then(handle => {
+        if (handle) setLocalDirName(handle.name)
+      }).catch(() => {})
+    }
+  }, [isFsSupported])
+
+  const handlePickDirectory = async () => {
+    try {
+      if ('showDirectoryPicker' in window) {
+        const handle = await (window as any).showDirectoryPicker({ mode: 'readwrite' })
+        if (handle) {
+          await saveDirectoryHandle(handle)
+          setLocalDirName(handle.name)
+        }
+      }
+    } catch {
+      // User cancelled
+    }
+  }
+
+  const handleClearDirectory = async () => {
+    await clearSavedDirectoryHandle()
+    setLocalDirName(null)
+  }
+
+  const handleSetConcurrency = (val: number) => {
+    setLocalConcurrency(val)
+    setLocalConcurrentDownloadsSetting(val)
+  }
 
   const handleClearImageCache = async () => {
     if (!window.confirm('Clear temporary image & reading cache? This frees up space used by cached pages without affecting your library or history.')) return
@@ -284,7 +332,7 @@ export default function GeneralSettings() {
           <div>
             <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--fg)' }}>Push Notifications</div>
             <div style={{ fontSize: 12, color: 'var(--muted2)', marginTop: 3 }}>
-              {notifPermission === 'denied' ? 'Blocked — enable in site settings' : 'Alerts for new chapters and library updates'}
+              {notifPermission === 'denied' ? 'Blocked - enable in site settings' : 'Alerts for new chapters and library updates'}
             </div>
           </div>
           {notifEnabled && notifPermission === 'granted' ? (
@@ -308,6 +356,121 @@ export default function GeneralSettings() {
             <div style={{ fontSize: 12, color: 'var(--muted2)', marginTop: 3 }}>Download new chapters when on Wi-Fi</div>
           </div>
           <Toggle on={syncWifiOnly} onToggle={() => setSyncWifiOnly(!syncWifiOnly)} />
+        </div>
+
+        <div style={ROW}>
+          <div style={{ flex: 1, minWidth: 0, paddingRight: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--fg)' }}>Concurrent Downloads</div>
+              {downloadEnv.isEligibleForConcurrencyBoost ? (
+                <span style={{ fontSize: 9, fontWeight: 800, padding: '1px 6px', borderRadius: 6, background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(220,38,38,0.3)', color: 'var(--accent)' }}>
+                  Local Turbo
+                </span>
+              ) : (
+                <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 6, background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)', color: 'var(--muted2)' }}>
+                  Cloud Safe (1x)
+                </span>
+              )}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--muted2)', marginTop: 3 }}>
+              {downloadEnv.isEligibleForConcurrencyBoost
+                ? `Local server detected (${downloadEnv.serverHostname}:${downloadEnv.serverPort}). Multiple chapters download concurrently.`
+                : 'Locked to 1 chapter on remote cloud server to protect bandwidth and prevent 504 timeouts.'}
+            </div>
+          </div>
+          {downloadEnv.isEligibleForConcurrencyBoost ? (
+            <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+              {[1, 2, 3, 4].map((num) => (
+                <button
+                  key={num}
+                  onClick={() => handleSetConcurrency(num)}
+                  style={{
+                    padding: '6px 11px',
+                    borderRadius: 8,
+                    fontSize: 12,
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    border: '1px solid',
+                    borderColor: localConcurrency === num ? 'var(--accent)' : 'var(--border)',
+                    background: localConcurrency === num ? 'var(--accent)' : 'var(--surface-hover)',
+                    color: localConcurrency === num ? '#fff' : 'var(--fg)',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {num}x
+                </button>
+              ))}
+            </div>
+          ) : (
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted2)', padding: '6px 12px', background: 'var(--surface-hover)', borderRadius: 8, border: '1px solid var(--border)' }}>
+              1 chapter
+            </span>
+          )}
+        </div>
+
+        <div style={ROW}>
+          <div style={{ flex: 1, minWidth: 0, paddingRight: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--fg)' }}>Auto-Save to Local Folder</div>
+              {localDirName ? (
+                <span style={{ fontSize: 9, fontWeight: 800, padding: '1px 6px', borderRadius: 6, background: 'rgba(74,222,128,0.15)', border: '1px solid rgba(74,222,128,0.3)', color: 'rgb(74,222,128)' }}>
+                  Active
+                </span>
+              ) : (
+                <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 6, background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)', color: 'var(--muted2)' }}>
+                  Default Downloads
+                </span>
+              )}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--muted2)', marginTop: 3 }}>
+              {isFsSupported
+                ? localDirName
+                  ? `Writing directly to folder: "${localDirName}". Chapters are organized into series subfolders without download popups.`
+                  : 'Select an existing folder on your computer (e.g. ~/Manga) to save downloaded chapters directly to disk.'
+                : 'Direct directory streaming is supported on Chrome, Edge, and Brave. Fallback to standard browser downloads is active.'}
+            </div>
+          </div>
+          {isFsSupported && (
+            <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+              <button
+                onClick={handlePickDirectory}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '7px 12px',
+                  borderRadius: 8,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  border: '1px solid var(--border)',
+                  background: 'var(--surface-hover)',
+                  color: 'var(--fg)',
+                }}
+              >
+                {localDirName ? <FolderCheck style={{ width: 14, height: 14, color: 'rgb(74,222,128)' }} /> : <FolderOpen style={{ width: 14, height: 14 }} />}
+                {localDirName ? 'Change Folder' : 'Choose Folder'}
+              </button>
+              {localDirName && (
+                <button
+                  onClick={handleClearDirectory}
+                  title="Reset to default browser downloads"
+                  style={{
+                    padding: '7px 10px',
+                    borderRadius: 8,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    border: '1px solid var(--border)',
+                    background: 'var(--surface-hover)',
+                    color: 'var(--muted2)',
+                  }}
+                >
+                  Reset
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </motion.section>
 

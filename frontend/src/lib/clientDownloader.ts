@@ -4,6 +4,16 @@ import api from './api'
 import { Capacitor } from '@capacitor/core'
 import { saveToDeviceStorage } from './nativeDownload'
 import { useState, useEffect } from 'react'
+import {
+  detectLocalDownloadEnvironment,
+  getEffectiveDownloadConcurrency,
+  type LocalDownloadEnvInfo,
+} from './downloadConcurrency'
+import {
+  getSavedDirectoryHandle,
+  verifyDirectoryPermission,
+  saveBlobToDirectory,
+} from './directoryPicker'
 
 export type DownloadStatus =
   | 'queued'
@@ -204,8 +214,8 @@ p {
 
 class ClientDownloader {
   private tasks: ClientDownloadTask[] = []
-  private activeTaskId: string | null = null
-  private abortController: AbortController | null = null
+  private activeTaskIds: Set<string> = new Set()
+  private abortControllers: Map<string, AbortController> = new Map()
   private isPaused = false
   private listeners = new Set<() => void>()
   private blobCache = new Map<string, Blob>()
@@ -281,6 +291,14 @@ class ClientDownloader {
 
   public getPaused(): boolean {
     return this.isPaused
+  }
+
+  public getMaxConcurrentDownloads(): number {
+    return getEffectiveDownloadConcurrency()
+  }
+
+  public getDownloadEnvInfo(): LocalDownloadEnvInfo {
+    return detectLocalDownloadEnvironment()
   }
 
   public isChapterActiveOrQueued(chapterId: string): boolean {
@@ -397,12 +415,13 @@ class ClientDownloader {
     const task = this.tasks.find((t) => t.id === id)
     if (!task) return
 
-    if (this.activeTaskId === id) {
-      if (this.abortController) {
-        this.abortController.abort()
-        this.abortController = null
+    if (this.activeTaskIds.has(id)) {
+      const ac = this.abortControllers.get(id)
+      if (ac) {
+        ac.abort()
+        this.abortControllers.delete(id)
       }
-      this.activeTaskId = null
+      this.activeTaskIds.delete(id)
     }
 
     this.tasks = this.tasks.filter((t) => t.id !== id)
@@ -424,17 +443,15 @@ class ClientDownloader {
 
   public pause() {
     this.isPaused = true
-    if (this.abortController) {
-      this.abortController.abort()
-      this.abortController = null
-    }
-    if (this.activeTaskId) {
-      const current = this.tasks.find((t) => t.id === this.activeTaskId)
+    for (const [id, ac] of this.abortControllers.entries()) {
+      ac.abort()
+      const current = this.tasks.find((t) => t.id === id)
       if (current && current.status !== 'done') {
         current.status = 'queued'
       }
-      this.activeTaskId = null
     }
+    this.abortControllers.clear()
+    this.activeTaskIds.clear()
     this.notify()
   }
 
@@ -450,11 +467,11 @@ class ClientDownloader {
   }
 
   public clearAll() {
-    if (this.abortController) {
-      this.abortController.abort()
-      this.abortController = null
+    for (const ac of this.abortControllers.values()) {
+      ac.abort()
     }
-    this.activeTaskId = null
+    this.abortControllers.clear()
+    this.activeTaskIds.clear()
     this.tasks = []
     this.blobCache.clear()
     this.notify()
@@ -487,45 +504,69 @@ class ClientDownloader {
         reader.readAsDataURL(blob)
       })
       await saveToDeviceStorage(mangaTitle, fileName, base64)
-    } else {
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = fileName
-      document.body.appendChild(a)
-      a.click()
-      setTimeout(() => {
-        document.body.removeChild(a)
-        URL.revokeObjectURL(url)
-      }, 5000)
+      return
     }
+
+    // Attempt direct folder write via File System Access API if configured
+    try {
+      const dirHandle = await getSavedDirectoryHandle()
+      if (dirHandle) {
+        const hasPermission = await verifyDirectoryPermission(dirHandle, true)
+        if (hasPermission) {
+          const saved = await saveBlobToDirectory(dirHandle, mangaTitle, fileName, blob)
+          if (saved) return
+        }
+      }
+    } catch (e) {
+      console.warn('[ClientDownloader] Direct directory export fallback:', e)
+    }
+
+    // Fallback to standard browser blob download link
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = fileName
+    document.body.appendChild(a)
+    a.click()
+    setTimeout(() => {
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    }, 5000)
   }
 
   private async processNext() {
-    if (this.isPaused || this.activeTaskId !== null) return
+    if (this.isPaused) return
 
-    const nextTask = this.tasks.find((t) => t.status === 'queued')
-    if (!nextTask) return
+    const maxConcurrent = this.getMaxConcurrentDownloads()
 
-    this.activeTaskId = nextTask.id
-    this.abortController = new AbortController()
-    const signal = this.abortController.signal
+    while (this.activeTaskIds.size < maxConcurrent) {
+      const nextTask = this.tasks.find((t) => t.status === 'queued' && !this.activeTaskIds.has(t.id))
+      if (!nextTask) break
 
-    try {
-      await this.runTask(nextTask, signal)
-    } catch (err: unknown) {
-      if (signal.aborted) {
-        // cancelled or paused
-        return
-      }
-      nextTask.status = 'failed'
-      nextTask.error = (err as Error)?.message || 'Download failed'
-      this.notify()
-    } finally {
-      this.activeTaskId = null
-      this.abortController = null
-      // Schedule next task on next tick
-      setTimeout(() => this.processNext(), 100)
+      const taskId = nextTask.id
+      this.activeTaskIds.add(taskId)
+      const ac = new AbortController()
+      this.abortControllers.set(taskId, ac)
+      const signal = ac.signal
+
+      ;(async () => {
+        try {
+          await this.runTask(nextTask, signal)
+        } catch (err: unknown) {
+          if (signal.aborted) {
+            // cancelled or paused
+            return
+          }
+          nextTask.status = 'failed'
+          nextTask.error = (err as Error)?.message || 'Download failed'
+          this.notify()
+        } finally {
+          this.activeTaskIds.delete(taskId)
+          this.abortControllers.delete(taskId)
+          // Schedule next task check
+          setTimeout(() => this.processNext(), 50)
+        }
+      })()
     }
   }
 
@@ -843,5 +884,8 @@ export function useClientDownloader() {
     saveOrExportFile: clientDownloader.saveOrExportFile.bind(clientDownloader),
     isChapterActiveOrQueued: clientDownloader.isChapterActiveOrQueued.bind(clientDownloader),
     getActiveOrQueuedChapterIds: clientDownloader.getActiveOrQueuedChapterIds.bind(clientDownloader),
+    concurrencyInfo: clientDownloader.getDownloadEnvInfo(),
+    maxConcurrentDownloads: clientDownloader.getMaxConcurrentDownloads(),
+    isLocalTurboActive: clientDownloader.getDownloadEnvInfo().isEligibleForConcurrencyBoost,
   }
 }

@@ -6,6 +6,7 @@ import { getReadChapters } from '../lib/readTracking'
 import { buildSmartReadUrl } from '../lib/smartUrl'
 import type { OnlineParts } from './useReaderData'
 import { useReaderKeybindings } from './useReaderKeybindings'
+import { useReaderGamepad } from './useReaderGamepad'
 
 export interface DisplaySlot {
   type: 'single' | 'pair' | 'wide'
@@ -68,14 +69,17 @@ interface Params {
   readerFilters: ReaderFilters
   setReaderFilters: (partial: Partial<ReaderFilters>) => void
   isWidePage: boolean[]
+  readingDirection?: 'ltr' | 'rtl'
   onExit?: () => void
+  onToggleUi?: () => void
+  onToggleShortcuts?: () => void
 }
 
 export function useReaderNavigation({
   pages, currentPage, setCurrentPage,
   readingMode, dualPageSpread, tapZoneLayout, hapticFeedback, skipReadChapters,
   onlinePartsRef, chapterListRef, nextChapterId, prevChapterId, mangaTitle, navigate,
-  readerFilters, setReaderFilters, isWidePage, onExit,
+  readerFilters, setReaderFilters, isWidePage, readingDirection, onExit, onToggleUi, onToggleShortcuts,
 }: Params) {
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200)
   const [isLandscape, setIsLandscape] = useState(typeof window !== 'undefined' ? window.innerWidth > window.innerHeight : true)
@@ -195,11 +199,24 @@ export function useReaderNavigation({
 
   // Keybindings sub-hook
   useReaderKeybindings({
-    readingMode, volumeKeyMode, readerFilters, setReaderFilters,
+    readingMode, readingDirection, volumeKeyMode, readerFilters, setReaderFilters,
     pagesLength: pages.length, setCurrentPage, prevPage, nextPage,
     onExit: onExit || (() => navigate(-1)),
     onNextChapter: navigateToNextChapter,
     onPrevChapter: navigateToPrevChapter,
+    onToggleUi,
+    onToggleShortcuts,
+  })
+
+  // Gamepad controller sub-hook
+  useReaderGamepad({
+    readingMode,
+    nextPage: () => nextPage(),
+    prevPage: () => prevPage(),
+    onNextChapter: navigateToNextChapter,
+    onPrevChapter: navigateToPrevChapter,
+    onToggleUi,
+    onExit: onExit || (() => navigate(-1)),
   })
 
   return {
