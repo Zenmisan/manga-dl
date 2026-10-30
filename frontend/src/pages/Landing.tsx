@@ -308,7 +308,7 @@ export default function LandingPage() {
                 style={{ color: 'var(--color-ink-2)' }}
               >
                 50+ sources. Offline reading. AniList sync.{' '}
-                <span style={{ color: 'var(--color-ink)', fontWeight: 600 }}>Free, forever.</span>
+                <span style={{ color: 'var(--color-ink)', fontWeight: 600 }}>Free.</span>
               </motion.p>
 
               <motion.div
@@ -361,7 +361,7 @@ export default function LandingPage() {
                   { val: '50+', label: 'Sources' },
                   { val: '3',   label: 'Platforms' },
                   { val: '6+',  label: 'Trackers' },
-                  { val: '$0',  label: 'Always' },
+                  { val: '$0',  label: 'For now' },
                 ].map(({ val, label }, i) => (
                   <div
                     key={label}
