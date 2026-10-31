@@ -28,6 +28,9 @@ export const SKIP_PROXY_PROVIDERS = new Set(['mangadex'])
 
 // Deprecated or defunct manga sources removed from backend
 export const DEPRECATED_EXTENSIONS = new Set([
+  'azuki',
+  'manhwaget',
+  'manhwamanhua',
   'manhuaplus',
   'aquamanga',
   'coffeemanga',

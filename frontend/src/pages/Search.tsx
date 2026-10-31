@@ -50,8 +50,13 @@ interface MangaResult {
 const FALLBACK_PROVIDERS = [
   { id: 'mangadex', name: 'MangaDex' },
   { id: 'asurascans', name: 'Asura Scans' },
-  { id: 'mangakatana', name: 'MangaKatana' },
   { id: 'omegascans', name: 'Omega Scans' },
+  { id: 'weebcentral', name: 'WeebCentral' },
+  { id: 'mangakatana', name: 'MangaKatana' },
+  { id: 'flamescans', name: 'Flame Comics' },
+  { id: 'mangapill', name: 'MangaPill' },
+  { id: 'manhwatop', name: 'ManhwaTop' },
+  { id: 'zinmanga', name: 'ZinManga' },
 ]
 
 const NOVEL_PROVIDERS = [
@@ -1129,7 +1134,7 @@ export default function SearchPage() {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             transition={{ delay: 0.1 }}
-                            onClick={() => navigate(`/profile/${leaderboard[1].username || leaderboard[1].user_id}`)}
+                            onClick={() => navigate(leaderboard[1].username ? `/${leaderboard[1].username}` : `/profile/${leaderboard[1].user_id}`)}
                             className="glass-card p-4 border-slate-500/20 bg-slate-900/20 hover:border-slate-400/40 transition-all cursor-pointer flex flex-col items-center text-center relative group order-2 sm:order-1"
                           >
                             <div className="w-7 h-7 rounded-full bg-slate-500/20 border border-slate-400/40 flex items-center justify-center text-slate-300 font-black text-xs mb-2">
@@ -1175,7 +1180,7 @@ export default function SearchPage() {
                           <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
-                            onClick={() => navigate(`/profile/${leaderboard[0].username || leaderboard[0].user_id}`)}
+                            onClick={() => navigate(leaderboard[0].username ? `/${leaderboard[0].username}` : `/profile/${leaderboard[0].user_id}`)}
                             className="glass-card p-5 border-amber-500/30 bg-gradient-to-b from-amber-500/[0.08] to-transparent hover:border-amber-400/50 transition-all cursor-pointer flex flex-col items-center text-center relative group sm:-translate-y-2 shadow-xl order-1 sm:order-2"
                           >
                             <div className="absolute -top-3 px-3 py-0.5 rounded-full bg-amber-500 text-black font-black text-[10px] uppercase tracking-wider shadow-md flex items-center gap-1">
@@ -1225,7 +1230,7 @@ export default function SearchPage() {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             transition={{ delay: 0.2 }}
-                            onClick={() => navigate(`/profile/${leaderboard[2].username || leaderboard[2].user_id}`)}
+                            onClick={() => navigate(leaderboard[2].username ? `/${leaderboard[2].username}` : `/profile/${leaderboard[2].user_id}`)}
                             className="glass-card p-4 border-amber-800/30 bg-amber-950/10 hover:border-amber-700/40 transition-all cursor-pointer flex flex-col items-center text-center relative group order-3"
                           >
                             <div className="w-7 h-7 rounded-full bg-amber-800/30 border border-amber-700/40 flex items-center justify-center text-amber-500 font-black text-xs mb-2">
@@ -1281,7 +1286,7 @@ export default function SearchPage() {
                           return (
                             <motion.div
                               key={u.user_id}
-                              onClick={() => navigate(`/profile/${u.username || u.user_id}`)}
+                              onClick={() => navigate(u.username ? `/${u.username}` : `/profile/${u.user_id}`)}
                               className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 group ${
                                 u.rank === 1
                                   ? 'bg-amber-500/[0.06] border-amber-500/30 hover:border-amber-400/50'
@@ -1389,7 +1394,7 @@ export default function SearchPage() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ duration: 0.3, delay: Math.min(idx * 0.04, 0.3) }}
-                      onClick={() => navigate(`/profile/${u.username || u.user_id}`)}
+                      onClick={() => navigate(u.username ? `/${u.username}` : `/profile/${u.user_id}`)}
                       className="glass-card p-4 hover:border-white/20 transition-all cursor-pointer group flex flex-col justify-between"
                     >
                       <div className="flex items-center gap-3.5">

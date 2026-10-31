@@ -96,8 +96,15 @@ class AniListTokenRequest(BaseModel):
 async def exchange_anilist_token(req: AniListTokenRequest):
     """Exchange AniList authorization code for access token."""
     settings = get_settings()
-    client_id = settings.ANILIST_CLIENT_ID or ""
-    client_secret = settings.ANILIST_CLIENT_SECRET or ""
+
+    # Route client credentials based on domain (manga-dl.me vs legacy manga-dl.web.app)
+    if "web.app" in req.redirect_uri or "firebaseapp.com" in req.redirect_uri:
+        client_id = getattr(settings, "ANILIST_WEBAPP_CLIENT_ID", None) or "50135"
+        client_secret = getattr(settings, "ANILIST_WEBAPP_CLIENT_SECRET", None) or "CrwarhgPil03KjQBR7NEoAN8dOU55t5fiMpisaH1"
+    else:
+        client_id = settings.ANILIST_CLIENT_ID or "55410"
+        client_secret = settings.ANILIST_CLIENT_SECRET or "2mN2zmwWKzNBKnW5PCDXwSwqvLISZojXYoJANkg7"
+
     if not client_id or not client_secret:
         raise HTTPException(status_code=503, detail="AniList client credentials not configured on server")
     async with AsyncSession() as client:

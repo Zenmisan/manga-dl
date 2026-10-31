@@ -145,8 +145,9 @@ function SettingsSearchBar() {
             transition={{ duration: 0.12 }}
             style={{
               position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, zIndex: 100,
-              background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12,
-              overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+              background: '#121215', border: '1px solid var(--border)', borderRadius: 12,
+              overflow: 'hidden', boxShadow: '0 12px 32px rgba(0,0,0,0.6)',
+              backdropFilter: 'blur(20px)',
             }}
           >
             {results.map((item, i) => (
@@ -157,15 +158,15 @@ function SettingsSearchBar() {
                 style={{
                   display: 'flex', alignItems: 'center', gap: 10,
                   width: '100%', textAlign: 'left', padding: '10px 14px',
-                  background: i === selected ? 'rgba(220,38,38,0.08)' : 'transparent',
+                  background: i === selected ? 'rgba(220,38,38,0.15)' : 'transparent',
                   border: 'none', cursor: 'pointer',
                   borderBottom: i < results.length - 1 ? '1px solid var(--border)' : 'none',
                   transition: 'background 0.1s',
                 }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--fg)' }}>{item.label}</div>
-                  <div style={{ fontSize: 11, color: 'var(--muted3)', marginTop: 1 }}>{item.section}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#ffffff' }}>{item.label}</div>
+                  <div style={{ fontSize: 11, color: 'var(--muted2)', marginTop: 1 }}>{item.section}</div>
                 </div>
               </button>
             ))}

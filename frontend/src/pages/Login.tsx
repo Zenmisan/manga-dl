@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { LogIn, BookOpen, ArrowLeft, Key, Eye, EyeOff, Mail, Lock } from 'lucide-react'
+import { LogIn, BookOpen, ArrowLeft, Eye, EyeOff, Mail, Lock } from 'lucide-react'
 import { ThemedSpinner } from '../components/common/ThemedLoader'
 import { supabase } from '../lib/supabase'
 import { signInWithGoogle } from '../lib/googleAuth'
@@ -10,8 +10,6 @@ import { usePageTitle } from '../lib/usePageTitle'
 
 const FADE = { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.45, ease: [0.16, 1, 0.3, 1] as [number,number,number,number] } }
 const BTN_BASE = 'focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 focus-visible:ring-offset-black disabled:opacity-40 disabled:pointer-events-none active:scale-[0.98] transition-all'
-
-const hasSupabase = !!import.meta.env.VITE_SUPABASE_ANON_KEY
 
 function GoogleIcon({ style }: { style?: React.CSSProperties }) {
   return (
@@ -47,7 +45,6 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!hasSupabase) { navigate('/r'); return }
     setError(null)
     setLoading(true)
     try {
@@ -120,27 +117,7 @@ export default function LoginPage() {
             <p className="text-xs text-zinc-400">Your library awaits.</p>
           </div>
 
-          {!hasSupabase ? (
-            /* API-key mode — no Supabase configured */
-            <div className="space-y-4">
-              <div className="flex items-start gap-3 p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
-                <Key className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
-                <p className="text-xs text-zinc-300 leading-relaxed">
-                  Running in local mode — authenticated via API key. No account needed.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => navigate('/r')}
-                className="w-full py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-extrabold text-xs uppercase tracking-wider shadow-[0_4px_24px_rgba(220,38,38,0.3)] transition-all flex items-center justify-center gap-2"
-              >
-                <LogIn className="w-4 h-4" />
-                Continue to App
-              </button>
-            </div>
-          ) : (
-            <>
-              {/* Google Sign In Button */}
+          {/* Google Sign In Button */}
               <button
                 type="button"
                 onClick={handleGoogleLogin}
@@ -242,17 +219,15 @@ export default function LoginPage() {
                 </button>
               </form>
 
-              {/* Sign up prompt */}
-              <div className="text-center pt-2">
-                <p className="text-xs text-zinc-400">
-                  Don't have an account?{' '}
-                  <Link to="/register" className="text-red-500 font-bold hover:text-red-400 transition-colors">
-                    Sign up
-                  </Link>
-                </p>
-              </div>
-            </>
-          )}
+          {/* Sign up prompt */}
+          <div className="text-center pt-2">
+            <p className="text-xs text-zinc-400">
+              Don't have an account?{' '}
+              <Link to="/register" className="text-red-500 font-bold hover:text-red-400 transition-colors">
+                Sign up
+              </Link>
+            </p>
+          </div>
         </div>
       </motion.div>
     </div>

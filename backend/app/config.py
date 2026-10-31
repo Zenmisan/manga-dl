@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     CORS_ORIGINS: Any = [
         "http://localhost:5173",
         "http://localhost:3000",
+        "https://manga-dl.me",
+        "https://www.manga-dl.me",
         "https://manga-dl.web.app",
         "https://manga-dl.firebaseapp.com",
         "tauri://localhost",

@@ -355,8 +355,8 @@ export default function ProfilePage() {
             pinnedBadges: badges
           })
 
-          // URL normalization: if on /profile/me or /profile, update address bar to clean /@username or /username
-          if (resolvedUsername && (targetId === 'me' || targetId === myId)) {
+          // URL normalization: if on /profile/me, /profile, or /profile/:uuid, update address bar to clean /@username or /username
+          if (resolvedUsername && (targetId === 'me' || targetId === myId || targetId.includes('-') || window.location.pathname.startsWith('/profile/'))) {
             window.history.replaceState(null, '', `/${resolvedUsername}`)
           }
         } else {
@@ -370,6 +370,10 @@ export default function ProfilePage() {
             usernameLocked: true,
             pinnedBadges: res.data.pinned_badges || []
           })
+
+          if (res.data.username && (targetId.includes('-') || window.location.pathname.startsWith('/profile/'))) {
+            window.history.replaceState(null, '', `/${res.data.username}`)
+          }
         }
       } catch (err: unknown) {
         if (cancelled) return
@@ -392,14 +396,19 @@ export default function ProfilePage() {
           })
           const defaultUsername = (myEmail ? myEmail.split('@')[0] : (localUsername || 'reader')).toLowerCase().replace(/[^a-z0-9_]/g, '')
           const defaultName = myEmail ? myEmail.split('@')[0] : 'Manga Reader'
+          const resolvedUsername = ownSavedMeta?.username || defaultUsername
           setMeta({
-            username: ownSavedMeta?.username || defaultUsername,
+            username: resolvedUsername,
             displayName: ownSavedMeta?.displayName || defaultName,
             bio: ownSavedMeta?.bio || '',
             avatarUrl: ownSavedMeta?.avatarUrl || '',
             usernameLocked: Boolean(ownSavedMeta?.usernameLocked),
             pinnedBadges: ownSavedMeta?.pinnedBadges || []
           })
+
+          if (resolvedUsername && (targetId === 'me' || targetId === myId || targetId.includes('-') || window.location.pathname.startsWith('/profile/'))) {
+            window.history.replaceState(null, '', `/${resolvedUsername}`)
+          }
         } else {
           setProfile(null)
           setNotFound(true)
@@ -737,37 +746,6 @@ export default function ProfilePage() {
       </header>
 
       <div className="px-4 md:px-6 pt-4 pb-28 flex-1 max-w-2xl w-full mx-auto space-y-4">
-        {/* Owner Public Preview Notice */}
-        {isOwnProfile && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="p-3 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-between gap-3"
-          >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
-              <p className="text-xs text-zinc-300 font-semibold truncate">
-                Public Profile Preview · <span className="text-zinc-400 font-normal">This is how other readers see you</span>
-              </p>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <button
-                onClick={handleOpenEdit}
-                className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-bold transition-all flex items-center gap-1.5"
-              >
-                <Pencil className="w-3 h-3" /> Edit Profile
-              </button>
-              <button
-                onClick={() => navigate('/settings/reader')}
-                className="px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold transition-all flex items-center gap-1"
-                title="Open reader preferences"
-              >
-                <Settings className="w-3 h-3" /> Settings
-              </button>
-            </div>
-          </motion.div>
-        )}
-
         {/* ── Hero Showcase Card ───────────────────────────────────────── */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -779,6 +757,26 @@ export default function ProfilePage() {
             className="absolute -top-16 -right-16 w-48 h-48 rounded-full blur-3xl opacity-20 pointer-events-none"
             style={{ background: milestoneSummary.currentTitleColor }}
           />
+
+          {/* Top-Right Owner Actions: Edit & Settings */}
+          {isOwnProfile && (
+            <div className="absolute top-5 right-5 z-20 flex items-center gap-2">
+              <button
+                onClick={handleOpenEdit}
+                title="Edit Profile"
+                className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-400 hover:text-white transition-all flex items-center justify-center cursor-pointer active:scale-95"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => navigate('/settings/profile')}
+                title="Settings"
+                className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-400 hover:text-white transition-all flex items-center justify-center cursor-pointer active:scale-95"
+              >
+                <Settings className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 relative z-10">
             {/* Avatar */}
@@ -818,20 +816,11 @@ export default function ProfilePage() {
             )}
 
             {/* Profile Info */}
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 pr-16 sm:pr-20">
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-xl font-black text-white tracking-tight truncate">
                   {finalDisplayName}
                 </h2>
-                {isOwnProfile && (
-                  <button
-                    onClick={handleOpenEdit}
-                    title="Edit profile"
-                    className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                  </button>
-                )}
               </div>
 
               {/* Handle, Title Badge, and Permanent Hunter Standing Badge */}

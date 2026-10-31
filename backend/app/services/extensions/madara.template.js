@@ -11,23 +11,28 @@ function _getImg(el) {
   if (!el) return null;
   var img = el.querySelector('img');
   if (!img) return null;
-  return img.getAttribute('data-src') ||
+  var src = img.getAttribute('data-src') ||
     img.getAttribute('data-lazy-src') ||
     img.getAttribute('data-wpfc-original-src') ||
+    img.getAttribute('data-cdn-src') ||
     img.getAttribute('src') ||
     (img.getAttribute('srcset') || '').split(' ')[0] ||
     null;
+  if (src && src.includes('dflazy.jpg')) {
+    src = img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || (img.getAttribute('srcset') || '').split(' ')[0] || null;
+  }
+  return src;
 }
 
-var _CARD_SEL = '.c-tabs-item__content, .manga-item, .page-item-detail, .c-blog-post';
+var _CARD_SEL = '.c-tabs-item__content, .manga-item, .page-item-detail, .c-blog-post, .row.c-tabs-item__content';
 
 function _parseCard(card) {
-  var a = card.querySelector('.post-title a, h3.h4 a, h3 a, h5 a, a[href*="/manga/"], a[href*="/series/"], a[href*="/webtoon/"], a[href*="/serie/"]');
+  var a = card.querySelector('.post-title a, h2 a, h3.h4 a, h3 a, h5 a, a[href*="/manga/"], a[href*="/series/"], a[href*="/webtoon/"], a[href*="/serie/"]');
   if (!a) return null;
   var href = a.getAttribute('href') || '';
   var slug = href.replace(/\/$/, '').split('/').pop();
   if (!slug) return null;
-  var titleEl = card.querySelector('.post-title, h3.h4, h3, h5');
+  var titleEl = card.querySelector('.post-title, h2, h3.h4, h3, h5');
   var title = (titleEl ? titleEl.textContent.trim() : '') || a.textContent.trim();
   return {
     id: slug,
@@ -145,21 +150,45 @@ var extension = {
 
     var chapters = [];
     var seen = {};
-    doc.querySelectorAll('.wp-manga-chapter a').forEach(function(a) {
-      var href = a.getAttribute('href') || '';
-      var slug = href.replace(/\/$/, '').split('/').pop();
-      var fullId = mangaId + '/chapter/' + slug;
-      if (seen[fullId]) return;
-      seen[fullId] = true;
-      var numMatch = slug.match(/([\d.]+)/);
-      var num = numMatch ? parseFloat(numMatch[1]) : 0;
-      chapters.push({
-        id: href.replace(_BASE, ''),
-        title: a.textContent.trim() || ('Chapter ' + num),
-        number: num,
-        published_at: null,
+
+    function _extractChapterElements(sourceDoc) {
+      sourceDoc.querySelectorAll('.wp-manga-chapter a, li.wp-manga-chapter a, .listing-chapters_wrap a').forEach(function(a) {
+        var href = a.getAttribute('href') || '';
+        if (!href || href === '#' || href.includes('javascript:')) return;
+        var slug = href.replace(/\/$/, '').split('/').pop();
+        var fullId = mangaId + '/chapter/' + slug;
+        if (seen[fullId] || seen[href]) return;
+        seen[fullId] = true;
+        seen[href] = true;
+        var numMatch = slug.match(/([\d.]+)/) || (a.textContent || '').match(/([\d.]+)/);
+        var num = numMatch ? parseFloat(numMatch[1]) : 0;
+        var chTitle = a.textContent.trim() || ('Chapter ' + num);
+        var relId = href.startsWith('http') ? href.replace(_BASE, '') : href;
+        if (!relId.startsWith('/')) relId = '/' + relId;
+        chapters.push({
+          id: relId,
+          title: chTitle,
+          number: num,
+          published_at: null,
+        });
       });
-    });
+    }
+
+    _extractChapterElements(doc);
+
+    // Modern Madara sites load chapters asynchronously via AJAX
+    if (chapters.length === 0) {
+      try {
+        var ajaxData = await apiFetch('/manga/proxy/html?url=' + encodeURIComponent(finalUrl.replace(/\/$/, '') + '/ajax/chapters/'), {
+          method: 'POST'
+        });
+        if (ajaxData && ajaxData.html) {
+          var ajaxDoc = new DOMParser().parseFromString(ajaxData.html, 'text/html');
+          _extractChapterElements(ajaxDoc);
+        }
+      } catch (err) {}
+    }
+
     chapters.sort(function(a, b) { return b.number - a.number; });
 
     return {
@@ -177,14 +206,21 @@ var extension = {
   },
 
   async getPages(chapterId) {
-    var doc = await _fetchDoc(_BASE + chapterId);
+    var fullUrl = chapterId.startsWith('http') ? chapterId : (_BASE + (chapterId.startsWith('/') ? chapterId : '/' + chapterId));
+    var doc = await _fetchDoc(fullUrl);
     var pages = [];
-    doc.querySelectorAll('.page-break img, img.wp-manga-chapter-img').forEach(function(img) {
-      var src = img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || img.getAttribute('data-cdn-src');
+    doc.querySelectorAll('.page-break img, img.wp-manga-chapter-img, .reading-content img').forEach(function(img) {
+      var src = img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || img.getAttribute('data-cdn-src') || img.getAttribute('src');
       if (src) {
-         src = src.trim();
-         if (src.startsWith('//')) src = 'https:' + src;
-         pages.push(src);
+        src = src.trim();
+        if (src.includes('dflazy.jpg')) {
+          src = img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || (img.getAttribute('srcset') || '').split(' ')[0] || '';
+        }
+        if (src) {
+          src = src.trim();
+          if (src.startsWith('//')) src = 'https:' + src;
+          pages.push(src);
+        }
       }
     });
     return pages;

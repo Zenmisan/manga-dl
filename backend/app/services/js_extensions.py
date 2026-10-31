@@ -296,6 +296,15 @@ BUILT_IN_EXTENSIONS: dict[str, dict] = {
         "nsfw": False,
         "skip_proxy": False,
     },
+    "weebcentral": {
+        "script": "weebcentral.js",
+        "name": "WeebCentral",
+        "lang": "en",
+        "version": "1.0.0",
+        "icon": "https://weebcentral.com/favicon.ico",
+        "nsfw": False,
+        "skip_proxy": False,
+    },
     # ── Web Novels ───────────────────────────────────────────────
     "royalroad": {
         "script": "royalroad.js",

@@ -33,13 +33,16 @@ export async function getSubscriptions(): Promise<SupabaseSubscription[]> {
   try {
     const userId = await getUserId()
     if (!userId) return getCachedSubscriptions()
+
     const { data, error } = await supabase
       .from('subscriptions')
       .select('*')
       .eq('user_id', userId)
       .order('added_at', { ascending: false })
+
     if (error) throw error
-    const subs = data ?? []
+    const subs: SupabaseSubscription[] = data ?? []
+
     try {
       localStorage.setItem('cache:supabase_subscriptions', JSON.stringify(subs))
     } catch {}

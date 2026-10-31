@@ -93,6 +93,7 @@ _cors_origin_regex = (
     r"capacitor://localhost|"
     r"tauri://localhost|"
     r"https?://tauri\.localhost|"
+    r"https://(www\.)?manga-dl\.me|"
     r"https://[a-zA-Z0-9-]+\.(web\.app|firebaseapp\.com))$"
 )
 

@@ -753,16 +753,22 @@ export default function SystemSettings() {
       const { error } = await supabase.storage.from('manga-backups').upload(path, blob, { upsert: true })
       if (error) throw error
       setCloudBackupDone(true); setTimeout(() => setCloudBackupDone(false), 3000)
-    } catch { alert('Cloud backup failed.') } finally { setCloudBackupLoading(false) }
+    } catch (err: unknown) {
+      const msg = (err as { message?: string })?.message || 'Storage error'
+      console.error('Cloud backup error:', err)
+      alert(`Cloud backup failed: ${msg}`)
+    } finally { setCloudBackupLoading(false) }
   }
 
   const handleCloudRestore = async () => {
     if (!supabaseUser) return
     try {
       const { data: files, error } = await supabase.storage.from('manga-backups').list(`backups/${supabaseUser.id}`, { sortBy: { column: 'created_at', order: 'desc' } })
-      if (error || !files?.length) { alert('No cloud backups found.'); return }
+      if (error) throw error
+      if (!files?.length) { alert('No cloud backups found.'); return }
       const latest = files[0]
-      const { data: fileData } = await supabase.storage.from('manga-backups').download(`backups/${supabaseUser.id}/${latest.name}`)
+      const { data: fileData, error: dlError } = await supabase.storage.from('manga-backups').download(`backups/${supabaseUser.id}/${latest.name}`)
+      if (dlError) throw dlError
       if (!fileData) throw new Error('Download failed')
       const text = await fileData.text(); const backup = JSON.parse(text); const s = backup.settings ?? {}
       if (s.readerPrefs) localStorage.setItem('manga-dl-prefs', s.readerPrefs)
@@ -771,7 +777,11 @@ export default function SystemSettings() {
       if (s.readTracking) localStorage.setItem('manga-dl-read', s.readTracking)
       if (s.bookmarks) localStorage.setItem('manga-dl-bookmarks', s.bookmarks)
       alert(`Restored from cloud backup: ${latest.name}\nReload to apply.`)
-    } catch { alert('Restore failed.') }
+    } catch (err: unknown) {
+      const msg = (err as { message?: string })?.message || 'Restore error'
+      console.error('Cloud restore error:', err)
+      alert(`Restore failed: ${msg}`)
+    }
   }
 
   const handleKomgaSave = async () => {
@@ -809,7 +819,7 @@ export default function SystemSettings() {
               <div style={{ fontSize: 12, color: 'var(--muted2)', marginTop: 3 }}>{supabaseUser.email}</div>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => navigate(`/profile/${supabaseUser.id}`)} className="btn-secondary" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <button onClick={() => navigate(localStorage.getItem('manga-username') ? `/${localStorage.getItem('manga-username')}` : '/profile/me')} className="btn-secondary" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <User style={{ width: 13, height: 13 }} /> Profile
               </button>
               <button onClick={async () => { try { await supabase.auth.signOut() } catch (e) { console.error(e) } }} className="icon-btn" style={{ width: 36, height: 36, borderRadius: 10 }} title="Sign out">

@@ -282,19 +282,25 @@ function Sidebar({ session, onSignOut, isTauri }: {
 
         {session ? (
           <div className={cn('pt-1', isCollapsed ? 'flex flex-col items-center gap-2' : 'space-y-1')}>
-            <Link
-              to={`/profile/${session.user.id}`}
-              title={isCollapsed ? session.user.email?.split('@')[0] : undefined}
-              className={cn(
-                'flex items-center rounded-xl bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-zinc-900 dark:text-white transition-all text-xs font-bold',
-                isCollapsed ? 'p-2 justify-center' : 'gap-2.5 px-3 py-2'
-              )}
-            >
-              <span className="w-6 h-6 rounded-full bg-red-600 flex items-center justify-center text-[10px] font-black text-white shrink-0">
-                {session.user.email?.[0]?.toUpperCase() ?? '?'}
-              </span>
-              {!isCollapsed && <span className="truncate">{session.user.email?.split('@')[0]}</span>}
-            </Link>
+            {(() => {
+              const ownUsername = (typeof localStorage !== 'undefined' ? localStorage.getItem('manga-username') : null) || session.user.user_metadata?.user_name || session.user.user_metadata?.username || session.user.email?.split('@')[0]
+              const profileLink = ownUsername ? `/${ownUsername}` : '/profile/me'
+              return (
+                <Link
+                  to={profileLink}
+                  title={isCollapsed ? (ownUsername || session.user.email?.split('@')[0]) : undefined}
+                  className={cn(
+                    'flex items-center rounded-xl bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-zinc-900 dark:text-white transition-all text-xs font-bold',
+                    isCollapsed ? 'p-2 justify-center' : 'gap-2.5 px-3 py-2'
+                  )}
+                >
+                  <span className="w-6 h-6 rounded-full bg-red-600 flex items-center justify-center text-[10px] font-black text-white shrink-0">
+                    {session.user.email?.[0]?.toUpperCase() ?? '?'}
+                  </span>
+                  {!isCollapsed && <span className="truncate">{ownUsername || session.user.email?.split('@')[0]}</span>}
+                </Link>
+              )
+            })()}
             <button
               onClick={onSignOut}
               title={isCollapsed ? 'Sign out' : undefined}

@@ -15,23 +15,24 @@ var extension = {
     var doc = await _fetchDoc(_WT + '/en/search?keyword=' + encodeURIComponent(query));
     var results = [];
     var seen = {};
-    doc.querySelectorAll('.card_item, .info_area, li[class*="card"]').forEach(function(el) {
-      var a = el.querySelector('a[href*="list?title_no="], a[href*="/en/"]');
-      if (!a) return;
+    doc.querySelectorAll('a[href*="title_no="]').forEach(function(a) {
       var href = a.getAttribute('href') || '';
       var m = href.match(/title_no=(\d+)/);
       if (!m) return;
       var id = m[1];
       if (seen[id]) return;
       seen[id] = true;
-      var img = el.querySelector('img');
-      var titleEl = el.querySelector('.subj, .title, p.subj, .info_area strong');
+      var container = a.closest('li, div') || a;
+      var img = container.querySelector('img') || a.querySelector('img');
+      var titleEl = container.querySelector('.subj, .title, p.subj, strong') || a.querySelector('.subj, .title, p.subj, strong');
+      var title = (titleEl ? titleEl.textContent.trim() : '') || a.textContent.trim() || id;
+      title = title.replace(/\s+/g, ' ').trim();
       results.push({
         id: id,
-        title: titleEl ? titleEl.textContent.trim() : id,
+        title: title,
         cover_url: img ? (img.getAttribute('src') || img.getAttribute('data-src')) : null,
         provider: 'webtoons',
-        url: href,
+        url: href.startsWith('http') ? href : (_WT + href),
         status: null,
       });
     });

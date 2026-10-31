@@ -30,8 +30,11 @@ export default function MorePage() {
     }).catch(() => {})
   }, [])
 
+  const ownUsername = typeof localStorage !== 'undefined' ? (localStorage.getItem('manga-username') || (email ? email.split('@')[0] : null)) : null
+  const profilePath = ownUsername ? `/${ownUsername}` : '/profile/me'
+
   const rows: NavRow[] = [
-    { icon: User,        label: 'My Profile',      path: userId ? `/profile/${userId}` : '/login', color: 'text-red-500 dark:text-red-400' },
+    { icon: User,        label: 'My Profile',      path: email ? profilePath : '/login', color: 'text-red-500 dark:text-red-400' },
     { icon: Download,    label: 'Download Queue',  path: '/downloads',   color: 'text-emerald-600 dark:text-emerald-400' },
     { icon: Clock,       label: 'History',          path: '/history',     color: 'text-blue-500 dark:text-blue-400' },
     { icon: BarChart2,   label: 'Statistics',       path: '/stats',       color: 'text-violet-500 dark:text-violet-400' },
@@ -58,7 +61,7 @@ export default function MorePage() {
         {/* Account section */}
         {email && userId ? (
           <div 
-            onClick={() => navigate(`/profile/${userId}`)}
+            onClick={() => navigate(profilePath)}
             className="flex items-center gap-4 p-4 glass-panel border-black/5 dark:border-white/10 hover:border-red-500/30 hover:bg-black/[0.03] dark:hover:bg-white/[0.06] cursor-pointer transition-all mb-8 group"
           >
             <div className="w-11 h-11 rounded-2xl bg-red-600/20 border border-red-500/30 flex items-center justify-center font-black text-red-500 dark:text-red-400 text-xl group-hover:scale-105 transition-transform">
@@ -70,7 +73,7 @@ export default function MorePage() {
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={(e) => { e.stopPropagation(); navigate(`/profile/${userId}`) }}
+                onClick={(e) => { e.stopPropagation(); navigate(profilePath) }}
                 className="px-3 py-1.5 bg-red-600 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-lg hover:bg-red-500 transition-all cursor-pointer"
               >
                 Profile

@@ -12,6 +12,11 @@ export const KNOWN_SOURCE_HEALTH: Record<string, SourceHealthInfo> = {
     badge: 'Cloudflare',
     reason: 'Cloudflare Turnstile challenge barrier',
   },
+  bato: {
+    status: 'cloudflare',
+    badge: 'Cloudflare',
+    reason: 'Cloudflare Turnstile challenge barrier',
+  },
   scribblehub: {
     status: 'cloudflare',
     badge: 'Cloudflare',
@@ -21,6 +26,21 @@ export const KNOWN_SOURCE_HEALTH: Record<string, SourceHealthInfo> = {
     status: 'cloudflare',
     badge: 'Cloudflare',
     reason: 'Cloudflare bot challenge protection',
+  },
+  azuki: {
+    status: 'offline',
+    badge: 'Dead API',
+    reason: 'Upstream API endpoint decommissioned',
+  },
+  manhwaget: {
+    status: 'offline',
+    badge: 'Offline',
+    reason: 'Host connection failed',
+  },
+  manhwamanhua: {
+    status: 'offline',
+    badge: 'Offline',
+    reason: 'Server connection reset',
   },
   manganato: {
     status: 'offline',
@@ -44,7 +64,19 @@ export function getSourceHealth(sourceId: string): SourceHealthInfo | null {
 }
 
 const STORAGE_KEY = 'manga-dl-enabled-sources'
-const DEFAULT_SOURCES = ['mangakatana', 'mangadex', 'asurascans', 'omegascans']
+const DEFAULT_SOURCES = [
+  'mangadex',
+  'asurascans',
+  'omegascans',
+  'weebcentral',
+  'mangakatana',
+  'flamescans',
+  'mangapill',
+  'manhwatop',
+  'zinmanga',
+  's2manga',
+  'webtoons',
+]
 
 export function getEnabledSources(allAvailableSourceIds: string[]): string[] {
   try {
